@@ -135,7 +135,7 @@ int main()
 {
     auto card_manager = std::make_shared<Engine::SimpleCardManager>();
     auto game_manager = std::make_shared<Engine::DuplicateGameManager>();
-    const auto players {
+    const auto players = {
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),

@@ -81,7 +81,7 @@ private:
 
     static auto internalCheckRangesHaveEqualSize(Ranges&&... ranges)
     {
-        const auto sizes {
+        const auto sizes = {
             std::distance(std::begin(ranges), std::end(ranges))...};
         const auto first_size = sizes.begin();
         const auto n = *first_size;

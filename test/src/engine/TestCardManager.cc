@@ -66,6 +66,6 @@ TEST_F(CardManagerTest, testGetHand)
 TEST_F(CardManagerTest, testGetHandOutOfRange)
 {
     EXPECT_CALL(cardManager, handleGetNumberOfCards());
-    const auto ns {N_CARDS};
+    const auto ns = {N_CARDS};
     EXPECT_THROW(cardManager.getHand(ns.begin(), ns.end()), std::out_of_range);
 }
