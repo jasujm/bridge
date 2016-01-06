@@ -18,12 +18,12 @@ void Hand::markPlayed(const std::size_t n)
     handleMarkPlayed(checkIndex(n, n_cards));
 }
 
-boost::optional<const Card&> Hand::getCard(const std::size_t n) const
+const Card* Hand::getCard(const std::size_t n) const
 {
     if (isPlayed(n)) {
-        return boost::none;
+        return nullptr;
     }
-    return handleGetCard(n);
+    return &handleGetCard(n);
 }
 
 bool Hand::isPlayed(const std::size_t n) const

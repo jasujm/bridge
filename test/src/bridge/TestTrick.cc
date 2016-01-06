@@ -6,7 +6,6 @@
 #include "Utility.hh"
 #include "Zip.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -91,7 +90,7 @@ TEST_F(TrickTest, testPlayWhenPlayIsNotAllowed)
 
 TEST_F(TrickTest, testGetHandWhenTrickIsNotCompleted)
 {
-    EXPECT_EQ(&hands[0], trick.getHandInTurn().get_ptr());
+    EXPECT_EQ(&hands[0], trick.getHandInTurn());
 }
 
 TEST_F(TrickTest, testGetHandWhenTrickIsCompleted)
@@ -112,7 +111,7 @@ TEST_P(TrickTest, testGetWinnerWhenTrickIsCompleted)
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillOnce(Return(Trick::N_CARDS_IN_TRICK));
     EXPECT_CALL(trick, handleGetWinner()).WillOnce(ReturnRef(hand));
-    EXPECT_EQ(&hand, trick.getWinner().get_ptr());
+    EXPECT_EQ(&hand, trick.getWinner());
 }
 
 TEST_P(TrickTest, testGetCardWhenTrickIsEmpty)
@@ -126,7 +125,7 @@ TEST_P(TrickTest, testGetCardWhenTrickIsCompleted)
     const auto n = GetParam();
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillOnce(Return(Trick::N_CARDS_IN_TRICK));
-    EXPECT_EQ(&cards[n], trick.getCard(hands[n]).get_ptr());
+    EXPECT_EQ(&cards[n], trick.getCard(hands[n]));
 }
 
 INSTANTIATE_TEST_CASE_P(

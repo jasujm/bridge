@@ -12,7 +12,6 @@
 #include "Utility.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional/optional_fwd.hpp>
 
 #include <functional>
 #include <memory>
@@ -93,7 +92,7 @@ private:
 
     void handleNotify(const Engine::Shuffled&) override;
 
-    boost::optional<Player&> internalGetPlayer();
+    Player* internalGetPlayer();
 
     std::unique_ptr<Engine::BridgeEngine> engine;
     std::vector<std::shared_ptr<Player>> players;

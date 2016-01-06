@@ -2,7 +2,6 @@
 #include "bridge/BridgeConstants.hh"
 #include "MockCard.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -25,7 +24,7 @@ TEST_F(BasicHandTest, testNumberOfCards)
 TEST_P(BasicHandTest, testUnplayedCards)
 {
     const auto n = GetParam();
-    EXPECT_EQ(&cards[n], hand.getCard(n).get_ptr());
+    EXPECT_EQ(&cards[n], hand.getCard(n));
 }
 
 TEST_P(BasicHandTest, testPlayedCards)

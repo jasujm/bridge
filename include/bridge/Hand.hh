@@ -45,11 +45,12 @@ public:
      *
      * \param n index of the card to be retrieved
      *
-     * \return the nth card, or none if it has already been played
+     * \return pointer to the nth card, or nullptr if it has already been
+     * played
      *
      * \throw std::out_of_range if n >= getNumberOfCards()
      */
-    boost::optional<const Card&> getCard(std::size_t n) const;
+    const Card* getCard(std::size_t n) const;
 
     /** \brief Determine if a card has been played
      *

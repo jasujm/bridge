@@ -8,8 +8,6 @@
 
 #include "bridge/BridgeConstants.hh"
 
-#include <boost/optional/optional_fwd.hpp>
-
 #include <cstddef>
 
 namespace Bridge {
@@ -47,24 +45,24 @@ public:
 
     /** \brief Determine which hand has the turn
      *
-     * \return the hand whose turn it is to play the card, or none if the
-     * trick is completed
+     * \return pointer the hand whose turn it is to play the card, or nullptr
+     * if the trick is completed
      */
-    boost::optional<const Hand&> getHandInTurn() const;
+    const Hand* getHandInTurn() const;
 
     /** \brief Determine the winner of the trick
      *
-     * \return the hand who has won the trick, or none if the trick is not
-     * completed
+     * \return pointer to the hand who has won the trick, or nullptr if the
+     * trick is not completed
      */
-    boost::optional<const Hand&> getWinner() const;
+    const Hand* getWinner() const;
 
     /** \brief Retrieve card played by the given hand
      *
-     * \return reference to the card played, or none if the hand hasn’t yet
+     * \return pointer to the card played, or nullptr if the hand hasn’t yet
      * played a card
      */
-    boost::optional<const Card&> getCard(const Hand& hand) const;
+    const Card* getCard(const Hand& hand) const;
 
     /** \brief Determine if the trick is completed
      *

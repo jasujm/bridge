@@ -3,8 +3,6 @@
 #include "bridge/Card.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
-
 #include <cassert>
 
 namespace Bridge {
@@ -17,32 +15,31 @@ bool Trick::play(const Hand& hand, const Card& card)
         return false;
     }
     const auto hand_in_turn = getHandInTurn();
-    if (hand_in_turn.get_ptr() != &hand ||
-        !handleIsPlayAllowed(*hand_in_turn, card)) {
+    if (hand_in_turn != &hand || !handleIsPlayAllowed(*hand_in_turn, card)) {
         return false;
     }
     handleAddCardToTrick(card);
     return true;
 }
 
-boost::optional<const Hand&> Trick::getHandInTurn() const
+const Hand* Trick::getHandInTurn() const
 {
     const auto n = internalGetNumberOfCardsPlayed();
     if (n == N_CARDS_IN_TRICK) {
-        return boost::none;
+        return nullptr;
     }
-    return handleGetHand(n);
+    return &handleGetHand(n);
 }
 
-boost::optional<const Hand&> Trick::getWinner() const
+const Hand* Trick::getWinner() const
 {
     if (isCompleted()) {
-        return handleGetWinner();
+        return &handleGetWinner();
     }
-    return boost::none;
+    return nullptr;
 }
 
-boost::optional<const Card&> Trick::getCard(const Hand& hand) const
+const Card* Trick::getCard(const Hand& hand) const
 {
     // It is assumed that this is reasonably efficient:
     // - Only small number of iterations
@@ -50,10 +47,10 @@ boost::optional<const Card&> Trick::getCard(const Hand& hand) const
     const auto n = internalGetNumberOfCardsPlayed();
     for (const auto i : to(n)) {
         if (&hand == &handleGetHand(i)) {
-            return handleGetCard(i);
+            return &handleGetCard(i);
         }
     }
-    return boost::none;
+    return nullptr;
 }
 
 bool Trick::isCompleted() const

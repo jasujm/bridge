@@ -4,7 +4,6 @@
 #include "MockHand.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -62,7 +61,7 @@ TEST_F(HandTest, testMarkPlayedOutOfRange)
 TEST_P(HandTest, testGetCard)
 {
     const auto n = GetParam();
-    EXPECT_EQ(&cards[n], hand.getCard(n).get_ptr());
+    EXPECT_EQ(&cards[n], hand.getCard(n));
 }
 
 TEST_P(HandTest, testGetPlayedCard)

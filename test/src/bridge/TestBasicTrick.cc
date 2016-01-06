@@ -5,7 +5,6 @@
 #include "MockCard.hh"
 #include "MockHand.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -49,7 +48,7 @@ protected:
 TEST_F(BasicTrickTest, testTurns)
 {
     for (const auto e : zip(hands, cards)) {
-        EXPECT_EQ(&e.get<0>(), trick.getHandInTurn().get_ptr());
+        EXPECT_EQ(&e.get<0>(), trick.getHandInTurn());
         EXPECT_TRUE(trick.play(e.get<0>(), e.get<1>()));
     }
     EXPECT_FALSE(trick.getHandInTurn());
@@ -60,7 +59,7 @@ TEST_F(BasicTrickTest, testCardsPlayed)
     for (const auto e : zip(hands, cards)) {
         EXPECT_FALSE(trick.getCard(e.get<0>()));
         EXPECT_TRUE(trick.play(e.get<0>(), e.get<1>()));
-        EXPECT_EQ(&e.get<1>(), trick.getCard(e.get<0>()).get_ptr());
+        EXPECT_EQ(&e.get<1>(), trick.getCard(e.get<0>()));
     }
 }
 
@@ -92,7 +91,7 @@ TEST_F(BasicTrickTest, testHighestCardOfOriginalSuitWinsNoTrump)
         .WillByDefault(Return(true));
 
     playAll();
-    EXPECT_EQ(&hands[3], trick.getWinner().get_ptr());
+    EXPECT_EQ(&hands[3], trick.getWinner());
 }
 
 TEST_F(BasicTrickTest, testHighestTrumpWins)
@@ -103,5 +102,5 @@ TEST_F(BasicTrickTest, testHighestTrumpWins)
         .WillByDefault(Return(true));
 
     playAll();
-    EXPECT_EQ(&hands[1], trick.getWinner().get_ptr());
+    EXPECT_EQ(&hands[1], trick.getWinner());
 }

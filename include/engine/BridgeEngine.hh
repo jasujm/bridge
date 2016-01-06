@@ -150,10 +150,10 @@ public:
 
     /** \brief Retrieve the player currently in turn§
      *
-     * \return the player who is next to act, or none if the game is not in a
-     * phase where anyone would have turn
+     * \return pointer to the player who is next to act, or nullptr if the
+     * game is not in a phase where anyone would have turn
      */
-    boost::optional<const Player&> getPlayerInTurn() const;
+    const Player* getPlayerInTurn() const;
 
     /** \brief Determine the player at given position
      *
@@ -177,25 +177,26 @@ public:
      *
      * \param player the player
      *
-     * \return the hand of the given player, or none if the game is not in the
-     * deal phase
+     * \return pointer the hand of the given player, or nullptr if the game is
+     * not in the deal phase
      *
      * \throw std::out_of_range if the player is not in the current game
      */
-    boost::optional<const Hand&> getHand(const Player& player) const;
+    const Hand* getHand(const Player& player) const;
 
     /** \brief Retrieve the bidding of the current deal
      *
-     * \return bidding for the current deal, or none if the game is not in the
-     * deal phase
+     * \return pointer to the bidding for the current deal, or nullptr if the
+     * game is not in the deal phase
      */
-    boost::optional<const Bidding&> getBidding() const;
+    const Bidding* getBidding() const;
 
     /** \brief Retrieve the current trick
      *
-     * \return the current trick, or none if the play is not ongoing
+     * \return pointer to the current trick, or nullptr if the play is not
+     * ongoing
      */
-    boost::optional<const Trick&> getCurrentTrick() const;
+    const Trick* getCurrentTrick() const;
 
     /** \brief Determine the number of tricks played in the current deal
      *

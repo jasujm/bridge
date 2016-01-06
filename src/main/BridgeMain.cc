@@ -7,8 +7,6 @@
 #include "engine/MakeGameState.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
-
 #include <algorithm>
 
 namespace Bridge {
@@ -100,20 +98,20 @@ void BridgeMain::handleNotify(const Engine::Shuffled&)
         });
 }
 
-boost::optional<Player&> BridgeMain::internalGetPlayer()
+Player* BridgeMain::internalGetPlayer()
 {
     if (const auto player_in_turn = dereference(engine).getPlayerInTurn()) {
         const auto iter = std::find_if(
             players.begin(), players.end(),
-            [&](const auto& player_ptr)
+            [player_in_turn](const auto& player_ptr)
             {
-                return player_ptr.get() == player_in_turn.get_ptr();
+                return player_ptr.get() == player_in_turn;
             });
         if (iter != players.end()) {
-            return dereference(*iter);
+            return iter->get();
         }
     }
-    return boost::none;
+    return nullptr;
 }
 
 }

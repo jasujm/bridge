@@ -30,17 +30,39 @@ namespace Engine {
 
 namespace {
 
-// Helper for forwarding call if engine is in proper state
+// The following defines a helper for conditionally returning a value from a
+// method call if the BridgeEngine is in a given state. Return values of
+// methods returning by value are wrapped into boost::optional and return
+// values of methods returning by reference are returned as pointers. The
+// default values if the engine is not in the given state are then none and
+// nullptr, respectively.
+
+template<typename T>
+struct InternalCallIfInStateHelper
+{
+    using ReturnType = boost::optional<T>;
+    static ReturnType returnValue(T&& v) { return std::move(v); }
+};
+
+template<typename T>
+struct InternalCallIfInStateHelper<T&>
+{
+    using ReturnType = T*;
+    static ReturnType returnValue(T& v) { return &v; }
+};
+
 template<typename State, typename R, typename... Args1, typename... Args2>
-boost::optional<R> internalCallIfInState(
+auto internalCallIfInState(
     const BridgeEngine& engine,
     R (State::*const memfn)(Args1...) const,
     Args2&&... args)
 {
+    using Helper = InternalCallIfInStateHelper<R>;
     if (const auto* state = engine.state_cast<const State*>()) {
-        return (state->*memfn)(std::forward<Args2>(args)...);
+        return Helper::returnValue(
+            (state->*memfn)(std::forward<Args2>(args)...));
     }
-    return boost::none;
+    return typename Helper::ReturnType {};
 }
 
 }
@@ -406,16 +428,16 @@ boost::optional<Vulnerability> BridgeEngine::getVulnerability() const
     return dereference(gameManager).getVulnerability();
 }
 
-boost::optional<const Player&> BridgeEngine::getPlayerInTurn() const
+const Player* BridgeEngine::getPlayerInTurn() const
 {
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
-        return getPlayer(dereference(bidding.getPositionInTurn()));
+        return &getPlayer(dereference(bidding.getPositionInTurn()));
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
         const auto& hand = dereference(state->getTrick().getHandInTurn());
-        return getPlayer(state_cast<const InDeal&>().getPosition(hand));
+        return &getPlayer(state_cast<const InDeal&>().getPosition(hand));
     }
-    return boost::none;
+    return nullptr;
 }
 
 const Player& BridgeEngine::getPlayer(const Position position) const
@@ -430,18 +452,18 @@ Position BridgeEngine::getPosition(const Player& player) const
     return playersMap.right.at(const_cast<Player*>(&player));
 }
 
-boost::optional<const Hand&> BridgeEngine::getHand(const Player& player) const
+const Hand* BridgeEngine::getHand(const Player& player) const
 {
     const auto position = getPosition(player);
     return internalCallIfInState(*this, &InDeal::getHand, position);
 }
 
-boost::optional<const Bidding&> BridgeEngine::getBidding() const
+const Bidding* BridgeEngine::getBidding() const
 {
     return internalCallIfInState(*this, &InDeal::getBidding);
 }
 
-boost::optional<const Trick&> BridgeEngine::getCurrentTrick() const
+const Trick* BridgeEngine::getCurrentTrick() const
 {
     return internalCallIfInState(*this, &PlayingTrick::getTrick);
 }
