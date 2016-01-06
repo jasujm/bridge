@@ -20,7 +20,6 @@
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
-#include <cassert>
 #include <vector>
 
 namespace sc = boost::statechart;
@@ -63,6 +62,24 @@ auto internalCallIfInState(
             (state->*memfn)(std::forward<Args2>(args)...));
     }
     return typename Helper::ReturnType {};
+}
+
+// Helper for making bimap between positions and objects managed by smart
+// pointers
+
+template<template<typename...> class PtrType, typename RightType>
+auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
+{
+    using MapType = boost::bimaps::bimap<Position, RightType*>;
+    auto func = [](const auto& t)
+    {
+        return typename MapType::value_type {
+            t.template get<0>(), t.template get<1>().get()};
+    };
+    const auto& z = zip(POSITIONS, values);
+    return MapType(
+        boost::make_transform_iterator(z.begin(), func),
+        boost::make_transform_iterator(z.end(),   func));
 }
 
 }
@@ -122,8 +139,6 @@ public:
 
     InDeal(my_context ctx);
 
-    ~InDeal();
-
     sc::result react(const DealCompletedEvent&);
     sc::result react(const DealPassedOutEvent&);
 
@@ -138,33 +153,48 @@ public:
 
 private:
 
+    using HandsMap = boost::bimaps::bimap<Position, Hand*>;
+
+    auto internalMakeBidding();
+    auto internalMakeHands();
+
     template<typename... Args1, typename... Args2>
     sc::result internalCallAndTransit(
         void (GameManager::*memfn)(Args1...),
         Args2&&... args);
 
-    std::unique_ptr<Bidding> bidding;
-    std::vector<std::shared_ptr<Hand>> hands;
-    boost::bimaps::bimap<Position, Hand*> handsMap;
+    const std::unique_ptr<Bidding> bidding;
+    const std::vector<std::unique_ptr<Hand>> hands;
+    const HandsMap handsMap;
 };
 
-InDeal::InDeal(my_context ctx) :
-    my_base {ctx}
+auto InDeal::internalMakeBidding()
 {
-    auto& context = outermost_context();
-    auto& card_manager = dereference(context.cardManager);
-    for (const auto position : POSITIONS) {
-        const auto ns = cardsFor(position);
-        hands.emplace_back(card_manager.getHand(ns.begin(), ns.end()));
-        handsMap.insert({position, hands.back().get()});
-    }
-    assert(hands.size() == N_POSITIONS);
-    const auto& game_manager = dereference(context.gameManager);
-    const auto opener_position = dereference(game_manager.getOpenerPosition());
-    bidding = std::make_unique<BasicBidding>(opener_position);
+    const auto& game_manager = dereference(outermost_context().gameManager);
+    return std::make_unique<BasicBidding>(
+        dereference(game_manager.getOpenerPosition()));
 }
 
-InDeal::~InDeal() = default;
+auto InDeal::internalMakeHands()
+{
+    auto& card_manager = dereference(outermost_context().cardManager);
+    auto func = [&card_manager](const auto position)
+    {
+        const auto ns = cardsFor(position);
+        return card_manager.getHand(ns.begin(), ns.end());
+    };
+    return std::vector<std::unique_ptr<Hand>>(
+        boost::make_transform_iterator(POSITIONS.begin(), func),
+        boost::make_transform_iterator(POSITIONS.end(),   func));
+}
+
+InDeal::InDeal(my_context ctx) :
+    my_base {ctx},
+    bidding {internalMakeBidding()},
+    hands {internalMakeHands()},
+    handsMap {internalMakePositionMapping(hands)}
+{
+}
 
 Bidding& InDeal::getBidding()
 {
@@ -413,12 +443,9 @@ sc::result PlayingTrick::react(const PlayCardEvent& event)
 // BridgeEngine
 ////////////////////////////////////////////////////////////////////////////////
 
-void BridgeEngine::init()
+BridgeEngine::PlayersMap BridgeEngine::internalMakePlayersMap()
 {
-    for (const auto t : zip(POSITIONS, players)) {
-        playersMap.insert({t.get<0>(), t.get<1>().get()});
-    }
-    assert(playersMap.size() == N_POSITIONS);
+    return internalMakePositionMapping(players);
 }
 
 BridgeEngine::~BridgeEngine() = default;

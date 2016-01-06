@@ -214,12 +214,14 @@ public:
 
 private:
 
-    void init();
+    using PlayersMap = boost::bimaps::bimap<Position, Player*>;
 
-    std::shared_ptr<CardManager> cardManager;
-    std::shared_ptr<GameManager> gameManager;
-    std::vector<std::shared_ptr<Player>> players;
-    boost::bimaps::bimap<Position, Player*> playersMap;
+    PlayersMap internalMakePlayersMap();
+
+    const std::shared_ptr<CardManager> cardManager;
+    const std::shared_ptr<GameManager> gameManager;
+    const std::vector<std::shared_ptr<Player>> players;
+    const PlayersMap playersMap;
 
     friend class Shuffling;
     friend class InDeal;
@@ -232,9 +234,9 @@ inline BridgeEngine::BridgeEngine(
     PlayerIterator first, PlayerIterator last) :
     cardManager {std::move(cardManager)},
     gameManager {std::move(gameManager)},
-    players(first, last)
+    players(first, last),
+    playersMap {internalMakePlayersMap()}
 {
-    init();
 }
 
 /// \cond BRIDGE_ENGINE_INTERNALS

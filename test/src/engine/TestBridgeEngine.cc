@@ -91,9 +91,9 @@ protected:
 
     std::array<NiceMock<Bridge::MockCard>, N_CARDS> cards;
     std::array<std::shared_ptr<Bridge::BasicHand>, N_POSITIONS> hands;
-    std::shared_ptr<Bridge::Engine::MockCardManager> cardManager {
+    const std::shared_ptr<Bridge::Engine::MockCardManager> cardManager {
         std::make_shared<NiceMock<Bridge::Engine::MockCardManager>>()};
-    std::shared_ptr<Bridge::Engine::MockGameManager> gameManager {
+    const std::shared_ptr<Bridge::Engine::MockGameManager> gameManager {
         std::make_shared<NiceMock<Bridge::Engine::MockGameManager>>()};
     std::array<std::shared_ptr<Bridge::Player>, N_PLAYERS> players {{
         std::make_shared<Bridge::BasicPlayer>(),

@@ -5,7 +5,6 @@
 #include "engine/CardManager.hh"
 #include "bridge/Hand.hh"
 #include "engine/MakeGameState.hh"
-#include "Utility.hh"
 
 #include <algorithm>
 
@@ -44,10 +43,11 @@ BridgeMain::BridgeMain(
 
 void BridgeMain::init(Engine::CardManager& cardManager)
 {
+    assert(engine);
     cardManager.subscribe(shared_from_this());
     enqueueAndProcess(
         events,
-        [&engine = dereference(engine)]()
+        [&engine = *engine]()
         {
             engine.initiate();
         });
@@ -55,10 +55,11 @@ void BridgeMain::init(Engine::CardManager& cardManager)
 
 void BridgeMain::handleCall(const Call& call)
 {
+    assert(engine);
     if (const auto player = internalGetPlayer()) {
         enqueueAndProcess(
             events,
-            [&engine = dereference(engine), &player = *player, &call]()
+            [&engine = *engine, &player = *player, &call]()
             {
                 engine.process_event(Engine::CallEvent {player, call});
             });
@@ -67,13 +68,13 @@ void BridgeMain::handleCall(const Call& call)
 
 void BridgeMain::handlePlay(const CardType& cardType)
 {
+    assert(engine);
     if (const auto player = internalGetPlayer()) {
         if (const auto hand = engine->getHand(*player)) {
             if (const auto n_card = findFromHand(*hand, cardType)) {
                 enqueueAndProcess(
                     events,
-                    [&engine = dereference(engine),
-                     &player = *player, n_card = *n_card]()
+                    [&engine = *engine, &player = *player, n_card = *n_card]()
                     {
                         engine.process_event(
                             Engine::PlayCardEvent {player, n_card});
@@ -85,14 +86,16 @@ void BridgeMain::handlePlay(const CardType& cardType)
 
 GameState BridgeMain::handleGetState() const
 {
-    return makeGameState(dereference(engine));
+    assert(engine);
+    return makeGameState(*engine);
 }
 
 void BridgeMain::handleNotify(const Engine::Shuffled&)
 {
+    assert(engine);
     enqueueAndProcess(
         events,
-        [&engine = dereference(engine)]()
+        [&engine = *engine]()
         {
             engine.process_event(Engine::ShuffledEvent {});
         });
@@ -100,7 +103,8 @@ void BridgeMain::handleNotify(const Engine::Shuffled&)
 
 Player* BridgeMain::internalGetPlayer()
 {
-    if (const auto player_in_turn = dereference(engine).getPlayerInTurn()) {
+    assert(engine);
+    if (const auto player_in_turn = engine->getPlayerInTurn()) {
         const auto iter = std::find_if(
             players.begin(), players.end(),
             [player_in_turn](const auto& player_ptr)

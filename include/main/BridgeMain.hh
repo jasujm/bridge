@@ -94,8 +94,8 @@ private:
 
     Player* internalGetPlayer();
 
-    std::unique_ptr<Engine::BridgeEngine> engine;
-    std::vector<std::shared_ptr<Player>> players;
+    const std::unique_ptr<Engine::BridgeEngine> engine;
+    const std::vector<std::shared_ptr<Player>> players;
     EventQueue events;
 };
 
