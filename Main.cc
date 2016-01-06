@@ -19,8 +19,10 @@
 #include <memory>
 #include <vector>
 
+using namespace Bridge;
+
 template<typename CardTypeIterator>
-void printSuit(Bridge::Suit suit, CardTypeIterator first, CardTypeIterator last)
+void printSuit(Suit suit, CardTypeIterator first, CardTypeIterator last)
 {
     std::cout << suit << ": ";
     std::sort(first, last,
@@ -33,14 +35,13 @@ void printSuit(Bridge::Suit suit, CardTypeIterator first, CardTypeIterator last)
     std::cout << "\n";
 }
 
-void printCards(
-    const std::map<Bridge::Position, std::vector<Bridge::CardType>>& cards)
+void printCards(const std::map<Position, std::vector<CardType>>& cards)
 {
     for (const auto& pair : cards) {
         std::cout << pair.first << "\n";
         auto player_cards = pair.second;
         auto suit_begin = player_cards.begin();
-        for (const auto suit : Bridge::SUITS) {
+        for (const auto suit : SUITS) {
             auto suit_end = std::partition(
                 suit_begin, player_cards.end(),
                 [=](const auto& type)
@@ -53,10 +54,10 @@ void printCards(
 }
 
 void printCalls(
-    Bridge::Vulnerability vulnerability,
-    const std::vector<std::pair<Bridge::Position, Bridge::Call>>& calls)
+    Vulnerability vulnerability,
+    const std::vector<std::pair<Position, Call>>& calls)
 {
-    for (const auto position : Bridge::POSITIONS) {
+    for (const auto position : POSITIONS) {
         std::cout << position;
         if (isVulnerable(vulnerability, partnershipFor(position))) {
             std::cout << " V";
@@ -66,7 +67,7 @@ void printCalls(
     std::cout << "\n";
     auto iter = calls.begin();
     while (iter != calls.end()) {
-        for (const auto position : Bridge::POSITIONS)  {
+        for (const auto position : POSITIONS)  {
             if (iter != calls.end() && iter->first == position) {
                 std::cout << iter->second;
                 ++iter;
@@ -77,9 +78,9 @@ void printCalls(
     }
 }
 
-void printTrick(const std::map<Bridge::Position, Bridge::CardType>& trick)
+void printTrick(const std::map<Position, CardType>& trick)
 {
-    for (const auto position : Bridge::POSITIONS) {
+    for (const auto position : POSITIONS) {
         std::cout << position << ": ";
         const auto iter = trick.find(position);
         if (iter != trick.end()) {
@@ -89,13 +90,13 @@ void printTrick(const std::map<Bridge::Position, Bridge::CardType>& trick)
     }
 }
 
-void printTricksWon(const Bridge::DealResult& result)
+void printTricksWon(const DealResult& result)
 {
     std::cout << "North-South: " << result.tricksWonByNorthSouth << "\n"
               << "East-West: " << result.tricksWonByEastWest << "\n";
 }
 
-void printGameState(const Bridge::GameState& gameState)
+void printGameState(const GameState& gameState)
 {
     if (const auto& cards = gameState.cards) {
         std::cout << "\nCards:\n";
@@ -104,8 +105,7 @@ void printGameState(const Bridge::GameState& gameState)
     if (const auto& calls = gameState.calls) {
         std::cout << "\nCalls:\n";
         printCalls(
-            gameState.vulnerability.value_or(Bridge::Vulnerability::NEITHER),
-            *calls);
+            gameState.vulnerability.value_or(Vulnerability::NEITHER), *calls);
     }
     if (const auto& result = gameState.playingResult) {
         std::cout << "\nCurrent trick:\n";
@@ -115,13 +115,13 @@ void printGameState(const Bridge::GameState& gameState)
     }
 }
 
-void printScore(const Bridge::Engine::DuplicateGameManager& gameManager)
+void printScore(const Engine::DuplicateGameManager& gameManager)
 {
     std::cout << "\nScore:\n";
     std::cout << "NS\tEW\n";
     for (const auto& entry : getScoreEntries(gameManager)) {
         if (entry) {
-            if (entry->partnership == Bridge::Partnership::EAST_WEST) {
+            if (entry->partnership == Partnership::EAST_WEST) {
                 std::cout << "\t";
             }
             std::cout << entry->score << "\n";
@@ -133,8 +133,6 @@ void printScore(const Bridge::Engine::DuplicateGameManager& gameManager)
 
 int main()
 {
-    using namespace Bridge;
-
     auto card_manager = std::make_shared<Engine::SimpleCardManager>();
     auto game_manager = std::make_shared<Engine::DuplicateGameManager>();
     const auto players {
@@ -146,7 +144,8 @@ int main()
         card_manager, game_manager, players.begin(), players.end());
     Main::CommandInterpreter interpreter {*bridge_main};
 
-    for (bool go = true; go && std::cin.good(); ) {
+    auto go = true;
+    while (go && std::cin.good()) {
         const auto game_state = bridge_main->getState();
         printGameState(game_state);
         if (!game_manager->hasEnded()) {
