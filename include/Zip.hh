@@ -88,7 +88,7 @@ private:
         if (
             !std::all_of(
                 std::next(first_size), sizes.end(),
-                [&](const auto& m) { return m == n; })) {
+                [n](const auto m) { return m == n; })) {
             throw std::invalid_argument("Ranges are not equal length");
         }
         return std::forward_as_tuple(std::forward<Ranges>(ranges)...);

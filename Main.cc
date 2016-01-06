@@ -26,7 +26,8 @@ void printSuit(Suit suit, CardTypeIterator first, CardTypeIterator last)
 {
     std::cout << suit << ": ";
     std::sort(first, last,
-              [](const auto& lhs, const auto& rhs) {
+              [](const auto& lhs, const auto& rhs)
+              {
                   return lhs.rank < rhs.rank;
               });
     for (; first != last; ++first) {
@@ -44,7 +45,7 @@ void printCards(const std::map<Position, std::vector<CardType>>& cards)
         for (const auto suit : SUITS) {
             auto suit_end = std::partition(
                 suit_begin, player_cards.end(),
-                [=](const auto& type)
+                [suit](const auto& type)
                 {
                     return type.suit == suit;
                 });

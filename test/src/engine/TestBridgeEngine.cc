@@ -48,7 +48,7 @@ class BridgeEngineTest : public testing::Test {
 private:
     auto cardsForFunctor(const Bridge::Position position)
     {
-        return [this, position]() {
+        return [&cards = cards, position]() {
             auto ns = cardsFor(position);
             return std::make_unique<Bridge::BasicHand>(
                 Bridge::containerAccessIterator(ns.begin(), cards),

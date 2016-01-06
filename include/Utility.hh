@@ -69,7 +69,7 @@ decltype(auto) dereference(const T& p)
 template<typename T>
 auto compareAddress(const T& t)
 {
-    return [&](const T& t2)
+    return [&t](const T& t2)
     {
         return std::addressof(t) == std::addressof(t2);
     };
@@ -89,7 +89,10 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
 {
     return boost::make_transform_iterator(
         iter,
-        [&](auto n) -> decltype(auto) { return container.at(n); });
+        [&container](const auto n) -> decltype(auto)
+        {
+            return container.at(n);
+        });
 }
 
 /** \brief Range over integers

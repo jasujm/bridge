@@ -195,7 +195,7 @@ auto InDeal::getHands(const Position first) const
     const auto position_iter = std::find(
         positions.begin(), positions.end(), first);
     std::rotate(positions.begin(), position_iter, positions.end());
-    auto func = [&](const Position position) -> decltype(auto)
+    auto func = [this](const Position position) -> decltype(auto)
     {
         return getHand(position);
     };

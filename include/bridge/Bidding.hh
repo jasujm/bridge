@@ -206,9 +206,12 @@ private:
  */
 inline auto biddingCallIterator(const Bidding& bidding, std::size_t n)
 {
-    auto func = [&](std::size_t i) { return bidding.getCall(i); };
     return boost::make_transform_iterator(
-        boost::make_counting_iterator(n), func);
+        boost::make_counting_iterator(n),
+        [&bidding](std::size_t i)
+        {
+            return bidding.getCall(i);
+        });
 }
 
 inline auto Bidding::beginCalls() const

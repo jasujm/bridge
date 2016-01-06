@@ -47,9 +47,9 @@ void BridgeMain::init(Engine::CardManager& cardManager)
     cardManager.subscribe(shared_from_this());
     enqueueAndProcess(
         events,
-        [this]()
+        [&engine = dereference(engine)]()
         {
-            dereference(engine).initiate();
+            engine.initiate();
         });
 }
 
@@ -58,10 +58,9 @@ void BridgeMain::handleCall(const Call& call)
     if (const auto player = internalGetPlayer()) {
         enqueueAndProcess(
             events,
-            [this, player, &call]()
+            [&engine = dereference(engine), &player = *player, &call]()
             {
-                dereference(engine).process_event(
-                    Engine::CallEvent {*player, call});
+                engine.process_event(Engine::CallEvent {player, call});
             });
     }
 }
@@ -73,10 +72,11 @@ void BridgeMain::handlePlay(const CardType& cardType)
             if (const auto n_card = findFromHand(*hand, cardType)) {
                 enqueueAndProcess(
                     events,
-                    [this, player, n_card]()
+                    [&engine = dereference(engine),
+                     &player = *player, n_card = *n_card]()
                     {
-                        dereference(engine).process_event(
-                            Engine::PlayCardEvent {*player, *n_card});
+                        engine.process_event(
+                            Engine::PlayCardEvent {player, n_card});
                     });
             }
         }
@@ -92,9 +92,9 @@ void BridgeMain::handleNotify(const Engine::Shuffled&)
 {
     enqueueAndProcess(
         events,
-        [this]()
+        [&engine = dereference(engine)]()
         {
-            dereference(engine).process_event(Engine::ShuffledEvent {});
+            engine.process_event(Engine::ShuffledEvent {});
         });
 }
 

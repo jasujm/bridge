@@ -149,9 +149,12 @@ private:
  */
 inline auto handCardIterator(const Hand& hand, std::size_t n)
 {
-    auto func = [&](std::size_t i) { return hand.getCard(i); };
     return boost::make_transform_iterator(
-        boost::make_counting_iterator(n), func);
+        boost::make_counting_iterator(n),
+        [&hand](std::size_t i)
+        {
+            return hand.getCard(i);
+        });
 }
 
 inline auto Hand::beginCards() const
