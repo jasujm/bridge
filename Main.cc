@@ -21,36 +21,36 @@
 
 using namespace Bridge;
 
-template<typename CardTypeIterator>
-void printSuit(Suit suit, CardTypeIterator first, CardTypeIterator last)
+void printCards(std::vector<CardType> cards)
 {
-    std::cout << suit << ": ";
-    std::sort(first, last,
-              [](const auto& lhs, const auto& rhs)
-              {
-                  return lhs.rank < rhs.rank;
-              });
-    for (; first != last; ++first) {
-        std::cout << first->rank << " ";
+    std::sort(
+        cards.begin(), cards.end(),
+        [](const auto& type1, const auto& type2)
+        {
+            return std::make_pair(type1.suit, type1.rank) <
+                std::make_pair(type2.suit, type2.rank);
+        });
+    auto suit_begin = cards.begin();
+    for (const auto suit : SUITS) {
+        const auto suit_end = std::find_if(
+            suit_begin, cards.end(),
+            [suit](const auto& type)
+            {
+                return type.suit != suit;
+            });
+        std::cout << suit << ":";
+        for (; suit_begin != suit_end; ++suit_begin) {
+            std::cout << " " << suit_begin->rank;
+        }
+        std::cout << "\n";
     }
-    std::cout << "\n";
 }
 
-void printCards(const std::map<Position, std::vector<CardType>>& cards)
+void printAllCards(const std::map<Position, std::vector<CardType>>& all_cards)
 {
-    for (const auto& pair : cards) {
-        std::cout << pair.first << "\n";
-        auto player_cards = pair.second;
-        auto suit_begin = player_cards.begin();
-        for (const auto suit : SUITS) {
-            auto suit_end = std::partition(
-                suit_begin, player_cards.end(),
-                [suit](const auto& type)
-                {
-                    return type.suit == suit;
-                });
-            printSuit(suit, suit_begin, suit_end);
-        }
+    for (const auto& cards : all_cards) {
+        std::cout << cards.first << "\n";
+        printCards(cards.second);
     }
 }
 
@@ -101,7 +101,7 @@ void printGameState(const GameState& gameState)
 {
     if (const auto& cards = gameState.cards) {
         std::cout << "\nCards:\n";
-        printCards(*cards);
+        printAllCards(*cards);
     }
     if (const auto& calls = gameState.calls) {
         std::cout << "\nCalls:\n";
