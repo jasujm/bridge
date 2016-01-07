@@ -31,11 +31,7 @@ std::ostream& operator<<(std::ostream& os, const Doubling doubling)
 
 std::ostream& operator<<(std::ostream& os, const Contract& contract)
 {
-    std::ostream::sentry sentry {os};
-    if (sentry) {
-        os << contract.bid << " " << contract.doubling;
-    }
-    return os;
+    return os << contract.bid << " " << contract.doubling;
 }
 
 }
