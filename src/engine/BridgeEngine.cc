@@ -13,14 +13,19 @@
 #include "Utility.hh"
 #include "Zip.hh"
 
-#include <boost/logic/tribool.hpp>
+#include <boost/bimap/bimap.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/statechart/custom_reaction.hpp>
+#include <boost/statechart/event.hpp>
 #include <boost/statechart/simple_state.hpp>
+#include <boost/statechart/state.hpp>
+#include <boost/statechart/state_machine.hpp>
+#include <boost/statechart/termination.hpp>
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
-#include <vector>
+#include <functional>
 
 namespace sc = boost::statechart;
 
@@ -28,41 +33,6 @@ namespace Bridge {
 namespace Engine {
 
 namespace {
-
-// The following defines a helper for conditionally returning a value from a
-// method call if the BridgeEngine is in a given state. Return values of
-// methods returning by value are wrapped into boost::optional and return
-// values of methods returning by reference are returned as pointers. The
-// default values if the engine is not in the given state are then none and
-// nullptr, respectively.
-
-template<typename T>
-struct InternalCallIfInStateHelper
-{
-    using ReturnType = boost::optional<T>;
-    static ReturnType returnValue(T&& v) { return std::move(v); }
-};
-
-template<typename T>
-struct InternalCallIfInStateHelper<T&>
-{
-    using ReturnType = T*;
-    static ReturnType returnValue(T& v) { return &v; }
-};
-
-template<typename State, typename R, typename... Args1, typename... Args2>
-auto internalCallIfInState(
-    const BridgeEngine& engine,
-    R (State::*const memfn)(Args1...) const,
-    Args2&&... args)
-{
-    using Helper = InternalCallIfInStateHelper<R>;
-    if (const auto* state = engine.state_cast<const State*>()) {
-        return Helper::returnValue(
-            (state->*memfn)(std::forward<Args2>(args)...));
-    }
-    return typename Helper::ReturnType {};
-}
 
 // Helper for making bimap between positions and objects managed by smart
 // pointers
@@ -85,10 +55,20 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Internal events
+// Events
 ////////////////////////////////////////////////////////////////////////////////
 
-class NewTrickEvent : public sc::event<NewTrickEvent> {};
+class CallEvent : public sc::event<CallEvent> {
+public:
+    const Player& player;
+    Call call;
+    CallEvent(const Player& player, const Call& call) :
+        player {player},
+        call {call}
+    {
+    }
+};
+class GameEndedEvent : public sc::event<GameEndedEvent> {};
 class DealCompletedEvent : public sc::event<DealCompletedEvent> {
 public:
     DealResult dealResult;
@@ -98,12 +78,90 @@ public:
     }
 };
 class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {};
+class NewTrickEvent : public sc::event<NewTrickEvent> {};
+class PlayCardEvent : public sc::event<PlayCardEvent> {
+public:
+    const Player& player;
+    std::size_t card;
+    PlayCardEvent(Player& player, std::size_t card) :
+        player {player},
+        card {card}
+    {
+    }
+};
+class ShuffledEvent : public sc::event<ShuffledEvent> {};
+
+////////////////////////////////////////////////////////////////////////////////
+// BridgeEngine::Impl
+////////////////////////////////////////////////////////////////////////////////
+
+class InDeal;
+class Shuffling;
+
+class BridgeEngine::Impl :
+    public sc::state_machine<BridgeEngine::Impl, Shuffling> {
+public:
+    Impl(
+        std::shared_ptr<CardManager> cardManager,
+        std::shared_ptr<GameManager> gameManager,
+        std::vector<std::shared_ptr<Player>> players);
+
+    boost::optional<Vulnerability> getVulnerability() const;
+    const Player* getPlayerInTurn() const;
+    const Player& getPlayer(Position position) const;
+    Position getPosition(const Player& player) const;
+    const Hand* getHand(const Player& player) const;
+    const Bidding* getBidding() const;
+    const Trick* getCurrentTrick() const;
+    boost::optional<std::size_t> getNumberOfTricksPlayed() const;
+    boost::optional<DealResult> getDealResult() const;
+
+private:
+
+    template<typename T>
+    struct InternalCallIfInStateHelper;
+
+    template<typename State, typename R, typename... Args1, typename... Args2>
+    auto internalCallIfInState(
+        R (State::*const memfn)(Args1...) const,
+        Args2&&... args) const;
+
+    const std::shared_ptr<CardManager> cardManager;
+    const std::shared_ptr<GameManager> gameManager;
+    const std::vector<std::shared_ptr<Player>> players;
+    const boost::bimaps::bimap<Position, Player*> playersMap;
+
+    friend class Shuffling;
+    friend class InDeal;
+};
+
+BridgeEngine::Impl::Impl(
+    std::shared_ptr<CardManager> cardManager,
+    std::shared_ptr<GameManager> gameManager,
+    std::vector<std::shared_ptr<Player>> players) :
+    cardManager {std::move(cardManager)},
+    gameManager {std::move(gameManager)},
+    players(std::move(players)),
+    playersMap {internalMakePositionMapping(this->players)}
+{
+}
+
+// Find other method definitions later (they refer to states)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Shuffling
 ////////////////////////////////////////////////////////////////////////////////
 
-class InDeal;
+class Shuffling : public sc::state<Shuffling, BridgeEngine::Impl> {
+public:
+    using reactions = boost::mpl::list<
+        sc::custom_reaction<ShuffledEvent>,
+        sc::termination<GameEndedEvent>>;
+
+    Shuffling(my_context ctx);
+
+    sc::result react(const ShuffledEvent&);
+};
 
 Shuffling::Shuffling(my_context ctx) :
     my_base {ctx}
@@ -131,7 +189,7 @@ sc::result Shuffling::react(const ShuffledEvent&)
 
 class InBidding;
 
-class InDeal : public sc::state<InDeal, BridgeEngine, InBidding> {
+class InDeal : public sc::state<InDeal, BridgeEngine::Impl, InBidding> {
 public:
     using reactions = boost::mpl::list<
         sc::custom_reaction<DealCompletedEvent>,
@@ -440,22 +498,49 @@ sc::result PlayingTrick::react(const PlayCardEvent& event)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// BridgeEngine
+// BridgeEngine::Impl (method definitions)
 ////////////////////////////////////////////////////////////////////////////////
 
-BridgeEngine::PlayersMap BridgeEngine::internalMakePlayersMap()
+// The following defines a helper for conditionally returning a value from a
+// method call if the BridgeEngine::Impl is in a given state. Return values of
+// methods returning by value are wrapped into boost::optional and return
+// values of methods returning by reference are returned as pointers. The
+// default values if the engine is not in the given state are then none and
+// nullptr, respectively.
+
+template<typename T>
+struct BridgeEngine::Impl::InternalCallIfInStateHelper
 {
-    return internalMakePositionMapping(players);
+    using ReturnType = boost::optional<T>;
+    static ReturnType returnValue(T&& v) { return std::move(v); }
+};
+
+template<typename T>
+struct BridgeEngine::Impl::InternalCallIfInStateHelper<T&>
+{
+    using ReturnType = T*;
+    static ReturnType returnValue(T& v) { return &v; }
+};
+
+template<typename State, typename R, typename... Args1, typename... Args2>
+auto BridgeEngine::Impl::internalCallIfInState(
+    R (State::*const memfn)(Args1...) const,
+    Args2&&... args) const
+{
+    using Helper = InternalCallIfInStateHelper<R>;
+    if (const auto* state = state_cast<const State*>()) {
+        return Helper::returnValue(
+            (state->*memfn)(std::forward<Args2>(args)...));
+    }
+    return typename Helper::ReturnType {};
 }
 
-BridgeEngine::~BridgeEngine() = default;
-
-boost::optional<Vulnerability> BridgeEngine::getVulnerability() const
+boost::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
 {
     return dereference(gameManager).getVulnerability();
 }
 
-const Player* BridgeEngine::getPlayerInTurn() const
+const Player* BridgeEngine::Impl::getPlayerInTurn() const
 {
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
@@ -467,42 +552,142 @@ const Player* BridgeEngine::getPlayerInTurn() const
     return nullptr;
 }
 
-const Player& BridgeEngine::getPlayer(const Position position) const
+const Player& BridgeEngine::Impl::getPlayer(const Position position) const
 {
     const auto& player = playersMap.left.at(position);
     return dereference(player);
 }
 
-Position BridgeEngine::getPosition(const Player& player) const
+Position BridgeEngine::Impl::getPosition(const Player& player) const
 {
     // This const_cast is safe as the player is only used as key
     return playersMap.right.at(const_cast<Player*>(&player));
 }
 
-const Hand* BridgeEngine::getHand(const Player& player) const
+const Hand* BridgeEngine::Impl::getHand(const Player& player) const
 {
     const auto position = getPosition(player);
-    return internalCallIfInState(*this, &InDeal::getHand, position);
+    return internalCallIfInState(&InDeal::getHand, position);
+}
+
+const Bidding* BridgeEngine::Impl::getBidding() const
+{
+    return internalCallIfInState(&InDeal::getBidding);
+}
+
+const Trick* BridgeEngine::Impl::getCurrentTrick() const
+{
+    return internalCallIfInState(&PlayingTrick::getTrick);
+}
+
+boost::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
+{
+    return internalCallIfInState(&Playing::getNumberOfTricksPlayed);
+}
+
+boost::optional<DealResult> BridgeEngine::Impl::getDealResult() const
+{
+    return internalCallIfInState(&Playing::getDealResult);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// BridgeEngine
+////////////////////////////////////////////////////////////////////////////////
+
+BridgeEngine::BridgeEngine(
+    std::shared_ptr<CardManager> cardManager,
+    std::shared_ptr<GameManager> gameManager,
+    std::vector<std::shared_ptr<Player>> players) :
+    impl {
+        std::make_unique<Impl>(
+            std::move(cardManager),
+            std::move(gameManager),
+            std::move(players))}
+{
+}
+
+BridgeEngine::~BridgeEngine() = default;
+
+void BridgeEngine::start()
+{
+    assert(impl);
+    impl->initiate();
+}
+
+void BridgeEngine::call(const Player& player, const Call& call)
+{
+    assert(impl);
+    impl->process_event(CallEvent {player, call});
+}
+
+void BridgeEngine::play(Player& player, std::size_t card)
+{
+    assert(impl);
+    impl->process_event(PlayCardEvent {player, card});
+}
+void BridgeEngine::shuffled()
+{
+    assert(impl);
+    impl->process_event(ShuffledEvent {});
+}
+
+bool BridgeEngine::hasEnded() const
+{
+    return impl->terminated();
+}
+
+boost::optional<Vulnerability> BridgeEngine::getVulnerability() const
+{
+    assert(impl);
+    return impl->getVulnerability();
+}
+
+const Player* BridgeEngine::getPlayerInTurn() const
+{
+    assert(impl);
+    return impl->getPlayerInTurn();
+}
+
+const Player& BridgeEngine::getPlayer(const Position position) const
+{
+    assert(impl);
+    return impl->getPlayer(position);
+}
+
+Position BridgeEngine::getPosition(const Player& player) const
+{
+    assert(impl);
+    return impl->getPosition(player);
+}
+
+const Hand* BridgeEngine::getHand(const Player& player) const
+{
+    assert(impl);
+    return impl->getHand(player);
 }
 
 const Bidding* BridgeEngine::getBidding() const
 {
-    return internalCallIfInState(*this, &InDeal::getBidding);
+    assert(impl);
+    return impl->getBidding();
 }
 
 const Trick* BridgeEngine::getCurrentTrick() const
 {
-    return internalCallIfInState(*this, &PlayingTrick::getTrick);
+    assert(impl);
+    return impl->getCurrentTrick();
 }
 
 boost::optional<std::size_t> BridgeEngine::getNumberOfTricksPlayed() const
 {
-    return internalCallIfInState(*this, &Playing::getNumberOfTricksPlayed);
+    assert(impl);
+    return impl->getNumberOfTricksPlayed();
 }
 
 boost::optional<DealResult> BridgeEngine::getDealResult() const
 {
-    return internalCallIfInState(*this, &Playing::getDealResult);
+    assert(impl);
+    return impl->getDealResult();
 }
 
 }

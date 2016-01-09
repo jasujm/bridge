@@ -136,13 +136,13 @@ TEST_F(BridgeEngineTest, testBridgeGame)
         .WillRepeatedly(Return(Vulnerability::BOTH));
 
     // Startup
-    engine.initiate();
+    engine.start();
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability = Vulnerability::BOTH;
     ASSERT_EQ(expectedState, makeGameState(engine));
 
     // Shuffling
-    engine.process_event(Engine::ShuffledEvent {});
+    engine.shuffled();
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();
@@ -164,7 +164,7 @@ TEST_F(BridgeEngineTest, testBridgeGame)
         ASSERT_EQ(expectedState, makeGameState(engine));
         const auto& player = *players[e.first % players.size()];
         const auto position = engine.getPosition(player);
-        engine.process_event(Engine::CallEvent {player, e.second});
+        engine.call(player, e.second);
         expectedState.calls->emplace_back(position, e.second);
         expectedState.positionInTurn = clockwise(position);
     }
@@ -180,7 +180,7 @@ TEST_F(BridgeEngineTest, testBridgeGame)
         ASSERT_EQ(expectedState, makeGameState(engine));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
-        engine.process_event(Engine::PlayCardEvent {player, 0});
+        engine.play(player, 0);
         updateExpectedStateAfterPlay(player);
     }
 
@@ -189,7 +189,7 @@ TEST_F(BridgeEngineTest, testBridgeGame)
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
             ASSERT_EQ(expectedState, makeGameState(engine));
-            engine.process_event(Engine::PlayCardEvent {*player, i});
+            engine.play(*player, i);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();
@@ -204,12 +204,12 @@ TEST_F(BridgeEngineTest, testPassOut)
     EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(2);
     EXPECT_CALL(*gameManager, handleAddPassedOut());
 
-    engine.initiate();
-    engine.process_event(Engine::ShuffledEvent {});
+    engine.start();
+    engine.shuffled();
     for (const auto& player : players) {
-        engine.process_event(Engine::CallEvent {*player, Pass {}});
+        engine.call(*player, Pass {});
     }
-    EXPECT_FALSE(engine.terminated());
+    EXPECT_FALSE(engine.hasEnded());
 }
 
 TEST_F(BridgeEngineTest, testEndGame)
@@ -220,14 +220,14 @@ TEST_F(BridgeEngineTest, testEndGame)
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));
 
-    engine.initiate();
-    engine.process_event(Engine::ShuffledEvent {});
+    engine.start();
+    engine.shuffled();
 
     Mock::VerifyAndClearExpectations(&engine);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(true));
 
     for (const auto& player : players) {
-        engine.process_event(Engine::CallEvent {*player, Pass {}});
+        engine.call(*player, Pass {});
     }
-    EXPECT_TRUE(engine.terminated());
+    EXPECT_TRUE(engine.hasEnded());
 }

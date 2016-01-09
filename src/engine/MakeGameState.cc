@@ -77,7 +77,7 @@ GameState makeGameState(const BridgeEngine& engine)
 {
     GameState state;
 
-    if (engine.terminated()) {
+    if (engine.hasEnded()) {
         state.stage = Stage::ENDED;
         return state;
     }

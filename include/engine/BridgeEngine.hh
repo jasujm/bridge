@@ -8,16 +8,10 @@
 
 #include "bridge/Call.hh"
 
-#include <boost/bimap/bimap.hpp>
+#include <boost/core/noncopyable.hpp>
 #include <boost/optional/optional_fwd.hpp>
-#include <boost/statechart/custom_reaction.hpp>
-#include <boost/statechart/event.hpp>
-#include <boost/statechart/state.hpp>
-#include <boost/statechart/state_machine.hpp>
-#include <boost/statechart/termination.hpp>
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -42,83 +36,16 @@ namespace Engine {
 class CardManager;
 class GameManager;
 
-////////////////////////////////////////////////////////////////////////////////
-// Events
-////////////////////////////////////////////////////////////////////////////////
-
-/** \brief Event for signaling that the shuffling is completed
- */
-class ShuffledEvent : public boost::statechart::event<ShuffledEvent> {};
-
-/** \brief Event for signaling a call made by a player
- */
-class CallEvent : public boost::statechart::event<CallEvent> {
-public:
-
-    /** \brief the player who makes the call
-     */
-    std::reference_wrapper<const Player> player;
-
-    /** \brief call the call to be made
-     */
-    Call call;
-
-    /** \brief Create call event
-     *
-     * \param player the player who makes the call
-     * \param call the call to be made
-     */
-    CallEvent(const Player& player, const Call& call) :
-        player {player},
-        call {call}
-    {
-    }
-};
-
-/** \brief Event for signaling a play card made by a player
- */
-class PlayCardEvent : public boost::statechart::event<PlayCardEvent> {
-public:
-
-    /** \brief the player who plays the card
-     */
-    std::reference_wrapper<Player> player;
-
-    /** \brief the index of the card to be played
-     */
-    std::size_t card;
-
-    /** \brief Create play card event
-     *
-     * \param player the player who plays the card
-     * \param card the index of the card to be played
-     */
-    PlayCardEvent(Player& player, std::size_t card) :
-        player {player},
-        card {card}
-    {
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// State machine
-////////////////////////////////////////////////////////////////////////////////
-
-class Shuffling;
-class InDeal;
-
 /** \brief The main state machine for handling a single instance of bridge game
  *
  * The responsibility of BridgeEngine is to orchestrate a game according to
  * the contract bridge rules. Some of the input and output of the engine is
  * handled by delegating to managers.
  *
- * The BridgeEngine uses Boost Statechart library. See
- * http://www.boost.org/doc/libs/1_60_0/libs/statechart/doc/index.html for the
- * documentation of Statechart.
+ * \todo Add reporting failures (plays out of turns, calls that are against
+ * rules etc.) using error codes or some other mechanism.
  */
-class BridgeEngine :
-        public boost::statechart::state_machine<BridgeEngine, Shuffling> {
+class BridgeEngine : private boost::noncopyable {
 public:
 
     /** \brief Create new bridge engine
@@ -140,6 +67,44 @@ public:
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
     ~BridgeEngine();
+
+    /** \brief Start the game
+     */
+    void start();
+
+    /** \brief Make call
+     *
+     * Announce that \p player wants to make \p call. This method does nothing
+     * if the call fails for any reason. If the method throws an exception,
+     * the state machine is in unspecified state.
+     *
+     * \param player the player who wants to make the call
+     * \param call the call to be made
+     */
+    void call(const Player& player, const Call& call);
+
+    /** \brief Play card
+     *
+     * Announce that \p player wants to play \p card. This method does nothing
+     * if the call fails for any reason. If the method throws an exception,
+     * the state machine is in unspecified state.
+     *
+     * \param player the player who wants to make the call
+     * \param card the index referring to a card in the hand of \p player
+     */
+    void play(Player& player, std::size_t card);
+
+    /**
+     * \todo Temporary solution. This notification should be handled
+     * internally.
+     */
+    void shuffled();
+
+    /** \brief Determine if the game has ended
+     *
+     * \return true if the game has ended, false otherwise
+     */
+    bool hasEnded() const;
 
     /** \brief Retrieve the vulnerability of the current deal
      *
@@ -212,19 +177,15 @@ public:
      */
     boost::optional<DealResult> getDealResult() const;
 
+    class Impl;
+
 private:
 
-    using PlayersMap = boost::bimaps::bimap<Position, Player*>;
-
-    PlayersMap internalMakePlayersMap();
-
-    const std::shared_ptr<CardManager> cardManager;
-    const std::shared_ptr<GameManager> gameManager;
-    const std::vector<std::shared_ptr<Player>> players;
-    const PlayersMap playersMap;
-
-    friend class Shuffling;
-    friend class InDeal;
+    BridgeEngine(
+        std::shared_ptr<CardManager> cardManager,
+        std::shared_ptr<GameManager> gameManager,
+        std::vector<std::shared_ptr<Player>> players);
+    const std::unique_ptr<Impl> impl;
 };
 
 template<typename PlayerIterator>
@@ -232,31 +193,12 @@ inline BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager,
     PlayerIterator first, PlayerIterator last) :
-    cardManager {std::move(cardManager)},
-    gameManager {std::move(gameManager)},
-    players(first, last),
-    playersMap {internalMakePlayersMap()}
+    BridgeEngine {
+        std::move(cardManager),
+        std::move(gameManager),
+        std::vector<std::shared_ptr<Player>>(first, last)}
 {
 }
-
-/// \cond BRIDGE_ENGINE_INTERNALS
-
-class GameEndedEvent : public boost::statechart::event<GameEndedEvent> {};
-
-// Definition of the starting state must be visible when instantiating
-// BridgeEngine
-class Shuffling : public boost::statechart::state<Shuffling, BridgeEngine> {
-public:
-    using reactions = boost::mpl::list<
-        boost::statechart::custom_reaction<ShuffledEvent>,
-        boost::statechart::termination<GameEndedEvent>>;
-
-    Shuffling(my_context ctx);
-
-    boost::statechart::result react(const ShuffledEvent&);
-};
-
-/// \endcond
 
 }
 }

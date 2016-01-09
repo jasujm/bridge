@@ -49,7 +49,7 @@ void BridgeMain::init(Engine::CardManager& cardManager)
         events,
         [&engine = *engine]()
         {
-            engine.initiate();
+            engine.start();
         });
 }
 
@@ -61,7 +61,7 @@ void BridgeMain::handleCall(const Call& call)
             events,
             [&engine = *engine, &player = *player, &call]()
             {
-                engine.process_event(Engine::CallEvent {player, call});
+                engine.call(player, call);
             });
     }
 }
@@ -76,8 +76,7 @@ void BridgeMain::handlePlay(const CardType& cardType)
                     events,
                     [&engine = *engine, &player = *player, n_card = *n_card]()
                     {
-                        engine.process_event(
-                            Engine::PlayCardEvent {player, n_card});
+                        engine.play(player, n_card);
                     });
             }
         }
@@ -97,7 +96,7 @@ void BridgeMain::handleNotify(const Engine::Shuffled&)
         events,
         [&engine = *engine]()
         {
-            engine.process_event(Engine::ShuffledEvent {});
+            engine.shuffled();
         });
 }
 
