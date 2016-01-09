@@ -6,8 +6,8 @@
 #ifndef MAIN_BRIDGEMAIN_HH_
 #define MAIN_BRIDGEMAIN_HH_
 
-#include "bridge/BridgeGame.hh"
 #include "engine/BridgeEngine.hh"
+#include "main/BridgeController.hh"
 #include "Utility.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -17,6 +17,7 @@
 
 namespace Bridge {
 
+class GameState;
 class Player;
 
 namespace Engine {
@@ -37,7 +38,7 @@ namespace Main {
  * thread. It has the main responsibility of managing the business logic and
  * other services such as protocols etc.
  */
-class BridgeMain : public BridgeGame, private boost::noncopyable {
+class BridgeMain : public BridgeController, private boost::noncopyable {
 public:
 
     /** \brief Create bridge main
@@ -61,13 +62,17 @@ public:
         std::shared_ptr<Engine::GameManager> gameManager,
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
+    /** \brief Determine game state
+     *
+     * \return GameState object describing the current game state
+     */
+    GameState getState() const;
+
 private:
 
     void handleCall(const Call& call) override;
 
     void handlePlay(const CardType& cardType) override;
-
-    GameState handleGetState() const override;
 
     Player* internalGetPlayer();
 

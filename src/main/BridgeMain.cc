@@ -1,15 +1,21 @@
 #include "main/BridgeMain.hh"
 
 #include "bridge/GameState.hh"
+#include "bridge/Hand.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/CardManager.hh"
-#include "bridge/Hand.hh"
 #include "engine/MakeGameState.hh"
 
 #include <algorithm>
 
 namespace Bridge {
 namespace Main {
+
+GameState BridgeMain::getState() const
+{
+    assert(engine);
+    return makeGameState(*engine);
+}
 
 void BridgeMain::handleCall(const Call& call)
 {
@@ -29,12 +35,6 @@ void BridgeMain::handlePlay(const CardType& cardType)
             }
         }
     }
-}
-
-GameState BridgeMain::handleGetState() const
-{
-    assert(engine);
-    return makeGameState(*engine);
 }
 
 Player* BridgeMain::internalGetPlayer()

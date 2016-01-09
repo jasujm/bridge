@@ -1,8 +1,8 @@
 #include "main/CommandInterpreter.hh"
 
-#include "bridge/BridgeGame.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
+#include "main/BridgeController.hh"
 
 #include <boost/optional/optional.hpp>
 
@@ -45,7 +45,7 @@ boost::optional<CardType> interpretCardType(std::istringstream& is)
 
 }
 
-CommandInterpreter::CommandInterpreter(BridgeGame& game) :
+CommandInterpreter::CommandInterpreter(BridgeController& game) :
     game {game}
 {
 }

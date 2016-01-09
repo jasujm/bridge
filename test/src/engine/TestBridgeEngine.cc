@@ -123,7 +123,7 @@ TEST_F(BridgeEngineTest, testPlayers)
     }
 }
 
-TEST_F(BridgeEngineTest, testBridgeGame)
+TEST_F(BridgeEngineTest, testBridgeController)
 {
     // TODO: Could this test be less ugly?
     using namespace Bridge;

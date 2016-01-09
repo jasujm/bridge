@@ -12,25 +12,26 @@
 
 namespace Bridge {
 
-class BridgeGame;
+class BridgeController;
 
 namespace Main {
 
-/** \brief A helper for parsing command strings to be forwarded to BridgeGame
+/** \brief A helper for parsing command strings to be forwarded to
+ * BridgeController
  */
 class CommandInterpreter : private boost::noncopyable {
 public:
 
     /** \brief  Create command interpreter
      *
-     * \note CommandInterpreter borrows reference to the given BridgeGame
+     * \note CommandInterpreter borrows reference to the given BridgeController
      * object. The user of this class in responsible for ensuring that the
-     * lifetime of the BridgeGame instance exceeds the lifetime of the command
+     * lifetime of the BridgeController instance exceeds the lifetime of the command
      * interpreter.
      *
      * \param game the game object the commands are forwarded to
      */
-    CommandInterpreter(BridgeGame& game);
+    CommandInterpreter(BridgeController& game);
 
     /** \brief Interpret given command
      *
@@ -46,7 +47,7 @@ public:
 
 private:
 
-    BridgeGame& game;
+    BridgeController& game;
 };
 
 

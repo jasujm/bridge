@@ -2,39 +2,39 @@
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "main/CommandInterpreter.hh"
-#include "MockBridgeGame.hh"
+#include "MockBridgeController.hh"
 
 #include <gtest/gtest.h>
 
 class CommandInterpreterTest : public testing::Test
 {
 protected:
-    testing::StrictMock<Bridge::MockBridgeGame> game;
-    Bridge::Main::CommandInterpreter interpreter {game};
+    testing::StrictMock<Bridge::MockBridgeController> controller;
+    Bridge::Main::CommandInterpreter interpreter {controller};
 };
 
 TEST_F(CommandInterpreterTest, testPass)
 {
-    EXPECT_CALL(game, handleCall(Bridge::Call {Bridge::Pass {}}));
+    EXPECT_CALL(controller, handleCall(Bridge::Call {Bridge::Pass {}}));
     EXPECT_TRUE(interpreter.interpret("call pass"));
 }
 
 TEST_F(CommandInterpreterTest, testDouble)
 {
-    EXPECT_CALL(game, handleCall(Bridge::Call {Bridge::Double {}}));
+    EXPECT_CALL(controller, handleCall(Bridge::Call {Bridge::Double {}}));
     EXPECT_TRUE(interpreter.interpret("call double"));
 }
 
 TEST_F(CommandInterpreterTest, testRedouble)
 {
-    EXPECT_CALL(game, handleCall(Bridge::Call {Bridge::Redouble {}}));
+    EXPECT_CALL(controller, handleCall(Bridge::Call {Bridge::Redouble {}}));
     EXPECT_TRUE(interpreter.interpret("call redouble"));
 }
 
 TEST_F(CommandInterpreterTest, testBid)
 {
     constexpr Bridge::Bid bid {1, Bridge::Strain::CLUBS};
-    EXPECT_CALL(game, handleCall(Bridge::Call {bid}));
+    EXPECT_CALL(controller, handleCall(Bridge::Call {bid}));
     EXPECT_TRUE(interpreter.interpret("call bid 1 clubs"));
 }
 
@@ -70,7 +70,7 @@ TEST_F(CommandInterpreterTest, testInvalidCommand)
 
 TEST_F(CommandInterpreterTest, testPlay)
 {
-    EXPECT_CALL(game, handlePlay(
+    EXPECT_CALL(controller, handlePlay(
                     Bridge::CardType {
                         Bridge::Rank::ACE, Bridge::Suit::SPADES}));
     EXPECT_TRUE(interpreter.interpret("play ace spades"));

@@ -1,19 +1,18 @@
 /** \file
  *
- * \brief Definition of Bridge::BridgeGame interface
+ * \brief Definition of Bridge::BridgeController interface
  */
 
-#ifndef BRIDGEGAME_HH_
-#define BRIDGEGAME_HH_
+#ifndef MAIN_BRIDGECONTROLLER_HH_
+#define MAIN_BRIDGECONTROLLER_HH_
 
 #include "bridge/Call.hh"
 
 namespace Bridge {
 
 struct CardType;
-struct GameState;
 
-/** \brief High level interface for controlling a bridge game
+/** \brief Interface for controlling a bridge game
  *
  * The commands given using this interface are expected to come from the
  * active player. In a multiplayer bridge game that is the local player,
@@ -21,11 +20,11 @@ struct GameState;
  * remote player are expected to come from different sources, i.e. through
  * some other interface, message queue etc.
  */
-class BridgeGame
+class BridgeController
 {
 public:
 
-    virtual ~BridgeGame();
+    virtual ~BridgeController();
 
     /** \brief Make call for the current player
      *
@@ -38,10 +37,6 @@ public:
      * \param cardType the type of the card to be played
      */
     void play(const CardType& cardType);
-
-    /** \brief Determine game state
-     */
-    GameState getState() const;
 
 private:
 
@@ -56,14 +51,8 @@ private:
      * \sa play()
      */
     virtual void handlePlay(const CardType& cardType) = 0;
-
-    /** \brief Handle for determining the current game state
-     *
-     * \sa getState()
-     */
-    virtual GameState handleGetState() const = 0;
 };
 
 }
 
-#endif // BRIDGEGAME_HH_
+#endif // MAIN_BRIDGECONTROLLER_HH_
