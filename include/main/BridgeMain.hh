@@ -8,14 +8,11 @@
 
 #include "bridge/BridgeGame.hh"
 #include "engine/BridgeEngine.hh"
-#include "Observer.hh"
 #include "Utility.hh"
 
 #include <boost/core/noncopyable.hpp>
 
-#include <functional>
 #include <memory>
-#include <queue>
 #include <vector>
 
 namespace Bridge {
@@ -25,7 +22,6 @@ class Player;
 namespace Engine {
 class CardManager;
 class GameManager;
-struct Shuffled;
 }
 
 /** \brief Services for the main game component
@@ -41,19 +37,8 @@ namespace Main {
  * thread. It has the main responsibility of managing the business logic and
  * other services such as protocols etc.
  */
-class BridgeMain : public BridgeGame,
-                   public Observer<Engine::Shuffled>,
-                   public std::enable_shared_from_this<BridgeMain>,
-                   private boost::noncopyable {
+class BridgeMain : public BridgeGame, private boost::noncopyable {
 public:
-
-    /** \brief Event queue used by BridgeMain
-     *
-     * \todo This is a temporary solution used to deal with non‐re‐entrancy of
-     * the Statechart library used to implement BridgeEngine. It is not thread
-     * safe and thus should be remove once obsolete.
-     */
-    using EventQueue = std::queue<std::function<void()>>;
 
     /** \brief Create bridge main
      *
@@ -71,18 +56,12 @@ public:
      * \sa Bridge::Engine::BridgeEngine::BridgeEngine
      */
     template<typename PlayerIterator>
-    static std::shared_ptr<BridgeMain> makeBridgeMain(
+    BridgeMain(
         std::shared_ptr<Engine::CardManager> cardManager,
         std::shared_ptr<Engine::GameManager> gameManager,
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
 private:
-
-    BridgeMain(
-        std::unique_ptr<Engine::BridgeEngine> engine,
-        std::vector<std::shared_ptr<Player>> players);
-
-    void init(Engine::CardManager& cardManager);
 
     void handleCall(const Call& call) override;
 
@@ -90,32 +69,23 @@ private:
 
     GameState handleGetState() const override;
 
-    void handleNotify(const Engine::Shuffled&) override;
-
     Player* internalGetPlayer();
 
     const std::unique_ptr<Engine::BridgeEngine> engine;
     const std::vector<std::shared_ptr<Player>> players;
-    EventQueue events;
 };
 
 template<typename PlayerIterator>
-std::shared_ptr<BridgeMain> BridgeMain::makeBridgeMain(
+BridgeMain::BridgeMain(
     std::shared_ptr<Engine::CardManager> cardManager,
     std::shared_ptr<Engine::GameManager> gameManager,
-    PlayerIterator firstPlayer, PlayerIterator lastPlayer)
+    PlayerIterator firstPlayer, PlayerIterator lastPlayer) :
+    engine {
+        std::make_unique<Engine::BridgeEngine>(
+            std::move(cardManager), std::move(gameManager),
+            firstPlayer, lastPlayer)},
+    players(firstPlayer, lastPlayer)
 {
-    auto& card_manager = dereference(cardManager);
-    auto engine = std::make_unique<Engine::BridgeEngine>(
-        std::move(cardManager), std::move(gameManager),
-        firstPlayer, lastPlayer);
-    // Can't use make_shared because because constructor is private
-    auto main = std::shared_ptr<BridgeMain>{
-        new BridgeMain {
-            std::move(engine),
-            std::vector<std::shared_ptr<Player>>(firstPlayer, lastPlayer)}};
-    main->init(card_manager);
-    return main;
 }
 
 }

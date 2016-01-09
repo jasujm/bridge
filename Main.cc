@@ -141,13 +141,13 @@ int main()
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()};
-    auto bridge_main = Main::BridgeMain::makeBridgeMain(
-        card_manager, game_manager, players.begin(), players.end());
-    Main::CommandInterpreter interpreter {*bridge_main};
+    Main::BridgeMain bridge_main {
+        card_manager, game_manager, players.begin(), players.end()};
+    Main::CommandInterpreter interpreter {bridge_main};
 
     auto go = true;
     while (go && std::cin.good()) {
-        const auto game_state = bridge_main->getState();
+        const auto game_state = bridge_main.getState();
         printGameState(game_state);
         if (!game_manager->hasEnded()) {
             if (const auto position_in_turn = game_state.positionInTurn) {

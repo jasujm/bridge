@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <queue>
 
 namespace sc = boost::statechart;
 
@@ -99,12 +100,20 @@ class InDeal;
 class Shuffling;
 
 class BridgeEngine::Impl :
-    public sc::state_machine<BridgeEngine::Impl, Shuffling> {
+    public sc::state_machine<BridgeEngine::Impl, Shuffling>,
+    public Observer<Engine::Shuffled> {
 public:
+    using EventQueue = std::queue<std::function<void()>>;
+
     Impl(
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
+
+    void enqueueAndProcess(const EventQueue::value_type event);
+
+    CardManager& getCardManager() { return dereference(cardManager); }
+    GameManager& getGameManager() { return dereference(gameManager); }
 
     boost::optional<Vulnerability> getVulnerability() const;
     const Player* getPlayerInTurn() const;
@@ -126,13 +135,15 @@ private:
         R (State::*const memfn)(Args1...) const,
         Args2&&... args) const;
 
+    void processQueue();
+
+    void handleNotify(const Engine::Shuffled&) override;
+
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
-
-    friend class Shuffling;
-    friend class InDeal;
+    EventQueue events;
 };
 
 BridgeEngine::Impl::Impl(
@@ -167,16 +178,16 @@ Shuffling::Shuffling(my_context ctx) :
     my_base {ctx}
 {
     auto& context = outermost_context();
-    if (dereference(context.gameManager).hasEnded()) {
+    if (context.getGameManager().hasEnded()) {
         post_event(GameEndedEvent {});
     } else {
-        dereference(context.cardManager).requestShuffle();
+        context.getCardManager().requestShuffle();
     }
 }
 
 sc::result Shuffling::react(const ShuffledEvent&)
 {
-    const auto& card_manager = dereference(outermost_context().cardManager);
+    const auto& card_manager = outermost_context().getCardManager();
     if (card_manager.getNumberOfCards() == N_CARDS) {
         return transit<InDeal>();
     }
@@ -228,14 +239,14 @@ private:
 
 auto InDeal::internalMakeBidding()
 {
-    const auto& game_manager = dereference(outermost_context().gameManager);
+    const auto& game_manager = outermost_context().getGameManager();
     return std::make_unique<BasicBidding>(
         dereference(game_manager.getOpenerPosition()));
 }
 
 auto InDeal::internalMakeHands()
 {
-    auto& card_manager = dereference(outermost_context().cardManager);
+    auto& card_manager = outermost_context().getCardManager();
     auto func = [&card_manager](const auto position)
     {
         const auto ns = cardsFor(position);
@@ -325,7 +336,7 @@ sc::result InDeal::internalCallAndTransit(
     void (GameManager::*const memfn)(Args1...),
     Args2&&... args)
 {
-    auto& game_manager = dereference(outermost_context().gameManager);
+    auto& game_manager = outermost_context().getGameManager();
     (game_manager.*memfn)(std::forward<Args2>(args)...);
     return transit<Shuffling>();
 }
@@ -590,45 +601,74 @@ boost::optional<DealResult> BridgeEngine::Impl::getDealResult() const
     return internalCallIfInState(&Playing::getDealResult);
 }
 
+void BridgeEngine::Impl::enqueueAndProcess(
+    const BridgeEngine::Impl::EventQueue::value_type event)
+{
+    events.emplace(std::move(event));
+    if (events.size() == 1) { // if queue was empty
+        processQueue();
+    }
+}
+
+void BridgeEngine::Impl::processQueue()
+{
+    while (!events.empty()) {
+        (events.front())();
+        events.pop();
+    }
+}
+
+void BridgeEngine::Impl::handleNotify(const Engine::Shuffled&)
+{
+    enqueueAndProcess(
+        [this]()
+        {
+            process_event(ShuffledEvent {});
+        });
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BridgeEngine
 ////////////////////////////////////////////////////////////////////////////////
 
-BridgeEngine::BridgeEngine(
+std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager,
-    std::vector<std::shared_ptr<Player>> players) :
-    impl {
-        std::make_unique<Impl>(
-            std::move(cardManager),
-            std::move(gameManager),
-            std::move(players))}
+    std::vector<std::shared_ptr<Player>> players)
 {
+    auto impl = std::make_shared<Impl>(
+        std::move(cardManager),
+        std::move(gameManager),
+        std::move(players));
+    impl->getCardManager().subscribe(impl);
+    impl->enqueueAndProcess(
+        [&impl = *impl]()
+        {
+            impl.initiate();
+        });
+    return impl;
 }
 
 BridgeEngine::~BridgeEngine() = default;
 
-void BridgeEngine::start()
-{
-    assert(impl);
-    impl->initiate();
-}
-
 void BridgeEngine::call(const Player& player, const Call& call)
 {
     assert(impl);
-    impl->process_event(CallEvent {player, call});
+    impl->enqueueAndProcess(
+        [&impl = *impl, &player, &call]()
+        {
+            impl.process_event(CallEvent {player, call});
+        });
 }
 
 void BridgeEngine::play(Player& player, std::size_t card)
 {
     assert(impl);
-    impl->process_event(PlayCardEvent {player, card});
-}
-void BridgeEngine::shuffled()
-{
-    assert(impl);
-    impl->process_event(ShuffledEvent {});
+    impl->enqueueAndProcess(
+        [&impl = *impl, &player, card]()
+        {
+            impl.process_event(PlayCardEvent {player, card});
+        });
 }
 
 bool BridgeEngine::hasEnded() const

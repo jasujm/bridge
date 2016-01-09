@@ -11,73 +11,21 @@
 namespace Bridge {
 namespace Main {
 
-namespace {
-
-void processQueue(BridgeMain::EventQueue& queue)
-{
-    while (!queue.empty()) {
-        (queue.front())();
-        queue.pop();
-    }
-}
-
-void enqueueAndProcess(
-    BridgeMain::EventQueue& queue,
-    const BridgeMain::EventQueue::value_type event)
-{
-    queue.emplace(std::move(event));
-    if (queue.size() == 1) { // if queue was empty
-        processQueue(queue);
-    }
-}
-
-}
-
-BridgeMain::BridgeMain(
-    std::unique_ptr<Engine::BridgeEngine> engine,
-    std::vector<std::shared_ptr<Player>> players) :
-    engine {std::move(engine)},
-    players {std::move(players)}
-{
-}
-
-void BridgeMain::init(Engine::CardManager& cardManager)
-{
-    assert(engine);
-    cardManager.subscribe(shared_from_this());
-    enqueueAndProcess(
-        events,
-        [&engine = *engine]()
-        {
-            engine.start();
-        });
-}
-
 void BridgeMain::handleCall(const Call& call)
 {
-    assert(engine);
     if (const auto player = internalGetPlayer()) {
-        enqueueAndProcess(
-            events,
-            [&engine = *engine, &player = *player, &call]()
-            {
-                engine.call(player, call);
-            });
+        assert(engine);
+        engine->call(*player, call);
     }
 }
 
 void BridgeMain::handlePlay(const CardType& cardType)
 {
-    assert(engine);
     if (const auto player = internalGetPlayer()) {
+        assert(engine);
         if (const auto hand = engine->getHand(*player)) {
             if (const auto n_card = findFromHand(*hand, cardType)) {
-                enqueueAndProcess(
-                    events,
-                    [&engine = *engine, &player = *player, n_card = *n_card]()
-                    {
-                        engine.play(player, n_card);
-                    });
+                engine->play(*player, *n_card);
             }
         }
     }
@@ -87,17 +35,6 @@ GameState BridgeMain::handleGetState() const
 {
     assert(engine);
     return makeGameState(*engine);
-}
-
-void BridgeMain::handleNotify(const Engine::Shuffled&)
-{
-    assert(engine);
-    enqueueAndProcess(
-        events,
-        [&engine = *engine]()
-        {
-            engine.shuffled();
-        });
 }
 
 Player* BridgeMain::internalGetPlayer()

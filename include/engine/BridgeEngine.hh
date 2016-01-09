@@ -68,10 +68,6 @@ public:
 
     ~BridgeEngine();
 
-    /** \brief Start the game
-     */
-    void start();
-
     /** \brief Make call
      *
      * Announce that \p player wants to make \p call. This method does nothing
@@ -93,12 +89,6 @@ public:
      * \param card the index referring to a card in the hand of \p player
      */
     void play(Player& player, std::size_t card);
-
-    /**
-     * \todo Temporary solution. This notification should be handled
-     * internally.
-     */
-    void shuffled();
 
     /** \brief Determine if the game has ended
      *
@@ -181,11 +171,11 @@ public:
 
 private:
 
-    BridgeEngine(
+    static std::shared_ptr<Impl> makeImpl(
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
-    const std::unique_ptr<Impl> impl;
+    const std::shared_ptr<Impl> impl;
 };
 
 template<typename PlayerIterator>
@@ -193,10 +183,11 @@ inline BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager,
     PlayerIterator first, PlayerIterator last) :
-    BridgeEngine {
-        std::move(cardManager),
-        std::move(gameManager),
-        std::vector<std::shared_ptr<Player>>(first, last)}
+    impl {
+        makeImpl(
+            std::move(cardManager),
+            std::move(gameManager),
+            std::vector<std::shared_ptr<Player>>(first, last))}
 {
 }
 

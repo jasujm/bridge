@@ -71,11 +71,15 @@ protected:
         }
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
+        EXPECT_CALL(*cardManager, handleRequestShuffle());
+        engine = std::make_unique<Bridge::Engine::BridgeEngine>(
+            cardManager, gameManager, players.begin(), players.end());
+        Mock::VerifyAndClearExpectations(engine.get());
     }
 
     void updateExpectedStateAfterPlay(const Bridge::Player& player)
     {
-        const auto position = engine.getPosition(player);
+        const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
         expectedState.positionInTurn = clockwise(position);
         expectedState.playingResult->currentTrick.emplace(
@@ -100,8 +104,7 @@ protected:
         std::make_shared<Bridge::BasicPlayer>(),
         std::make_shared<Bridge::BasicPlayer>(),
         std::make_shared<Bridge::BasicPlayer>()}};
-    Bridge::Engine::BridgeEngine engine {
-        cardManager, gameManager, players.begin(), players.end()};
+    std::unique_ptr<Bridge::Engine::BridgeEngine> engine;
     Bridge::GameState expectedState;
 };
 
@@ -116,7 +119,7 @@ TEST_F(BridgeEngineTest, testInvalidConstruction)
 TEST_F(BridgeEngineTest, testPlayers)
 {
     for (const auto position : Bridge::POSITIONS) {
-        EXPECT_EQ(position, engine.getPosition(engine.getPlayer(position)));
+        EXPECT_EQ(position, engine->getPosition(engine->getPlayer(position)));
     }
 }
 
@@ -126,7 +129,7 @@ TEST_F(BridgeEngineTest, testBridgeGame)
     using namespace Bridge;
     constexpr Bid BID {7, Strain::CLUBS};
 
-    EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(AtLeast(1));
+    EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
         *gameManager, handleAddResult(
             Partnership::EAST_WEST, Contract {BID, Doubling::UNDOUBLED}, 0));
@@ -136,20 +139,20 @@ TEST_F(BridgeEngineTest, testBridgeGame)
         .WillRepeatedly(Return(Vulnerability::BOTH));
 
     // Startup
-    engine.start();
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability = Vulnerability::BOTH;
-    ASSERT_EQ(expectedState, makeGameState(engine));
+    ASSERT_EQ(expectedState, makeGameState(*engine));
 
     // Shuffling
-    engine.shuffled();
+    cardManager->notifyAll(Engine::Shuffled {});
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();
     expectedState.calls.emplace();
     for (const auto position : POSITIONS) {
         // TODO: Make this prettier
-        const auto hand = engine.getHand(engine.getPlayer(position));
+        const auto hand = engine->getHand(engine->getPlayer(position));
+        ASSERT_TRUE(hand);
         auto card_types = std::vector<CardType> {};
         for (const auto& card : cardsIn(*hand)) {
             card_types.emplace_back(*card->getType());
@@ -161,10 +164,10 @@ TEST_F(BridgeEngineTest, testBridgeGame)
     const auto calls = std::vector<Call>{
         Pass {}, BID, Pass {}, Pass {}, Pass {}};
     for (const auto e : enumerate(calls)) {
-        ASSERT_EQ(expectedState, makeGameState(engine));
+        ASSERT_EQ(expectedState, makeGameState(*engine));
         const auto& player = *players[e.first % players.size()];
-        const auto position = engine.getPosition(player);
-        engine.call(player, e.second);
+        const auto position = engine->getPosition(player);
+        engine->call(player, e.second);
         expectedState.calls->emplace_back(position, e.second);
         expectedState.positionInTurn = clockwise(position);
     }
@@ -177,10 +180,10 @@ TEST_F(BridgeEngineTest, testBridgeGame)
     expectedState.playingResult = GameState::PlayingResult {
         std::map<Position, CardType>(), DealResult {0, 0}};
     for (const auto i : to(players.size())) {
-        ASSERT_EQ(expectedState, makeGameState(engine));
+        ASSERT_EQ(expectedState, makeGameState(*engine));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
-        engine.play(player, 0);
+        engine->play(player, 0);
         updateExpectedStateAfterPlay(player);
     }
 
@@ -188,8 +191,8 @@ TEST_F(BridgeEngineTest, testBridgeGame)
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
-            ASSERT_EQ(expectedState, makeGameState(engine));
-            engine.play(*player, i);
+            ASSERT_EQ(expectedState, makeGameState(*engine));
+            engine->play(*player, i);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();
@@ -201,15 +204,14 @@ TEST_F(BridgeEngineTest, testPassOut)
     using namespace Bridge;
 
     // Two deals as game does not end
-    EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(2);
+    EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(*gameManager, handleAddPassedOut());
 
-    engine.start();
-    engine.shuffled();
+    cardManager->notifyAll(Engine::Shuffled {});
     for (const auto& player : players) {
-        engine.call(*player, Pass {});
+        engine->call(*player, Pass {});
     }
-    EXPECT_FALSE(engine.hasEnded());
+    EXPECT_FALSE(engine->hasEnded());
 }
 
 TEST_F(BridgeEngineTest, testEndGame)
@@ -217,17 +219,16 @@ TEST_F(BridgeEngineTest, testEndGame)
     using namespace Bridge;
 
     // Just one deal as game ends
-    EXPECT_CALL(*cardManager, handleRequestShuffle());
+    EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));
 
-    engine.start();
-    engine.shuffled();
+    cardManager->notifyAll(Engine::Shuffled {});
 
-    Mock::VerifyAndClearExpectations(&engine);
+    Mock::VerifyAndClearExpectations(engine.get());
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(true));
 
     for (const auto& player : players) {
-        engine.call(*player, Pass {});
+        engine->call(*player, Pass {});
     }
-    EXPECT_TRUE(engine.hasEnded());
+    EXPECT_TRUE(engine->hasEnded());
 }
