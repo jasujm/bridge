@@ -107,7 +107,7 @@ auto makeEnumerateIterator(const Iterator& iter)
 
 /** \brief Wrapper for turning a range into an enumerable range
  *
- * An EnumerateRange object can be used in range-based for loop to
+ * An EnumerateRange object can be used in range‐based for loop to
  * simultaneously iterate index and value of an underlying
  * range. EnumerateRange can capture the underlying range either by reference
  * or by value depending on the template argument type. An EnumerateRange
@@ -159,7 +159,7 @@ private:
  *
  * This function is inspired by the enumerate function in Python. It is used
  * to simultaneously access position and values of an underlying range in an
- * range-based for loop. The iterated elements are std::pair objects
+ * range‐based for loop. The iterated elements are std::pair objects
  * containing index as the first and element from the underlying range as the
  * second element.
  *

@@ -101,7 +101,7 @@ struct Bid : private boost::totally_ordered<Bid> {
  */
 bool operator==(const Bid&, const Bid&);
 
-/** \brief Less-than operator for bids
+/** \brief Less than operator for bids
  *
  * \sa Bid
  */

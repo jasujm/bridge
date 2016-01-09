@@ -7,7 +7,7 @@
  * e.g. https://en.wikipedia.org/wiki/Observer_pattern.
  *
  * The Observer and Observable classes implemented in this file are not meant
- * for inter-thread communication. Their implementation is not thread safe.
+ * for inter‐thread communication. Their implementation is not thread safe.
  */
 
 #ifndef OBSERVER_HH_

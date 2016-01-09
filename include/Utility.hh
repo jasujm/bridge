@@ -37,7 +37,7 @@ auto checkIndex(Integer1 i, Integer2 n)
     return i;
 }
 
-/** \brief Check if pointer (or pointer-like object) is dereferencalbe, and
+/** \brief Check if pointer (or pointer‐like object) is dereferencalbe, and
  * dereference it
  *
  * \param p pointer to be referenced
@@ -107,7 +107,7 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
  * \endcode
  *
  * The type of the generated integers is that of the upper bound. The lower
- * bound must be convertible to the type of the upper bound with non-narrowing
+ * bound must be convertible to the type of the upper bound with non‐narrowing
  * conversion. When the lower bound is zero, there is shorthand \ref to.
  *
  * \param m the lower bound

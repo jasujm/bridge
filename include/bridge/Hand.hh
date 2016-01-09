@@ -126,7 +126,7 @@ private:
      *
      * The derived class may choose to override this method if it can know
      * from any other source than the known distribution of the cards (such as
-     * trusted server, zero-knowledge proof etc.) that the player is out of
+     * trusted server, zero‐knowledge proof etc.) that the player is out of
      * given suit.
      *
      * \note The implementation of this method in a derived class does not

@@ -12,8 +12,8 @@ project and will see improvements eventually. :wink:
 Currently you can only do few things with the application
 
 - Only command-line interface with verbose syntax
-- All four players are controlled locally...
-- ...and the cards are visible all the time
+- All four players are controlled locally…
+- …and the cards are visible all the time
 - Duplicate scoring
 
 ## Installing

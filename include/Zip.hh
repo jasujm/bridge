@@ -17,7 +17,7 @@ namespace Bridge {
 
 /** \brief Wrapper for zipping several ranges into a range iterating each
  *
- * A ZipRange object can be used in range-based for loop to simultaneously
+ * A ZipRange object can be used in range‐based for loop to simultaneously
  * iterate several underlying ranges. ZipRange can capture each underlying
  * range either by reference or by value depending on the template
  * arguments. A ZipRange object is intended to be created using zip() function

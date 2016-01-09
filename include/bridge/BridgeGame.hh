@@ -16,7 +16,7 @@ struct GameState;
 /** \brief High level interface for controlling a bridge game
  *
  * The commands given using this interface are expected to come from the
- * active player. In a multi-player bridge game that is the local player,
+ * active player. In a multiplayer bridge game that is the local player,
  * i.e. the player who controls the current bridge game instance. Commands for
  * remote player are expected to come from different sources, i.e. through
  * some other interface, message queue etc.

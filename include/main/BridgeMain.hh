@@ -49,7 +49,7 @@ public:
 
     /** \brief Event queue used by BridgeMain
      *
-     * \todo This is a temporary solution used to deal with non-re-entrancy of
+     * \todo This is a temporary solution used to deal with non‐re‐entrancy of
      * the Statechart library used to implement BridgeEngine. It is not thread
      * safe and thus should be remove once obsolete.
      */
