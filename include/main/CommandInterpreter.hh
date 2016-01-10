@@ -24,10 +24,10 @@ public:
 
     /** \brief  Create command interpreter
      *
-     * \note CommandInterpreter borrows reference to the given BridgeController
-     * object. The user of this class in responsible for ensuring that the
-     * lifetime of the BridgeController instance exceeds the lifetime of the command
-     * interpreter.
+     * \note CommandInterpreter borrows reference to the given
+     * BridgeController object. The user of this class in responsible for
+     * ensuring that the lifetime of the BridgeController instance exceeds the
+     * lifetime of the command interpreter.
      *
      * \param game the game object the commands are forwarded to
      */

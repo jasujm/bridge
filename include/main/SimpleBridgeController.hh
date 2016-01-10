@@ -1,10 +1,10 @@
 /** \file
  *
- * \brief Definition of Bridge::Main::BridgeMain class
+ * \brief Definition of Bridge::Main::SimpleBridgeController class
  */
 
-#ifndef MAIN_BRIDGEMAIN_HH_
-#define MAIN_BRIDGEMAIN_HH_
+#ifndef MAIN_SIMPLEBRIDGECONTROLLER_HH_
+#define MAIN_SIMPLEBRIDGECONTROLLER_HH_
 
 #include "engine/BridgeEngine.hh"
 #include "main/BridgeController.hh"
@@ -32,19 +32,23 @@ class GameManager;
  */
 namespace Main {
 
-/** \brief Main class that integrates BridgeEngine and its dependencies
+/** \brief BridgeController implementation for local games
  *
- * BridgeMain is the brain of the bridge application used by the main bridge
- * thread. It has the main responsibility of managing the business logic and
- * other services such as protocols etc.
+ * SimpleBridgeController is a simple implementation of BridgeController
+ * interface suitable for local games. When receiving commands, it assumes
+ * that it is coming from the player who has turn. SimpleBridgeController has
+ * no notion of different bridge application instances controlling particular
+ * players. Each command is unconditionally accepted and applied to the
+ * underlying BridgeEngine.
  */
-class BridgeMain : public BridgeController, private boost::noncopyable {
+class SimpleBridgeController : public BridgeController,
+                               private boost::noncopyable {
 public:
 
-    /** \brief Create bridge main
+    /** \brief Create simple bridge controller
      *
      * The parameters of this method will be used to create the BridgeEngine
-     * for the BridgeMain object.
+     * for the SimpleBridgeController object.
      *
      * \tparam PlayerIterator an input iterator which must return a shared_ptr
      * to a player when dereferenced
@@ -57,7 +61,7 @@ public:
      * \sa Bridge::Engine::BridgeEngine::BridgeEngine
      */
     template<typename PlayerIterator>
-    BridgeMain(
+    SimpleBridgeController(
         std::shared_ptr<Engine::CardManager> cardManager,
         std::shared_ptr<Engine::GameManager> gameManager,
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
@@ -74,26 +78,22 @@ private:
 
     void handlePlay(const CardType& cardType) override;
 
-    Player* internalGetPlayer();
-
     const std::unique_ptr<Engine::BridgeEngine> engine;
-    const std::vector<std::shared_ptr<Player>> players;
 };
 
 template<typename PlayerIterator>
-BridgeMain::BridgeMain(
+SimpleBridgeController::SimpleBridgeController(
     std::shared_ptr<Engine::CardManager> cardManager,
     std::shared_ptr<Engine::GameManager> gameManager,
     PlayerIterator firstPlayer, PlayerIterator lastPlayer) :
     engine {
         std::make_unique<Engine::BridgeEngine>(
             std::move(cardManager), std::move(gameManager),
-            firstPlayer, lastPlayer)},
-    players(firstPlayer, lastPlayer)
+            firstPlayer, lastPlayer)}
 {
 }
 
 }
 }
 
-#endif // MAIN_BRIDGEMAIN_HH_
+#endif // MAIN_SIMPLEBRIDGECONTROLLER_HH_

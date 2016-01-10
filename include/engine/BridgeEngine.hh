@@ -88,7 +88,7 @@ public:
      * \param player the player who wants to make the call
      * \param card the index referring to a card in the hand of \p player
      */
-    void play(Player& player, std::size_t card);
+    void play(const Player& player, std::size_t card);
 
     /** \brief Determine if the game has ended
      *

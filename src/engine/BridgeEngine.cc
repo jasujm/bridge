@@ -84,7 +84,7 @@ class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
     const Player& player;
     std::size_t card;
-    PlayCardEvent(Player& player, std::size_t card) :
+    PlayCardEvent(const Player& player, std::size_t card) :
         player {player},
         card {card}
     {
@@ -661,7 +661,7 @@ void BridgeEngine::call(const Player& player, const Call& call)
         });
 }
 
-void BridgeEngine::play(Player& player, std::size_t card)
+void BridgeEngine::play(const Player& player, std::size_t card)
 {
     assert(impl);
     impl->enqueueAndProcess(

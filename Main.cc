@@ -9,7 +9,7 @@
 #include "bridge/Vulnerability.hh"
 #include "engine/SimpleCardManager.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "main/BridgeMain.hh"
+#include "main/SimpleBridgeController.hh"
 #include "main/CommandInterpreter.hh"
 
 #include <algorithm>
@@ -141,7 +141,7 @@ int main()
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()};
-    Main::BridgeMain bridge_main {
+    Main::SimpleBridgeController bridge_main {
         card_manager, game_manager, players.begin(), players.end()};
     Main::CommandInterpreter interpreter {bridge_main};
 

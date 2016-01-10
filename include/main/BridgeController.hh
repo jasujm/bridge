@@ -14,8 +14,8 @@ struct CardType;
 
 /** \brief Interface for controlling a bridge game
  *
- * The commands given using this interface are expected to come from the
- * active player. In a multiplayer bridge game that is the local player,
+ * BridgeController is an interface for a class used to handle commands from
+ * the active player. In a multiplayer bridge game that is the local player,
  * i.e. the player who controls the current bridge game instance. Commands for
  * remote player are expected to come from different sources, i.e. through
  * some other interface, message queue etc.
