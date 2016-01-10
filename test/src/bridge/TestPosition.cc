@@ -1,37 +1,41 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Position.hh"
-#include "Enumerate.hh"
 
 #include <algorithm>
 #include <stdexcept>
 
+#include <boost/iterator/counting_iterator.hpp>
 #include <gtest/gtest.h>
 
+using Bridge::Position;
 using Bridge::POSITIONS;
-using Bridge::enumerate;
 
-TEST(PositionTest, testCardsForEachPositionAreCorrectSize)
+class PositionTest : public testing::TestWithParam<Position> {};
+
+TEST_P(PositionTest, testCardsForPositionHasCorrectSize)
 {
-    for (const auto position : POSITIONS) {
-        ASSERT_EQ(cardsFor(position).size(), Bridge::N_CARDS_PER_PLAYER);
-    }
+    const auto position = GetParam();
+    EXPECT_EQ(Bridge::N_CARDS_PER_PLAYER, cardsFor(position).size());
 }
 
-TEST(PositionTest, testInvalidPosition)
+TEST_F(PositionTest, testInvalidPosition)
 {
-    EXPECT_THROW(cardsFor(static_cast<Bridge::Position>(-1)),
+    EXPECT_THROW(cardsFor(static_cast<Position>(-1)),
                  std::invalid_argument);
 }
 
-TEST(PositionTest, testCardsForEachPositionAreUnique)
+TEST_F(PositionTest, testCardsForEachPositionAreUnique)
 {
     auto all_cards = decltype(cardsFor(POSITIONS.front())) {};
     for (const auto position : POSITIONS) {
         const auto cards = cardsFor(position);
         std::copy(cards.begin(), cards.end(), std::back_inserter(all_cards));
     }
-    std::sort(all_cards.begin(), all_cards.end());
-    for (const auto e : enumerate(all_cards)) {
-        ASSERT_EQ(e.second, e.first); // do not flood output with errors
-    }
+    EXPECT_TRUE(
+        std::is_permutation(
+            all_cards.begin(), all_cards.end(),
+            boost::make_counting_iterator(std::size_t {0}),
+            boost::make_counting_iterator(Bridge::N_CARDS)));
 }
+
+INSTANTIATE_TEST_CASE_P(Positions, PositionTest, testing::ValuesIn(POSITIONS));
