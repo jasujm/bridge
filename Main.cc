@@ -1,22 +1,18 @@
 // TODO: This front-end is far from finished...
 
-#include "bridge/BasicPlayer.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "bridge/DealResult.hh"
 #include "bridge/GameState.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
-#include "engine/SimpleCardManager.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "main/SimpleBridgeController.hh"
-#include "main/CommandInterpreter.hh"
+#include "main/BridgeMain.hh"
 
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <map>
-#include <memory>
 #include <vector>
 
 using namespace Bridge;
@@ -134,33 +130,25 @@ void printScore(const Engine::DuplicateGameManager& gameManager)
 
 int main()
 {
-    auto card_manager = std::make_shared<Engine::SimpleCardManager>();
-    auto game_manager = std::make_shared<Engine::DuplicateGameManager>();
-    const auto players = {
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>()};
-    Main::SimpleBridgeController bridge_main {
-        card_manager, game_manager, players.begin(), players.end()};
-    Main::CommandInterpreter interpreter {bridge_main};
+    Main::BridgeMain bridge_main;
+    const auto& game_manager = bridge_main.getGameManager();
 
     auto go = true;
     while (go && std::cin.good()) {
         const auto game_state = bridge_main.getState();
         printGameState(game_state);
-        if (!game_manager->hasEnded()) {
+        if (!game_manager.hasEnded()) {
             if (const auto position_in_turn = game_state.positionInTurn) {
                 std::cout << "\nCommand for " << *position_in_turn << ": ";
             }
             auto command = std::string {};
             std::getline(std::cin, command);
             if (command == "score") {
-                printScore(*game_manager);
+                printScore(game_manager);
             } else if (command == "quit") {
                 go = false;
             } else {
-                interpreter.interpret(command);
+                bridge_main.processCommand(command);
             }
         } else {
             go = false;
