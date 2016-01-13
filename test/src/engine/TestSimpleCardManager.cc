@@ -30,11 +30,9 @@ const auto ALL_CARDS_END = cardTypeIterator(N_CARDS);
 auto getCardTypes(const Hand& hand)
 {
     std::vector<CardType> card_types;
-    for (const auto& card : cardsIn(hand)) {
-        if (card) {
-            if (const auto type = card->getType()) {
-                card_types.emplace_back(*type);
-            }
+    for (const auto& card : hand) {
+        if (const auto type = card.getType()) {
+            card_types.emplace_back(*type);
         }
     }
     return card_types;

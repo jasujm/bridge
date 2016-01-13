@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 
 using Bridge::to;
@@ -148,6 +149,21 @@ TEST_F(HandTest, testFindCardIfTypeIsAlreadyPlayed)
 {
     ON_CALL(hand, handleIsPlayed(3)).WillByDefault(Return(true));
     EXPECT_FALSE(findFromHand(hand, *cards[3].getType()));
+}
+
+TEST_F(HandTest, testCardIterators)
+{
+    const auto cards = {
+        &this->cards[0], &this->cards[1], &this->cards[3]
+    };
+    ON_CALL(hand, handleIsPlayed(2)).WillByDefault(Return(true));
+    EXPECT_TRUE(
+        std::equal(
+            cards.begin(), cards.end(), hand.begin(), hand.end(),
+            [](const auto* card1, const auto& card2)
+            {
+                return card1 == &card2;
+            }));
 }
 
 INSTANTIATE_TEST_CASE_P(SamplingCards, HandTest, ValuesIn(to(N_CARDS)));

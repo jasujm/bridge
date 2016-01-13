@@ -21,11 +21,9 @@ namespace {
 void fillCards(DealState& state, const Position position, const Hand& hand)
 {
     auto cards = std::vector<CardType> {};
-    for (const auto& card : cardsIn(hand)) {
-        if (card) {
-            if (const auto type = card->getType()) {
-                cards.emplace_back(*type);
-            }
+    for (const auto& card : hand) {
+        if (const auto type = card.getType()) {
+            cards.emplace_back(*type);
         }
     }
     state.cards->emplace(position, std::move(cards));

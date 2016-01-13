@@ -14,7 +14,6 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 #include <boost/optional/optional.hpp>
-#include <boost/range/iterator_range.hpp>
 
 #include <cstddef>
 #include <utility>

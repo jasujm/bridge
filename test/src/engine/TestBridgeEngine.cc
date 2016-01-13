@@ -154,8 +154,8 @@ TEST_F(BridgeEngineTest, testBridgeController)
         const auto hand = engine->getHand(engine->getPlayer(position));
         ASSERT_TRUE(hand);
         auto card_types = std::vector<CardType> {};
-        for (const auto& card : cardsIn(*hand)) {
-            card_types.emplace_back(*card->getType());
+        for (const auto& card : *hand) {
+            card_types.emplace_back(*card.getType());
         }
         expectedState.cards->emplace(position, card_types);
     }

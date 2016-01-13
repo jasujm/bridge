@@ -2,7 +2,6 @@
 
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
-#include "Enumerate.hh"
 #include "Utility.hh"
 
 #include <algorithm>
@@ -49,15 +48,13 @@ boost::logic::tribool Hand::isOutOfSuit(const Suit suit) const
     // result may be indeterminate unless types of all cards are known.
 
     auto ret_if_given_suit_not_found = boost::logic::tribool {true};
-    for (const auto e : enumerate(cardsIn(*this))) {
-        if (e.second) {
-            const auto type = e.second->getType();
+    for (const auto& card : *this) {
+            const auto type = card.getType();
             if (!type) {
                 ret_if_given_suit_not_found = boost::indeterminate;
             } else if (type->suit == suit) {
                 return false;
             }
-        }
     }
     return ret_if_given_suit_not_found;
 }
@@ -70,16 +67,12 @@ boost::logic::tribool Hand::handleIsOutOfSuit(const Suit) const
 boost::optional<std::size_t> findFromHand(
     const Hand& hand, const CardType& cardType)
 {
-    const auto begin = hand.beginCards();
-    const auto end = hand.endCards();
-    const auto iter = std::find_if(
-        hand.beginCards(), end,
-        [&](const auto& card)
-        {
-            return card && cardType == card->getType();
-        });
-    if (iter != end) {
-        return iter - begin;
+    const auto n_cards = hand.getNumberOfCards();
+    for (const auto n : to(n_cards)) {
+        const auto card = hand.getCard(n);
+        if (card && card->getType() == cardType) {
+            return n;
+        }
     }
     return boost::none;
 }

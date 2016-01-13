@@ -6,17 +6,19 @@
 #ifndef HAND_HH_
 #define HAND_HH_
 
+#include "Card.hh"
+
 #include <boost/iterator/counting_iterator.hpp>
+#include <boost/iterator/filter_iterator.hpp>
+#include <boost/iterator/indirect_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 #include <boost/optional/optional.hpp>
-#include <boost/range/iterator_range.hpp>
 
 #include <cstddef>
 
 namespace Bridge {
 
-class Card;
 struct CardType;
 enum class Suit;
 
@@ -79,15 +81,15 @@ public:
 
     /** \brief Get iterator to the beginning of cards
      *
-     * \sa getCard()
+     * \sa handCardIterator()
      */
-    auto beginCards() const;
+    auto begin() const;
 
     /** \brief Get iterator to the end of cards
      *
-     * \sa getCard()
+     * \sa handCardIterator()
      */
-    auto endCards() const;
+    auto end() const;
 
 private:
 
@@ -145,37 +147,33 @@ private:
  * \param hand the hand from which the cards are retrieved
  * \param n the index where iterating the cards begins
  *
- * \return iterator to card \p n in \p hand
+ * \return Iterator that, when dereferenced, returns constant reference to nth
+ * card from the hand. This iterator, unlike Hand::getCard(), skips played
+ * cards.
  */
 inline auto handCardIterator(const Hand& hand, std::size_t n)
 {
-    return boost::make_transform_iterator(
-        boost::make_counting_iterator(n),
-        [&hand](std::size_t i)
-        {
-            return hand.getCard(i);
-        });
+    const auto make_iterator = [&hand](const std::size_t m)
+    {
+        return boost::make_transform_iterator(
+            boost::make_counting_iterator(m),
+            [&hand](const std::size_t i) { return hand.getCard(i); });
+    };
+    return boost::make_indirect_iterator(
+        boost::make_filter_iterator(
+            [](const auto& card) { return card; },
+            make_iterator(n),
+            make_iterator(hand.getNumberOfCards())));
 }
 
-inline auto Hand::beginCards() const
+inline auto Hand::begin() const
 {
     return handCardIterator(*this, 0u);
 }
 
-inline auto Hand::endCards() const
+inline auto Hand::end() const
 {
     return handCardIterator(*this, getNumberOfCards());
-}
-
-/** \brief Create range over all cards in a hand
- *
- * \param hand the hand to iterate over
- *
- * \return a range over all cards in the hand
- */
-inline auto cardsIn(const Hand& hand)
-{
-    return boost::make_iterator_range(hand.beginCards(), hand.endCards());
 }
 
 /** \brief Find given card type from the given hand
