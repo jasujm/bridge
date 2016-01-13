@@ -8,6 +8,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Position.hh"
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
@@ -16,10 +17,9 @@
 #include <boost/range/iterator_range.hpp>
 
 #include <cstddef>
+#include <utility>
 
 namespace Bridge {
-
-enum class Position;
 
 /** \brief State machine for bridge bidding
  */
@@ -110,15 +110,15 @@ public:
 
     /** \brief Get iterator to the beginning of calls
      *
-     * \sa getCall()
+     * \sa biddingCallIterator()
      */
-    auto beginCalls() const;
+    auto begin() const;
 
     /** \brief Get iterator to the end of calls
      *
-     * \sa getCall()
+     * \sa biddingCallIterator()
      */
-    auto endCalls() const;
+    auto end() const;
 
 private:
 
@@ -202,37 +202,30 @@ private:
  * \param bidding the bidding from which the calls are retrieved
  * \param n the index where iterating the calls begins
  *
- * \return iterator to call \p n in \p bidding
+ * \return Iterator that, when deferenced, returns a pair containing the
+ * following:
+ *   - Position who made call \p n
+ *   - The call made
  */
 inline auto biddingCallIterator(const Bidding& bidding, std::size_t n)
 {
     return boost::make_transform_iterator(
         boost::make_counting_iterator(n),
-        [&bidding](std::size_t i)
+        [&bidding](const std::size_t i)
         {
-            return bidding.getCall(i);
+            const auto position = clockwise(bidding.getOpeningPosition(), i);
+            return std::make_pair(position, bidding.getCall(i));
         });
 }
 
-inline auto Bidding::beginCalls() const
+inline auto Bidding::begin() const
 {
     return biddingCallIterator(*this, 0u);
 }
 
-inline auto Bidding::endCalls() const
+inline auto Bidding::end() const
 {
     return biddingCallIterator(*this, getNumberOfCalls());
-}
-
-/** \brief Create range over all calls in a bidding
- *
- * \param bidding the bidding to iterate over
- *
- * \return a range over all calls in the bidding
- */
-inline auto callsIn(const Bidding& bidding)
-{
-    return boost::make_iterator_range(bidding.beginCalls(), bidding.endCalls());
 }
 
 }

@@ -33,12 +33,7 @@ void fillCards(DealState& state, const Position position, const Hand& hand)
 
 void fillBidding(DealState& state, const Bidding& bidding)
 {
-    auto position = bidding.getOpeningPosition();
-    state.calls.emplace();
-    for (const auto& call : callsIn(bidding)) {
-        state.calls->emplace_back(position, call);
-        position = clockwise(position);
-    }
+    state.calls.emplace(bidding.begin(), bidding.end());
 }
 
 void fillContract(DealState& state, const Bidding& bidding) {

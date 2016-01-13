@@ -10,6 +10,8 @@
 #include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <utility>
 #include <stdexcept>
 
 using Bridge::Bidding;
@@ -208,6 +210,20 @@ TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsNoContract)
     const auto declarer = bidding.getDeclarerPosition();
     ASSERT_TRUE(declarer);
     EXPECT_FALSE(*declarer);
+}
+
+TEST_F(BiddingTest, testCallIterators)
+{
+    const auto calls = {
+        std::make_pair(Position::NORTH, VALID_CALL),
+        std::make_pair(Position::EAST,  VALID_CALL),
+        std::make_pair(Position::SOUTH, VALID_CALL),
+        std::make_pair(Position::WEST,  VALID_CALL),
+    };
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(Bridge::N_PLAYERS));
+    EXPECT_TRUE(
+        std::equal(calls.begin(), calls.end(), bidding.begin(), bidding.end()));
 }
 
 INSTANTIATE_TEST_CASE_P(
