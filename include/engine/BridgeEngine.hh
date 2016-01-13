@@ -141,7 +141,7 @@ public:
 
     /** \brief Determine the position of given hand
      *
-     * \param player the player
+     * \param hand the hand
      *
      * \return the position corresponding to the hand, or none if the game in
      * not in the deal phase

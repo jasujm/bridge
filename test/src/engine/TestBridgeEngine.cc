@@ -82,7 +82,7 @@ protected:
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
         expectedState.positionInTurn = clockwise(position);
-        expectedState.playingResult->currentTrick.emplace(
+        expectedState.playingResult->currentTrick.emplace_back(
             position, cards.front());
         cards.erase(cards.begin());
     }
@@ -178,7 +178,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
     expectedState.biddingResult = DealState::BiddingResult {
         Position::EAST, Contract {BID, Doubling::UNDOUBLED}};
     expectedState.playingResult = DealState::PlayingState {
-        std::map<Position, CardType>(), DealResult {0, 0}};
+        std::vector<std::pair<Position, CardType>> {}, DealResult {0, 0}};
     for (const auto i : to(players.size())) {
         ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto turn_i = (i + 2) % players.size();

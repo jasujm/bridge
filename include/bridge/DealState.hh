@@ -97,10 +97,10 @@ struct DealState : private boost::equality_comparable<DealState> {
     struct PlayingState {
         /** \brief Cards played to the current trick
          *
-         * This member is a mapping from positions that have already played to
-         * the trick, to the cards they have played.
+         * This member is a vector of pairs containing position of the player
+         * and the card played, in the order the cards were played.
          */
-        std::map<Position, CardType> currentTrick;
+        std::vector<std::pair<Position, CardType>> currentTrick;
         DealResult dealResult; ///< \brief The result of the current deal
     };
 

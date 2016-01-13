@@ -75,15 +75,10 @@ void printCalls(
     }
 }
 
-void printTrick(const std::map<Position, CardType>& trick)
+void printTrick(const std::vector<std::pair<Position, CardType>>& trick)
 {
-    for (const auto position : POSITIONS) {
-        std::cout << position << ": ";
-        const auto iter = trick.find(position);
-        if (iter != trick.end()) {
-            std::cout << iter->second;
-        }
-        std::cout << "\n";
+    for (const auto pair : trick) {
+        std::cout << pair.first << ": " <<  pair.second << "\n";
     }
 }
 

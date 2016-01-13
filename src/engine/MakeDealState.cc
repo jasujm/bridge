@@ -51,8 +51,9 @@ void fillPlaying(
     decltype(state.playingResult->currentTrick) current_trick;
     for (const auto pair : currentTrick) {
         if (const auto type = pair.second.getType()) {
+            // We assume it is safe to dereference as we are in the deal phase
             const auto position = dereference(engine.getPosition(pair.first));
-            current_trick.emplace(position, *type);
+            current_trick.emplace_back(position, *type);
         }
     }
     const auto playingResult =
