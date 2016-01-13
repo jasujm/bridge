@@ -19,11 +19,11 @@
 namespace Bridge {
 
 class Bidding;
-struct DealResult;
 class Hand;
 enum class Position;
 class Player;
 class Trick;
+struct TricksWon;
 enum class Vulnerability;
 
 /** \brief The bridge engine
@@ -171,12 +171,12 @@ public:
      */
     boost::optional<std::size_t> getNumberOfTricksPlayed() const;
 
-    /** \brief Determine the deal result
+    /** \brief Determine the number of tricks won by each partnership
      *
-     * \return the deal result of the current deal, or none if game is not in
-     * playing phase
+     * \return TricksWon object containing tricks won by each partnership, or
+     * none if the game is not in deal phase
      */
-    boost::optional<DealResult> getDealResult() const;
+    boost::optional<TricksWon> getTricksWon() const;
 
     class Impl;
 

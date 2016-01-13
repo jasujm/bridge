@@ -2,9 +2,9 @@
 
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
-#include "bridge/DealResult.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Position.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/BridgeMain.hh"
@@ -80,7 +80,7 @@ void printTrick(const DealState::PlayingState::Trick& trick)
     }
 }
 
-void printTricksWon(const DealResult& result)
+void printTricksWon(const TricksWon& result)
 {
     std::cout << "North-South: " << result.tricksWonByNorthSouth << "\n"
               << "East-West: " << result.tricksWonByEastWest << "\n";
@@ -101,7 +101,7 @@ void printDealState(const DealState& gameState)
         std::cout << "\nCurrent trick:\n";
         printTrick(result->currentTrick);
         std::cout << "\nTricks won:\n";
-        printTricksWon(result->dealResult);
+        printTricksWon(result->tricksWon);
     }
 }
 

@@ -2,11 +2,11 @@
 
 #include "bridge/BasicBidding.hh"
 #include "bridge/BasicTrick.hh"
-#include "bridge/DealResult.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
@@ -72,9 +72,9 @@ public:
 class GameEndedEvent : public sc::event<GameEndedEvent> {};
 class DealCompletedEvent : public sc::event<DealCompletedEvent> {
 public:
-    DealResult dealResult;
-    explicit DealCompletedEvent(const DealResult& dealResult) :
-        dealResult {dealResult}
+    TricksWon tricksWon;
+    explicit DealCompletedEvent(const TricksWon& tricksWon) :
+        tricksWon {tricksWon}
     {
     }
 };
@@ -124,7 +124,7 @@ public:
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
     boost::optional<std::size_t> getNumberOfTricksPlayed() const;
-    boost::optional<DealResult> getDealResult() const;
+    boost::optional<TricksWon> getTricksWon() const;
 
 private:
 
@@ -324,7 +324,7 @@ sc::result InDeal::react(const DealCompletedEvent& event)
         &GameManager::addResult,
         declarer_partnership,
         **contract,
-        getNumberOfTricksWon(event.dealResult, declarer_partnership));
+        getNumberOfTricksWon(event.tricksWon, declarer_partnership));
 }
 
 sc::result InDeal::react(const DealPassedOutEvent&)
@@ -380,7 +380,7 @@ class Playing : public sc::simple_state<Playing, InDeal, PlayingTrick> {
 public:
     std::size_t getNumberOfTricksPlayed() const;
 
-    DealResult getDealResult() const;
+    TricksWon getTricksWon() const;
 
 private:
 
@@ -397,7 +397,7 @@ void Playing::addTrick(std::unique_ptr<Trick>&& trick)
 {
     tricks.emplace_back(std::move(trick));
     if (tricks.size() == N_CARDS_PER_PLAYER) {
-        post_event(DealCompletedEvent {getDealResult()});
+        post_event(DealCompletedEvent {getTricksWon()});
     } else {
         post_event(NewTrickEvent {});
     }
@@ -437,7 +437,7 @@ std::size_t Playing::getNumberOfTricksPlayed() const
     return tricks.size();
 }
 
-DealResult Playing::getDealResult() const
+TricksWon Playing::getTricksWon() const
 {
     auto north_south = 0;
     auto east_west = 0;
@@ -603,9 +603,9 @@ boost::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
     return internalCallIfInState(&Playing::getNumberOfTricksPlayed);
 }
 
-boost::optional<DealResult> BridgeEngine::Impl::getDealResult() const
+boost::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 {
-    return internalCallIfInState(&Playing::getDealResult);
+    return internalCallIfInState(&Playing::getTricksWon);
 }
 
 void BridgeEngine::Impl::enqueueAndProcess(
@@ -737,10 +737,10 @@ boost::optional<std::size_t> BridgeEngine::getNumberOfTricksPlayed() const
     return impl->getNumberOfTricksPlayed();
 }
 
-boost::optional<DealResult> BridgeEngine::getDealResult() const
+boost::optional<TricksWon> BridgeEngine::getTricksWon() const
 {
     assert(impl);
-    return impl->getDealResult();
+    return impl->getTricksWon();
 }
 
 }

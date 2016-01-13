@@ -6,11 +6,11 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
-#include "bridge/DealResult.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/MakeDealState.hh"
@@ -90,7 +90,7 @@ protected:
     void addTrickToNorthSouth()
     {
         expectedState.playingResult->currentTrick.clear();
-        ++expectedState.playingResult->dealResult.tricksWonByNorthSouth;
+        ++expectedState.playingResult->tricksWon.tricksWonByNorthSouth;
     }
 
     std::array<NiceMock<Bridge::MockCard>, N_CARDS> cards;

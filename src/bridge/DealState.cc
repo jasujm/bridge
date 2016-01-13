@@ -20,7 +20,7 @@ bool operator==(
 {
     return &lhs == &rhs || (
         lhs.currentTrick == rhs.currentTrick &&
-        lhs.dealResult == rhs.dealResult);
+        lhs.tricksWon == rhs.tricksWon);
 }
 
 bool operator==(const DealState& lhs, const DealState& rhs)
@@ -83,9 +83,9 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
                << card_in_trick.second;
         }
         os << "\n  Tricks won by north-south: "
-           << playing_result->dealResult.tricksWonByNorthSouth;
+           << playing_result->tricksWon.tricksWonByNorthSouth;
         os << "\n  Tricks won by east-west: "
-           << playing_result->dealResult.tricksWonByEastWest;
+           << playing_result->tricksWon.tricksWonByEastWest;
     }
     return os;
 }

@@ -10,7 +10,7 @@
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "bridge/Contract.hh"
-#include "bridge/DealResult.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 
 #include <boost/optional/optional.hpp>
@@ -87,7 +87,7 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<Calls> calls;
 
-    /** \brief Result of the bidding round
+    /** \brief Type of the \biddingResult member
      */
     struct BiddingResult {
         Position declarer; ///< \brief The position of the declarer
@@ -114,7 +114,7 @@ struct DealState : private boost::equality_comparable<DealState> {
          * and the card played, in the order the cards were played.
          */
         Trick currentTrick;
-        DealResult dealResult; ///< \brief The result of the current deal
+        TricksWon tricksWon; ///< \brief The result of the current deal
     };
 
     /** \brief The result of the playing phase

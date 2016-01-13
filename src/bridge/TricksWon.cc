@@ -1,4 +1,4 @@
-#include "bridge/DealResult.hh"
+#include "bridge/TricksWon.hh"
 
 #include "bridge/Partnership.hh"
 
@@ -7,19 +7,19 @@
 namespace Bridge {
 
 int getNumberOfTricksWon(
-    const DealResult& dealResult, const Partnership partnership)
+    const TricksWon& tricksWon, const Partnership partnership)
 {
     switch (partnership) {
     case Partnership::NORTH_SOUTH:
-        return dealResult.tricksWonByNorthSouth;
+        return tricksWon.tricksWonByNorthSouth;
     case Partnership::EAST_WEST:
-        return dealResult.tricksWonByEastWest;
+        return tricksWon.tricksWonByEastWest;
     default:
         throw std::invalid_argument("Invalid partnership");
     }
 }
 
-bool operator==(const DealResult& lhs, const DealResult& rhs)
+bool operator==(const TricksWon& lhs, const TricksWon& rhs)
 {
     return &lhs == &rhs ||
         (lhs.tricksWonByNorthSouth == rhs.tricksWonByNorthSouth &&

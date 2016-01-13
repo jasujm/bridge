@@ -1,6 +1,6 @@
 /** \file
  *
- * \brief Definition of Bridge::DealResult struct
+ * \brief Definition of Bridge::TricksWon struct
  */
 
 #ifndef DEALRESULT_HH_
@@ -16,15 +16,15 @@ namespace Bridge {
 
 enum class Partnership;
 
-/** \brief The result of a (possible ongoing) bridge deal
+/** \brief The tricks won in a (possibly ongoing) bridge deal
  *
- * DealResult objects are equality comparable. They compare equal when tricks
+ * TricksWon objects are equality comparable. They compare equal when tricks
  * won by each partnership are equal.
  *
  * \note Boost operators library is used to ensure that operator!= is
  * generated with usual semantics when operator== is supplied.
  */
-struct DealResult : private boost::equality_comparable<DealResult> {
+struct TricksWon : private boost::equality_comparable<TricksWon> {
 
     /** \brief The number of tricks won by the north–south partnership
      */
@@ -34,7 +34,7 @@ struct DealResult : private boost::equality_comparable<DealResult> {
      */
     int tricksWonByEastWest;
 
-    /** \brief Create new deal result
+    /** \brief Create new TricksWon
      *
      * \param tricksWonByNorthSouth the number of tricks won by the
      * north–south partnership
@@ -44,7 +44,7 @@ struct DealResult : private boost::equality_comparable<DealResult> {
      * \throw std::invalid_argument if either parameter is negative or their
      * sum exceeds number of tricks in a deal
      */
-    constexpr DealResult(int tricksWonByNorthSouth, int tricksWonByEastWest) :
+    constexpr TricksWon(int tricksWonByNorthSouth, int tricksWonByEastWest) :
         tricksWonByNorthSouth {
             validateTricks(tricksWonByNorthSouth, tricksWonByEastWest)},
         tricksWonByEastWest {
@@ -65,18 +65,18 @@ private:
 /** \brief Determine the number of tricks won by the given partnership in
  * the given deal
  *
- * \brief dealResult the deal result
+ * \brief tricksWon the TricksWon object for the deal
  * \brief partnership the partnership
  *
  * \return the number of tricks won by partnership in the deal
  */
-int getNumberOfTricksWon(const DealResult& dealResult, Partnership partnership);
+int getNumberOfTricksWon(const TricksWon& tricksWon, Partnership partnership);
 
-/** \brief Equality operator for deal results
+/** \brief Equality operator for TricksWon object
  *
- * \sa DealResult
+ * \sa TricksWon
  */
-bool operator==(const DealResult&, const DealResult&);
+bool operator==(const TricksWon&, const TricksWon&);
 
 }
 

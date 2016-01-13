@@ -40,12 +40,12 @@ void fillContract(DealState& state, const Bidding& bidding) {
     const auto declarer =
         dereference(dereference(bidding.getDeclarerPosition()));
     const auto contract = dereference(dereference(bidding.getContract()));
-    const auto result = DealState::BiddingResult {declarer, contract};
-    state.biddingResult.emplace(result);
+    state.biddingResult.emplace(
+        DealState::BiddingResult {declarer, contract});
 }
 
 void fillPlaying(
-    DealState& state, const Trick& currentTrick, const DealResult& dealResult,
+    DealState& state, const Trick& currentTrick, const TricksWon& tricksWon,
     const BridgeEngine& engine)
 {
     DealState::PlayingState::Trick current_trick;
@@ -57,7 +57,7 @@ void fillPlaying(
         }
     }
     const auto playingResult =
-        DealState::PlayingState {current_trick, dealResult};
+        DealState::PlayingState {current_trick, tricksWon};
     state.playingResult.emplace(playingResult);
 }
 
@@ -106,7 +106,7 @@ DealState makeDealState(const BridgeEngine& engine)
 
     // Fill playing results
     const auto current_trick = engine.getCurrentTrick();
-    const auto deal_result = engine.getDealResult();
+    const auto deal_result = engine.getTricksWon();
     if (current_trick && deal_result) {
         state.stage = Stage::PLAYING;
         fillPlaying(state, *current_trick, *deal_result, engine);
