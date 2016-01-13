@@ -82,15 +82,14 @@ protected:
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
         expectedState.positionInTurn = clockwise(position);
-        expectedState.playingResult->currentTrick.emplace_back(
-            position, cards.front());
+        expectedState.currentTrick->emplace_back(position, cards.front());
         cards.erase(cards.begin());
     }
 
     void addTrickToNorthSouth()
     {
-        expectedState.playingResult->currentTrick.clear();
-        ++expectedState.playingResult->tricksWon.tricksWonByNorthSouth;
+        expectedState.currentTrick->clear();
+        ++expectedState.tricksWon->tricksWonByNorthSouth;
     }
 
     std::array<NiceMock<Bridge::MockCard>, N_CARDS> cards;
@@ -177,8 +176,8 @@ TEST_F(BridgeEngineTest, testBridgeController)
     expectedState.positionInTurn = Position::SOUTH;
     expectedState.biddingResult = DealState::BiddingResult {
         Position::EAST, Contract {BID, Doubling::UNDOUBLED}};
-    expectedState.playingResult = DealState::PlayingState {
-        DealState::PlayingState::Trick {}, TricksWon {0, 0}};
+    expectedState.currentTrick.emplace();
+    expectedState.tricksWon.emplace(0, 0);
     for (const auto i : to(players.size())) {
         ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto turn_i = (i + 2) % players.size();

@@ -44,21 +44,17 @@ void fillContract(DealState& state, const Bidding& bidding) {
         DealState::BiddingResult {declarer, contract});
 }
 
-void fillPlaying(
-    DealState& state, const Trick& currentTrick, const TricksWon& tricksWon,
-    const BridgeEngine& engine)
+void fillTricks(
+    DealState& state, const Trick& currentTrick, const BridgeEngine& engine)
 {
-    DealState::PlayingState::Trick current_trick;
+    state.currentTrick.emplace();
     for (const auto pair : currentTrick) {
         if (const auto type = pair.second.getType()) {
             // We assume it is safe to dereference as we are in the deal phase
             const auto position = dereference(engine.getPosition(pair.first));
-            current_trick.emplace_back(position, *type);
+            state.currentTrick->emplace_back(position, *type);
         }
     }
-    const auto playingResult =
-        DealState::PlayingState {current_trick, tricksWon};
-    state.playingResult.emplace(playingResult);
 }
 
 }
@@ -104,12 +100,15 @@ DealState makeDealState(const BridgeEngine& engine)
         }
     }
 
-    // Fill playing results
-    const auto current_trick = engine.getCurrentTrick();
-    const auto deal_result = engine.getTricksWon();
-    if (current_trick && deal_result) {
+    // Fill current trick
+    if (const auto current_trick = engine.getCurrentTrick()) {
         state.stage = Stage::PLAYING;
-        fillPlaying(state, *current_trick, *deal_result, engine);
+        fillTricks(state, *current_trick, engine);
+    }
+
+    // Fill tricks won by each partnership
+    if (const auto tricks_won = engine.getTricksWon()) {
+        state.tricksWon.emplace(*tricks_won);
     }
 
     return state;

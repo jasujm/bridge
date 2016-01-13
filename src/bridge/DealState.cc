@@ -15,14 +15,6 @@ bool operator==(
         lhs.declarer == rhs.declarer && lhs.contract == rhs.contract);
 }
 
-bool operator==(
-    const DealState::PlayingState& lhs, const DealState::PlayingState& rhs)
-{
-    return &lhs == &rhs || (
-        lhs.currentTrick == rhs.currentTrick &&
-        lhs.tricksWon == rhs.tricksWon);
-}
-
 bool operator==(const DealState& lhs, const DealState& rhs)
 {
     return &lhs == &rhs || (
@@ -32,7 +24,8 @@ bool operator==(const DealState& lhs, const DealState& rhs)
         lhs.cards == rhs.cards &&
         lhs.calls == rhs.calls &&
         lhs.biddingResult == rhs.biddingResult &&
-        lhs.playingResult == rhs.playingResult);
+        lhs.currentTrick == rhs.currentTrick &&
+        lhs.tricksWon == rhs.tricksWon);
 }
 
 std::ostream& operator<<(std::ostream& os, const Stage stage)
@@ -75,17 +68,18 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
         os << "\n  Declarer: " << bidding_result->declarer;
         os << "\n  Contract: " << bidding_result->contract;
     }
-    if (const auto& playing_result = state.playingResult) {
-        os << "\nPlaying result:";
-        os << "\n  Current trick:";
-        for (const auto card_in_trick : playing_result->currentTrick) {
-            os << "\n    " << card_in_trick.first << ": "
+    if (const auto& current_trick = state.currentTrick){
+        os << "\nCurrent trick:";
+        for (const auto& card_in_trick : *current_trick) {
+            os << "\n  " << card_in_trick.first << ": "
                << card_in_trick.second;
         }
-        os << "\n  Tricks won by north-south: "
-           << playing_result->tricksWon.tricksWonByNorthSouth;
-        os << "\n  Tricks won by east-west: "
-           << playing_result->tricksWon.tricksWonByEastWest;
+    }
+    if (const auto& tricks_won = state.tricksWon) {
+        os << "\nTricks won by north-south: "
+           << tricks_won->tricksWonByNorthSouth;
+        os << "\nTricks won by east-west: "
+           << tricks_won->tricksWonByEastWest;
     }
     return os;
 }

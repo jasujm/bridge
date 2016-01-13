@@ -100,28 +100,23 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<BiddingResult> biddingResult;
 
-    /** \brief State of the playing phase
+    /** \brief Type of the \ref trick member
      */
-    struct PlayingState {
+    using Trick = std::vector<std::pair<Position, CardType>>;
 
-        /** \brief Type of the \ref trick member
-         */
-        using Trick = std::vector<std::pair<Position, CardType>>;
-
-        /** \brief Cards played to the current trick
-         *
-         * This member is a vector of pairs containing position of the player
-         * and the card played, in the order the cards were played.
-         */
-        Trick currentTrick;
-        TricksWon tricksWon; ///< \brief The result of the current deal
-    };
-
-    /** \brief The result of the playing phase
+    /** \brief Cards played to the current trick
      *
-     * This member is none if the playing phase hasn’t started yet
+     * If the playing has started, this member is a vector of pairs containing
+     * position of the player and the card played, in the order the cards were
+     * played.
      */
-    boost::optional<PlayingState> playingResult;
+    boost::optional<Trick> currentTrick;
+
+    /** \brief The number of tricks won in the current deal
+     *
+     * This member if none if the playing hasn’t started yet
+     */
+    boost::optional<TricksWon> tricksWon;
 };
 
 /** \brief Equality operator for deal states

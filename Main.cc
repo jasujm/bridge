@@ -73,7 +73,7 @@ void printCalls(Vulnerability vulnerability, const DealState::Calls& calls)
     }
 }
 
-void printTrick(const DealState::PlayingState::Trick& trick)
+void printTrick(const DealState::Trick& trick)
 {
     for (const auto pair : trick) {
         std::cout << pair.first << ": " <<  pair.second << "\n";
@@ -97,11 +97,13 @@ void printDealState(const DealState& gameState)
         printCalls(
             gameState.vulnerability.value_or(Vulnerability::NEITHER), *calls);
     }
-    if (const auto& result = gameState.playingResult) {
+    if (const auto& current_trick = gameState.currentTrick) {
         std::cout << "\nCurrent trick:\n";
-        printTrick(result->currentTrick);
+        printTrick(*current_trick);
+    }
+    if (const auto& tricks_won = gameState.tricksWon) {
         std::cout << "\nTricks won:\n";
-        printTricksWon(result->tricksWon);
+        printTricksWon(*tricks_won);
     }
 }
 
