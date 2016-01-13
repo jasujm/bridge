@@ -17,7 +17,7 @@
 
 namespace Bridge {
 
-class GameState;
+class DealState;
 class Player;
 
 namespace Engine {
@@ -66,11 +66,11 @@ public:
         std::shared_ptr<Engine::GameManager> gameManager,
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
-    /** \brief Determine game state
+    /** \brief Determine deal state
      *
-     * \return GameState object describing the current game state
+     * \return DealState object describing the current deal state
      */
-    GameState getState() const;
+    DealState getState() const;
 
 private:
 

@@ -1,10 +1,10 @@
 /** \file
  *
- * \brief Definition of Bridge::GameState struct
+ * \brief Definition of Bridge::DealState struct
  */
 
-#ifndef GAMESTATE_HH_
-#define GAMESTATE_HH_
+#ifndef DEALSTATE_HH_
+#define DEALSTATE_HH_
 
 #include "bridge/Position.hh"
 #include "bridge/Call.hh"
@@ -34,16 +34,17 @@ enum class Stage {
 
 /** \brief A high level description of a bridge game
  *
- * A GameState struct is meant to be produced by game logic and consumed by
- * the UI to describe the complete state of a bridge game.
+ * A DealState struct is meant to be produced by game logic and consumed by
+ * the UI to describe the complete state of a bridge deal.
  *
- * GameState objects are equality comparable. They compare equal when every
- * aspect of two games are the same.
+ * DealState objects are equality comparable. They compare equal when every
+ * aspect of two deals
+ are the same.
  *
  * \note Boost operators library is used to ensure that operator!= is
  * generated with usual semantics when operator== is supplied.
  */
-struct GameState : private boost::equality_comparable<GameState> {
+struct DealState : private boost::equality_comparable<DealState> {
 
     /** \brief The stage of the game
      */
@@ -91,9 +92,9 @@ struct GameState : private boost::equality_comparable<GameState> {
      */
     boost::optional<BiddingResult> biddingResult;
 
-    /** \brief Result of the playing phase
+    /** \brief State of the playing phase
      */
-    struct PlayingResult {
+    struct PlayingState {
         /** \brief Cards played to the current trick
          *
          * This member is a mapping from positions that have already played to
@@ -107,14 +108,14 @@ struct GameState : private boost::equality_comparable<GameState> {
      *
      * This member is none if the playing phase hasn’t started yet
      */
-    boost::optional<PlayingResult> playingResult;
+    boost::optional<PlayingState> playingResult;
 };
 
-/** \brief Equality operator for game states
+/** \brief Equality operator for deal states
  *
- * \sa GameState
+ * \sa DealState
  */
-bool operator==(const GameState&, const GameState&);
+bool operator==(const DealState&, const DealState&);
 
 /** \brief Output a Stage to stream
  *
@@ -125,15 +126,15 @@ bool operator==(const GameState&, const GameState&);
  */
 std::ostream& operator<<(std::ostream& os, Stage stage);
 
-/** \brief Output a GameState to stream
+/** \brief Output a DealState to stream
  *
  * \param os the output stream
- * \param state the game state to output
+ * \param state the deal state to output
  *
  * \return parameter \p os
  */
-std::ostream& operator<<(std::ostream& os, const GameState& state);
+std::ostream& operator<<(std::ostream& os, const DealState& state);
 
 }
 
-#endif // GAMESTATE_HH_
+#endif // DEALSTATE_HH_

@@ -7,13 +7,13 @@
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
 #include "bridge/DealResult.hh"
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
-#include "engine/MakeGameState.hh"
+#include "engine/MakeDealState.hh"
 #include "MockCard.hh"
 #include "MockCardManager.hh"
 #include "MockGameManager.hh"
@@ -105,7 +105,7 @@ protected:
         std::make_shared<Bridge::BasicPlayer>(),
         std::make_shared<Bridge::BasicPlayer>()}};
     std::unique_ptr<Bridge::Engine::BridgeEngine> engine;
-    Bridge::GameState expectedState;
+    Bridge::DealState expectedState;
 };
 
 TEST_F(BridgeEngineTest, testInvalidConstruction)
@@ -141,7 +141,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
     // Startup
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability = Vulnerability::BOTH;
-    ASSERT_EQ(expectedState, makeGameState(*engine));
+    ASSERT_EQ(expectedState, makeDealState(*engine));
 
     // Shuffling
     cardManager->notifyAll(Engine::Shuffled {});
@@ -164,7 +164,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
     const auto calls = std::vector<Call>{
         Pass {}, BID, Pass {}, Pass {}, Pass {}};
     for (const auto e : enumerate(calls)) {
-        ASSERT_EQ(expectedState, makeGameState(*engine));
+        ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto& player = *players[e.first % players.size()];
         const auto position = engine->getPosition(player);
         engine->call(player, e.second);
@@ -175,12 +175,12 @@ TEST_F(BridgeEngineTest, testBridgeController)
     // Playing
     expectedState.stage = Stage::PLAYING;
     expectedState.positionInTurn = Position::SOUTH;
-    expectedState.biddingResult = GameState::BiddingResult {
+    expectedState.biddingResult = DealState::BiddingResult {
         Position::EAST, Contract {BID, Doubling::UNDOUBLED}};
-    expectedState.playingResult = GameState::PlayingResult {
+    expectedState.playingResult = DealState::PlayingState {
         std::map<Position, CardType>(), DealResult {0, 0}};
     for (const auto i : to(players.size())) {
-        ASSERT_EQ(expectedState, makeGameState(*engine));
+        ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         engine->play(player, 0);
@@ -191,7 +191,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
-            ASSERT_EQ(expectedState, makeGameState(*engine));
+            ASSERT_EQ(expectedState, makeDealState(*engine));
             engine->play(*player, i);
             updateExpectedStateAfterPlay(*player);
         }

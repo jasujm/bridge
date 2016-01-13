@@ -1,20 +1,20 @@
 #include "main/SimpleBridgeController.hh"
 
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/CardManager.hh"
-#include "engine/MakeGameState.hh"
+#include "engine/MakeDealState.hh"
 
 #include <algorithm>
 
 namespace Bridge {
 namespace Main {
 
-GameState SimpleBridgeController::getState() const
+DealState SimpleBridgeController::getState() const
 {
     assert(engine);
-    return makeGameState(*engine);
+    return makeDealState(*engine);
 }
 
 void SimpleBridgeController::handleCall(const Call& call)

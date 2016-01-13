@@ -13,7 +13,7 @@
 
 namespace Bridge {
 
-class GameState;
+class DealState;
 
 namespace Engine {
 class DuplicateGameManager;
@@ -54,9 +54,9 @@ public:
 
     /** \brief Determine the state of the game
      *
-     * \return GameState object describing the current game state
+     * \return DealState object describing the current deal state
      */
-    GameState getState() const;
+    DealState getState() const;
 
     /** \brief Return DuplicateGameManager that manages the game
      *

@@ -2,7 +2,7 @@
 
 #include "bridge/BridgeConstants.hh"
 #include "bridge/BasicPlayer.hh"
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 #include "engine/SimpleCardManager.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/CommandInterpreter.hh"
@@ -42,7 +42,7 @@ void BridgeMain::processCommand(const std::string& command)
     impl->interpreter.interpret(command);
 }
 
-GameState BridgeMain::getState() const
+DealState BridgeMain::getState() const
 {
     assert(impl);
     return impl->controller.getState();

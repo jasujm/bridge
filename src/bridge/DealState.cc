@@ -1,4 +1,4 @@
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 
 #include "IoUtility.hh"
 
@@ -9,21 +9,21 @@
 namespace Bridge {
 
 bool operator==(
-    const GameState::BiddingResult& lhs, const GameState::BiddingResult& rhs)
+    const DealState::BiddingResult& lhs, const DealState::BiddingResult& rhs)
 {
     return &lhs == &rhs || (
         lhs.declarer == rhs.declarer && lhs.contract == rhs.contract);
 }
 
 bool operator==(
-    const GameState::PlayingResult& lhs, const GameState::PlayingResult& rhs)
+    const DealState::PlayingState& lhs, const DealState::PlayingState& rhs)
 {
     return &lhs == &rhs || (
         lhs.currentTrick == rhs.currentTrick &&
         lhs.dealResult == rhs.dealResult);
 }
 
-bool operator==(const GameState& lhs, const GameState& rhs)
+bool operator==(const DealState& lhs, const DealState& rhs)
 {
     return &lhs == &rhs || (
         lhs.stage == rhs.stage &&
@@ -46,9 +46,9 @@ std::ostream& operator<<(std::ostream& os, const Stage stage)
     return outputEnum(os, stage, STAGE_NAMES);
 }
 
-std::ostream& operator<<(std::ostream& os, const GameState& state)
+std::ostream& operator<<(std::ostream& os, const DealState& state)
 {
-    os << "Game state";
+    os << "Deal state";
     os << "\nStage: " << state.stage;
     if (const auto& position_in_turn = state.positionInTurn) {
         os << "\nIn turn: " << *position_in_turn;

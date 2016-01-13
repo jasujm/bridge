@@ -3,7 +3,7 @@
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "bridge/DealResult.hh"
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -93,7 +93,7 @@ void printTricksWon(const DealResult& result)
               << "East-West: " << result.tricksWonByEastWest << "\n";
 }
 
-void printGameState(const GameState& gameState)
+void printDealState(const DealState& gameState)
 {
     if (const auto& cards = gameState.cards) {
         std::cout << "\nCards:\n";
@@ -136,7 +136,7 @@ int main()
     auto go = true;
     while (go && std::cin.good()) {
         const auto game_state = bridge_main.getState();
-        printGameState(game_state);
+        printDealState(game_state);
         if (!game_manager.hasEnded()) {
             if (const auto position_in_turn = game_state.positionInTurn) {
                 std::cout << "\nCommand for " << *position_in_turn << ": ";

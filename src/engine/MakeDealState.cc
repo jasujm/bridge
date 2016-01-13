@@ -1,9 +1,9 @@
-#include "engine/MakeGameState.hh"
+#include "engine/MakeDealState.hh"
 
 #include "bridge/Bidding.hh"
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
-#include "bridge/GameState.hh"
+#include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Trick.hh"
 #include "engine/BridgeEngine.hh"
@@ -18,7 +18,7 @@ namespace Engine {
 
 namespace {
 
-void fillCards(GameState& state, const Position position, const Hand& hand)
+void fillCards(DealState& state, const Position position, const Hand& hand)
 {
     auto cards = std::vector<CardType> {};
     for (const auto& card : cardsIn(hand)) {
@@ -31,7 +31,7 @@ void fillCards(GameState& state, const Position position, const Hand& hand)
     state.cards->emplace(position, std::move(cards));
 }
 
-void fillBidding(GameState& state, const Bidding& bidding)
+void fillBidding(DealState& state, const Bidding& bidding)
 {
     auto position = bidding.getOpeningPosition();
     state.calls.emplace();
@@ -41,18 +41,18 @@ void fillBidding(GameState& state, const Bidding& bidding)
     }
 }
 
-void fillContract(GameState& state, const Bidding& bidding) {
+void fillContract(DealState& state, const Bidding& bidding) {
     // We assume here that if bidding is available and has ended, the deal has
     // not been passed out, so we can dereference twice.
     const auto declarer =
         dereference(dereference(bidding.getDeclarerPosition()));
     const auto contract = dereference(dereference(bidding.getContract()));
-    const auto result = GameState::BiddingResult {declarer, contract};
+    const auto result = DealState::BiddingResult {declarer, contract};
     state.biddingResult.emplace(result);
 }
 
 void fillPlaying(
-    GameState& state, const Trick& currentTrick, const DealResult& dealResult,
+    DealState& state, const Trick& currentTrick, const DealResult& dealResult,
     const BridgeEngine& engine)
 {
     decltype(state.playingResult->currentTrick) current_trick;
@@ -67,15 +67,15 @@ void fillPlaying(
         }
     }
     const auto playingResult =
-        GameState::PlayingResult {current_trick, dealResult};
+        DealState::PlayingState {current_trick, dealResult};
     state.playingResult.emplace(playingResult);
 }
 
 }
 
-GameState makeGameState(const BridgeEngine& engine)
+DealState makeDealState(const BridgeEngine& engine)
 {
-    GameState state;
+    DealState state;
 
     if (engine.hasEnded()) {
         state.stage = Stage::ENDED;
