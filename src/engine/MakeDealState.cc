@@ -49,14 +49,10 @@ void fillPlaying(
     const BridgeEngine& engine)
 {
     decltype(state.playingResult->currentTrick) current_trick;
-    for (const auto position : POSITIONS) {
-        // We assume that the hands are available so it is safe to dereference
-        const auto& hand =
-            dereference(engine.getHand(engine.getPlayer(position)));
-        if (const auto card = currentTrick.getCard(hand)) {
-            if (const auto type = card->getType()) {
-                current_trick.emplace(position, *type);
-            }
+    for (const auto pair : currentTrick) {
+        if (const auto type = pair.second.getType()) {
+            const auto position = dereference(engine.getPosition(pair.first));
+            current_trick.emplace(position, *type);
         }
     }
     const auto playingResult =

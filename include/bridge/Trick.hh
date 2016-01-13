@@ -8,7 +8,12 @@
 
 #include "bridge/BridgeConstants.hh"
 
+#include <boost/iterator/counting_iterator.hpp>
+#include <boost/iterator/transform_iterator.hpp>
+
 #include <cstddef>
+#include <functional>
+#include <utility>
 
 namespace Bridge {
 
@@ -72,7 +77,21 @@ public:
      */
     bool isCompleted() const;
 
+    /** \brief Get iterator to the beginning of the cards in the trick
+     *
+     * \return Iterator that, when dereferenced, returns a pair containing
+     * constant reference to each hand that has played to the trick so far and
+     * the corresponding card.
+     */
+    auto begin() const;
+
+    /** \brief Get iterator to the end of the cards in the trick
+     */
+    auto end() const;
+
 private:
+
+    auto trickCardIterator(std::size_t n) const;
 
     /** \brief Handle for adding a card to the trick
      *
@@ -122,6 +141,28 @@ private:
 
     std::size_t internalGetNumberOfCardsPlayed() const;
 };
+
+inline auto Trick::trickCardIterator(std::size_t n) const
+{
+    return boost::make_transform_iterator(
+        boost::make_counting_iterator(n),
+        [this](const std::size_t n)
+        {
+            return std::make_pair(
+                std::ref(handleGetHand(n)),
+                std::ref(handleGetCard(n)));
+        });
+}
+
+inline auto Trick::begin() const
+{
+    return trickCardIterator(0u);
+}
+
+inline auto Trick::end() const
+{
+    return trickCardIterator(handleGetNumberOfCardsPlayed());
+}
 
 }
 

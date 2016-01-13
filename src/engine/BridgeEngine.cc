@@ -120,6 +120,7 @@ public:
     const Player& getPlayer(Position position) const;
     Position getPosition(const Player& player) const;
     const Hand* getHand(const Player& player) const;
+    boost::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
     boost::optional<std::size_t> getNumberOfTricksPlayed() const;
@@ -581,6 +582,12 @@ const Hand* BridgeEngine::Impl::getHand(const Player& player) const
     return internalCallIfInState(&InDeal::getHand, position);
 }
 
+boost::optional<Position> BridgeEngine::Impl::getPosition(
+    const Hand& hand) const
+{
+    return internalCallIfInState(&InDeal::getPosition, hand);
+}
+
 const Bidding* BridgeEngine::Impl::getBidding() const
 {
     return internalCallIfInState(&InDeal::getBidding);
@@ -704,6 +711,12 @@ const Hand* BridgeEngine::getHand(const Player& player) const
 {
     assert(impl);
     return impl->getHand(player);
+}
+
+boost::optional<Position> BridgeEngine::getPosition(const Hand& hand) const
+{
+    assert(impl);
+    return impl->getPosition(hand);
 }
 
 const Bidding* BridgeEngine::getBidding() const

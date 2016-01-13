@@ -139,6 +139,17 @@ public:
      */
     const Hand* getHand(const Player& player) const;
 
+    /** \brief Determine the position of given hand
+     *
+     * \param player the player
+     *
+     * \return the position corresponding to the hand, or none if the game in
+     * not in the deal phase
+     *
+     * \throw std::out_of_range if the hand is not in the current deal
+     */
+    boost::optional<Position> getPosition(const Hand& hand) const;
+
     /** \brief Retrieve the bidding of the current deal
      *
      * \return pointer to the bidding for the current deal, or nullptr if the

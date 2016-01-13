@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 
 using Bridge::Card;
@@ -46,8 +47,7 @@ protected:
 TEST_P(TrickTest, testTrickCompletionWhenIncomplete)
 {
     const auto n = GetParam();
-    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
-        .WillOnce(Return(n));
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
     EXPECT_FALSE(trick.isCompleted());
 }
 
@@ -126,6 +126,21 @@ TEST_P(TrickTest, testGetCardWhenTrickIsCompleted)
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillOnce(Return(Trick::N_CARDS_IN_TRICK));
     EXPECT_EQ(&cards[n], trick.getCard(hands[n]));
+}
+
+TEST_F(TrickTest, testCardIterators)
+{
+    const auto z = zip(hands, cards);
+    ON_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillByDefault(Return(Trick::N_CARDS_IN_TRICK));
+    EXPECT_TRUE(
+        std::equal(
+            z.begin(), z.end(), trick.begin(), trick.end(),
+            [](const auto& t, const auto& p)
+            {
+                return &t.template get<0>() == &p.first &&
+                    &t.template get<1>() == &p.second;
+            }));
 }
 
 INSTANTIATE_TEST_CASE_P(
