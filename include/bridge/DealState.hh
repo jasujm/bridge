@@ -63,13 +63,21 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<Vulnerability> vulnerability;
 
+    /** \brief Type of the \ref cards member
+     */
+    using Cards = std::map<Position, std::vector<CardType>>;
+
     /** \brief The known cards in the deal
      *
      * Each position is mapped to a vector of known and unplayed cards the
      * player at the position is holding. This member is none if the cards
      * haven’t been dealt yet.
      */
-    boost::optional<std::map<Position, std::vector<CardType>>> cards;
+    boost::optional<Cards> cards;
+
+    /** \brief Type of the \ref calls member
+     */
+    using Calls = std::vector<std::pair<Position, Call>>;
 
     /** \brief The calls made in the auction of the current deal
      *
@@ -77,7 +85,7 @@ struct DealState : private boost::equality_comparable<DealState> {
      * has started, it is a vector of pairs (in calling order) containing the
      * position of the caller and the call made.
      */
-    boost::optional<std::vector<std::pair<Position, Call>>> calls;
+    boost::optional<Calls> calls;
 
     /** \brief Result of the bidding round
      */
@@ -95,12 +103,17 @@ struct DealState : private boost::equality_comparable<DealState> {
     /** \brief State of the playing phase
      */
     struct PlayingState {
+
+        /** \brief Type of the \ref trick member
+         */
+        using Trick = std::vector<std::pair<Position, CardType>>;
+
         /** \brief Cards played to the current trick
          *
          * This member is a vector of pairs containing position of the player
          * and the card played, in the order the cards were played.
          */
-        std::vector<std::pair<Position, CardType>> currentTrick;
+        Trick currentTrick;
         DealResult dealResult; ///< \brief The result of the current deal
     };
 

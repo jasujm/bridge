@@ -178,7 +178,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
     expectedState.biddingResult = DealState::BiddingResult {
         Position::EAST, Contract {BID, Doubling::UNDOUBLED}};
     expectedState.playingResult = DealState::PlayingState {
-        std::vector<std::pair<Position, CardType>> {}, DealResult {0, 0}};
+        DealState::PlayingState::Trick {}, TricksWon {0, 0}};
     for (const auto i : to(players.size())) {
         ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto turn_i = (i + 2) % players.size();

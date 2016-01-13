@@ -42,7 +42,7 @@ void printCards(std::vector<CardType> cards)
     }
 }
 
-void printAllCards(const std::map<Position, std::vector<CardType>>& all_cards)
+void printAllCards(const DealState::Cards& all_cards)
 {
     for (const auto& cards : all_cards) {
         std::cout << cards.first << "\n";
@@ -50,9 +50,7 @@ void printAllCards(const std::map<Position, std::vector<CardType>>& all_cards)
     }
 }
 
-void printCalls(
-    Vulnerability vulnerability,
-    const std::vector<std::pair<Position, Call>>& calls)
+void printCalls(Vulnerability vulnerability, const DealState::Calls& calls)
 {
     for (const auto position : POSITIONS) {
         std::cout << position;
@@ -75,7 +73,7 @@ void printCalls(
     }
 }
 
-void printTrick(const std::vector<std::pair<Position, CardType>>& trick)
+void printTrick(const DealState::PlayingState::Trick& trick)
 {
     for (const auto pair : trick) {
         std::cout << pair.first << ": " <<  pair.second << "\n";

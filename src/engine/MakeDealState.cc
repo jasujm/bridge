@@ -48,7 +48,7 @@ void fillPlaying(
     DealState& state, const Trick& currentTrick, const DealResult& dealResult,
     const BridgeEngine& engine)
 {
-    decltype(state.playingResult->currentTrick) current_trick;
+    DealState::PlayingState::Trick current_trick;
     for (const auto pair : currentTrick) {
         if (const auto type = pair.second.getType()) {
             // We assume it is safe to dereference as we are in the deal phase
