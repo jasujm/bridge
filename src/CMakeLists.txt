@@ -8,6 +8,7 @@ macro(add_bridge_library target)
 endmacro()
 
 add_subdirectory(main)
+add_subdirectory(messaging)
 add_subdirectory(engine)
 add_subdirectory(scoring)
 add_subdirectory(bridge)
