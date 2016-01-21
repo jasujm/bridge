@@ -87,7 +87,7 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<Calls> calls;
 
-    /** \brief Type of the \biddingResult member
+    /** \brief Type of the \ref biddingResult member
      */
     struct BiddingResult {
         Position declarer; ///< \brief The position of the declarer
@@ -100,7 +100,7 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<BiddingResult> biddingResult;
 
-    /** \brief Type of the \ref trick member
+    /** \brief Type of the \ref currentTrick member
      */
     using Trick = std::vector<std::pair<Position, CardType>>;
 
