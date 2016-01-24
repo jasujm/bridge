@@ -7,6 +7,37 @@
 namespace Bridge {
 namespace Messaging {
 
+namespace {
+
+auto handleMessage(
+    zmq::socket_t& socket, const MessageQueue::Handler& handler, bool more)
+{
+    auto parameters = std::vector<std::string> {};
+    while (more) {
+        const auto message = recvMessage(socket);
+        parameters.push_back(message.first);
+        more = message.second;
+    }
+    return handler(parameters);
+}
+
+void sendReply(
+    zmq::socket_t& socket, const std::string& reply,
+    const MessageQueue::HandlerParameters& parameters)
+{
+    auto param_begin = parameters.begin();
+    auto more = (param_begin != parameters.end());
+    sendMessage(socket, reply, more);
+    while (more) {
+        const auto param_next = std::next(param_begin);
+        more = (param_next != parameters.end());
+        sendMessage(socket, *param_begin, more);
+        param_begin = param_next;
+    }
+}
+
+}
+
 const std::string MessageQueue::MESSAGE_TERMINATE {"terminate"};
 const std::string MessageQueue::MESSAGE_ERROR {"error"};
 
@@ -31,28 +62,21 @@ MessageQueue::Impl::Impl(HandlerMap handlers, zmq::socket_t socket) :
         [this](const auto&)
         {
             go = false;
-            return std::string {};
+            const auto empty_parameters = std::vector<std::string> {};
+            return std::make_pair(std::string {}, empty_parameters);
         });
 }
 
 void MessageQueue::Impl::run()
 {
-    while (go) {
-        auto message = recvMessage(socket);
+    while (go) { // go is set to false in handler for MESSAGE_TERMINATE
+        const auto message = recvMessage(socket);
         const auto handler = handlers.find(message.first);
         if (handler != handlers.end()) {
-            auto parameters = std::vector<std::string> {};
-            auto more = message.second;
-            while (more) {
-                message = recvMessage(socket);
-                parameters.push_back(message.first);
-                more = message.second;
-            }
-            const auto reply = handler->second(parameters);
-            sendMessage(socket, reply);
-        }
-        else
-        {
+            const auto reply = handleMessage(
+                socket, handler->second, message.second);
+            sendReply(socket, reply.first, reply.second);
+        } else {
             sendMessage(socket, MESSAGE_ERROR);
         }
     }

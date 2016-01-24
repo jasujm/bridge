@@ -48,19 +48,26 @@ public:
 
     /** \brief Parameters to message handler
      *
-     * A message \ref Handler can have arbitrary number of parameters, passed
-     * as a range of strings.
+     * Parameters of a message is an arbitrary number of strings, represented
+     * by MessageQueue as an any_range of strings.
      */
     using HandlerParameters = boost::any_range<
         std::string, boost::forward_traversal_tag>;
 
     /** \brief Message handler
      *
-     * Handler is a function that, when invoked, returns reply sent to the
-     * client who sent the command. All parameters to message are passed to
-     * the handler as an instance of \ref HandlerParameters.
+     * Handler  is a  function that,  when  invoked, handles  the command  and
+     * returns reply to be sent to the client who sent the command.
+     *
+     * The return value of the handler is a pair consisting of the following
+     *   - Identifier of the reply (string)
+     *   - Parameters of the reply (\ref HandlerParameters object)
+     *
+     * Message parameters to message are passed to the handler as an instance
+     * of \ref HandlerParameters.
      */
-    using Handler = std::function<std::string(const HandlerParameters&)>;
+    using Handler = std::function<
+        std::pair<std::string, HandlerParameters>(const HandlerParameters&)>;
 
     /** \brief Create message queue
      *

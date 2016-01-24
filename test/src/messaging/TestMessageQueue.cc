@@ -21,7 +21,10 @@ namespace {
 
 class MockHandler {
 public:
-    MOCK_METHOD1(invoke, std::string(const MessageQueue::HandlerParameters&));
+    MOCK_METHOD1(
+        invoke,
+        std::pair<std::string, MessageQueue::HandlerParameters>(
+            const MessageQueue::HandlerParameters&));
 };
 
 const auto ADDRESS = std::string {"inproc://testing"};
@@ -41,7 +44,8 @@ protected:
     virtual void TearDown()
     {
         sendMessage(socket, MessageQueue::MESSAGE_TERMINATE);
-        static_cast<void>(recvMessage(socket));
+        const auto reply = recvMessage(socket);
+        EXPECT_FALSE(reply.second);
         messageThread.join();
     }
 
@@ -74,14 +78,21 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)
 {
     const auto p1 = std::string {"p1"};
     const auto p2 = std::string {"p2"};
-    EXPECT_CALL(handler, invoke(ElementsAre(p1, p2)))
-        .WillOnce(Return(REPLY));
+    const auto r1 = std::string {"r1"};
+    const auto r2 = std::string {"r2"};
+
+    EXPECT_CALL(handler, invoke(ElementsAre(p1, p2))).WillOnce(
+        Return(std::make_pair(REPLY, std::vector<std::string> {r1, r2})));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
     sendMessage(socket, p2);
 
-    const auto reply = recvMessage(socket);
-    EXPECT_EQ(std::make_pair(REPLY, false), reply);
+    auto reply = recvMessage(socket);
+    ASSERT_EQ(std::make_pair(REPLY, true), reply);
+    reply = recvMessage(socket);
+    ASSERT_EQ(std::make_pair(r1, true), reply);
+    reply = recvMessage(socket);
+    ASSERT_EQ(std::make_pair(r2, false), reply);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
