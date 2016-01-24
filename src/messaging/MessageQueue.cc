@@ -2,6 +2,7 @@
 #include "messaging/MessageUtility.hh"
 
 #include <cassert>
+#include <vector>
 
 namespace Bridge {
 namespace Messaging {
@@ -27,7 +28,7 @@ MessageQueue::Impl::Impl(HandlerMap handlers, zmq::socket_t socket) :
 {
     this->handlers.emplace(
         MESSAGE_TERMINATE,
-        [this]()
+        [this](const auto&)
         {
             go = false;
             return std::string {};
@@ -37,10 +38,17 @@ MessageQueue::Impl::Impl(HandlerMap handlers, zmq::socket_t socket) :
 void MessageQueue::Impl::run()
 {
     while (go) {
-        const auto command = recvMessage(socket);
-        const auto handler = handlers.find(command);
+        auto message = recvMessage(socket);
+        const auto handler = handlers.find(message.first);
         if (handler != handlers.end()) {
-            const auto reply = handler->second();
+            auto parameters = std::vector<std::string> {};
+            auto more = message.second;
+            while (more) {
+                message = recvMessage(socket);
+                parameters.push_back(message.first);
+                more = message.second;
+            }
+            const auto reply = handler->second(parameters);
             sendMessage(socket, reply);
         }
         else

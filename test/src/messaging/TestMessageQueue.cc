@@ -9,6 +9,8 @@
 #include <thread>
 #include <utility>
 
+using testing::_;
+using testing::ElementsAre;
 using testing::Return;
 
 using Bridge::Messaging::MessageQueue;
@@ -19,12 +21,12 @@ namespace {
 
 class MockHandler {
 public:
-    MOCK_METHOD0(invoke, std::string());
+    MOCK_METHOD1(invoke, std::string(const MessageQueue::HandlerParameters&));
 };
 
-const std::string ADDRESS {"inproc://testing"};
-const std::string COMMAND {"command"};
-const std::string REPLY {"reply"};
+const auto ADDRESS = std::string {"inproc://testing"};
+const auto COMMAND = std::string {"command"};
+const auto REPLY = std::string {"reply"};
 
 }
 
@@ -46,7 +48,12 @@ protected:
     zmq::context_t context;
     MockHandler handler;
     std::vector<std::pair<std::string, MessageQueue::Handler>> handlers {
-        std::make_pair(COMMAND, [this]() { return handler.invoke(); }),
+        std::make_pair(
+            COMMAND,
+            [this](const auto& p)
+            {
+                return handler.invoke(p);
+            }),
     };
     MessageQueue messageQueue {
         handlers.begin(), handlers.end(), makeSocketForMessageQueue()};
@@ -65,18 +72,23 @@ private:
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)
 {
-    EXPECT_CALL(handler, invoke()).WillOnce(Return(REPLY));
-    sendMessage(socket, COMMAND);
+    const auto p1 = std::string {"p1"};
+    const auto p2 = std::string {"p2"};
+    EXPECT_CALL(handler, invoke(ElementsAre(p1, p2)))
+        .WillOnce(Return(REPLY));
+    sendMessage(socket, COMMAND, true);
+    sendMessage(socket, p1, true);
+    sendMessage(socket, p2);
 
     const auto reply = recvMessage(socket);
-    EXPECT_EQ(REPLY, reply);
+    EXPECT_EQ(std::make_pair(REPLY, false), reply);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
-    EXPECT_CALL(handler, invoke()).Times(0);
+    EXPECT_CALL(handler, invoke(_)).Times(0);
     sendMessage(socket, "invalid");
 
     const auto reply = recvMessage(socket);
-    EXPECT_EQ(MessageQueue::MESSAGE_ERROR, reply);
+    EXPECT_EQ(std::make_pair(MessageQueue::MESSAGE_ERROR, false), reply);
 }

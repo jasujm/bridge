@@ -14,7 +14,9 @@
 
 #include <zmq.hpp>
 
+#include <cstdint>
 #include <string>
+#include <utility>
 
 namespace Bridge {
 namespace Messaging {
@@ -23,27 +25,33 @@ namespace Messaging {
  *
  * \param socket the socket to use for sending the message
  * \param message the message to be sent (typically a string)
+ * \param more true if there are more parts in the message, false otherwise
  */
 template<typename MessageType>
-void sendMessage(zmq::socket_t& socket, const MessageType& message)
+void sendMessage(
+    zmq::socket_t& socket, const MessageType& message, bool more = false)
 {
-    socket.send(std::begin(message), std::end(message));
+    const auto flags = more ? ZMQ_SNDMORE : 0;
+    socket.send(std::begin(message), std::end(message), flags);
 }
 
 /** \brief Receive message sent through socket
  *
- * \tparam CharType the character type of the message
+ * \tparam CharType the character type of the string the message consists of
  *
  * \param socket the socket to receive the message from
  *
- * \return std::basic_string<CharType> object containing the message
+ * \return A pair containing the following
+ *   - string containing the message
+ *   - boolean indicating whether there are more parts in the message
  */
 template<typename CharType = char>
-std::basic_string<CharType> recvMessage(zmq::socket_t& socket)
+std::pair<std::basic_string<CharType>, bool> recvMessage(zmq::socket_t& socket)
 {
     auto msg = zmq::message_t {};
     socket.recv(&msg);
-    return {msg.data<CharType>(), msg.size() / sizeof(CharType)};
+    const auto more = socket.getsockopt<std::int64_t>(ZMQ_RCVMORE);
+    return {{msg.data<CharType>(), msg.size() / sizeof(CharType)}, more != 0};
 }
 
 }

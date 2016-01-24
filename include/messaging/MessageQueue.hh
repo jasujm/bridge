@@ -6,6 +6,7 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
+#include <boost/range/any_range.hpp>
 #include <zmq.hpp>
 
 #include <map>
@@ -45,12 +46,21 @@ public:
      */
     static const std::string MESSAGE_ERROR;
 
-    /** \brief Command handler
+    /** \brief Parameters to message handler
+     *
+     * A message \ref Handler can have arbitrary number of parameters, passed
+     * as a range of strings.
+     */
+    using HandlerParameters = boost::any_range<
+        std::string, boost::forward_traversal_tag>;
+
+    /** \brief Message handler
      *
      * Handler is a function that, when invoked, returns reply sent to the
-     * client who sent the command.
+     * client who sent the command. All parameters to message are passed to
+     * the handler as an instance of \ref HandlerParameters.
      */
-    using Handler = std::function<std::string()>;
+    using Handler = std::function<std::string(const HandlerParameters&)>;
 
     /** \brief Create message queue
      *
