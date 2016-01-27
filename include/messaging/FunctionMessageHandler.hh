@@ -24,6 +24,15 @@ namespace Messaging {
  * to strings. The conversion of function parameters and return values is
  * controlled by SerializationPolicy.
  *
+ * FunctionMessageHandler throws MessageHandlingException if the number of
+ * parameters does not match the argument count of the function. The
+ * serializer may throw MessageHandlingException to signal failure to
+ * serialize or deserialize values. The underlying function may throw
+ * MessageHandlingException to indicate failure to handle the
+ * request. FunctionMessageHandler is exception neutral and does not catch any
+ * exception, which means that other exceptions, including fatal ones like
+ * std::bad_alloc, are propagated to the caller as is.
+ *
  * \tparam SerializationPolicy Type for an object that controls conversion of
  * function parameters and return values. It needs to have two template
  * functions:
@@ -89,6 +98,10 @@ MessageHandler::ReturnValue
 FunctionMessageHandler<SerializationPolicy, Function, Args...>::handle(
     MessageHandler::ParameterRange params)
 {
+    if (params.size() != sizeof...(Args)) {
+        throw MessageHandlingException {};
+    }
+
     constexpr auto n_ret = std::tuple_size<
         std::result_of_t<Function(Args...)>>::value;
     return callFunction(

@@ -15,6 +15,15 @@
 namespace Bridge {
 namespace Messaging {
 
+/** \brief Exception to indicate error in message handling
+ *
+ * This non-fatal exception is used by MessageHandler to signal that the
+ * handler was unable to fulfill the request. The reason may be related to
+ * malformed parameters (wrong number, wrong format etc.) or any other reason
+ * (forbidden action etc.).
+ */
+class MessageHandlingException : public std::exception {};
+
 /** \brief Interface for handling messages
  */
 class MessageHandler {
@@ -40,6 +49,9 @@ public:
      *
      * \return ReturnValue containing parameters for the reply message
      *
+     * \throw MessageHandlingException if the request was not successfully
+     * handled
+     *
      * \todo Could the iterator category be weakened?
      */
     template<typename ParameterIterator>
@@ -59,6 +71,8 @@ private:
      * \param params range containing the parameters passed to operator()()
      *
      * \return ReturnValue to be returned by operator()()
+     *
+     * \throw MessageHandlingException to signal failure to handle the message
      *
      * \sa operator()()
      */

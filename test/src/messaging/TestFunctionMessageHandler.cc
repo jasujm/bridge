@@ -87,3 +87,13 @@ TEST_F(FunctionMessageHandlerTest, twoParamsNoReturnValue)
         return_value,
         handler(params.begin(), params.end()));
 }
+
+TEST_F(FunctionMessageHandlerTest, invalidNumberOfParameters)
+{
+    auto handler = makeFunctionMessageHandler<TestPolicy>(
+        [this]() { return function.call0(); });
+    const auto params = std::vector<std::string> { "invalid" };
+    EXPECT_THROW(
+        handler(params.begin(), params.end()),
+        Bridge::Messaging::MessageHandlingException);
+}
