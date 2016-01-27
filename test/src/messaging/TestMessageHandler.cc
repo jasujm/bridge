@@ -22,7 +22,7 @@ protected:
 
 TEST_F(MessageHandlerTest, testMessageHandler)
 {
-    EXPECT_CALL(messageHandler, handle(ElementsAreArray(params)))
+    EXPECT_CALL(messageHandler, doHandle(ElementsAreArray(params)))
         .WillOnce(Return(returnValue));
-    EXPECT_EQ(returnValue, messageHandler(params.begin(), params.end()));
+    EXPECT_EQ(returnValue, messageHandler.handle(params.begin(), params.end()));
 }

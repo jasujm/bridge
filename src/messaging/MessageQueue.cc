@@ -20,7 +20,7 @@ auto handleMessage(
         parameters.push_back(message.first);
         more = message.second;
     }
-    return handler(parameters.begin(), parameters.end());
+    return handler.handle(parameters.begin(), parameters.end());
 }
 
 void sendReply(
@@ -41,7 +41,7 @@ void sendReply(
 class TerminateMessageHandler : public MessageHandler {
 public:
     TerminateMessageHandler(bool& go) : go {go} {}
-    ReturnValue handle(ParameterRange /*params*/) override
+    ReturnValue doHandle(ParameterRange) override
     {
         go = false;
         return {};

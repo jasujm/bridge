@@ -31,7 +31,7 @@ public:
 
     /** \brief Vector containing parameters for the reply message
      *
-     * \sa operator()()
+     * \sa handle()
      */
     using ReturnValue = std::vector<std::string>;
 
@@ -50,16 +50,17 @@ public:
      * \return ReturnValue containing parameters for the reply message
      *
      * \throw MessageHandlingException if the request was not successfully
-     * handled
+     * handled due to reason related to the request being invalid, handler not
+     * being in correct state etc.
      *
      * \todo Could the iterator category be weakened?
      */
     template<typename ParameterIterator>
-    ReturnValue operator()(ParameterIterator first, ParameterIterator last);
+    ReturnValue handle(ParameterIterator first, ParameterIterator last);
 
 protected:
 
-    /** \brief Parameter to handle()
+    /** \brief Parameter to doHandle()
      */
     using ParameterRange = boost::any_range<
         std::string, boost::random_access_traversal_tag>;
@@ -68,22 +69,23 @@ private:
 
     /** \brief Handle action of this handler
      *
-     * \param params range containing the parameters passed to operator()()
+     * \param params range containing the parameters passed to handle()
      *
-     * \return ReturnValue to be returned by operator()()
+     * \return ReturnValue to be returned by handle()
      *
-     * \throw MessageHandlingException to signal failure to handle the message
+     * \throw MessageHandlingException if the request was not successfully
+     * handled.
      *
-     * \sa operator()()
+     * \sa handle()
      */
-    virtual ReturnValue handle(ParameterRange params) = 0;
+    virtual ReturnValue doHandle(ParameterRange params) = 0;
 };
 
 template<typename ParameterIterator>
-MessageHandler::ReturnValue MessageHandler::operator()(
+MessageHandler::ReturnValue MessageHandler::handle(
     ParameterIterator first, ParameterIterator last)
 {
-    return handle(ParameterRange(first, last));
+    return doHandle(ParameterRange(first, last));
 }
 
 

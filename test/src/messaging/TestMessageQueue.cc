@@ -68,7 +68,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)
     const auto r1 = std::string {"r1"};
     const auto r2 = std::string {"r2"};
 
-    EXPECT_CALL(*handlers.at(COMMAND), handle(ElementsAre(p1, p2)))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(ElementsAre(p1, p2)))
         .WillOnce(Return(MessageHandler::ReturnValue {r1, r2}));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
@@ -84,7 +84,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
-    EXPECT_CALL(*handlers.at(COMMAND), handle(_)).Times(0);
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_)).Times(0);
     sendMessage(socket, "invalid");
 
     const auto reply = recvMessage(socket);

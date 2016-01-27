@@ -8,6 +8,7 @@
 
 #include "MessageHandler.hh"
 
+#include <memory>
 #include <utility>
 #include <string>
 #include <tuple>
@@ -33,25 +34,29 @@ namespace Messaging {
  * exception, which means that other exceptions, including fatal ones like
  * std::bad_alloc, are propagated to the caller as is.
  *
- * \tparam SerializationPolicy Type for an object that controls conversion of
- * function parameters and return values. It needs to have two template
- * functions:
- *   - \p serialize which must accept an object returned by the underlying
- *     function and return a string representation of it. The type accepted is
- *     one of the return values of the function.
- *   - \p deserialize which must accept a string and return object which the
- *     parameter represents. The type is given to the method as first template
- *     argument and is one of the types passed to the function as argument.
- *
  * \tparam Function Type of the function that FunctionMessageHandler
  * wraps. The function may take an arbitrary number of parameters and return
  * an arbitrary sized instance of std::tuple containing the return values.
  *
+ * \tparam SerializationPolicy Type for an object that controls conversion of
+ * function parameters and return values. It needs to have the following
+ * signature:
+ * \code{.cc}
+ * class ExampleSerializationPolicy {
+ *     // Return string representation of t
+ *     template<typename T> std::string serialize(const T& t);
+ *     // Return object of type T represented by s
+ *     template<typename T> T deserialize(const std::string& s);
+ * };
+ * \endcode
+ *
  * \tparam Args The types of the arguments used when calling the
  * function. This needs to be specified to distinguish between different
  * possible calling signatures provided by the function.
+ *
+ * \sa makeMessageHandler()
  */
-template<typename SerializationPolicy, typename Function, typename... Args>
+template<typename Function, typename SerializationPolicy, typename... Args>
 class FunctionMessageHandler : public MessageHandler {
 public:
 
@@ -61,21 +66,20 @@ public:
      * \param serializer the SerializationPolicy object used to serialize and
      * deserialize strings
      */
-    explicit FunctionMessageHandler(
-        Function function,
-        SerializationPolicy serializer = {});
+    FunctionMessageHandler(Function function, SerializationPolicy serializer);
 
 private:
 
-    ReturnValue handle(ParameterRange params) override;
+    ReturnValue doHandle(ParameterRange params) override;
 
-     template<std::size_t... Ns, std::size_t... Ms>
-    ReturnValue callFunction(
+    template<std::size_t... Ns, std::size_t... Ms>
+    ReturnValue internalCallFunction(
         ParameterRange params, std::index_sequence<Ns...>,
         std::index_sequence<Ms...>)
     {
-        auto ret = function(
+        auto&& params_ = std::make_tuple(
             serializer.template deserialize<Args>(params[Ns])...);
+        auto ret = function(std::get<Ns>(std::move(params_))...);
         // to silence compiler warning if the return value is empty
         static_cast<void>(ret);
         return {serializer.serialize(std::get<Ms>(ret))...};
@@ -85,17 +89,17 @@ private:
     SerializationPolicy serializer;
 };
 
-template<typename SerializationPolicy, typename Function, typename... Args>
-FunctionMessageHandler<SerializationPolicy, Function, Args...>::FunctionMessageHandler(
+template<typename Function, typename SerializationPolicy, typename... Args>
+FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageHandler(
     Function function, SerializationPolicy serializer) :
     function {std::move(function)},
     serializer {std::move(serializer)}
 {
 }
 
-template<typename SerializationPolicy, typename Function, typename... Args>
+template<typename Function, typename SerializationPolicy, typename... Args>
 MessageHandler::ReturnValue
-FunctionMessageHandler<SerializationPolicy, Function, Args...>::handle(
+FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     MessageHandler::ParameterRange params)
 {
     if (params.size() != sizeof...(Args)) {
@@ -104,33 +108,32 @@ FunctionMessageHandler<SerializationPolicy, Function, Args...>::handle(
 
     constexpr auto n_ret = std::tuple_size<
         std::result_of_t<Function(Args...)>>::value;
-    return callFunction(
+    return internalCallFunction(
         params,
         std::index_sequence_for<Args...>(),
         std::make_index_sequence<n_ret>());
 }
 
-/** \brief Utility for wrapping function into FunctionMessageHandler
+/** \brief Utility for wrapping function into message handler
  *
- * Like direct constructor call to FunctionMessageHandler, but deduces
- * function type.
+ * This function constructs FunctionMessageHandler to the heap using the
+ * parameters passed to this function and returns pointer to it.
  *
- * \param function the function to be forwarded to FunctionMessageHandler
- * constructor
- * \param serializer the serializer to be forwarded to FunctionMessageHandler
- * constructor
+ * \param function the function to be wrapped
+ * \param serializer the serializer used for converting to/from argument and
+ * return types of the function
  *
- * \return the constructed FunctionMessageHandler object
+ * \return the constructed message handler
  *
  * \sa FunctionMessageHandler
  */
-template<typename SerializationPolicy, typename... Args, typename Function>
-auto makeFunctionMessageHandler(
-    Function&& function, SerializationPolicy&& serializer = {})
+template<typename... Args, typename Function, typename SerializationPolicy>
+auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
 {
-    return FunctionMessageHandler<SerializationPolicy, Function, Args...> {
+    return std::make_unique<
+        FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
         std::forward<Function>(function),
-        std::forward<SerializationPolicy>(serializer)};
+        std::forward<SerializationPolicy>(serializer));
 }
 
 }
