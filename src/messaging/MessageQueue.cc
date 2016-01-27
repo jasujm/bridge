@@ -1,7 +1,9 @@
+#include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/MessageUtility.hh"
 
 #include <cassert>
+#include <functional>
 #include <vector>
 
 namespace Bridge {
@@ -10,7 +12,7 @@ namespace Messaging {
 namespace {
 
 auto handleMessage(
-    zmq::socket_t& socket, const MessageQueue::Handler& handler, bool more)
+    zmq::socket_t& socket, MessageHandler& handler, bool more)
 {
     auto parameters = std::vector<std::string> {};
     while (more) {
@@ -18,28 +20,41 @@ auto handleMessage(
         parameters.push_back(message.first);
         more = message.second;
     }
-    return handler(parameters);
+    return handler(parameters.begin(), parameters.end());
 }
 
 void sendReply(
     zmq::socket_t& socket, const std::string& reply,
-    const MessageQueue::HandlerParameters& parameters)
+    const MessageHandler::ReturnValue& params)
 {
-    auto param_begin = parameters.begin();
-    auto more = (param_begin != parameters.end());
+    auto param_begin = params.begin();
+    auto more = (param_begin != params.end());
     sendMessage(socket, reply, more);
     while (more) {
         const auto param_next = std::next(param_begin);
-        more = (param_next != parameters.end());
+        more = (param_next != params.end());
         sendMessage(socket, *param_begin, more);
         param_begin = param_next;
     }
 }
 
+class TerminateMessageHandler : public MessageHandler {
+public:
+    TerminateMessageHandler(bool& go) : go {go} {}
+    ReturnValue handle(ParameterRange /*params*/) override
+    {
+        go = false;
+        return {};
+    }
+private:
+    bool& go;
+};
+
 }
 
 const std::string MessageQueue::MESSAGE_TERMINATE {"terminate"};
-const std::string MessageQueue::MESSAGE_ERROR {"error"};
+const std::string MessageQueue::REPLY_SUCCESS {"success"};
+const std::string MessageQueue::REPLY_FAILURE {"failure"};
 
 class MessageQueue::Impl {
 public:
@@ -59,12 +74,7 @@ MessageQueue::Impl::Impl(HandlerMap handlers, zmq::socket_t socket) :
 {
     this->handlers.emplace(
         MESSAGE_TERMINATE,
-        [this](const auto&)
-        {
-            go = false;
-            const auto empty_parameters = std::vector<std::string> {};
-            return std::make_pair(std::string {}, empty_parameters);
-        });
+        std::make_shared<TerminateMessageHandler>(std::ref(go)));
 }
 
 void MessageQueue::Impl::run()
@@ -73,11 +83,12 @@ void MessageQueue::Impl::run()
         const auto message = recvMessage(socket);
         const auto handler = handlers.find(message.first);
         if (handler != handlers.end()) {
+            assert(handler->second);
             const auto reply = handleMessage(
-                socket, handler->second, message.second);
-            sendReply(socket, reply.first, reply.second);
+                socket, *handler->second, message.second);
+            sendReply(socket, REPLY_SUCCESS, reply);
         } else {
-            sendMessage(socket, MESSAGE_ERROR);
+            sendMessage(socket, REPLY_FAILURE);
         }
     }
 }

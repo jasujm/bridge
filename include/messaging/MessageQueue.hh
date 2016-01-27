@@ -23,6 +23,8 @@ namespace Bridge {
  */
 namespace Messaging {
 
+class MessageHandler;
+
 /** \brief Message queue for communicating between threads and processes
  *
  * Bridge application threads are built around exchanging information and
@@ -32,8 +34,8 @@ namespace Messaging {
  * MessageQueue uses request-reply pattern. The messages sent to the message
  * queue are strings that represent commands. A recognized command
  * (i.e. command for which a handler is registered) causes the handler for
- * that command to be executed. The reply is a message containing the string
- * returned by the handler.
+ * that command to be executed. Based on the result of the handling either
+ * success or failure is reported.
  */
 class MessageQueue {
 public:
@@ -42,38 +44,19 @@ public:
      */
     static const std::string MESSAGE_TERMINATE;
 
-    /** \brief Message used as reply to indicate error
+    /** \brief Message used as reply to indicate successful request
      */
-    static const std::string MESSAGE_ERROR;
+    static const std::string REPLY_SUCCESS;
 
-    /** \brief Parameters to message handler
-     *
-     * Parameters of a message is an arbitrary number of strings, represented
-     * by MessageQueue as an any_range of strings.
+    /** \brief Message used as reply to indicate failure to fulfill the request
      */
-    using HandlerParameters = boost::any_range<
-        std::string, boost::forward_traversal_tag>;
-
-    /** \brief Message handler
-     *
-     * Handler  is a  function that,  when  invoked, handles  the command  and
-     * returns reply to be sent to the client who sent the command.
-     *
-     * The return value of the handler is a pair consisting of the following
-     *   - Identifier of the reply (string)
-     *   - Parameters of the reply (\ref HandlerParameters object)
-     *
-     * Message parameters to message are passed to the handler as an instance
-     * of \ref HandlerParameters.
-     */
-    using Handler = std::function<
-        std::pair<std::string, HandlerParameters>(const HandlerParameters&)>;
+    static const std::string REPLY_FAILURE;
 
     /** \brief Create message queue
      *
      * \tparam HandlerIterator Iterator that, when dereferenced, returns a
-     * pair containing the message and the \ref Handler used to react to that
-     * message.
+     * pair containing the message and a std::shared_ptr to MessageHandler to
+     * handle that message.
      *
      * \param first iterator to the first handler
      * \param last iterator to the last handler
@@ -93,15 +76,17 @@ public:
      *
      * This function blocks until termination is requested, i.e. message \ref
      * MESSAGE_TERMINATE is received. For each message it will dispatch the
-     * command to the correct \ref Handler and reply with the message returned
-     * by the handler. If no handler exists for the message, \ref
-     * MESSAGE_ERROR is sent as reply.
+     * command to the correct MessageHandler. If the handling is successful, a
+     * multipart message containing REPLY_SUCCESS as its first part and
+     * strings returned by the handler as subsecuent parts is sent. If the
+     * handling fails or no handler is registered for the message, a message
+     * containing REPLY_FAILURE is sent.
      */
     void run();
 
 private:
 
-    using HandlerMap = std::map<std::string, Handler>;
+    using HandlerMap = std::map<std::string, std::shared_ptr<MessageHandler>>;
 
     MessageQueue(HandlerMap handlers, zmq::socket_t socket);
 
