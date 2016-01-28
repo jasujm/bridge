@@ -6,6 +6,7 @@
 #ifndef BID_HH_
 #define BID_HH_
 
+#include <boost/bimap/bimap.hpp>
 #include <boost/operators.hpp>
 
 #include <array>
@@ -43,6 +44,15 @@ constexpr std::array<Strain, N_STRAINS> STRAINS {
     Strain::SPADES,
     Strain::NO_TRUMP
 };
+
+/** \brief Type of \ref STRAIN_TO_STRING_MAP
+ */
+using StrainToStringMap = boost::bimaps::bimap<Strain, std::string>;
+
+/** \brief Two-way map between Strain enumerations and their string
+ * representation
+ */
+extern const StrainToStringMap STRAIN_TO_STRING_MAP;
 
 /** \brief Bid in bridge game bidding round
  *

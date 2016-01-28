@@ -9,9 +9,11 @@
 #ifndef MESSAGING_JSONSERIALIZER_HH_
 #define MESSAGING_JSONSERIALIZER_HH_
 
-#include <string>
+#include "messaging/MessageHandlingException.hh"
 
 #include <json.hpp>
+
+#include <string>
 
 namespace Bridge {
 namespace Messaging {

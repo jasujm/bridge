@@ -6,7 +6,8 @@
 #ifndef MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 #define MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 
-#include "MessageHandler.hh"
+#include "messaging/MessageHandler.hh"
+#include "messaging/MessageHandlingException.hh"
 
 #include <memory>
 #include <utility>

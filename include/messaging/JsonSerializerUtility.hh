@@ -6,7 +6,6 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/MessageHandlingException.hh"
 
-#include <boost/lexical_cast.hpp>
 #include <json.hpp>
 
 #ifndef MESSAGING_JSONSERIALIZERUTILITY_HH_
@@ -15,48 +14,39 @@
 namespace Bridge {
 namespace Messaging {
 
+/** \brief Convert enumeration to JSON
+ *
+ * \param e the enumeration to convert
+ * \param map mapping between enumeration values and strings
+ *
+ * \return JSON representation of \p e
+ */
+template<typename E, typename MapType>
+nlohmann::json enumToJson(E e, const MapType& map)
+{
+    return toJson<std::string>(map.at(e));
+}
+
 /** \brief Convert JSON object to enumeration
  *
  * \tparam E the enumeration type
  *
  * \param j the JSON object to convert
+ * \param map mapping between strings and enumeration values
  *
  * \return the enumeration represented by \p j
  *
  * \throw MessageHandlingException if \p j does not represent string or does
  * not represent valid enumeration.
- *
- * \todo Currently this uses boost::lexical_cast and relies on the
- * implementation of operator<< to output the string. Make jsonToEnum access
- * proper mapping direcly (this is better place than operator<< to define
- * format of serialization).
  */
-template<typename E>
-E jsonToEnum(const nlohmann::json& j)
+template<typename E, typename MapType>
+E jsonToEnum(const nlohmann::json& j, const MapType& map)
 {
-    const auto str = fromJson<std::string>(j);
-    try {
-        return boost::lexical_cast<E>(str);
-    } catch (const boost::bad_lexical_cast&) {
-        throw MessageHandlingException {};
+    const auto iter = map.find(fromJson<std::string>(j));
+    if (iter != map.end()) {
+        return iter->second;
     }
-}
-
-/** \brief Convert enumeration to JSON
- *
- * \param e the enumeration to convert
- *
- * \return JSON representation of \p e
- *
- * \todo Currently this uses boost::lexical_cast and relies on the
- * implementation of operator>> to input the string. Make jsonToEnum access
- * proper mapping direcly (this is better place than operator>> to define
- * format of serialization).
- */
-template<typename E>
-nlohmann::json enumToJson(E e)
-{
-    return boost::lexical_cast<std::string>(e);
+    throw MessageHandlingException {};
 }
 
 /** \brief Access elements in JSON object

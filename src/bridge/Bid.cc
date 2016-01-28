@@ -2,8 +2,6 @@
 
 #include "IoUtility.hh"
 
-#include <boost/bimap/bimap.hpp>
-
 #include <initializer_list>
 #include <istream>
 #include <ostream>
@@ -13,18 +11,18 @@ namespace Bridge {
 
 namespace {
 
-using StrainMap = boost::bimaps::bimap<Strain, std::string>;
-const auto STRAIN_STR_PAIRS = std::initializer_list<StrainMap::value_type>{
+const auto STRAIN_STRING_PAIRS =
+    std::initializer_list<StrainToStringMap::value_type> {
     { Strain::CLUBS,    "clubs"    },
     { Strain::DIAMONDS, "diamonds" },
     { Strain::HEARTS,   "hearts"   },
     { Strain::SPADES,   "spades"   },
-    { Strain::NO_TRUMP, "notrump"  },
-};
-const auto STRAIN_MAPPING = StrainMap{
-    STRAIN_STR_PAIRS.begin(), STRAIN_STR_PAIRS.end()};
+    { Strain::NO_TRUMP, "notrump"  }};
 
 }
+
+const StrainToStringMap STRAIN_TO_STRING_MAP(
+    STRAIN_STRING_PAIRS.begin(), STRAIN_STRING_PAIRS.end());
 
 bool operator==(const Bid& lhs, const Bid& rhs)
 {
@@ -39,7 +37,7 @@ bool operator<(const Bid& lhs, const Bid& rhs)
 
 std::ostream& operator<<(std::ostream& os, Strain strain)
 {
-    return outputEnum(os, strain, STRAIN_MAPPING.left);
+    return outputEnum(os, strain, STRAIN_TO_STRING_MAP.left);
 }
 
 std::ostream& operator<<(std::ostream& os, const Bid& bid)
@@ -49,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, const Bid& bid)
 
 std::istream& operator>>(std::istream& is, Strain& strain)
 {
-    return inputEnum(is, strain, STRAIN_MAPPING.right);
+    return inputEnum(is, strain, STRAIN_TO_STRING_MAP.right);
 }
 
 }

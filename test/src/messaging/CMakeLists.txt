@@ -1,4 +1,4 @@
 add_bridge_test(
   TARGET test-messaging
   NAME TestMessaging
-  DEPENDS bridge-messaging zmq)
+  DEPENDS bridge-messaging bridge-bridge zmq)
