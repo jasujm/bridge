@@ -1,9 +1,11 @@
+#include "bridge/CardType.hh"
 #include "bridge/Bid.hh"
 #include "bridge/Call.hh"
 #include "messaging/MessageHandlingException.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
+#include "messaging/CardTypeJsonSerializer.hh"
 
 #include <json.hpp>
 #include <gtest/gtest.h>
@@ -133,8 +135,41 @@ TEST_F(JsonSerializerTest, testCallCallMissing)
     testFailedDeserializationHelper<Call>(j);
 }
 
-TEST_F(JsonSerializerTest, testCallCallInvalid)
+TEST_F(JsonSerializerTest, testCardType)
 {
-    const auto j = json {};
-    testFailedDeserializationHelper<Call>(j);
+    const auto j = json {
+        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)},
+        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
+    const auto card_type = CardType {Rank::ACE, Suit::SPADES};
+    testHelper(card_type, j);
+}
+
+TEST_F(JsonSerializerTest, testCardTypeRankMissing)
+{
+    const auto j = json {
+        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)}};
+    testFailedDeserializationHelper<CardType>(j);
+}
+
+TEST_F(JsonSerializerTest, testCardTypeRankInvalid)
+{
+    const auto j = json {
+        {CARD_TYPE_RANK_KEY, "invalid"},
+        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
+    testFailedDeserializationHelper<CardType>(j);
+}
+
+TEST_F(JsonSerializerTest, testCardTypeSuitMissing)
+{
+    const auto j = json {
+        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
+    testFailedDeserializationHelper<CardType>(j);
+}
+
+TEST_F(JsonSerializerTest, testCardTypeSuitInvalid)
+{
+    const auto j = json {
+        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)},
+        {CARD_TYPE_SUIT_KEY, "invalid"}};
+    testFailedDeserializationHelper<CardType>(j);
 }

@@ -12,8 +12,8 @@
 #include <array>
 #include <iosfwd>
 #include <cstddef>
-
 #include <stdexcept>
+#include <string>
 
 namespace Bridge {
 

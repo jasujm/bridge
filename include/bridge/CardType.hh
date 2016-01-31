@@ -6,6 +6,7 @@
 #ifndef CARDTYPE_HH_
 #define CARDTYPE_HH_
 
+#include <boost/bimap/bimap.hpp>
 #include <boost/operators.hpp>
 
 #include <array>
@@ -83,6 +84,24 @@ constexpr std::array<Suit, N_SUITS> SUITS {
     Suit::HEARTS,
     Suit::SPADES,
 };
+
+/** \brief Type of \ref RANK_TO_STRING_MAP
+ */
+using RankToStringMap = boost::bimaps::bimap<Rank, std::string>;
+
+/** \brief Two-way map between Rank enumerations and their string
+ * representation
+ */
+extern const RankToStringMap RANK_TO_STRING_MAP;
+
+/** \brief Type of \ref SUIT_TO_STRING_MAP
+ */
+using SuitToStringMap = boost::bimaps::bimap<Suit, std::string>;
+
+/** \brief Two-way map between Suit enumerations and their string
+ * representation
+ */
+extern const SuitToStringMap SUIT_TO_STRING_MAP;
 
 /** \brief Playing card type
  *
