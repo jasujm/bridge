@@ -95,7 +95,8 @@ void printDealState(const DealState& gameState)
     if (const auto& calls = gameState.calls) {
         std::cout << "\nCalls:\n";
         printCalls(
-            gameState.vulnerability.value_or(Vulnerability::NEITHER), *calls);
+            gameState.vulnerability.value_or(
+                Vulnerability {false, false}), *calls);
     }
     if (const auto& current_trick = gameState.currentTrick) {
         std::cout << "\nCurrent trick:\n";

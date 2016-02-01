@@ -6,13 +6,15 @@
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "scoring/DuplicateScoring.hh"
-#include "Utility.hh"
+#include "Enumerate.hh"
 
 #include <gtest/gtest.h>
 
+#include <tuple>
+
 using Bridge::Engine::DuplicateGameManager;
 using Bridge::Scoring::calculateDuplicateScore;
-using Bridge::to;
+using Bridge::Position;
 
 namespace {
 constexpr Bridge::Partnership PARTNERSHIP {Bridge::Partnership::NORTH_SOUTH};
@@ -88,15 +90,30 @@ TEST_F(DuplicateGameManagerTest, testOpenerPositionRotation)
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)
 {
-    auto offset = 0u;
-    for (int round = 0; round < 4; ++round) {
-        for (const auto i : to(Bridge::N_PLAYERS)) {
-            EXPECT_EQ(
-                Bridge::VULNERABILITIES[
-                    (i + offset) % Bridge::N_VULNERABILITIES],
-                gameManager.getVulnerability());
-            gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
-        }
-        ++offset;
+    //                  Position         NS     EW     vulnerable
+    const std::array<std::tuple<Position, bool, bool>, 16u> rotation {
+        std::make_tuple(Position::NORTH, false, false),
+        std::make_tuple(Position::EAST,  true,  false),
+        std::make_tuple(Position::SOUTH, false, true ),
+        std::make_tuple(Position::WEST,  true,  true ),
+        std::make_tuple(Position::NORTH, true,  false),
+        std::make_tuple(Position::EAST,  false, true ),
+        std::make_tuple(Position::SOUTH, true,  true ),
+        std::make_tuple(Position::WEST,  false, false),
+        std::make_tuple(Position::NORTH, false, true ),
+        std::make_tuple(Position::EAST,  true,  true ),
+        std::make_tuple(Position::SOUTH, false, false),
+        std::make_tuple(Position::WEST,  true,  false),
+        std::make_tuple(Position::NORTH, true,  true ),
+        std::make_tuple(Position::EAST,  false, false),
+        std::make_tuple(Position::SOUTH, true,  false),
+        std::make_tuple(Position::WEST,  false, true ),
+    };
+    for (const auto e : Bridge::enumerate(rotation)) {
+        EXPECT_EQ(std::get<0>(e.second), gameManager.getOpenerPosition());
+        EXPECT_EQ(
+            Bridge::Vulnerability(std::get<1>(e.second), std::get<2>(e.second)),
+            gameManager.getVulnerability()) << "Round " << (e.first + 1);
+        gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
     }
 }

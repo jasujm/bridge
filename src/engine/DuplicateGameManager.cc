@@ -12,8 +12,8 @@ namespace {
 Vulnerability getVulnerabilityHelper(const std::size_t n)
 {
     // Skip one vulnerability after each four deals
-    const auto offset = n + n / N_VULNERABILITIES;
-    return VULNERABILITIES[offset % N_VULNERABILITIES];
+    const auto offset = (n + n / N_POSITIONS) % N_POSITIONS;
+    return {offset == 1 || offset == 3, offset == 2 || offset == 3};
 }
 
 }

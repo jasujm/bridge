@@ -135,11 +135,11 @@ TEST_F(BridgeEngineTest, testBridgeController)
     EXPECT_CALL(*gameManager, handleGetOpenerPosition())
         .WillRepeatedly(Return(Position::NORTH));
     EXPECT_CALL(*gameManager, handleGetVulnerability())
-        .WillRepeatedly(Return(Vulnerability::BOTH));
+        .WillRepeatedly(Return(Vulnerability {true, true}));
 
     // Startup
     expectedState.stage = Stage::SHUFFLING;
-    expectedState.vulnerability = Vulnerability::BOTH;
+    expectedState.vulnerability.emplace(true, true);
     ASSERT_EQ(expectedState, makeDealState(*engine));
 
     // Shuffling

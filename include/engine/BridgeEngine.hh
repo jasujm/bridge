@@ -24,7 +24,7 @@ enum class Position;
 class Player;
 class Trick;
 struct TricksWon;
-enum class Vulnerability;
+struct Vulnerability;
 
 /** \brief The bridge engine
  *

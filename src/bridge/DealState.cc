@@ -47,7 +47,10 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
         os << "\nIn turn: " << *position_in_turn;
     }
     if (const auto& vulnerability = state.vulnerability) {
-        os << "\nVulnerability: " << *vulnerability;
+        os << "\nNorth-south vulnerable: " <<
+            vulnerability->northSouthVulnerable;
+        os << "\nEast-west vulnerable: " <<
+            vulnerability->eastWestVulnerable;
     }
     if (const auto& cards = state.cards) {
         os << "\nCards:";

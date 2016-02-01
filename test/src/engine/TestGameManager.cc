@@ -85,8 +85,8 @@ TEST_F(GameManagerTest, testGetVulnerability)
 {
     EXPECT_CALL(gameManager, handleHasEnded()).WillOnce(Return(false));
     EXPECT_CALL(gameManager, handleGetVulnerability()).WillOnce(
-        Return(Vulnerability::BOTH));
-    EXPECT_EQ(Vulnerability::BOTH, gameManager.getVulnerability());
+        Return(Vulnerability {true, true}));
+    EXPECT_EQ(Vulnerability(true, true), gameManager.getVulnerability());
 }
 
 TEST_F(GameManagerTest, testGetVulnerabilityWhenGameHasEnded)

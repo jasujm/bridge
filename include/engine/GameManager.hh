@@ -13,7 +13,7 @@ namespace Bridge {
 struct Contract;
 enum class Partnership;
 enum class Position;
-enum class Vulnerability;
+struct Vulnerability;
 
 namespace Engine {
 
