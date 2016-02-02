@@ -81,7 +81,7 @@ protected:
     {
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
-        expectedState.positionInTurn = clockwise(position);
+        expectedState.positionInTurn.emplace(clockwise(position));
         expectedState.currentTrick->emplace_back(position, cards.front());
         cards.erase(cards.begin());
     }
@@ -168,14 +168,14 @@ TEST_F(BridgeEngineTest, testBridgeController)
         const auto position = engine->getPosition(player);
         engine->call(player, e.second);
         expectedState.calls->emplace_back(position, e.second);
-        expectedState.positionInTurn = clockwise(position);
+        expectedState.positionInTurn.emplace(clockwise(position));
     }
 
     // Playing
     expectedState.stage = Stage::PLAYING;
-    expectedState.positionInTurn = Position::SOUTH;
-    expectedState.biddingResult = DealState::BiddingResult {
-        Position::EAST, Contract {BID, Doubling::UNDOUBLED}};
+    expectedState.positionInTurn.emplace(Position::SOUTH);
+    expectedState.declarer.emplace(Position::EAST);
+    expectedState.contract.emplace(BID, Doubling::UNDOUBLED);
     expectedState.currentTrick.emplace();
     expectedState.tricksWon.emplace(0, 0);
     for (const auto i : to(players.size())) {
@@ -186,7 +186,7 @@ TEST_F(BridgeEngineTest, testBridgeController)
         updateExpectedStateAfterPlay(player);
     }
 
-    expectedState.positionInTurn = Position::NORTH;
+    expectedState.positionInTurn.emplace(Position::NORTH);
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {

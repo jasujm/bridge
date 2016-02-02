@@ -8,13 +8,6 @@
 
 namespace Bridge {
 
-bool operator==(
-    const DealState::BiddingResult& lhs, const DealState::BiddingResult& rhs)
-{
-    return &lhs == &rhs || (
-        lhs.declarer == rhs.declarer && lhs.contract == rhs.contract);
-}
-
 bool operator==(const DealState& lhs, const DealState& rhs)
 {
     return &lhs == &rhs || (
@@ -23,7 +16,8 @@ bool operator==(const DealState& lhs, const DealState& rhs)
         lhs.positionInTurn == rhs.positionInTurn &&
         lhs.cards == rhs.cards &&
         lhs.calls == rhs.calls &&
-        lhs.biddingResult == rhs.biddingResult &&
+        lhs.declarer == rhs.declarer &&
+        lhs.contract == rhs.contract &&
         lhs.currentTrick == rhs.currentTrick &&
         lhs.tricksWon == rhs.tricksWon);
 }
@@ -66,12 +60,13 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
             os << "\n  " << call.first << ": " << call.second;
         }
     }
-    if (const auto& bidding_result = state.biddingResult) {
-        os << "\nBidding result:";
-        os << "\n  Declarer: " << bidding_result->declarer;
-        os << "\n  Contract: " << bidding_result->contract;
+    if (const auto& declarer = state.declarer) {
+        os << "\nDeclarer: " << *declarer;
     }
-    if (const auto& current_trick = state.currentTrick){
+    if (const auto& contract = state.contract) {
+        os << "\nContract: " << *contract;
+    }
+    if (const auto& current_trick = state.currentTrick) {
         os << "\nCurrent trick:";
         for (const auto& card_in_trick : *current_trick) {
             os << "\n  " << card_in_trick.first << ": "

@@ -87,18 +87,17 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<Calls> calls;
 
-    /** \brief Type of the \ref biddingResult member
-     */
-    struct BiddingResult {
-        Position declarer; ///< \brief The position of the declarer
-        Contract contract; ///< \brief The contract made by the declarer
-    };
-
-    /** \brief The result of the bidding round
+    /** \brief The declarer determined by the bidding
      *
      * This member is none if the bidding isn’t finished
      */
-    boost::optional<BiddingResult> biddingResult;
+    boost::optional<Position> declarer;
+
+    /** \brief The contract made by the declarer
+     *
+     * This member is none if the bidding isn’t finished
+     */
+    boost::optional<Contract> contract;
 
     /** \brief Type of the \ref currentTrick member
      */

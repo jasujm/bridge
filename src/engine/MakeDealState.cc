@@ -37,11 +37,9 @@ void fillBidding(DealState& state, const Bidding& bidding)
 void fillContract(DealState& state, const Bidding& bidding) {
     // We assume here that if bidding is available and has ended, the deal has
     // not been passed out, so we can dereference twice.
-    const auto declarer =
-        dereference(dereference(bidding.getDeclarerPosition()));
-    const auto contract = dereference(dereference(bidding.getContract()));
-    state.biddingResult.emplace(
-        DealState::BiddingResult {declarer, contract});
+    state.declarer.emplace(
+        dereference(dereference(bidding.getDeclarerPosition())));
+    state.contract.emplace(dereference(dereference(bidding.getContract())));
 }
 
 void fillTricks(
