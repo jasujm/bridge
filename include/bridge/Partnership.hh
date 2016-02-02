@@ -6,7 +6,12 @@
 #ifndef PARTNERSHIP_HH_
 #define PARTNERSHIP_HH_
 
+#include <boost/bimap/bimap.hpp>
+
+#include <array>
+#include <iosfwd>
 #include <utility>
+#include <string>
 
 namespace Bridge {
 
@@ -18,6 +23,30 @@ enum class Partnership {
     NORTH_SOUTH,
     EAST_WEST
 };
+
+/** \brief Number of partnerships
+ *
+ * \sa Partnership
+ */
+constexpr std::size_t N_PARTNERSHIPS = 2;
+
+/** \brief Array containing all partnerships
+ *
+ * \sa Partnership
+ */
+constexpr std::array<Partnership, N_PARTNERSHIPS> PARTNERSHIPS {
+    Partnership::NORTH_SOUTH,
+    Partnership::EAST_WEST,
+};
+
+/** \brief Type of \ref PARTNERSHIP_TO_STRING_MAP
+ */
+using PartnershipToStringMap = boost::bimaps::bimap<Partnership, std::string>;
+
+/** \brief Two-way map between Partnership enumerations and their string
+ * representation
+ */
+extern const PartnershipToStringMap PARTNERSHIP_TO_STRING_MAP;
 
 /** \brief Determine the positions in a partnership
  *
@@ -49,6 +78,15 @@ Partnership partnershipFor(Position position);
  * \throw std::invalid_argument if the partnership is invalid
  */
 Partnership otherPartnership(Partnership partnership);
+
+/** \brief Output a Partnership to stream
+ *
+ * \param os the output stream
+ * \param partnership the partnership to output
+ *
+ * \return parameter \p os
+ */
+std::ostream& operator<<(std::ostream& os, Partnership partnership);
 
 }
 

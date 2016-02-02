@@ -1,11 +1,14 @@
 #include "bridge/CardType.hh"
 #include "bridge/Bid.hh"
 #include "bridge/Call.hh"
+#include "bridge/Partnership.hh"
+#include "bridge/Vulnerability.hh"
 #include "messaging/MessageHandlingException.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/VulnerabilityJsonSerializer.hh"
 
 #include <json.hpp>
 #include <gtest/gtest.h>
@@ -172,4 +175,43 @@ TEST_F(JsonSerializerTest, testCardTypeSuitInvalid)
         {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)},
         {CARD_TYPE_SUIT_KEY, "invalid"}};
     testFailedDeserializationHelper<CardType>(j);
+}
+
+TEST_F(JsonSerializerTest, testVulnerability)
+{
+    const auto j = json {
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true},
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+    const auto vulnerability = Vulnerability {true, false};
+    testHelper(vulnerability, j);
+}
+
+TEST_F(JsonSerializerTest, testVulnerabilityNorthSouthMissing)
+{
+    const auto j = json {
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true}};
+    testFailedDeserializationHelper<Vulnerability>(j);
+}
+
+TEST_F(JsonSerializerTest, testVulnerabilityNorthSouthInvalid)
+{
+    const auto j = json {
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), nullptr},
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+    testFailedDeserializationHelper<Vulnerability>(j);
+}
+
+TEST_F(JsonSerializerTest, testVulnerabilityEastWestMissing)
+{
+    const auto j = json {
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+    testFailedDeserializationHelper<Vulnerability>(j);
+}
+
+TEST_F(JsonSerializerTest, testVulnerabilityEastWestInvalid)
+{
+    const auto j = json {
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true},
+        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
+    testFailedDeserializationHelper<Vulnerability>(j);
 }

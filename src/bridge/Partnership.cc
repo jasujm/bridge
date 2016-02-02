@@ -1,10 +1,23 @@
 #include "bridge/Partnership.hh"
 
 #include "bridge/Position.hh"
+#include "IoUtility.hh"
 
 #include <stdexcept>
 
 namespace Bridge {
+
+namespace {
+
+const auto PARTNERSHIP_STRING_PAIRS =
+    std::initializer_list<PartnershipToStringMap::value_type> {
+    { Partnership::NORTH_SOUTH, "northSouth" },
+    { Partnership::EAST_WEST,   "eastWest"   }};
+
+}
+
+const PartnershipToStringMap PARTNERSHIP_TO_STRING_MAP(
+    PARTNERSHIP_STRING_PAIRS.begin(), PARTNERSHIP_STRING_PAIRS.end());
 
 std::pair<Position, Position> positionsFor(const Partnership partnership)
 {
@@ -42,6 +55,11 @@ Partnership otherPartnership(const Partnership partnership)
     default:
         throw std::invalid_argument("Invalid partnership");
     }
+}
+
+std::ostream& operator<<(std::ostream& os, Partnership partnership)
+{
+    return outputEnum(os, partnership, PARTNERSHIP_TO_STRING_MAP.left);
 }
 
 }
