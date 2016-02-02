@@ -1,6 +1,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/Bid.hh"
 #include "bridge/Call.hh"
+#include "bridge/Contract.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Vulnerability.hh"
 #include "messaging/MessageHandlingException.hh"
@@ -8,6 +9,7 @@
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/ContractJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 
 #include <json.hpp>
@@ -17,6 +19,10 @@ using namespace Bridge;
 using namespace Bridge::Messaging;
 
 using nlohmann::json;
+
+namespace {
+const auto BID = Bid {4, Strain::HEARTS};
+}
 
 class JsonSerializerTest : public testing::Test {
 protected:
@@ -56,8 +62,7 @@ TEST_F(JsonSerializerTest, testBid)
     const auto j = json {
         {BID_LEVEL_KEY, json(4)},
         {BID_STRAIN_KEY, json(STRAIN_TO_STRING_MAP.left.at(Strain::HEARTS))}};
-    const auto bid = Bid {4, Strain::HEARTS};
-    testHelper(bid, j);
+    testHelper(BID, j);
 }
 
 TEST_F(JsonSerializerTest, testBidMissingLevel)
@@ -111,10 +116,9 @@ TEST_F(JsonSerializerTest, testCallPass)
 
 TEST_F(JsonSerializerTest, testCallBid)
 {
-    const auto bid = Bid {4, Strain::HEARTS};
     const auto j = json {
-        {CALL_TYPE_KEY, json(CALL_BID_TAG)}, {CALL_BID_TAG, toJson(bid)}};
-    const auto call = Call {bid};
+        {CALL_TYPE_KEY, json(CALL_BID_TAG)}, {CALL_BID_TAG, toJson(BID)}};
+    const auto call = Call {BID};
     testHelper(call, j);
 }
 
@@ -214,4 +218,43 @@ TEST_F(JsonSerializerTest, testVulnerabilityEastWestInvalid)
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true},
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
     testFailedDeserializationHelper<Vulnerability>(j);
+}
+
+TEST_F(JsonSerializerTest, testContract)
+{
+    const auto j = json {
+        {CONTRACT_BID_KEY, toJson(BID)},
+        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+    const auto contract = Contract {BID, Doubling::DOUBLED};
+    testHelper(contract, j);
+}
+
+TEST_F(JsonSerializerTest, testContractMissingBid)
+{
+    const auto j = json {
+        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+    testFailedDeserializationHelper<Contract>(j);
+}
+
+TEST_F(JsonSerializerTest, testContractInvalidBid)
+{
+    const auto j = json {
+        {CONTRACT_BID_KEY, nullptr},
+        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+    testFailedDeserializationHelper<Contract>(j);
+}
+
+TEST_F(JsonSerializerTest, testContractMissingDoubling)
+{
+    const auto j = json {
+        {CONTRACT_BID_KEY, toJson(BID)}};
+    testFailedDeserializationHelper<Contract>(j);
+}
+
+TEST_F(JsonSerializerTest, testContractInvalidDoubling)
+{
+    const auto j = json {
+        {CONTRACT_BID_KEY, toJson(BID)},
+        {CONTRACT_DOUBLING_KEY, nullptr}};
+    testFailedDeserializationHelper<Contract>(j);
 }

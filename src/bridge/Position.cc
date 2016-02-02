@@ -5,10 +5,23 @@
 #include <boost/range/irange.hpp>
 
 #include <algorithm>
-#include <map>
 #include <stdexcept>
 
 namespace Bridge {
+
+namespace {
+
+const auto POSITION_STRING_PAIRS =
+    std::initializer_list<PositionToStringMap::value_type> {
+    { Position::NORTH, "north" },
+    { Position::EAST,  "east"  },
+    { Position::SOUTH, "south" },
+    { Position::WEST,  "west"  }};
+
+}
+
+const PositionToStringMap POSITION_TO_STRING_MAP(
+    POSITION_STRING_PAIRS.begin(), POSITION_STRING_PAIRS.end());
 
 std::vector<std::size_t> cardsFor(const Position position)
 {
@@ -35,13 +48,7 @@ Position clockwise(const Position position, int steps)
 
 std::ostream& operator<<(std::ostream& os, const Position position)
 {
-    static const auto POSITION_NAMES = std::map<Position, const char*>{
-        { Position::NORTH, "north" },
-        { Position::EAST,  "east"  },
-        { Position::SOUTH, "south" },
-        { Position::WEST,  "west"  },
-    };
-    return outputEnum(os, position, POSITION_NAMES);
+    return outputEnum(os, position, POSITION_TO_STRING_MAP.left);
 }
 
 }

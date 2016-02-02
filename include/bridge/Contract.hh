@@ -8,9 +8,12 @@
 
 #include "bridge/Bid.hh"
 
+#include <boost/bimap/bimap.hpp>
 #include <boost/operators.hpp>
 
+#include <array>
 #include <iosfwd>
+#include <string>
 
 namespace Bridge {
 
@@ -21,6 +24,31 @@ enum class Doubling {
     DOUBLED,
     REDOUBLED
 };
+
+/** \brief Number of doublings
+ *
+ * \sa Doubling
+ */
+constexpr std::size_t N_DOUBLINGS = 3;
+
+/** \brief Array containing all doublings
+ *
+ * \sa Doubling
+ */
+constexpr std::array<Doubling, N_DOUBLINGS> DOUBLINGS {
+    Doubling::UNDOUBLED,
+    Doubling::DOUBLED,
+    Doubling::REDOUBLED,
+};
+
+/** \brief Type of \ref DOUBLING_TO_STRING_MAP
+ */
+using DoublingToStringMap = boost::bimaps::bimap<Doubling, std::string>;
+
+/** \brief Two-way map between Doubling enumerations and their string
+ * representation
+ */
+extern const DoublingToStringMap DOUBLING_TO_STRING_MAP;
 
 /** \brief Number of tricks in a book
  *

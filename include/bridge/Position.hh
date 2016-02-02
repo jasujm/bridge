@@ -8,9 +8,12 @@
 
 #include "bridge/BridgeConstants.hh"
 
+#include <boost/bimap/bimap.hpp>
+
 #include <array>
-#include <iosfwd>
 #include <cstddef>
+#include <iosfwd>
+#include <string>
 #include <vector>
 
 namespace Bridge {
@@ -40,6 +43,15 @@ constexpr std::array<Position, N_POSITIONS> POSITIONS {
     Position::SOUTH,
     Position::WEST,
 };
+
+/** \brief Type of \ref POSITION_TO_STRING_MAP
+ */
+using PositionToStringMap = boost::bimaps::bimap<Position, std::string>;
+
+/** \brief Two-way map between Position enumerations and their string
+ * representation
+ */
+extern const PositionToStringMap POSITION_TO_STRING_MAP;
 
 /** \brief Determine the indices of cards dealt to given position
  *

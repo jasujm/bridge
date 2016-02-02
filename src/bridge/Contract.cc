@@ -2,10 +2,22 @@
 
 #include "IoUtility.hh"
 
-#include <map>
 #include <ostream>
 
 namespace Bridge {
+
+namespace {
+
+const auto DOUBLING_STRING_PAIRS =
+    std::initializer_list<DoublingToStringMap::value_type> {
+    { Doubling::UNDOUBLED, "undoubled" },
+    { Doubling::DOUBLED,   "doubled"   },
+    { Doubling::REDOUBLED, "redoubled" }};
+
+}
+
+const DoublingToStringMap DOUBLING_TO_STRING_MAP(
+    DOUBLING_STRING_PAIRS.begin(), DOUBLING_STRING_PAIRS.end());
 
 bool isMade(const Contract& contract, const int tricksWon)
 {
@@ -21,12 +33,7 @@ bool operator==(const Contract& lhs, const Contract& rhs)
 
 std::ostream& operator<<(std::ostream& os, const Doubling doubling)
 {
-    static const auto DOUBLING_NAMES = std::map<Doubling, const char*>{
-        { Doubling::UNDOUBLED, "undoubled" },
-        { Doubling::DOUBLED,   "doubled"   },
-        { Doubling::REDOUBLED, "redoubled" },
-    };
-    return outputEnum(os, doubling, DOUBLING_NAMES);
+    return outputEnum(os, doubling, DOUBLING_TO_STRING_MAP.left);
 }
 
 std::ostream& operator<<(std::ostream& os, const Contract& contract)
