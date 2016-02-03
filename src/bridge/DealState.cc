@@ -8,6 +8,20 @@
 
 namespace Bridge {
 
+namespace {
+
+const auto STAGE_STRING_PAIRS =
+    std::initializer_list<StageToStringMap::value_type> {
+    { Stage::SHUFFLING, "shuffling" },
+    { Stage::BIDDING,   "bidding"   },
+    { Stage::PLAYING,   "playing"   },
+    { Stage::ENDED,     "ended"     }};
+
+}
+
+const StageToStringMap STAGE_TO_STRING_MAP(
+    STAGE_STRING_PAIRS.begin(), STAGE_STRING_PAIRS.end());
+
 bool operator==(const DealState& lhs, const DealState& rhs)
 {
     return &lhs == &rhs || (
@@ -24,13 +38,7 @@ bool operator==(const DealState& lhs, const DealState& rhs)
 
 std::ostream& operator<<(std::ostream& os, const Stage stage)
 {
-    static const auto STAGE_NAMES = std::map<Stage, const char*>{
-        { Stage::SHUFFLING, "shuffling" },
-        { Stage::BIDDING,   "bidding"   },
-        { Stage::PLAYING,   "playing"   },
-        { Stage::ENDED,     "ended"     },
-    };
-    return outputEnum(os, stage, STAGE_NAMES);
+    return outputEnum(os, stage, STAGE_TO_STRING_MAP.left);
 }
 
 std::ostream& operator<<(std::ostream& os, const DealState& state)
@@ -41,10 +49,7 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
         os << "\nIn turn: " << *position_in_turn;
     }
     if (const auto& vulnerability = state.vulnerability) {
-        os << "\nNorth-south vulnerable: " <<
-            vulnerability->northSouthVulnerable;
-        os << "\nEast-west vulnerable: " <<
-            vulnerability->eastWestVulnerable;
+        os << "\nVulnerability: " << *vulnerability;
     }
     if (const auto& cards = state.cards) {
         os << "\nCards:";
@@ -74,10 +79,7 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
         }
     }
     if (const auto& tricks_won = state.tricksWon) {
-        os << "\nTricks won by north-south: "
-           << tricks_won->tricksWonByNorthSouth;
-        os << "\nTricks won by east-west: "
-           << tricks_won->tricksWonByEastWest;
+        os << "\nTricks won: " << *tricks_won;
     }
     return os;
 }

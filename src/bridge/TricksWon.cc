@@ -2,6 +2,7 @@
 
 #include "bridge/Partnership.hh"
 
+#include <ostream>
 #include <stdexcept>
 
 namespace Bridge {
@@ -24,6 +25,14 @@ bool operator==(const TricksWon& lhs, const TricksWon& rhs)
     return &lhs == &rhs ||
         (lhs.tricksWonByNorthSouth == rhs.tricksWonByNorthSouth &&
          lhs.tricksWonByEastWest == rhs.tricksWonByEastWest);
+}
+
+std::ostream& operator<<(std::ostream& os, const TricksWon& tricksWon)
+{
+    return os << Partnership::NORTH_SOUTH << ": " <<
+        tricksWon.tricksWonByNorthSouth << ", " <<
+        Partnership::EAST_WEST << ": " <<
+        tricksWon.tricksWonByEastWest;
 }
 
 }

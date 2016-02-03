@@ -6,7 +6,10 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/MessageHandlingException.hh"
 
+#include <boost/optional/optional.hpp>
 #include <json.hpp>
+
+#include <utility>
 
 #ifndef MESSAGING_JSONSERIALIZERUTILITY_HH_
 #define MESSAGING_JSONSERIALIZERUTILITY_HH_
@@ -49,7 +52,7 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
     throw MessageHandlingException {};
 }
 
-/** \brief Access elements in JSON object
+/** \brief Access element in JSON object
  *
  * This function is used to return an element from JSON object and convert it
  * to the desired type. It uses fromJson() to do the conversion.
@@ -58,6 +61,8 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
  *
  * \param j the json object
  * \param key the key of the element
+ *
+ * \return the accessed object converted to \p T
  *
  * \throw MessageHandlingException in the followin cases:
  *   - \p j does not represent object or does not have key \p key
@@ -72,6 +77,97 @@ auto checkedGet(
         return fromJson<T>(*iter);
     }
     throw MessageHandlingException {};
+}
+/** \brief Put optional value to JSON object if it exists
+ *
+ * If \p t is none, does nothing, otherwise converts the object to JSON and
+ * adds it to \p j.
+ *
+ * \param j the JSON object where the value is put
+ * \param key the key of the optional value
+ * \param t the optional value
+ */
+template<typename T>
+void optionalPut(
+    nlohmann::json& j, const nlohmann::json::object_t::key_type& key,
+    const boost::optional<T>& t)
+{
+    if (t) {
+        j[key] = toJson(*t);
+    }
+}
+
+/** \brief Access optional element in JSON object
+ *
+ * This function is used to return an optional element from JSON object and
+ * convert it to the desired type.
+ *
+ * \tparam T the type the JSON element is converted to
+ *
+ * \param j the json object
+ * \param key the key of the element
+ *
+ * \return The accessed object converted to \p T, or none if \p key does’t
+ * exist in the object
+ */
+template<typename T>
+boost::optional<T> optionalGet(
+    const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
+{
+    const auto iter = j.find(key);
+    if (iter != j.end()) {
+        return fromJson<T>(*iter);
+    }
+    return boost::none;
+}
+
+/** \brief Convert pair to JSON object
+ *
+ * The returned JSON object contains two key-value pairs with \p key1 and \p
+ * key2 mapping to each member of the pair converted to JSON.
+ *
+ * \param p the pair to convert
+ * \param key1 the key for the first member in \p p
+ * \param key2 the key for the second member in \p p
+ *
+ * \return JSON representation of the pair
+ *
+ * \sa jsonToPair()
+ */
+template<typename T1, typename T2>
+nlohmann::json pairToJson(
+    const std::pair<T1, T2>& p, const nlohmann::json::object_t::key_type& key1,
+    const nlohmann::json::object_t::key_type& key2)
+{
+    return {
+        { key1, toJson(p.first) },
+        { key2, toJson(p.second) }
+    };
+}
+
+/** \brief Convert JSON object to pair
+ *
+ * The function excepts a JSON object with two key-value pair. Keys \p key1
+ * and \p key2 are converted to the first and second element of the returned
+ * pair, respectively.
+ *
+ * \param j the JSON object to convert
+ * \param key1 the key of the first member of the pair
+ * \param key2 the key of the first member of the pair
+ *
+ * \return The pair constructed from \p j
+ *
+ * \sa jsonToPair()
+ */
+template<typename T1, typename T2>
+std::pair<T1, T2> jsonToPair(
+    const nlohmann::json& j, const nlohmann::json::object_t::key_type& key1,
+    const nlohmann::json::object_t::key_type& key2)
+{
+    return {
+        checkedGet<T1>(j, key1),
+        checkedGet<T2>(j, key2)
+    };
 }
 
 /// \{

@@ -10,6 +10,7 @@
 
 #include <boost/operators.hpp>
 
+#include <iosfwd>
 #include <stdexcept>
 
 namespace Bridge {
@@ -77,6 +78,15 @@ int getNumberOfTricksWon(const TricksWon& tricksWon, Partnership partnership);
  * \sa TricksWon
  */
 bool operator==(const TricksWon&, const TricksWon&);
+
+/** \brief Output TricksWon to stream
+ *
+ * \param os the output stream
+ * \param tricksWon the tricks won to output
+ *
+ * \return parameter \p os
+ */
+std::ostream& operator<<(std::ostream& os, const TricksWon& tricksWon);
 
 }
 

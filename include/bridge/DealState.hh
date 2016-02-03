@@ -13,12 +13,14 @@
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 
+#include <boost/bimap/bimap.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/operators.hpp>
 
 #include <iosfwd>
 #include <map>
 #include <vector>
+#include <string>
 #include <utility>
 
 namespace Bridge {
@@ -31,6 +33,15 @@ enum class Stage {
     PLAYING,
     ENDED
 };
+
+/** \brief Type of \ref STAGE_TO_STRING_MAP
+ */
+using StageToStringMap = boost::bimaps::bimap<Stage, std::string>;
+
+/** \brief Two-way map between Stage enumerations and their string
+ * representation
+ */
+extern const StageToStringMap STAGE_TO_STRING_MAP;
 
 /** \brief A high level description of a bridge game
  *
