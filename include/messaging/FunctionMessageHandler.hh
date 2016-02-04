@@ -137,6 +137,30 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
         std::forward<SerializationPolicy>(serializer));
 }
 
+/** \brief Utility for wrapping member function call into message handler
+ *
+ * This function constructs FunctionMessageHandler to heap. The message
+ * handler invokes method call to \p memfn bound to \p handler.
+ *
+ * \param handler the handler object the method call is bound to \param memfn
+ * pointer to the member function \param serializer the serializer used for
+ * converting to/from argument and return types of the method call
+ *
+ * \return the constructed message handler
+ *
+ * \sa FunctionMessageHandler
+ */
+template<typename Handler, typename R, typename... Args, typename SerializationPolicy>
+auto makeMessageHandler(
+    Handler& handler, R (Handler::*memfn)(Args...), SerializationPolicy&& serializer)
+{
+    return makeMessageHandler<std::decay_t<Args>...>(
+        [&handler, memfn](std::add_rvalue_reference_t<Args>... args)
+        {
+            return (handler.*memfn)(std::move(args)...);
+        }, std::forward<SerializationPolicy>(serializer));
+}
+
 }
 }
 

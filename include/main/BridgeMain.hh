@@ -7,67 +7,53 @@
 #define MAIN_BRIDGEMAIN_HH_
 
 #include <boost/core/noncopyable.hpp>
+#include <zmq.hpp>
 
 #include <memory>
-#include <string>
 
 namespace Bridge {
-
-class DealState;
-
-namespace Engine {
-class DuplicateGameManager;
-}
-
 namespace Main {
 
 /** \brief Main business logic of the Bridge application
  *
  * BridgeMain is used to configure and mediate the components of which the
- * main functionality of the bridge application consists of. It can be thought
- * as the main application thread receiving commands from the players, as well
- * as maintaining the state of the game.
+ * main functionality of the bridge application consists of. In its
+ * constructor it spawns the main application thread, which is joined at the
+ * destructor.
  *
- * \todo This class is meant to own the main thread of the application. All
- * input and output should be handled through asynchronous messages, not
- * direct method calls.
+ * Communication with the thread is handled through ZeroMQ socket. BridgeMain
+ * has a control socket meant for user interaction. It also connects to the
+ * instances of other Bridge appliations through several other sockets.
  */
 class BridgeMain : private boost::noncopyable {
 public:
 
+    /** \brief Command for requesting deal state
+     */
+    static const std::string STATE_COMMAND;
+
+    /** \brief Command for making a call during bidding
+     */
+    static const std::string CALL_COMMAND;
+
+    /** \brief Command for playing a card during playing phase
+     */
+    static const std::string PLAY_COMMAND;
+
+    /** \brief Command for requesting scoresheet
+     */
+    static const std::string SCORE_COMMAND;
+
     /** \brief Create bridge main
      *
      * The constructor creates the necessary classes and starts the game.
+     *
+     * \param context the ZeroMQ context for the game
+     * \param address the ZeroMQ address the control socket binds to
      */
-    BridgeMain();
+    BridgeMain(zmq::context_t& context, const std::string& address);
 
     ~BridgeMain();
-
-    /** \brief Process command coming from the player
-     *
-     * \param command the command to process
-     *
-     * \todo The commands should be input asynchronously. The protocol should
-     * be defined.
-     */
-    void processCommand(const std::string& command);
-
-    /** \brief Determine the state of the game
-     *
-     * \return DealState object describing the current deal state
-     */
-    DealState getState() const;
-
-    /** \brief Return DuplicateGameManager that manages the game
-     *
-     * \return Reference to the DuplicateGameManager object owned by this
-     * object. The reference stays valid during the lifetime of the BridgeMain
-     * object.
-     *
-     * \todo This is temporary solution required to print scores in UI. Scores
-     * should be published by other means.
-     */
-    const Engine::DuplicateGameManager& getGameManager() const;
 
 private:
 

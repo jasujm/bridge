@@ -47,18 +47,9 @@ protected:
     std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
-        handlers.begin(), handlers.end(), makeSocketForMessageQueue()};
+        handlers.begin(), handlers.end(), context, ADDRESS};
     std::thread messageThread {[this]() { messageQueue.run(); }};
     zmq::socket_t socket {context, zmq::socket_type::req};
-
-private:
-
-    zmq::socket_t makeSocketForMessageQueue()
-    {
-        auto socket = zmq::socket_t {context, zmq::socket_type::rep};
-        socket.bind(ADDRESS);
-        return socket;
-    }
 };
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)

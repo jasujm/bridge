@@ -73,7 +73,7 @@ struct JsonSerializer {
      * \return String representation of the JSON \p t is convered to using
      * toJson() or its specialization
      */
-    template<typename T> std::string serialize(const T& t)
+    template<typename T> static std::string serialize(const T& t)
     {
         return toJson(t).dump();
     }
@@ -85,7 +85,7 @@ struct JsonSerializer {
      * \return object retrieved by parsing \p s and then using fromJson() or
      * its specialization
      */
-    template<typename T> T deserialize(const std::string& s)
+    template<typename T> static T deserialize(const std::string& s)
     {
         return fromJson<T>(nlohmann::json::parse(s));
     }

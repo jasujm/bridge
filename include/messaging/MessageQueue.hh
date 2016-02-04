@@ -6,7 +6,7 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
-#include <boost/range/any_range.hpp>
+#include <boost/noncopyable.hpp>
 #include <zmq.hpp>
 
 #include <map>
@@ -31,14 +31,21 @@ class MessageHandler;
  * requests through messages. MessageQueue is responsible for receiving and
  * dispatching the messages to handlers.
  *
- * MessageQueue uses request-reply pattern. The messages sent to the message
+ * MessageQueue uses request–reply pattern. The messages sent to the message
  * queue are strings that represent commands. A recognized command
  * (i.e. command for which a handler is registered) causes the handler for
  * that command to be executed. Based on the result of the handling either
  * success or failure is reported.
  */
-class MessageQueue {
+class MessageQueue : private boost::noncopyable {
 public:
+
+    /** \brief Map from commands to message handlers
+     *
+     * HandlerMap is mapping between commands (strings) and MessageHandler
+     * objects used to handle the messages.
+     */
+    using HandlerMap = std::map<std::string, std::shared_ptr<MessageHandler>>;
 
     /** \brief Message used to request termination
      */
@@ -54,21 +61,30 @@ public:
 
     /** \brief Create message queue
      *
+     * \param handlers mapping from commands to message handlers
+     * \param context the ZeroMQ context for the message queue
+     * \param address the ZeroMQ address the message queue binds to
+     */
+    MessageQueue(
+        HandlerMap handlers, zmq::context_t& context,
+        const std::string& address);
+
+    /** \brief Create message queue
+     *
      * \tparam HandlerIterator Iterator that, when dereferenced, returns a
      * pair containing the message and a std::shared_ptr to MessageHandler to
      * handle that message.
      *
      * \param first iterator to the first handler
      * \param last iterator to the last handler
-     * \param socket the socket to use for communicating between the queue and
-     * its clients
-     *
-     * \todo Currently only REP type sockets are supported. Messages must
-     * currently be strings, which could be abstracted further.
+     * \param handlers mapping from commands to message handlers
+     * \param context the ZeroMQ context for the message queue
+     * \param address the ZeroMQ address the message queue binds to
      */
     template<typename HandlerIterator>
     MessageQueue(
-        HandlerIterator first, HandlerIterator last, zmq::socket_t socket);
+        HandlerIterator first, HandlerIterator last,
+        zmq::context_t& context, const std::string& address);
 
     ~MessageQueue();
 
@@ -86,18 +102,15 @@ public:
 
 private:
 
-    using HandlerMap = std::map<std::string, std::shared_ptr<MessageHandler>>;
-
-    MessageQueue(HandlerMap handlers, zmq::socket_t socket);
-
     class Impl;
-    std::unique_ptr<Impl> impl;
+    const std::unique_ptr<Impl> impl;
 };
 
 template<typename HandlerIterator>
 MessageQueue::MessageQueue(
-    HandlerIterator first, HandlerIterator last, zmq::socket_t socket) :
-    MessageQueue {HandlerMap(first, last), std::move(socket)}
+    HandlerIterator first, HandlerIterator last,
+    zmq::context_t& context, const std::string& address) :
+    MessageQueue {HandlerMap(first, last), context, address}
 {
 }
 

@@ -1,10 +1,6 @@
 set(BRIDGE_BUILD_TESTS "Build tests using googletest framework" CACHE BOOL OFF)
 
 if (BRIDGE_BUILD_TESTS)
-
-  set(THREADS_PREFER_PTHREAD_FLAG ON)
-  find_package(Threads REQUIRED)
-
   # As recommended by Google, googletest is fetched instead of finding from
   # local computer
   include(ExternalProject)

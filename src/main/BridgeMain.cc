@@ -1,22 +1,52 @@
 #include "main/BridgeMain.hh"
 
-#include "bridge/BridgeConstants.hh"
 #include "bridge/BasicPlayer.hh"
+#include "bridge/BridgeConstants.hh"
+#include "bridge/Call.hh"
 #include "bridge/DealState.hh"
-#include "engine/SimpleCardManager.hh"
+#include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "main/CommandInterpreter.hh"
-#include "main/SimpleBridgeController.hh"
+#include "engine/SimpleCardManager.hh"
+#include "engine/BridgeEngine.hh"
+#include "engine/MakeDealState.hh"
+#include "messaging/CallJsonSerializer.hh"
+#include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/DealStateJsonSerializer.hh"
+#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
+#include "messaging/FunctionMessageHandler.hh"
+#include "messaging/JsonSerializer.hh"
+#include "messaging/MessageQueue.hh"
+#include "scoring/DuplicateScoreSheet.hh"
 
 #include <array>
+#include <thread>
+#include <tuple>
+#include <utility>
 
 namespace Bridge {
 namespace Main {
 
+const std::string BridgeMain::STATE_COMMAND {"state"};
+const std::string BridgeMain::CALL_COMMAND {"call"};
+const std::string BridgeMain::PLAY_COMMAND {"play"};
+const std::string BridgeMain::SCORE_COMMAND {"score"};
+
+using Messaging::makeMessageHandler;
+
 class BridgeMain::Impl {
 public:
-    std::shared_ptr<Engine::SimpleCardManager> cardManager {
-        std::make_shared<Engine::SimpleCardManager>()};
+
+    Impl(zmq::context_t& context, const std::string& address);
+
+    ~Impl();
+
+private:
+
+    std::tuple<DealState> state();
+    std::tuple<> call(const Call& call);
+    std::tuple<> play(const CardType& card);
+    std::tuple<Scoring::DuplicateScoreSheet> score();
+
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
     std::array<std::shared_ptr<BasicPlayer>, N_PLAYERS> players {{
@@ -24,36 +54,84 @@ public:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
-    SimpleBridgeController controller {
-        cardManager, gameManager, players.begin(), players.end()};
-    CommandInterpreter interpreter {controller};
+    Engine::BridgeEngine engine {
+        std::make_shared<Engine::SimpleCardManager>(),
+        gameManager, players.begin(), players.end()};
+    Messaging::MessageQueue messageQueue;
+    std::thread thread;
 };
 
-BridgeMain::BridgeMain() :
-    impl {std::make_unique<Impl>()}
+BridgeMain::Impl::Impl(zmq::context_t& context, const std::string& address) :
+    messageQueue {
+        {
+            {
+                STATE_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::state, Messaging::JsonSerializer {})
+            },
+            {
+                CALL_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::call, Messaging::JsonSerializer {})
+            },
+            {
+                PLAY_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::play, Messaging::JsonSerializer {})
+            },
+            {
+                SCORE_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::score, Messaging::JsonSerializer {})
+            }
+        },
+        context, address},
+    thread {[&messageQueue = this->messageQueue]() { messageQueue.run(); }}
+{
+}
+
+BridgeMain::Impl::~Impl()
+{
+    thread.join();
+}
+
+std::tuple<DealState> BridgeMain::Impl::state()
+{
+    return std::make_tuple(makeDealState(engine));
+}
+
+std::tuple<> BridgeMain::Impl::call(const Call& call)
+{
+    if (const auto player = engine.getPlayerInTurn()) {
+        engine.call(*player, call);
+    }
+    return std::make_tuple();
+}
+
+std::tuple<> BridgeMain::Impl::play(const CardType& card)
+{
+    if (const auto player = engine.getPlayerInTurn()) {
+        if (const auto hand = engine.getHand(*player)) {
+            if (const auto n_card = findFromHand(*hand, card)) {
+                engine.play(*player, *n_card);
+            }
+        }
+    }
+    return std::make_tuple();
+}
+
+std::tuple<Scoring::DuplicateScoreSheet> BridgeMain::Impl::score()
+{
+    assert(gameManager);
+    return std::make_tuple(gameManager->getScoreSheet());
+}
+
+BridgeMain::BridgeMain(zmq::context_t& context, const std::string& address) :
+    impl {std::make_unique<Impl>(context, address)}
 {
 }
 
 BridgeMain::~BridgeMain() = default;
-
-void BridgeMain::processCommand(const std::string& command)
-{
-    assert(impl);
-    impl->interpreter.interpret(command);
-}
-
-DealState BridgeMain::getState() const
-{
-    assert(impl);
-    return impl->controller.getState();
-}
-
-const Engine::DuplicateGameManager& BridgeMain::getGameManager() const
-{
-    assert(impl);
-    assert(impl->gameManager);
-    return *impl->gameManager;
-}
 
 }
 }

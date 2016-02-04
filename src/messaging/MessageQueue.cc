@@ -58,23 +58,28 @@ const std::string MessageQueue::REPLY_FAILURE {"failure"};
 
 class MessageQueue::Impl {
 public:
-    Impl(HandlerMap handlers, zmq::socket_t socket);
+    Impl(
+        HandlerMap handlers, zmq::context_t& context,
+        const std::string& address);
 
     void run();
 
 private:
+
     HandlerMap handlers;
     zmq::socket_t socket;
     bool go {true};
 };
 
-MessageQueue::Impl::Impl(HandlerMap handlers, zmq::socket_t socket) :
+MessageQueue::Impl::Impl(
+    HandlerMap handlers, zmq::context_t& context, const std::string& address) :
     handlers {std::move(handlers)},
-    socket {std::move(socket)}
+    socket {context, zmq::socket_type::rep}
 {
     this->handlers.emplace(
         MESSAGE_TERMINATE,
         std::make_shared<TerminateMessageHandler>(std::ref(go)));
+    socket.bind(address);
 }
 
 void MessageQueue::Impl::run()
@@ -102,8 +107,9 @@ void MessageQueue::run()
 }
 
 MessageQueue::MessageQueue(
-    MessageQueue::HandlerMap handlers, zmq::socket_t socket) :
-    impl {std::make_unique<Impl>(std::move(handlers), std::move(socket))}
+    MessageQueue::HandlerMap handlers, zmq::context_t& context,
+    const std::string& address) :
+    impl {std::make_unique<Impl>(std::move(handlers), context, address)}
 {
 }
 
