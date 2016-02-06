@@ -5,15 +5,13 @@
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "scoring/DuplicateScoring.hh"
+#include "scoring/DuplicateScoreSheet.hh"
 #include "Enumerate.hh"
 
 #include <gtest/gtest.h>
 
 #include <tuple>
 
-using Bridge::Engine::DuplicateGameManager;
-using Bridge::Scoring::calculateDuplicateScore;
 using Bridge::Position;
 
 namespace {
@@ -26,7 +24,10 @@ constexpr int TRICKS_WON {7};
 class DuplicateGameManagerTest : public testing::Test
 {
 protected:
-    DuplicateGameManager gameManager;
+    Bridge::Engine::DuplicateGameManager gameManager;
+    const Bridge::Scoring::DuplicateScoreSheet& scoreSheet  {
+        gameManager.getScoreSheet()};
+
 };
 
 TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
@@ -36,56 +37,21 @@ TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
 
 TEST_F(DuplicateGameManagerTest, testInitiallyThereAreNoScoreEntries)
 {
-    EXPECT_EQ(0u, gameManager.getNumberOfEntries());
+    EXPECT_TRUE(scoreSheet.begin() == scoreSheet.end());
 }
 
-TEST_F(DuplicateGameManagerTest, testPassedOut)
+TEST_F(DuplicateGameManagerTest, testAddPassedOut)
 {
     gameManager.addPassedOut();
-    ASSERT_EQ(1u, gameManager.getNumberOfEntries());
-    EXPECT_FALSE(gameManager.getScoreEntry(0));
+    EXPECT_TRUE(scoreSheet.begin() != scoreSheet.end());
+    EXPECT_FALSE(*scoreSheet.begin());
 }
 
-TEST_F(DuplicateGameManagerTest, testAddResultContractMade)
+TEST_F(DuplicateGameManagerTest, testAddResult)
 {
     gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
-    ASSERT_EQ(1u, gameManager.getNumberOfEntries());
-    const DuplicateGameManager::ScoreEntry entry {
-        PARTNERSHIP,
-        calculateDuplicateScore(CONTRACT, false, TRICKS_WON).second};
-    EXPECT_EQ(entry, gameManager.getScoreEntry(0));
-}
-
-TEST_F(DuplicateGameManagerTest, testAddResultContractDefeated)
-{
-    gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON - 1);
-    ASSERT_EQ(1u, gameManager.getNumberOfEntries());
-    const DuplicateGameManager::ScoreEntry entry {
-        otherPartnership(PARTNERSHIP),
-        calculateDuplicateScore(CONTRACT, false, TRICKS_WON - 1).second};
-    EXPECT_EQ(entry, gameManager.getScoreEntry(0));
-}
-
-TEST_F(DuplicateGameManagerTest, testAddResultVulnerable)
-{
-    gameManager.addPassedOut();
-    // North-south vulnerable
-    gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON - 1);
-    ASSERT_EQ(2u, gameManager.getNumberOfEntries());
-    const DuplicateGameManager::ScoreEntry entry {
-        otherPartnership(PARTNERSHIP),
-        calculateDuplicateScore(CONTRACT, true, TRICKS_WON - 1).second};
-    EXPECT_EQ(entry, gameManager.getScoreEntry(1));
-}
-
-TEST_F(DuplicateGameManagerTest, testOpenerPositionRotation)
-{
-    for (int round = 0; round < 4; ++round) {
-        for (const auto position : Bridge::POSITIONS) {
-            EXPECT_EQ(position, gameManager.getOpenerPosition());
-            gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
-        }
-    }
+    EXPECT_TRUE(scoreSheet.begin() != scoreSheet.end());
+    EXPECT_TRUE(*scoreSheet.begin());
 }
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)

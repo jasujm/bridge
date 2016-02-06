@@ -2,49 +2,45 @@
 
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
-#include "scoring/DuplicateScoring.hh"
+
+#include <iterator>
 
 namespace Bridge {
 namespace Engine {
 
 namespace {
 
-Vulnerability getVulnerabilityHelper(const std::size_t n)
+auto getNumberOfEntries(const Scoring::DuplicateScoreSheet& scoreSheet)
+{
+    return std::distance(scoreSheet.begin(), scoreSheet.end());
+}
+
+Vulnerability getVulnerabilityHelper(
+    const Scoring::DuplicateScoreSheet& scoreSheet)
 {
     // Skip one vulnerability after each four deals
+    const auto n = getNumberOfEntries(scoreSheet);
     const auto offset = (n + n / N_POSITIONS) % N_POSITIONS;
     return {offset == 1 || offset == 3, offset == 2 || offset == 3};
 }
 
 }
 
-std::size_t DuplicateGameManager::getNumberOfEntries() const
+const Scoring::DuplicateScoreSheet& DuplicateGameManager::getScoreSheet() const
 {
-    return entries.size();
-}
-
-boost::optional<DuplicateGameManager::ScoreEntry>
-DuplicateGameManager::getScoreEntry(const std::size_t n) const
-{
-    return entries.at(n);
+    return scoreSheet;
 }
 
 void DuplicateGameManager::handleAddResult(
-    Bridge::Partnership partnership, const Bridge::Contract& contract,
-    const int tricksWon)
+    Partnership partnership, const Contract& contract, const int tricksWon)
 {
-    const auto vulnerability = getVulnerabilityHelper(entries.size());
-    auto score = Scoring::calculateDuplicateScore(
-        contract, isVulnerable(vulnerability, partnership), tricksWon);
-    if (!score.first) {
-        partnership = otherPartnership(partnership);
-    }
-    entries.emplace_back(ScoreEntry {partnership, score.second});
+    const auto vulnerability = getVulnerabilityHelper(scoreSheet);
+    scoreSheet.addResult(partnership, contract, tricksWon, vulnerability);
 }
 
 void DuplicateGameManager::handleAddPassedOut()
 {
-    entries.emplace_back(boost::none);
+    scoreSheet.addPassedOut();
 }
 
 bool DuplicateGameManager::handleHasEnded() const
@@ -54,19 +50,13 @@ bool DuplicateGameManager::handleHasEnded() const
 
 Position DuplicateGameManager::handleGetOpenerPosition() const
 {
-    return POSITIONS[entries.size() % N_POSITIONS];
+    const auto n = getNumberOfEntries(scoreSheet);
+    return POSITIONS[n % N_POSITIONS];
 }
 
 Vulnerability DuplicateGameManager::handleGetVulnerability() const
 {
-    return getVulnerabilityHelper(entries.size());
-}
-
-bool operator==(const DuplicateGameManager::ScoreEntry& lhs,
-                const DuplicateGameManager::ScoreEntry& rhs)
-{
-    return &lhs == &rhs || (
-        lhs.partnership == rhs.partnership && lhs.score == rhs.score);
+    return getVulnerabilityHelper(scoreSheet);
 }
 
 }

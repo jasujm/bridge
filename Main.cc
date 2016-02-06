@@ -112,7 +112,7 @@ void printScore(const Engine::DuplicateGameManager& gameManager)
 {
     std::cout << "\nScore:\n";
     std::cout << "NS\tEW\n";
-    for (const auto& entry : getScoreEntries(gameManager)) {
+    for (const auto& entry : gameManager.getScoreSheet()) {
         if (entry) {
             if (entry->partnership == Partnership::EAST_WEST) {
                 std::cout << "\t";
