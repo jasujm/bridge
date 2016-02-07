@@ -1,0 +1,10 @@
+find_library(ZEROMQ_LIBRARY zmq)
+find_path(ZEROMQ_INCLUDE_DIR zmq.h)
+find_path(ZEROMQ_CXX_INCLUDE_DIR zmq.hpp)
+
+set(ZEROMQ_LIBRARIES ${ZEROMQ_LIBRARY})
+set(ZEROMQ_INCLUDE_DIRS ${ZEROMQ_INCLUDE_DIR} ${ZEROMQ_CXX_INCLUDE_DIR})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(ZeroMQ DEFAULT_MSG ZEROMQ_LIBRARY
+  ZEROMQ_INCLUDE_DIR ZEROMQ_CXX_INCLUDE_DIR)

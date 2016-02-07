@@ -12,17 +12,21 @@ set(BRIDGE_COMPILE_FEATURES cxx_auto_type cxx_constexpr cxx_decltype_auto
   cxx_rvalue_references cxx_static_assert cxx_strong_enums
   cxx_trailing_return_types cxx_variadic_templates)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
 find_package(Boost REQUIRED)
+find_package(ZeroMQ REQUIRED)
+find_package(Json REQUIRED)
 
-include_directories(include ${Boost_INCLUDE_DIR})
+include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
+  ${JSON_INCLUDE_DIRS})
 
 add_subdirectory(src)
 add_subdirectory(test/src)
 
 add_executable(bridge Main.cc)
 
-# Todo properly
-target_link_libraries(bridge ${BRIDGE_LIBRARIES} zmq Threads::Threads)
+target_link_libraries(bridge ${BRIDGE_LIBRARIES} ${ZEROMQ_LIBRARIES}
+  Threads::Threads)
