@@ -13,15 +13,19 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
 #include "messaging/DealStateJsonSerializer.hh"
+#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
+#include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
+#include "scoring/DuplicateScoreSheet.hh"
 
 #include <json.hpp>
 #include <gtest/gtest.h>
 
 using namespace Bridge;
 using namespace Bridge::Messaging;
+using namespace Bridge::Scoring;
 
 using nlohmann::json;
 
@@ -436,4 +440,114 @@ TEST_F(JsonSerializerTest, testComplexDealState)
     state.currentTrick.emplace(trick);
     state.tricksWon.emplace(TRICKS_WON);
     testHelper(state, j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreSheet)
+{
+    const auto j = json {
+        nullptr,
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                toJson(Partnership::NORTH_SOUTH)
+            },
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                50
+            }
+        },
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                toJson(Partnership::EAST_WEST)
+            },
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                100
+            }
+        },
+    };
+    const auto scoreSheet = DuplicateScoreSheet {
+        boost::none,
+        DuplicateScoreSheet::Score {Partnership::NORTH_SOUTH, 50},
+        DuplicateScoreSheet::Score {Partnership::EAST_WEST, 100}
+    };
+    testHelper(scoreSheet, j);
+}
+
+TEST_F(JsonSerializerTest, testScoreSheetPartnershipMissing)
+{
+    const auto j = json {
+        {
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                50
+            }
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreSheetPartnershipInvalid)
+{
+    const auto j = json {
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                nullptr
+            },
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                50
+            }
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
+}
+
+TEST_F(JsonSerializerTest, testScoreSheetScoreMissing)
+{
+    const auto j = json {
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                toJson(Partnership::NORTH_SOUTH)
+            }
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreSheetScoreInvalid)
+{
+    const auto j = json {
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                toJson(Partnership::NORTH_SOUTH)
+            },
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                nullptr
+            }
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreSheetNonpositiveScore)
+{
+    const auto j = json {
+        {
+            {
+                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
+                toJson(Partnership::NORTH_SOUTH)
+            },
+            {
+                DUPLICATE_SCORE_SHEET_SCORE_KEY,
+                0
+            }
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
 }

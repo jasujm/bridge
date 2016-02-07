@@ -123,7 +123,7 @@ boost::optional<T> optionalGet(
 
 /** \brief Convert pair to JSON object
  *
- * The returned JSON object contains two key-value pairs with \p key1 and \p
+ * The returned JSON object contains two key‐value pairs with \p key1 and \p
  * key2 mapping to each member of the pair converted to JSON.
  *
  * \param p the pair to convert
@@ -147,7 +147,7 @@ nlohmann::json pairToJson(
 
 /** \brief Convert JSON object to pair
  *
- * The function excepts a JSON object with two key-value pair. Keys \p key1
+ * The function excepts a JSON object with two key‐value pair. Keys \p key1
  * and \p key2 are converted to the first and second element of the returned
  * pair, respectively.
  *
@@ -168,6 +168,44 @@ std::pair<T1, T2> jsonToPair(
         checkedGet<T1>(j, key1),
         checkedGet<T2>(j, key2)
     };
+}
+
+/** \brief Convert optional type to JSON
+ *
+ * \param t the optional value to convert
+ *
+ * \return If \p t contains value, applies toJson() to the contained value and
+ * returns the result. Otherwise returns \c null.
+ *
+ * \sa jsonToOptional()
+ */
+template<typename T>
+nlohmann::json optionalToJson(const boost::optional<T>& t)
+{
+    if (t) {
+        return toJson(*t);
+    }
+    return nullptr;
+}
+
+/** \brief Convert JSON to optional type
+ *
+ * \tparam T the type contained by the optional type
+ *
+ * \param j the JSON object to convert
+ *
+ * \return If \p j is not \c null, applies fromJson() to it and returns the
+ * result in optional value. Otherwise returns \c none.
+ *
+ * \sa optionalToJson()
+ */
+template<typename T>
+boost::optional<T> jsonToOptional(const nlohmann::json& j)
+{
+    if (j.is_null()) {
+        return boost::none;
+    }
+    return fromJson<T>(j);;
 }
 
 /// \{
