@@ -22,8 +22,10 @@ Currently you can only do few things with the application
 the project.
 
 Bridge uses many features from C++14 — deliberately as one of the goals of
-this project was to learn C++14 — so you need modern-ish compiler. The only
-external dependency for the project is [Boost](http://www.boost.org/).
+this project was to learn C++14 — so you need modern-ish compiler. The project
+depends on [ZeroMQ](http://zeromq.org/) for interprocess communication,
+[json](https://github.com/nlohmann/json) to serialize and deserialize messages
+and [Boost](http://www.boost.org/) for various things.
 
 [Googletest](https://github.com/google/googletest) is used to build unit
 tests. As recommended by the maintainers of the project, instead of relying on
@@ -86,11 +88,9 @@ peer-to-peer communication.
 Short term goals:
 
 - Nice GUI
-  - Ideally the GUI is implemented in separate process communicating with the
-    game using e.g. [ZeroMQ](http://zeromq.org/)
 - Networking
-  - Asynchronous IO. Use ZeroMQ as message queue both internally and
-    externally?
+  - Use ZeroMQ to send and receive messages between different Bridge
+    application instances
   - In the first phase I’ll use some simple plain text protocol for
     non-serious use
 
