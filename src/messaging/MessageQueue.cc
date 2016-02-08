@@ -5,39 +5,13 @@
 
 #include <cassert>
 #include <functional>
+#include <iterator>
 #include <vector>
 
 namespace Bridge {
 namespace Messaging {
 
 namespace {
-
-auto handleMessage(
-    zmq::socket_t& socket, MessageHandler& handler, bool more)
-{
-    auto parameters = std::vector<std::string> {};
-    while (more) {
-        const auto message = recvMessage(socket);
-        parameters.push_back(message.first);
-        more = message.second;
-    }
-    return handler.handle(parameters.begin(), parameters.end());
-}
-
-void sendReply(
-    zmq::socket_t& socket, const std::string& reply,
-    const MessageHandler::ReturnValue& params)
-{
-    auto param_begin = params.begin();
-    auto more = (param_begin != params.end());
-    sendMessage(socket, reply, more);
-    while (more) {
-        const auto param_next = std::next(param_begin);
-        more = (param_next != params.end());
-        sendMessage(socket, *param_begin, more);
-        param_begin = param_next;
-    }
-}
 
 class TerminateMessageHandler : public MessageHandler {
 public:
@@ -86,12 +60,15 @@ MessageQueue::Impl::Impl(
 void MessageQueue::Impl::run()
 {
     while (go) { // go is set to false in handler for MESSAGE_TERMINATE
-        const auto message = recvMessage(socket);
-        const auto handler = handlers.find(message.first);
-        if (handler != handlers.end()) {
-            const auto reply = handleMessage(
-                socket, dereference(handler->second), message.second);
-            sendReply(socket, REPLY_SUCCESS, reply);
+        auto message = std::vector<std::string> {};
+        recvAll(std::back_inserter(message), socket);
+        const auto entry = handlers.find(message.at(0));
+        if (entry != handlers.end()) {
+            auto& handler = dereference(entry->second);
+            const auto reply = handler.handle(
+                std::next(message.begin()), message.end());
+            sendMessage(socket, REPLY_SUCCESS, reply.begin() != reply.end());
+            sendMessage(socket, reply.begin(), reply.end());
         } else {
             sendMessage(socket, REPLY_FAILURE);
         }
