@@ -1,6 +1,7 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/MessageUtility.hh"
+#include "Utility.hh"
 
 #include <cassert>
 #include <functional>
@@ -88,9 +89,8 @@ void MessageQueue::Impl::run()
         const auto message = recvMessage(socket);
         const auto handler = handlers.find(message.first);
         if (handler != handlers.end()) {
-            assert(handler->second);
             const auto reply = handleMessage(
-                socket, *handler->second, message.second);
+                socket, dereference(handler->second), message.second);
             sendReply(socket, REPLY_SUCCESS, reply);
         } else {
             sendMessage(socket, REPLY_FAILURE);
