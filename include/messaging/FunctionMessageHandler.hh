@@ -8,12 +8,14 @@
 
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationUtility.hh"
 
+#include <iterator>
 #include <memory>
-#include <utility>
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 namespace Bridge {
 namespace Messaging {
@@ -39,18 +41,7 @@ namespace Messaging {
  * wraps. The function may take an arbitrary number of parameters and return
  * an arbitrary sized instance of std::tuple containing the return values.
  *
- * \tparam SerializationPolicy Type for an object that controls conversion of
- * function parameters and return values. It needs to have the following
- * signature:
- * \code{.cc}
- * class ExampleSerializationPolicy {
- *     // Return string representation of t
- *     template<typename T> std::string serialize(const T& t);
- *     // Return object of type T represented by s
- *     template<typename T> T deserialize(const std::string& s);
- * };
- * \endcode
- *
+ * \tparam SerializationPolicy See \ref serializationpolicy
  * \tparam Args The types of the arguments used when calling the
  * function. This needs to be specified to distinguish between different
  * possible calling signatures provided by the function.
@@ -78,12 +69,13 @@ private:
         ParameterRange params, std::index_sequence<Ns...>,
         std::index_sequence<Ms...>)
     {
-        auto&& params_ = std::make_tuple(
-            serializer.template deserialize<Args>(params[Ns])...);
-        auto ret = function(std::get<Ns>(std::move(params_))...);
-        // to silence compiler warning if the return value is empty
-        static_cast<void>(ret);
-        return {serializer.serialize(std::get<Ms>(ret))...};
+        auto&& params_ = deserializeAll<Args...>(serializer, params[Ns]...);
+        auto&& func_ret = function(std::get<Ns>(std::move(params_))...);
+        auto ret = ReturnValue {};
+        serializeAll(
+            std::back_inserter(ret), serializer,
+            std::get<Ms>(std::move(func_ret))...);
+        return ret;
     }
 
     Function function;

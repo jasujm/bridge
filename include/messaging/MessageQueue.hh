@@ -77,7 +77,6 @@ public:
      *
      * \param first iterator to the first handler
      * \param last iterator to the last handler
-     * \param handlers mapping from commands to message handlers
      * \param context the ZeroMQ context for the message queue
      * \param address the ZeroMQ address the message queue binds to
      */
