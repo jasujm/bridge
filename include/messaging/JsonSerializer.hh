@@ -2,8 +2,11 @@
  *
  * \brief Definition of JSON serialization policy for message passing
  *
- * The serializer is based on the JSON library by nlohmann
- * (https://github.com/nlohmann/json).
+ * The file defines serialization policy based on the JSON library by nlohmann
+ * (https://github.com/nlohmann/json). It can be used in conjuction with other
+ * messaging utilities to pass objects as messages.
+ *
+ * \sa \ref serializationpolicy
  */
 
 #ifndef MESSAGING_JSONSERIALIZER_HH_
@@ -18,42 +21,83 @@
 namespace Bridge {
 namespace Messaging {
 
-/** \brief Convert object to JSON
+/** \brief Convert object to/from JSON
  *
- * \note To be able to serialize complex types with JsonSerializer, this
- * template can be specialized.
+ * JsonConverter is a struct that can be specialized to allow the JSON
+ * serialization framework to convert different types to/from JSON. The
+ * general template relies on implicit conversions provided by the JSON
+ * library itself. Partial or full specializations of the struct can be used
+ * to convert complex types for which impicit conversion does not work.
  *
- * \param t the object to convert
- *
- * \return JSON object implicitly constructed from \p t
+ * \tparam T the type converted to/from JSON by the specialization
  */
 template<typename T>
-nlohmann::json toJson(const T& t)
+struct JsonConverter
+{
+
+    /** \brief Convert object to JSON
+     *
+     * The implementation in the general template just tries to convert object
+     * implicitly to nlohmann::json object. If implicit conversion does not
+     * exist, the program is ill‐formed.
+     */
+    static nlohmann::json convertToJson(const T& t);
+
+    /** \brief Convert JSON to object
+     *
+     * The implementation in the general template just tries to convert object
+     * implicitly from nlohmann::json object. If implicit conversion does not
+     * exist, the program is ill‐formed.
+     *
+     * \throw MessageHandlingException if the conversion is unsuccessful
+     */
+    static T convertFromJson(const nlohmann::json& j);
+};
+
+template<typename T>
+nlohmann::json JsonConverter<T>::convertToJson(const T& t)
 {
     return t;
 }
 
-/** \brief Convert JSON to object of type \p T
- *
- * \note To be able to deserialize complex types with JsonSerializer, this
- * template can be specialized.
- *
- * \param j the JSON object to convert
- *
- * \return \p T object implicitly converted from \p j
- *
- * \throw MessageHandlingException if \p j is not compatible with \p T
- * (see more in nlohmann::json documentation)
- */
 template<typename T>
-T fromJson(const nlohmann::json& j) {
+T JsonConverter<T>::convertFromJson(const nlohmann::json& j)
+{
     try {
         return j;
     } catch (const std::domain_error&) {
-        // We rely on json::operator T() throwing std::domain_error if the
+        // We rely on json::operator T() throwing std::domain_error if
         // j and T are incompatible
         throw MessageHandlingException {};
     }
+}
+
+/** \brief Convert object to JSON
+ *
+ * This is convenience function for invoking JsonConverter<T>::convertToJson().
+ *
+ * \param t the object to convert
+ *
+ * \return JSON representation of \p t
+ */
+template<typename T>
+nlohmann::json toJson(const T& t)
+{
+    return JsonConverter<T>::convertToJson(t);
+}
+
+/** \brief Convert JSON to object
+ *
+ * This is convenience function for invoking
+ * JsonConverter<T>::convertFromJson().
+ *
+ * \param j the JSON object to convert
+ *
+ * \return \p j converted to object of type \p T
+ */
+template<typename T>
+T fromJson(const nlohmann::json& j) {
+    return JsonConverter<T>::convertFromJson(j);
 }
 
 /** \brief Serialization policy that uses JSON

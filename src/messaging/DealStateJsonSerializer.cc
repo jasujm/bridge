@@ -1,6 +1,5 @@
 #include "messaging/DealStateJsonSerializer.hh"
 
-#include "bridge/DealState.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
@@ -32,20 +31,18 @@ const std::string DEAL_STATE_CURRENT_TRICK_KEY {"currentTrick"};
 const std::string DEAL_STATE_CARD_KEY {"card"};
 const std::string DEAL_STATE_TRICKS_WON_KEY {"tricksWon"};
 
-template<>
-json toJson(const Stage& stage)
+json JsonConverter<Stage>::convertToJson(const Stage stage)
 {
     return enumToJson(stage, STAGE_TO_STRING_MAP.left);
 }
 
-template<>
-Stage fromJson(const json& j)
+Stage JsonConverter<Stage>::convertFromJson(const json& j)
 {
     return jsonToEnum<Stage>(j, STAGE_TO_STRING_MAP.right);
 }
 
-template<>
-json toJson(const DealState::Cards& cards)
+json JsonConverter<DealState::Cards>::convertToJson(
+    const DealState::Cards& cards)
 {
     auto ret = json::object();
     for (const auto& p : cards) {
@@ -58,8 +55,7 @@ json toJson(const DealState::Cards& cards)
     return ret;
 }
 
-template<>
-DealState::Cards fromJson(const json& j)
+DealState::Cards JsonConverter<DealState::Cards>::convertFromJson(const json& j)
 {
     auto ret = DealState::Cards {};
     for (auto iter = j.begin(); iter != j.end(); ++iter) {
@@ -73,8 +69,8 @@ DealState::Cards fromJson(const json& j)
     return ret;
 }
 
-template<>
-json toJson(const DealState::Calls& calls)
+json JsonConverter<DealState::Calls>::convertToJson(
+    const DealState::Calls& calls)
 {
     auto ret = json::array();
     for (const auto& c : calls) {
@@ -84,8 +80,7 @@ json toJson(const DealState::Calls& calls)
     return ret;
 }
 
-template<>
-DealState::Calls fromJson(const json& j)
+DealState::Calls JsonConverter<DealState::Calls>::convertFromJson(const json& j)
 {
     auto ret = DealState::Calls {};
     for (const auto c : j) {
@@ -96,8 +91,8 @@ DealState::Calls fromJson(const json& j)
     return ret;
 }
 
-template<>
-json toJson(const DealState::Trick& trick)
+json JsonConverter<DealState::Trick>::convertToJson(
+    const DealState::Trick& trick)
 {
     auto ret = json::array();
     for (const auto& t : trick) {
@@ -107,8 +102,7 @@ json toJson(const DealState::Trick& trick)
     return ret;
 }
 
-template<>
-DealState::Trick fromJson(const json& j)
+DealState::Trick JsonConverter<DealState::Trick>::convertFromJson(const json& j)
 {
     auto ret = DealState::Trick {};
     for (const auto c : j) {
@@ -119,8 +113,7 @@ DealState::Trick fromJson(const json& j)
     return ret;
 }
 
-template<>
-json toJson(const DealState& dealState)
+json JsonConverter<DealState>::convertToJson(const DealState& dealState)
 {
     auto j = json {{DEAL_STATE_STAGE_KEY, toJson(dealState.stage)}};
     optionalPut(j, DEAL_STATE_POSITION_IN_TURN_KEY, dealState.positionInTurn);
@@ -134,8 +127,7 @@ json toJson(const DealState& dealState)
     return j;
 }
 
-template<>
-DealState fromJson(const json& j)
+DealState JsonConverter<DealState>::convertFromJson(const json& j)
 {
     auto state = DealState {};
     state.stage = checkedGet<Stage>(j, DEAL_STATE_STAGE_KEY);

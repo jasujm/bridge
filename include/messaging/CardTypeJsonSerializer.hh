@@ -48,35 +48,53 @@ extern const std::string CARD_TYPE_RANK_KEY;
  */
 extern const std::string CARD_TYPE_SUIT_KEY;
 
-/** \sa \ref jsoncardtype
+/** \brief JSON converter for Rank
+ *
+ * \sa JsonSerializer.hh, \ref jsoncardtype
  */
 template<>
-nlohmann::json toJson(const Rank& rank);
+struct JsonConverter<Rank>
+{
+    /** \brief Convert Rank to JSON
+     */
+    static nlohmann::json convertToJson(Rank rank);
 
-/** \sa \ref jsoncardtype
- */
-template<>
-Rank fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Rank
+     */
+    static Rank convertFromJson(const nlohmann::json& j);
+};
 
-/** \sa \ref jsoncardtype
+/** \brief JSON converter for Suit
+ *
+ * \sa JsonSerializer.hh, \ref jsoncardtype
  */
 template<>
-nlohmann::json toJson(const Suit& suit);
+struct JsonConverter<Suit>
+{
+    /** \brief Convert Suit to JSON
+     */
+    static nlohmann::json convertToJson(Suit suit);
 
-/** \sa \ref jsoncardtype
- */
-template<>
-Suit fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Suit
+     */
+    static Suit convertFromJson(const nlohmann::json& j);
+};
 
-/** \sa \ref jsoncardtype
+/** \brief JSON converter for CardType
+ *
+ * \sa JsonSerializer.hh, \ref jsoncardtype
  */
 template<>
-nlohmann::json toJson(const CardType& cardType);
+struct JsonConverter<CardType>
+{
+    /** \brief Convert CardType to JSON
+     */
+    static nlohmann::json convertToJson(const CardType& cardType);
 
-/** \sa \ref jsoncardtype
- */
-template<>
-CardType fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to CardType
+     */
+    static CardType convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

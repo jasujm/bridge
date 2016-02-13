@@ -31,15 +31,21 @@ class TricksWon;
 
 namespace Messaging {
 
-/** \sa \ref jsontrickswon
+/** \brief JSON converter for TricksWon
+ *
+ * \sa JsonSerializer.hh, \ref jsontrickswon
  */
 template<>
-nlohmann::json toJson(const TricksWon& tricksWon);
+struct JsonConverter<TricksWon>
+{
+    /** \brief Convert TricksWon to JSON
+     */
+    static nlohmann::json convertToJson(const TricksWon& tricksWon);
 
-/** \sa \ref jsontrickswon
- */
-template<>
-TricksWon fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to TricksWon
+     */
+    static TricksWon convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

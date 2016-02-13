@@ -46,25 +46,37 @@ extern const std::string CONTRACT_BID_KEY;
  */
 extern const std::string CONTRACT_DOUBLING_KEY;
 
-/** \sa \ref jsoncontract
+/** \brief JSON converter for Doubling
+ *
+ * \sa JsonSerializer.hh, \ref jsoncontract
  */
 template<>
-nlohmann::json toJson(const Doubling& doubling);
+struct JsonConverter<Doubling>
+{
+    /** \brief Convert Doubling to JSON
+     */
+    static nlohmann::json convertToJson(Doubling doubling);
 
-/** \sa \ref jsoncontract
- */
-template<>
-Doubling fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Doubling
+     */
+    static Doubling convertFromJson(const nlohmann::json& j);
+};
 
-/** \sa \ref jsoncontract
+/** \brief JSON converter for Contract
+ *
+ * \sa JsonSerializer.hh, \ref jsoncontract
  */
 template<>
-nlohmann::json toJson(const Contract& contract);
+struct JsonConverter<Contract>
+{
+    /** \brief Convert Contract to JSON
+     */
+    static nlohmann::json convertToJson(const Contract& doubling);
 
-/** \sa \ref jsoncontract
- */
-template<>
-Contract fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Contract
+     */
+    static Contract convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

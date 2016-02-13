@@ -47,16 +47,14 @@ const auto CALLS = std::map<std::string, std::function<Call(const json&)>> {
 
 }
 
-template<>
-json toJson(const Call& call)
+json JsonConverter<Call>::convertToJson(const Call& call)
 {
     json j = json::object();
     j[CALL_TYPE_KEY] = boost::apply_visitor(JsonSerializerVisitor {j}, call);
     return j;
 }
 
-template<>
-Call fromJson(const nlohmann::json& j)
+Call JsonConverter<Call>::convertFromJson(const nlohmann::json& j)
 {
     const auto iter = CALLS.find(checkedGet<std::string>(j, CALL_TYPE_KEY));
     if (iter != CALLS.end()) {

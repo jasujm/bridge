@@ -12,28 +12,24 @@ namespace Messaging {
 const std::string CONTRACT_BID_KEY {"bid"};
 const std::string CONTRACT_DOUBLING_KEY {"doubling"};
 
-template<>
-json toJson(const Doubling& doubling)
+json JsonConverter<Doubling>::convertToJson(const Doubling doubling)
 {
     return enumToJson(doubling, DOUBLING_TO_STRING_MAP.left);
 }
 
-template<>
-Doubling fromJson(const json& j)
+Doubling JsonConverter<Doubling>::convertFromJson(const json& j)
 {
     return jsonToEnum<Doubling>(j, DOUBLING_TO_STRING_MAP.right);
 }
 
-template<>
-json toJson(const Contract& contract)
+json JsonConverter<Contract>::convertToJson(const Contract& contract)
 {
     return {
         {CONTRACT_BID_KEY, toJson(contract.bid)},
         {CONTRACT_DOUBLING_KEY, toJson(contract.doubling)}};
 }
 
-template<>
-Contract fromJson(const json& j)
+Contract JsonConverter<Contract>::convertFromJson(const json& j)
 {
     return {
         checkedGet<Bid>(j, CONTRACT_BID_KEY),

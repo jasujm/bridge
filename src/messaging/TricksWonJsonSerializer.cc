@@ -9,8 +9,8 @@ using nlohmann::json;
 namespace Bridge {
 namespace Messaging {
 
-template<>
-nlohmann::json toJson(const TricksWon& tricksWon)
+nlohmann::json JsonConverter<TricksWon>::convertToJson(
+    const TricksWon& tricksWon)
 {
     return {
         {
@@ -24,8 +24,7 @@ nlohmann::json toJson(const TricksWon& tricksWon)
     };
 }
 
-template<>
-TricksWon fromJson(const nlohmann::json& j)
+TricksWon JsonConverter<TricksWon>::convertFromJson(const nlohmann::json& j)
 {
     return {
         checkedGet<int>(

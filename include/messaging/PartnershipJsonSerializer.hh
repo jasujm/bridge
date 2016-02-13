@@ -14,13 +14,21 @@ enum class Partnership;
 
 namespace Messaging {
 
-/** \sa toJson() */
+/** \brief JSON converter for Partnership
+ *
+ * \sa JsonSerializer.hh
+ */
 template<>
-nlohmann::json toJson(const Partnership& partnership);
+struct JsonConverter<Partnership>
+{
+    /** \brief Convert Partnership to JSON
+     */
+    static nlohmann::json convertToJson(Partnership partnership);
 
-/** \sa fromJson() */
-template<>
-Partnership fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Partnership
+     */
+    static Partnership convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

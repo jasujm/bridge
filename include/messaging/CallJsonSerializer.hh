@@ -69,15 +69,21 @@ extern const std::string CALL_DOUBLE_TAG;
  */
 extern const std::string CALL_REDOUBLE_TAG;
 
-/** \sa \ref jsoncall
+/** \brief JSON converter for Call
+ *
+ * \sa JsonSerializer.hh, \ref jsoncall
  */
 template<>
-nlohmann::json toJson(const Call& call);
+struct JsonConverter<Call>
+{
+    /** \brief Convert Call to JSON
+     */
+    static nlohmann::json convertToJson(const Call& call);
 
-/** \sa \ref jsoncall
- */
-template<>
-Call fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Call
+     */
+    static Call convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

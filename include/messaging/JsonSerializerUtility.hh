@@ -170,17 +170,39 @@ std::pair<T1, T2> jsonToPair(
     };
 }
 
-/** \brief Convert optional type to JSON
+/** \brief JSON converter for optional types
  *
- * \param t the optional value to convert
- *
- * \return If \p t contains value, applies toJson() to the contained value and
- * returns the result. Otherwise returns \c null.
- *
- * \sa jsonToOptional()
+ * \sa JsonSerializer.hh
  */
 template<typename T>
-nlohmann::json optionalToJson(const boost::optional<T>& t)
+struct JsonConverter<boost::optional<T>>
+{
+    /** \brief Convert optional type to JSON
+     *
+     * \param t the optional value to convert
+     *
+     * \return If \p t contains value, applies toJson() to the contained value
+     * and returns the result. Otherwise returns \c null.
+     */
+    static nlohmann::json convertToJson(const boost::optional<T>& t);
+
+    /** \brief Convert JSON to optional type
+     *
+     * \tparam T the type contained by the optional type
+     *
+     * \param j the JSON object to convert
+     *
+     * \return If \p j is not \c null, applies fromJson() to it and returns the
+     * result in optional value. Otherwise returns \c none.
+     *
+     * \sa optionalToJson()
+     */
+    static boost::optional<T> convertFromJson(const nlohmann::json& j);
+};
+
+template<typename T>
+nlohmann::json JsonConverter<boost::optional<T>>::convertToJson(
+    const boost::optional<T>& t)
 {
     if (t) {
         return toJson(*t);
@@ -188,24 +210,14 @@ nlohmann::json optionalToJson(const boost::optional<T>& t)
     return nullptr;
 }
 
-/** \brief Convert JSON to optional type
- *
- * \tparam T the type contained by the optional type
- *
- * \param j the JSON object to convert
- *
- * \return If \p j is not \c null, applies fromJson() to it and returns the
- * result in optional value. Otherwise returns \c none.
- *
- * \sa optionalToJson()
- */
 template<typename T>
-boost::optional<T> jsonToOptional(const nlohmann::json& j)
+boost::optional<T> JsonConverter<boost::optional<T>>::convertFromJson(
+    const nlohmann::json& j)
 {
     if (j.is_null()) {
         return boost::none;
     }
-    return fromJson<T>(j);;
+    return fromJson<T>(j);
 }
 
 /// \{

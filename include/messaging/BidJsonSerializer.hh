@@ -44,25 +44,37 @@ extern const std::string BID_LEVEL_KEY;
  */
 extern const std::string BID_STRAIN_KEY;
 
-/** \sa \ref jsonbid
+/** \brief JSON converter for Strain
+ *
+ * \sa JsonSerializer.hh, \ref jsonbid
  */
 template<>
-nlohmann::json toJson(const Strain& strain);
+struct JsonConverter<Strain>
+{
+    /** \brief Convert Strain to JSON
+     */
+    static nlohmann::json convertToJson(Strain strain);
 
-/** \sa \ref jsonbid
- */
-template<>
-Strain fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Strain
+     */
+    static Strain convertFromJson(const nlohmann::json& j);
+};
 
-/** \sa \ref jsonbid
+/** \brief JSON converter for Bid
+ *
+ * \sa JsonSerializer.hh, \ref jsonbid
  */
 template<>
-nlohmann::json toJson(const Bid& bid);
+struct JsonConverter<Bid>
+{
+    /** \brief Convert Bid to JSON
+     */
+    static nlohmann::json convertToJson(const Bid& strain);
 
-/** \sa \ref jsonbid
- */
-template<>
-Bid fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Bid
+     */
+    static Bid convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

@@ -89,6 +89,7 @@
  * - &lt;card&gt; is the card played by the player. See \ref jsoncardtype.
  */
 
+#include "bridge/DealState.hh"
 #include "messaging/JsonSerializer.hh"
 
 #include <string>
@@ -97,10 +98,6 @@
 #define MESSAGING_DEALSTATEJSONSERIALIZER_HH_
 
 namespace Bridge {
-
-class DealState;
-enum class Stage;
-
 namespace Messaging {
 
 /** \brief Key for DealState::stage in JSON object
@@ -182,25 +179,85 @@ extern const std::string DEAL_STATE_CARD_KEY;
  */
 extern const std::string DEAL_STATE_TRICKS_WON_KEY;
 
-/** \sa jsondealstate
+/** \brief JSON converter for Stage
+ *
+ * \sa JsonSerializer.hh, \ref jsondealstate
  */
 template<>
-nlohmann::json toJson(const Stage& stage);
+struct JsonConverter<Stage>
+{
+    /** \brief Convert Stage to JSON
+     */
+    static nlohmann::json convertToJson(Stage stage);
 
-/** \sa jsondealstate
- */
-template<>
-Stage fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Stage
+     */
+    static Stage convertFromJson(const nlohmann::json& j);;
+};
 
-/** \sa jsondealstate
+/** \brief JSON converter for DealState::Cards
+ *
+ * \sa JsonSerializer.hh, \ref jsondealstate
  */
 template<>
-nlohmann::json toJson(const DealState& dealState);
+struct JsonConverter<DealState::Cards>
+{
+    /** \brief Convert DealState::Cards to JSON
+     */
+    static nlohmann::json convertToJson(const DealState::Cards& cards);
 
-/** \sa jsondealstate
+    /** \brief Convert JSON to DealState::Cards
+     */
+    static DealState::Cards convertFromJson(const nlohmann::json& j);
+};
+
+/** \brief JSON converter for DealState::Calls
+ *
+ * \sa JsonSerializer.hh, \ref jsondealstate
  */
 template<>
-DealState fromJson(const nlohmann::json& j);
+struct JsonConverter<DealState::Calls>
+{
+    /** \brief Convert DealState::Calls to JSON
+     */
+    static nlohmann::json convertToJson(const DealState::Calls& calls);
+
+    /** \brief Convert JSON to DealState::Calls
+     */
+    static DealState::Calls convertFromJson(const nlohmann::json& j);
+};
+
+/** \brief JSON converter for DealState::Trick
+ *
+ * \sa JsonSerializer.hh, \ref jsondealstate
+ */
+template<>
+struct JsonConverter<DealState::Trick>
+{
+    /** \brief Convert DealState::Trick to JSON
+     */
+    static nlohmann::json convertToJson(const DealState::Trick& trick);
+
+    /** \brief Convert JSON to DealState::Trick
+     */
+    static DealState::Trick convertFromJson(const nlohmann::json& j);
+};
+
+/** \brief JSON converter for DealState
+ *
+ * \sa JsonSerializer.hh, \ref jsondealstate
+ */
+template<>
+struct JsonConverter<DealState>
+{
+    /** \brief Convert DealState to JSON
+     */
+    static nlohmann::json convertToJson(const DealState& dealState);
+
+    /** \brief Convert JSON to DealState
+     */
+    static DealState convertFromJson(const nlohmann::json& j);;
+};
 
 }
 }

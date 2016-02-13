@@ -14,13 +14,21 @@ enum class Position;
 
 namespace Messaging {
 
-/** \sa toJson() */
+/** \brief JSON converter for Position
+ *
+ * \sa JsonSerializer.hh
+ */
 template<>
-nlohmann::json toJson(const Position& position);
+struct JsonConverter<Position>
+{
+    /** \brief Convert Position to JSON
+     */
+    static nlohmann::json convertToJson(Position position);
 
-/** \sa fromJson() */
-template<>
-Position fromJson(const nlohmann::json& j);
+    /** \brief Convert JSON to Position
+     */
+    static Position convertFromJson(const nlohmann::json& j);
+};
 
 }
 }

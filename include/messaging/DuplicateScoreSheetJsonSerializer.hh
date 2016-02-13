@@ -24,16 +24,12 @@
 #ifndef MESSAGING_DUPLICATESCORESHEETJSONSERIALIZER_HH_
 #define MESSAGING_DUPLICATESCORESHEETJSONSERIALIZER_HH_
 
+#include "scoring/DuplicateScoreSheet.hh"
 #include "messaging/JsonSerializer.hh"
 
 #include <string>
 
 namespace Bridge {
-
-namespace Scoring {
-class DuplicateScoreSheet;
-}
-
 namespace Messaging {
 
 /** \brief Key for DuplicateScoreSheet::Score::partnerhip
@@ -48,15 +44,41 @@ extern const std::string DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY;
  */
 extern const std::string DUPLICATE_SCORE_SHEET_SCORE_KEY;
 
-/** \sa \ref jsonduplicatescoresheet
+/** \brief JSON converter for Scoring::DuplicateScoreSheet::Score
+ *
+ * \sa JsonSerializer.hh, \ref jsonduplicatescoresheet
  */
 template<>
-nlohmann::json toJson(const Scoring::DuplicateScoreSheet& scoreSheet);
+struct JsonConverter<Scoring::DuplicateScoreSheet::Score>
+{
+    /** \brief Convert Scoring::DuplicateScoreSheet::Score to JSON
+     */
+    static nlohmann::json convertToJson(
+        const Scoring::DuplicateScoreSheet::Score& score);
 
-/** \sa \ref jsonduplicatescoresheet
+    /** \brief Convert JSON to Scoring::DuplicateScoreSheet::Score
+     */
+    static Scoring::DuplicateScoreSheet::Score convertFromJson(
+        const nlohmann::json& j);
+};
+
+/** \brief JSON converter for Scoring::DuplicateScoreSheet
+ *
+ * \sa JsonSerializer.hh, \ref jsonduplicatescoresheet
  */
 template<>
-Scoring::DuplicateScoreSheet fromJson(const nlohmann::json& j);
+struct JsonConverter<Scoring::DuplicateScoreSheet>
+{
+    /** \brief Convert Scoring::DuplicateScoreSheet to JSON
+     */
+    static nlohmann::json convertToJson(
+        const Scoring::DuplicateScoreSheet& scoreSheet);
+
+    /** \brief Convert JSON to Scoring::DuplicateScoreSheet
+     */
+    static Scoring::DuplicateScoreSheet convertFromJson(
+        const nlohmann::json& j);
+};
 
 }
 }
