@@ -4,7 +4,6 @@
 #include "Utility.hh"
 
 #include <cassert>
-#include <functional>
 #include <iterator>
 #include <vector>
 
@@ -53,7 +52,7 @@ MessageQueue::Impl::Impl(
 {
     this->handlers.emplace(
         MESSAGE_TERMINATE,
-        std::make_shared<TerminateMessageHandler>(std::ref(go)));
+        std::make_shared<TerminateMessageHandler>(go));
     socket.bind(address);
 }
 
