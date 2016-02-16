@@ -34,7 +34,7 @@ class MessageQueue::Impl {
 public:
     Impl(
         HandlerMap handlers, zmq::context_t& context,
-        const std::string& address);
+        const std::string& endpoint);
 
     void run();
 
@@ -46,14 +46,14 @@ private:
 };
 
 MessageQueue::Impl::Impl(
-    HandlerMap handlers, zmq::context_t& context, const std::string& address) :
+    HandlerMap handlers, zmq::context_t& context, const std::string& endpoint) :
     handlers {std::move(handlers)},
     socket {context, zmq::socket_type::rep}
 {
     this->handlers.emplace(
         MESSAGE_TERMINATE,
         std::make_shared<TerminateMessageHandler>(go));
-    socket.bind(address);
+    socket.bind(endpoint);
 }
 
 void MessageQueue::Impl::run()
@@ -84,8 +84,8 @@ void MessageQueue::run()
 
 MessageQueue::MessageQueue(
     MessageQueue::HandlerMap handlers, zmq::context_t& context,
-    const std::string& address) :
-    impl {std::make_unique<Impl>(std::move(handlers), context, address)}
+    const std::string& endpoint) :
+    impl {std::make_unique<Impl>(std::move(handlers), context, endpoint)}
 {
 }
 

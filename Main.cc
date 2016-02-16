@@ -135,10 +135,13 @@ void printScore(const DuplicateScoreSheet& scoreSheet)
     }
 }
 
-void checkReplySuccessful(zmq::socket_t& socket, bool more = false)
+void checkReplySuccessful(
+    zmq::socket_t& socket,
+    const std::string& expectedReply = MessageQueue::REPLY_SUCCESS,
+    bool more = false)
 {
     const auto reply = recvMessage(socket);
-    if (reply != std::make_pair(MessageQueue::REPLY_SUCCESS, more))
+    if (reply != std::make_pair(expectedReply, more))
     {
         std::cerr << "Unknown failure" << std::endl;
         std::exit(1);
@@ -147,7 +150,7 @@ void checkReplySuccessful(zmq::socket_t& socket, bool more = false)
 
 std::string checkReply(zmq::socket_t& socket, bool more = false)
 {
-    auto reply = recvMessage(socket);
+    const auto reply = recvMessage(socket);
     if (more != reply.second)
     {
         std::cerr << "Unknown failure" << std::endl;
@@ -181,24 +184,33 @@ private:
 
 int main()
 {
-    const auto address = std::string {"inproc://bridgemain"};
+    const auto controlEndpoint = std::string {"inproc://bridgemain"};
+    const auto dataEndpoint = std::string {"inproc://bridgedata"};
 
     zmq::context_t context;
-    BridgeMain bridge_main {context, address};
+    BridgeMain bridge_main {context, controlEndpoint, dataEndpoint};
 
-    zmq::socket_t socket {context, zmq::socket_type::req};
-    socket.connect(address);
+    zmq::socket_t controlSocket {context, zmq::socket_type::req};
+    controlSocket.connect(controlEndpoint);
 
-    RemoteBridgeController controller {socket};
+    zmq::socket_t dataSocket {context, zmq::socket_type::sub};
+    dataSocket.setsockopt(
+        ZMQ_SUBSCRIBE, BridgeMain::STATE_PREFIX.c_str(),
+        BridgeMain::STATE_PREFIX.size());
+    dataSocket.connect(dataEndpoint);
+
+    RemoteBridgeController controller {controlSocket};
     CommandInterpreter interpreter {controller};
+
+    sendMessage(controlSocket, BridgeMain::STATE_COMMAND);
+    checkReplySuccessful(controlSocket);
 
     auto go = true;
     DealState deal_state;
     while (go && std::cin.good()) {
-        sendMessage(socket, BridgeMain::STATE_COMMAND);
         {
-            checkReplySuccessful(socket, true);
-            const auto reply = checkReply(socket);
+            checkReplySuccessful(dataSocket, BridgeMain::STATE_PREFIX, true);
+            const auto reply = checkReply(dataSocket);
             deal_state = JsonSerializer::deserialize<DealState>(reply);
         }
         printDealState(deal_state);
@@ -209,24 +221,29 @@ int main()
             auto command = std::string {};
             std::getline(std::cin, command);
             if (command == "score") {
-                sendMessage(socket, BridgeMain::SCORE_COMMAND);
-                checkReplySuccessful(socket, true);
-                const auto reply = checkReply(socket);
+                sendMessage(controlSocket, BridgeMain::SCORE_COMMAND);
+                checkReplySuccessful(
+                    controlSocket, MessageQueue::REPLY_SUCCESS, true);
+                const auto reply = checkReply(controlSocket);
                 const auto score_sheet =
                     JsonSerializer::deserialize<DuplicateScoreSheet>(reply);
                 printScore(score_sheet);
             } else if (command == "quit") {
                 go = false;
             } else {
-                interpreter.interpret(command);
+                const auto success = interpreter.interpret(command);
+                if (!success) {
+                    sendMessage(controlSocket, BridgeMain::STATE_COMMAND);
+                    checkReplySuccessful(controlSocket);
+                }
             }
         } else {
             go = false;
         }
     }
 
-    sendMessage(socket, MessageQueue::MESSAGE_TERMINATE);
-    checkReplySuccessful(socket);
+    sendMessage(controlSocket, MessageQueue::MESSAGE_TERMINATE);
+    checkReplySuccessful(controlSocket);
 
     return EXIT_SUCCESS;
 }

@@ -63,11 +63,11 @@ public:
      *
      * \param handlers mapping from commands to message handlers
      * \param context the ZeroMQ context for the message queue
-     * \param address the ZeroMQ address the message queue binds to
+     * \param endpoint the ZeroMQ endpoint the message queue binds to
      */
     MessageQueue(
         HandlerMap handlers, zmq::context_t& context,
-        const std::string& address);
+        const std::string& endpoint);
 
     /** \brief Create message queue
      *
@@ -78,12 +78,12 @@ public:
      * \param first iterator to the first handler
      * \param last iterator to the last handler
      * \param context the ZeroMQ context for the message queue
-     * \param address the ZeroMQ address the message queue binds to
+     * \param endpoint the ZeroMQ endpoint the message queue binds to
      */
     template<typename HandlerIterator>
     MessageQueue(
         HandlerIterator first, HandlerIterator last,
-        zmq::context_t& context, const std::string& address);
+        zmq::context_t& context, const std::string& endpoint);
 
     ~MessageQueue();
 
@@ -108,8 +108,8 @@ private:
 template<typename HandlerIterator>
 MessageQueue::MessageQueue(
     HandlerIterator first, HandlerIterator last,
-    zmq::context_t& context, const std::string& address) :
-    MessageQueue {HandlerMap(first, last), context, address}
+    zmq::context_t& context, const std::string& endpoint) :
+    MessageQueue {HandlerMap(first, last), context, endpoint}
 {
 }
 

@@ -23,7 +23,7 @@ using Bridge::Messaging::recvMessage;
 using Bridge::Messaging::sendMessage;
 
 namespace {
-const auto ADDRESS = std::string {"inproc://testing"};
+const auto ENDPOINT = std::string {"inproc://testing"};
 const auto COMMAND = std::string {"command"};
 }
 
@@ -32,7 +32,7 @@ protected:
 
     virtual void SetUp()
     {
-        socket.connect(ADDRESS);
+        socket.connect(ENDPOINT);
     }
 
     virtual void TearDown()
@@ -47,7 +47,7 @@ protected:
     std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
-        handlers.begin(), handlers.end(), context, ADDRESS};
+        handlers.begin(), handlers.end(), context, ENDPOINT};
     std::thread messageThread {[this]() { messageQueue.run(); }};
     zmq::socket_t socket {context, zmq::socket_type::req};
 };
