@@ -72,7 +72,9 @@ boost::optional<std::tuple<DeserializedTypes...>> deserializeAll(
 
 /** \brief Serialize several objects
  *
- * \param out output iterator the results of serialization are written to
+ * \param out The output iterator the results of serialization are written
+ * to. Exactly as many strings will be written to \p out as there are
+ * arguments to serialize.
  * \param serializer see \ref serializationpolicy
  * \param args the objects to serialize
  */

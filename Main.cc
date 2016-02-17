@@ -9,12 +9,13 @@
 #include "main/BridgeMain.hh"
 #include "main/BridgeController.hh"
 #include "main/CommandInterpreter.hh"
-#include "messaging/MessageUtility.hh"
+#include "messaging/CommandUtility.hh"
 #include "messaging/DealStateJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/MessageQueue.hh"
+#include "messaging/MessageUtility.hh"
 #include "scoring/DuplicateScoreSheet.hh"
 
 #include <zmq.hpp>
@@ -167,15 +168,14 @@ public:
 private:
     void handleCall(const Call& call) override
     {
-        sendMessage(socket, BridgeMain::CALL_COMMAND, true);
-        sendMessage(socket, JsonSerializer::serialize(call));
+        sendCommand(socket, JsonSerializer {}, BridgeMain::CALL_COMMAND, call);
         checkReplySuccessful(socket);
     }
 
     void handlePlay(const CardType& cardType) override
     {
-        sendMessage(socket, BridgeMain::PLAY_COMMAND, true);
-        sendMessage(socket, JsonSerializer::serialize(cardType));
+        sendCommand(
+            socket, JsonSerializer {}, BridgeMain::PLAY_COMMAND, cardType);
         checkReplySuccessful(socket);
     }
 

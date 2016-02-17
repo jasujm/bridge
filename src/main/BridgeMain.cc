@@ -11,10 +11,10 @@
 #include "engine/MakeDealState.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/CommandUtility.hh"
 #include "messaging/DealStateJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
-#include "messaging/MessageUtility.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/MessageQueue.hh"
 #include "scoring/DuplicateScoreSheet.hh"
@@ -36,6 +36,7 @@ const std::string BridgeMain::SCORE_COMMAND {"score"};
 const std::string BridgeMain::STATE_PREFIX {"state"};
 const std::string BridgeMain::SCORE_PREFIX {"score"};
 
+using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
 
 class BridgeMain::Impl {
@@ -76,23 +77,19 @@ BridgeMain::Impl::Impl(
         {
             {
                 STATE_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::state, Messaging::JsonSerializer {})
+                makeMessageHandler(*this, &Impl::state, JsonSerializer {})
             },
             {
                 CALL_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::call, Messaging::JsonSerializer {})
+                makeMessageHandler(*this, &Impl::call, JsonSerializer {})
             },
             {
                 PLAY_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::play, Messaging::JsonSerializer {})
+                makeMessageHandler(*this, &Impl::play, JsonSerializer {})
             },
             {
                 SCORE_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::score, Messaging::JsonSerializer {})
+                makeMessageHandler(*this, &Impl::score, JsonSerializer {})
             }
         },
         context, controlEndpoint},
@@ -109,11 +106,8 @@ BridgeMain::Impl::~Impl()
 
 bool BridgeMain::Impl::state()
 {
-    using namespace Messaging;
-    const auto messages = {
-        JsonSerializer::serialize(makeDealState(engine))};
-    sendMessage(dataSocket, STATE_PREFIX, true);
-    sendMessage(dataSocket, messages.begin(), messages.end());
+    sendCommand(
+        dataSocket, JsonSerializer {}, STATE_PREFIX, makeDealState(engine));
     return true;
 }
 
@@ -140,11 +134,9 @@ bool BridgeMain::Impl::play(const CardType& card)
 bool BridgeMain::Impl::score()
 {
     assert(gameManager);
-    using namespace Messaging;
-    const auto messages = {
-        JsonSerializer::serialize(gameManager->getScoreSheet())};
-    sendMessage(dataSocket, SCORE_PREFIX, true);
-    sendMessage(dataSocket, messages.begin(), messages.end());
+    sendCommand(
+        dataSocket, JsonSerializer {}, SCORE_PREFIX,
+        gameManager->getScoreSheet());
     return true;
 }
 
