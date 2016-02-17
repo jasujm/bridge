@@ -197,6 +197,9 @@ int main()
     dataSocket.setsockopt(
         ZMQ_SUBSCRIBE, BridgeMain::STATE_PREFIX.c_str(),
         BridgeMain::STATE_PREFIX.size());
+    dataSocket.setsockopt(
+        ZMQ_SUBSCRIBE, BridgeMain::SCORE_PREFIX.c_str(),
+        BridgeMain::SCORE_PREFIX.size());
     dataSocket.connect(dataEndpoint);
 
     RemoteBridgeController controller {controlSocket};
@@ -222,12 +225,15 @@ int main()
             std::getline(std::cin, command);
             if (command == "score") {
                 sendMessage(controlSocket, BridgeMain::SCORE_COMMAND);
+                checkReplySuccessful(controlSocket);
                 checkReplySuccessful(
-                    controlSocket, MessageQueue::REPLY_SUCCESS, true);
-                const auto reply = checkReply(controlSocket);
+                    dataSocket, BridgeMain::SCORE_PREFIX, true);
+                const auto reply = checkReply(dataSocket);
                 const auto score_sheet =
                     JsonSerializer::deserialize<DuplicateScoreSheet>(reply);
                 printScore(score_sheet);
+                sendMessage(controlSocket, BridgeMain::STATE_COMMAND);
+                checkReplySuccessful(controlSocket);
             } else if (command == "quit") {
                 go = false;
             } else {

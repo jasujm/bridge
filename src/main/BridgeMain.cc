@@ -35,6 +35,7 @@ const std::string BridgeMain::CALL_COMMAND {"call"};
 const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
 const std::string BridgeMain::STATE_PREFIX {"state"};
+const std::string BridgeMain::SCORE_PREFIX {"score"};
 
 using Messaging::makeMessageHandler;
 
@@ -52,7 +53,7 @@ private:
     std::tuple<> state();
     std::tuple<> call(const Call& call);
     std::tuple<> play(const CardType& card);
-    std::tuple<Scoring::DuplicateScoreSheet> score();
+    std::tuple<> score();
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -137,10 +138,15 @@ std::tuple<> BridgeMain::Impl::play(const CardType& card)
     return state();
 }
 
-std::tuple<Scoring::DuplicateScoreSheet> BridgeMain::Impl::score()
+std::tuple<> BridgeMain::Impl::score()
 {
     assert(gameManager);
-    return std::make_tuple(gameManager->getScoreSheet());
+    using namespace Messaging;
+    const auto messages = {
+        JsonSerializer::serialize(gameManager->getScoreSheet())};
+    sendMessage(dataSocket, SCORE_PREFIX, true);
+    sendMessage(dataSocket, messages.begin(), messages.end());
+    return std::make_tuple();
 }
 
 BridgeMain::BridgeMain(

@@ -50,14 +50,18 @@ public:
 
     /** \brief Command for requesting score sheet
      *
-     * The reply to successful score command contains the score sheet
-     * serialized into JSON.
+     * When score command is received, the current score sheet serialized into
+     * JSON is sent through the data socket with SCORE_PREFIX.
      */
     static const std::string SCORE_COMMAND;
 
     /** \brief Prefix used by the data socket to publish state
      */
     static const std::string STATE_PREFIX;
+
+    /** \brief Prefix used by the data socket to publish score sheet
+     */
+    static const std::string SCORE_PREFIX;
 
     /** \brief Create bridge main
      *
