@@ -15,7 +15,7 @@
  * serializer.deserialize<T>(serializer.serialize(t)) | equal to \c t
  *
  * \c deserialize may in addition signal deserialization error by throwing an
- * instance of Messaging::MessageHandlingException. This allows
+ * instance of Messaging::SerializationFailureException. This allows
  * deserialization to throw an exception as soon as it detects an error at any
  * depth of call stack.
  */
@@ -23,7 +23,7 @@
 #ifndef MESSAGING_SERIALIZATIONUTILITY_HH_
 #define MESSAGING_SERIALIZATIONUTILITY_HH_
 
-#include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationFailureException.hh"
 
 #include <boost/optional/optional.hpp>
 
@@ -48,7 +48,7 @@ namespace Messaging {
  *
  * \return optional std::tuple containing all deserialized values. If
  * deserialization of any parameter fails (any call to deserialize throws
- * MessageHandlingException), none is returned.
+ * SerializationFailureException), none is returned.
  */
 template<
     typename... DeserializedTypes, typename SerializationPolicy,
@@ -63,7 +63,7 @@ boost::optional<std::tuple<DeserializedTypes...>> deserializeAll(
         return std::make_tuple(
             serializer.template deserialize<DeserializedTypes>(
                 std::forward<Strings>(strings))...);
-    } catch (const MessageHandlingException&) {
+    } catch (const SerializationFailureException&) {
         return boost::none;
     }
 }

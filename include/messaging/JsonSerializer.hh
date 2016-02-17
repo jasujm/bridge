@@ -12,7 +12,7 @@
 #ifndef MESSAGING_JSONSERIALIZER_HH_
 #define MESSAGING_JSONSERIALIZER_HH_
 
-#include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationFailureException.hh"
 
 #include <json.hpp>
 
@@ -49,7 +49,7 @@ struct JsonConverter
      * implicitly from nlohmann::json object. If implicit conversion does not
      * exist, the program is ill‐formed.
      *
-     * \throw MessageHandlingException if the conversion is unsuccessful
+     * \throw SerializationFailureException if the conversion is unsuccessful
      */
     static T convertFromJson(const nlohmann::json& j);
 };
@@ -68,7 +68,7 @@ T JsonConverter<T>::convertFromJson(const nlohmann::json& j)
     } catch (const std::domain_error&) {
         // We rely on json::operator T() throwing std::domain_error if
         // j and T are incompatible
-        throw MessageHandlingException {};
+        throw SerializationFailureException {};
     }
 }
 

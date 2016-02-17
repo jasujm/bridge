@@ -1,5 +1,5 @@
 #include "messaging/FunctionMessageHandler.hh"
-#include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationFailureException.hh"
 
 #include <boost/lexical_cast.hpp>
 #include <gmock/gmock.h>
@@ -49,7 +49,7 @@ public:
 template<typename T>
 T FailingPolicy::deserialize(const std::string&)
 {
-    throw Bridge::Messaging::MessageHandlingException {};
+    throw Bridge::Messaging::SerializationFailureException {};
 }
 
 }

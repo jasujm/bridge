@@ -2,7 +2,7 @@
 
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationFailureException.hh"
 
 #include <functional>
 #include <map>
@@ -60,7 +60,7 @@ Call JsonConverter<Call>::convertFromJson(const nlohmann::json& j)
     if (iter != CALLS.end()) {
         return iter->second(j);
     }
-    throw MessageHandlingException {};
+    throw SerializationFailureException {};
 }
 
 }

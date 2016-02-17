@@ -4,7 +4,7 @@
  */
 
 #include "messaging/JsonSerializer.hh"
-#include "messaging/MessageHandlingException.hh"
+#include "messaging/SerializationFailureException.hh"
 
 #include <boost/optional/optional.hpp>
 #include <json.hpp>
@@ -39,7 +39,7 @@ nlohmann::json enumToJson(E e, const MapType& map)
  *
  * \return the enumeration represented by \p j
  *
- * \throw MessageHandlingException if \p j does not represent string or does
+ * \throw SerializationFailureException if \p j does not represent string or does
  * not represent valid enumeration.
  */
 template<typename E, typename MapType>
@@ -49,7 +49,7 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
     if (iter != map.end()) {
         return iter->second;
     }
-    throw MessageHandlingException {};
+    throw SerializationFailureException {};
 }
 
 /** \brief Access element in JSON object
@@ -64,7 +64,7 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
  *
  * \return the accessed object converted to \p T
  *
- * \throw MessageHandlingException in the followin cases:
+ * \throw SerializationFailureException in the followin cases:
  *   - \p j does not represent object or does not have key \p key
  *   - Converting \p j to type \p T fails
  */
@@ -76,7 +76,7 @@ auto checkedGet(
     if (iter != j.end()) {
         return fromJson<T>(*iter);
     }
-    throw MessageHandlingException {};
+    throw SerializationFailureException {};
 }
 /** \brief Put optional value to JSON object if it exists
  *
@@ -233,7 +233,7 @@ decltype(auto) validate(T&& t)
  * from JSON to perform additional validation. The client passes value to
  * validate and at least one predicate to perform the validation. The function
  * returns the value if all the predicates evaluate to true and otherwise
- * throws MessageHandlingException.
+ * throws SerializationFailureException.
  *
  * \tparam Pred, Preds Predicates that can be invoked with the object to
  * validate and whose return value is contextually convertible to bool.
@@ -243,7 +243,7 @@ decltype(auto) validate(T&& t)
  *
  * \return \p t if all predicates evaluate to true
  *
- * \throw MessageHandlingException if any predicate evaluates to false
+ * \throw SerializationFailureException if any predicate evaluates to false
  */
 template<typename T, typename Pred, typename... Preds>
 decltype(auto) validate(T&& t, Pred&& pred, Preds&&... rest)
@@ -251,7 +251,7 @@ decltype(auto) validate(T&& t, Pred&& pred, Preds&&... rest)
     if (pred(t)) {
         return validate(t, rest...);
     }
-    throw MessageHandlingException {};
+    throw SerializationFailureException {};
 }
 /// \}
 

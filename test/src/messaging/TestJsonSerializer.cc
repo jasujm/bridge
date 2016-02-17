@@ -6,7 +6,6 @@
 #include "bridge/Partnership.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
-#include "messaging/MessageHandlingException.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -16,6 +15,7 @@
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/SerializationFailureException.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "scoring/DuplicateScoreSheet.hh"
@@ -56,7 +56,7 @@ protected:
     {
         EXPECT_THROW(
             serializer.deserialize<T>(j.dump()),
-            MessageHandlingException);
+            SerializationFailureException);
     }
 
 private:
