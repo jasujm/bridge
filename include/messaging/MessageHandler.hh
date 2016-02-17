@@ -20,17 +20,9 @@ namespace Messaging {
 class MessageHandler {
 public:
 
-    /** \brief Vector containing parameters for the reply message
-     *
-     * \sa handle()
-     */
-    using ReturnValue = std::vector<std::string>;
-
     virtual ~MessageHandler() = default;
 
     /** \brief Execute action of this handler
-     *
-     * The action depends on the implementation of the interface
      *
      * \tparam ParameterIterator Random access iterator for iterating the
      * parameters (convertible to strings)
@@ -38,16 +30,12 @@ public:
      * \param first iterator to the first parameter
      * \param last iterator to the last parameter
      *
-     * \return ReturnValue containing parameters for the reply message
-     *
-     * \throw MessageHandlingException if the request was not successfully
-     * handled due to reason related to the request being invalid, handler not
-     * being in correct state etc.
+     * \return true if the message was handled successfully, false otherwise
      *
      * \todo Could the iterator category be weakened?
      */
     template<typename ParameterIterator>
-    ReturnValue handle(ParameterIterator first, ParameterIterator last);
+    bool handle(ParameterIterator first, ParameterIterator last);
 
 protected:
 
@@ -62,19 +50,15 @@ private:
      *
      * \param params range containing the parameters passed to handle()
      *
-     * \return ReturnValue to be returned by handle()
-     *
-     * \throw MessageHandlingException if the request was not successfully
-     * handled.
+     * \return true if the message was handled successfully, false otherwise
      *
      * \sa handle()
      */
-    virtual ReturnValue doHandle(ParameterRange params) = 0;
+    virtual bool doHandle(ParameterRange params) = 0;
 };
 
 template<typename ParameterIterator>
-MessageHandler::ReturnValue MessageHandler::handle(
-    ParameterIterator first, ParameterIterator last)
+bool MessageHandler::handle(ParameterIterator first, ParameterIterator last)
 {
     return doHandle(ParameterRange(first, last));
 }

@@ -1,4 +1,5 @@
 #include "messaging/FunctionMessageHandler.hh"
+#include "messaging/MessageHandlingException.hh"
 
 #include <boost/lexical_cast.hpp>
 #include <gmock/gmock.h>
@@ -10,15 +11,16 @@
 using Bridge::Messaging::makeMessageHandler;
 using Bridge::Messaging::MessageHandler;
 
+using testing::Bool;
 using testing::Return;
 
 namespace {
 
 class MockFunction {
 public:
-    MOCK_METHOD0(call0, std::tuple<int, std::string>());
-    MOCK_METHOD1(call1, std::tuple<int>(std::string));
-    MOCK_METHOD2(call2, std::tuple<>(int, std::string));
+    MOCK_METHOD0(call0, bool());
+    MOCK_METHOD1(call1, bool(std::string));
+    MOCK_METHOD2(call2, bool(int, std::string));
 };
 
 class TestPolicy {
@@ -39,61 +41,74 @@ T TestPolicy::deserialize(const std::string& s)
     return boost::lexical_cast<T>(s);
 }
 
+class FailingPolicy {
+public:
+    template<typename T> T deserialize(const std::string& s);
+};
+
+template<typename T>
+T FailingPolicy::deserialize(const std::string&)
+{
+    throw Bridge::Messaging::MessageHandlingException {};
 }
 
-class FunctionMessageHandlerTest : public testing::Test {
+}
+
+class FunctionMessageHandlerTest : public testing::TestWithParam<bool> {
 protected:
     testing::StrictMock<MockFunction> function;
 };
 
-TEST_F(FunctionMessageHandlerTest, noParamsTwoReturnValues)
+TEST_P(FunctionMessageHandlerTest, testNoParams)
 {
+    const auto success = GetParam();
     auto handler = makeMessageHandler(
         [this]() { return function.call0(); }, TestPolicy {});
     const auto params = std::vector<std::string> {};
-    const auto return_value = MessageHandler::ReturnValue { "1", "return" };
-    EXPECT_CALL(function, call0())
-        .WillOnce(Return(std::make_tuple(1, "return")));
-    EXPECT_EQ(
-        return_value,
-        handler->handle(params.begin(), params.end()));
+    EXPECT_CALL(function, call0()).WillOnce(Return(success));
+    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
 }
 
-TEST_F(FunctionMessageHandlerTest, oneParamOneReturnValue)
+TEST_P(FunctionMessageHandlerTest, testOneParam)
 {
+    const auto success = GetParam();
     auto handler = makeMessageHandler<std::string>(
         [this](std::string param) { return function.call1(param); },
         TestPolicy {});
     const auto params = std::vector<std::string> { "param" };
-    const auto return_value = MessageHandler::ReturnValue { "1" };
-    EXPECT_CALL(function, call1("param")).WillOnce(Return(std::make_tuple(1)));
-    EXPECT_EQ(
-        return_value,
-        handler->handle(params.begin(), params.end()));
+    EXPECT_CALL(function, call1("param")).WillOnce(Return(success));
+    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
 }
 
-TEST_F(FunctionMessageHandlerTest, twoParamsNoReturnValue)
+TEST_P(FunctionMessageHandlerTest, testTwoParams)
 {
+    const auto success = GetParam();
     auto handler = makeMessageHandler<int, std::string>(
         [this](int param1, std::string param2)
         {
             return function.call2(param1, param2);
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "1", "param" };
-    const auto return_value = MessageHandler::ReturnValue {};
-    EXPECT_CALL(function, call2(1, "param"))
-        .WillOnce(Return(std::make_tuple()));
-    EXPECT_EQ(
-        return_value,
-        handler->handle(params.begin(), params.end()));
+    EXPECT_CALL(function, call2(1, "param")).WillOnce(Return(success));
+    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
 }
 
-TEST_F(FunctionMessageHandlerTest, invalidNumberOfParameters)
+TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
+{
+    auto handler = makeMessageHandler<std::string>(
+        [this](std::string param) { return function.call1(param); },
+        FailingPolicy {});
+    const auto params = std::vector<std::string> { "param" };
+    EXPECT_FALSE(handler->handle(params.begin(), params.end()));
+}
+
+TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
 {
     auto handler = makeMessageHandler(
         [this]() { return function.call0(); }, TestPolicy {});
     const auto params = std::vector<std::string> { "invalid" };
-    EXPECT_THROW(
-        handler->handle(params.begin(), params.end()),
-        Bridge::Messaging::MessageHandlingException);
+    EXPECT_FALSE(handler->handle(params.begin(), params.end()));
 }
+
+INSTANTIATE_TEST_CASE_P(
+    SuccessFailure, FunctionMessageHandlerTest, Bool());

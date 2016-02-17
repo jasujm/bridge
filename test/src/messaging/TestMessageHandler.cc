@@ -16,13 +16,19 @@ class MessageHandlerTest : public testing::Test
 {
 protected:
     std::vector<std::string> params { "param1", "param2" };
-    MessageHandler::ReturnValue returnValue { "returnValue1", "returnValue2" };
     StrictMock<MockMessageHandler> messageHandler;
 };
 
-TEST_F(MessageHandlerTest, testMessageHandler)
+TEST_F(MessageHandlerTest, testMessageHandlerSuccess)
 {
     EXPECT_CALL(messageHandler, doHandle(ElementsAreArray(params)))
-        .WillOnce(Return(returnValue));
-    EXPECT_EQ(returnValue, messageHandler.handle(params.begin(), params.end()));
+        .WillOnce(Return(true));
+    EXPECT_TRUE(messageHandler.handle(params.begin(), params.end()));
+}
+
+TEST_F(MessageHandlerTest, testMessageHandlerFailure)
+{
+    EXPECT_CALL(messageHandler, doHandle(ElementsAreArray(params)))
+        .WillOnce(Return(false));
+    EXPECT_FALSE(messageHandler.handle(params.begin(), params.end()));
 }

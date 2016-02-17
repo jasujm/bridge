@@ -24,7 +24,6 @@
 #include <array>
 #include <iterator>
 #include <thread>
-#include <tuple>
 #include <utility>
 
 namespace Bridge {
@@ -50,10 +49,10 @@ public:
 
 private:
 
-    std::tuple<> state();
-    std::tuple<> call(const Call& call);
-    std::tuple<> play(const CardType& card);
-    std::tuple<> score();
+    bool state();
+    bool call(const Call& call);
+    bool play(const CardType& card);
+    bool score();
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -108,17 +107,17 @@ BridgeMain::Impl::~Impl()
     thread.join();
 }
 
-std::tuple<> BridgeMain::Impl::state()
+bool BridgeMain::Impl::state()
 {
     using namespace Messaging;
     const auto messages = {
         JsonSerializer::serialize(makeDealState(engine))};
     sendMessage(dataSocket, STATE_PREFIX, true);
     sendMessage(dataSocket, messages.begin(), messages.end());
-    return std::make_tuple();
+    return true;
 }
 
-std::tuple<> BridgeMain::Impl::call(const Call& call)
+bool BridgeMain::Impl::call(const Call& call)
 {
     if (const auto player = engine.getPlayerInTurn()) {
         engine.call(*player, call);
@@ -126,7 +125,7 @@ std::tuple<> BridgeMain::Impl::call(const Call& call)
     return state();
 }
 
-std::tuple<> BridgeMain::Impl::play(const CardType& card)
+bool BridgeMain::Impl::play(const CardType& card)
 {
     if (const auto player = engine.getPlayerInTurn()) {
         if (const auto hand = engine.getHand(*player)) {
@@ -138,7 +137,7 @@ std::tuple<> BridgeMain::Impl::play(const CardType& card)
     return state();
 }
 
-std::tuple<> BridgeMain::Impl::score()
+bool BridgeMain::Impl::score()
 {
     assert(gameManager);
     using namespace Messaging;
@@ -146,7 +145,7 @@ std::tuple<> BridgeMain::Impl::score()
         JsonSerializer::serialize(gameManager->getScoreSheet())};
     sendMessage(dataSocket, SCORE_PREFIX, true);
     sendMessage(dataSocket, messages.begin(), messages.end());
-    return std::make_tuple();
+    return true;
 }
 
 BridgeMain::BridgeMain(

@@ -52,25 +52,34 @@ protected:
     zmq::socket_t socket {context, zmq::socket_type::req};
 };
 
-TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandler)
+TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 {
     const auto p1 = std::string {"p1"};
     const auto p2 = std::string {"p2"};
-    const auto r1 = std::string {"r1"};
-    const auto r2 = std::string {"r2"};
 
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(ElementsAre(p1, p2)))
-        .WillOnce(Return(MessageHandler::ReturnValue {r1, r2}));
+        .WillOnce(Return(true));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
     sendMessage(socket, p2);
 
-    auto reply = recvMessage(socket);
-    ASSERT_EQ(std::make_pair(MessageQueue::REPLY_SUCCESS, true), reply);
-    reply = recvMessage(socket);
-    ASSERT_EQ(std::make_pair(r1, true), reply);
-    reply = recvMessage(socket);
-    ASSERT_EQ(std::make_pair(r2, false), reply);
+    const auto reply = recvMessage(socket);
+    ASSERT_EQ(std::make_pair(MessageQueue::REPLY_SUCCESS, false), reply);
+}
+
+TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
+{
+    const auto p1 = std::string {"p1"};
+    const auto p2 = std::string {"p2"};
+
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(ElementsAre(p1, p2)))
+        .WillOnce(Return(false));
+    sendMessage(socket, COMMAND, true);
+    sendMessage(socket, p1, true);
+    sendMessage(socket, p2);
+
+    const auto reply = recvMessage(socket);
+    ASSERT_EQ(std::make_pair(MessageQueue::REPLY_FAILURE, false), reply);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)

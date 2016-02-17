@@ -7,13 +7,11 @@
 #define MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 
 #include "messaging/MessageHandler.hh"
-#include "messaging/MessageHandlingException.hh"
 #include "messaging/SerializationUtility.hh"
 
 #include <iterator>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -24,22 +22,20 @@ namespace Messaging {
  *
  * FunctionMessageHandler wraps any function into MessageHandler interface. It
  * is responsible for forwarding the string arguments to the handler to the
- * function in type safe manner, as well as converting its return values back
- * to strings. The conversion of function parameters and return values is
- * controlled by SerializationPolicy.
+ * function in type safe manner, as well as forwarding the return value of the
+ * function to report failures. The deserialization of function parameters is
+ * controlled by serialization policy.
  *
- * FunctionMessageHandler throws MessageHandlingException if the number of
- * parameters does not match the argument count of the function. The
- * serializer may throw MessageHandlingException to signal failure to
- * serialize or deserialize values. The underlying function may throw
- * MessageHandlingException to indicate failure to handle the
- * request. FunctionMessageHandler is exception neutral and does not catch any
- * exception, which means that other exceptions, including fatal ones like
- * std::bad_alloc, are propagated to the caller as is.
+ * FunctionMessageHandler reports failure by returning false from handle() if
+ * the number of parameters does not match the argument count of the function
+ * or if deserialization of any parameter fails. The wrapped function also
+ * needs to return a value convertible to bool to indicate whether or not its
+ * invocation was successful.
  *
  * \tparam Function Type of the function that FunctionMessageHandler
- * wraps. The function may take an arbitrary number of parameters and return
- * an arbitrary sized instance of std::tuple containing the return values.
+ * wraps. The function may take an arbitrary number of parameters. It must
+ * return a value convertible to boolean indicating whether or not the command
+ * was successfully handled.
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  * \tparam Args The types of the arguments used when calling the
@@ -62,20 +58,13 @@ public:
 
 private:
 
-    ReturnValue doHandle(ParameterRange params) override;
+    bool doHandle(ParameterRange params) override;
 
-    template<std::size_t... Ns, std::size_t... Ms>
-    ReturnValue internalCallFunction(
-        ParameterRange params, std::index_sequence<Ns...>,
-        std::index_sequence<Ms...>)
+    template<std::size_t... Ns>
+    bool internalCallFunction(ParameterRange params, std::index_sequence<Ns...>)
     {
         auto&& params_ = deserializeAll<Args...>(serializer, params[Ns]...);
-        auto&& func_ret = function(std::get<Ns>(std::move(params_))...);
-        auto ret = ReturnValue {};
-        serializeAll(
-            std::back_inserter(ret), serializer,
-            std::get<Ms>(std::move(func_ret))...);
-        return ret;
+        return params_ ? function(std::move(std::get<Ns>(*params_))...) : false;
     }
 
     Function function;
@@ -91,20 +80,16 @@ FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageH
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-MessageHandler::ReturnValue
-FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     MessageHandler::ParameterRange params)
 {
     if (params.size() != sizeof...(Args)) {
-        throw MessageHandlingException {};
+        return false;
     }
 
-    constexpr auto n_ret = std::tuple_size<
-        std::result_of_t<Function(Args...)>>::value;
     return internalCallFunction(
         params,
-        std::index_sequence_for<Args...>(),
-        std::make_index_sequence<n_ret>());
+        std::index_sequence_for<Args...>());
 }
 
 /** \brief Utility for wrapping function into message handler
@@ -142,9 +127,12 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
  *
  * \sa FunctionMessageHandler
  */
-template<typename Handler, typename R, typename... Args, typename SerializationPolicy>
+template<
+    typename Handler, typename Bool, typename... Args,
+    typename SerializationPolicy>
 auto makeMessageHandler(
-    Handler& handler, R (Handler::*memfn)(Args...), SerializationPolicy&& serializer)
+    Handler& handler, Bool (Handler::*memfn)(Args...),
+    SerializationPolicy&& serializer)
 {
     return makeMessageHandler<std::decay_t<Args>...>(
         [&handler, memfn](std::add_rvalue_reference_t<Args>... args)

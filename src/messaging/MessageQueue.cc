@@ -15,10 +15,10 @@ namespace {
 class TerminateMessageHandler : public MessageHandler {
 public:
     TerminateMessageHandler(bool& go) : go {go} {}
-    ReturnValue doHandle(ParameterRange) override
+    bool doHandle(ParameterRange) override
     {
         go = false;
-        return {};
+        return true;
     }
 private:
     bool& go;
@@ -64,14 +64,20 @@ void MessageQueue::Impl::run()
         const auto entry = handlers.find(message.at(0));
         if (entry != handlers.end()) {
             auto& handler = dereference(entry->second);
-            const auto reply = handler.handle(
+            const auto success = handler.handle(
                 std::next(message.begin()), message.end());
-            sendMessage(socket, REPLY_SUCCESS, reply.begin() != reply.end());
-            sendMessage(socket, reply.begin(), reply.end());
+            sendMessage(socket, success ? REPLY_SUCCESS : REPLY_FAILURE);
         } else {
             sendMessage(socket, REPLY_FAILURE);
         }
     }
+}
+
+MessageQueue::MessageQueue(
+    MessageQueue::HandlerMap handlers, zmq::context_t& context,
+    const std::string& endpoint) :
+    impl {std::make_unique<Impl>(std::move(handlers), context, endpoint)}
+{
 }
 
 MessageQueue::~MessageQueue() = default;
@@ -80,13 +86,6 @@ void MessageQueue::run()
 {
     assert(impl);
     impl->run();
-}
-
-MessageQueue::MessageQueue(
-    MessageQueue::HandlerMap handlers, zmq::context_t& context,
-    const std::string& endpoint) :
-    impl {std::make_unique<Impl>(std::move(handlers), context, endpoint)}
-{
 }
 
 }

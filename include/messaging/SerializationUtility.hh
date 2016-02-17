@@ -13,10 +13,19 @@
  * ---------------------------------------------------|--------------
  * serializer.serialize(t)                            | string
  * serializer.deserialize<T>(serializer.serialize(t)) | equal to \c t
+ *
+ * \c deserialize may in addition signal deserialization error by throwing an
+ * instance of Messaging::MessageHandlingException. This allows
+ * deserialization to throw an exception as soon as it detects an error at any
+ * depth of call stack.
  */
 
 #ifndef MESSAGING_SERIALIZATIONUTILITY_HH_
 #define MESSAGING_SERIALIZATIONUTILITY_HH_
+
+#include "messaging/MessageHandlingException.hh"
+
+#include <boost/optional/optional.hpp>
 
 #include <algorithm>
 #include <tuple>
@@ -27,22 +36,36 @@ namespace Messaging {
 
 /** \brief Deserialize several strings
  *
+ * This function is an utility used to deserialize arbitrary number of strings
+ * at once and returning a tuple containing deserialized values. This function
+ * also handles deserialization failures by returning no tuple in case any
+ * deserialization fails. The order of deserializations is unspecified.
+ *
+ * \tparam DeserializedTypes the types the strings will be deserialized into
+ *
  * \param serializer see \ref serializationpolicy
  * \param strings the strings to deserialize
  *
- * \return std::tuple containing all deserialized values
+ * \return optional std::tuple containing all deserialized values. If
+ * deserialization of any parameter fails (any call to deserialize throws
+ * MessageHandlingException), none is returned.
  */
 template<
     typename... DeserializedTypes, typename SerializationPolicy,
     typename... Strings>
-auto deserializeAll(SerializationPolicy&& serializer, Strings&&... strings)
+boost::optional<std::tuple<DeserializedTypes...>> deserializeAll(
+    SerializationPolicy&& serializer, Strings&&... strings)
 {
     static_assert(
         sizeof...(DeserializedTypes) == sizeof...(Strings),
         "Number of deserialized types and strings must match");
-    return std::make_tuple(
-        serializer.template deserialize<DeserializedTypes>(
-            std::forward<Strings>(strings))...);
+    try {
+        return std::make_tuple(
+            serializer.template deserialize<DeserializedTypes>(
+                std::forward<Strings>(strings))...);
+    } catch (const MessageHandlingException&) {
+        return boost::none;
+    }
 }
 
 /// \{

@@ -10,7 +10,7 @@ namespace Messaging {
 
 class MockMessageHandler : public MessageHandler {
 public:
-    MOCK_METHOD1(doHandle, ReturnValue(ParameterRange));
+    MOCK_METHOD1(doHandle, bool(ParameterRange));
 };
 
 }
