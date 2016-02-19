@@ -1,3 +1,4 @@
+#include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/MessageUtility.hh"
@@ -16,15 +17,12 @@ using testing::_;
 using testing::ElementsAre;
 using testing::Return;
 
-using Bridge::Messaging::MessageHandler;
-using Bridge::Messaging::MessageQueue;
-using Bridge::Messaging::MockMessageHandler;
-using Bridge::Messaging::recvMessage;
-using Bridge::Messaging::sendMessage;
+using namespace Bridge::Messaging;
 
 namespace {
 const auto ENDPOINT = std::string {"inproc://testing"};
 const auto COMMAND = std::string {"command"};
+const auto TERMINATE = std::string {"terminate"};
 }
 
 class MessageQueueTest : public testing::Test {
@@ -37,7 +35,7 @@ protected:
 
     virtual void TearDown()
     {
-        sendMessage(socket, MessageQueue::MESSAGE_TERMINATE);
+        sendMessage(socket, TERMINATE);
         const auto reply = recvMessage(socket);
         EXPECT_FALSE(reply.second);
         messageThread.join();
@@ -47,7 +45,8 @@ protected:
     std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
-        handlers.begin(), handlers.end(), context, ENDPOINT};
+        MessageQueue::HandlerMap(handlers.begin(), handlers.end()),
+        context, ENDPOINT, TERMINATE};
     std::thread messageThread {[this]() { messageQueue.run(); }};
     zmq::socket_t socket {context, zmq::socket_type::req};
 };

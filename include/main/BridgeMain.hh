@@ -96,13 +96,17 @@ public:
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& dataEndpoint);
 
+    ~BridgeMain();
+
     /** \brief Run the backend message queue
      *
-     * This method blocks until termination command is received.
+     * This method blocks until terminate() is called.
      */
     void run();
 
-    ~BridgeMain();
+    /** \brief Terminate the backend message queue
+     */
+    void terminate();
 
 private:
 

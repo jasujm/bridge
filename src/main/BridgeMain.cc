@@ -49,6 +49,8 @@ public:
 
     void run();
 
+    void terminate();
+
 private:
 
     bool state();
@@ -107,6 +109,11 @@ void BridgeMain::Impl::run()
     messageQueue.run();
 }
 
+void BridgeMain::Impl::terminate()
+{
+    messageQueue.terminate();
+}
+
 bool BridgeMain::Impl::state()
 {
     sendCommand(
@@ -156,6 +163,12 @@ void BridgeMain::run()
 {
     assert(impl);
     impl->run();
+}
+
+void BridgeMain::terminate()
+{
+    assert(impl);
+    impl->terminate();
 }
 
 }

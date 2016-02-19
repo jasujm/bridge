@@ -14,19 +14,32 @@ namespace {
 
 class TerminateMessageHandler : public MessageHandler {
 public:
-    TerminateMessageHandler(bool& go) : go {go} {}
+    TerminateMessageHandler(MessageQueue& queue) : queue {queue} {}
     bool doHandle(ParameterRange) override
     {
-        go = false;
+        queue.terminate();
         return true;
     }
+
 private:
-    bool& go;
+    MessageQueue& queue;
 };
+
+MessageQueue::HandlerMap& addTerminateHandler(
+    MessageQueue::HandlerMap& handlerMap,
+    MessageQueue& queue,
+    const boost::optional<std::string>& terminateCommand)
+{
+    if (terminateCommand) {
+        handlerMap.emplace(
+            *terminateCommand,
+            std::make_shared<TerminateMessageHandler>(queue));
+    }
+    return handlerMap;
+}
 
 }
 
-const std::string MessageQueue::MESSAGE_TERMINATE {"terminate"};
 const std::string MessageQueue::REPLY_SUCCESS {"success"};
 const std::string MessageQueue::REPLY_FAILURE {"failure"};
 
@@ -37,6 +50,8 @@ public:
         const std::string& endpoint);
 
     void run();
+
+    void terminate();
 
 private:
 
@@ -50,17 +65,24 @@ MessageQueue::Impl::Impl(
     handlers {std::move(handlers)},
     socket {context, zmq::socket_type::rep}
 {
-    this->handlers.emplace(
-        MESSAGE_TERMINATE,
-        std::make_shared<TerminateMessageHandler>(go));
     socket.bind(endpoint);
 }
 
 void MessageQueue::Impl::run()
 {
-    while (go) { // go is set to false in handler for MESSAGE_TERMINATE
+    while (go) {
         auto message = std::vector<std::string> {};
-        recvAll(std::back_inserter(message), socket);
+        try {
+            recvAll(std::back_inserter(message), socket);
+        } catch (const zmq::error_t& e) {
+            // If receiving failed because of interrupt signal, terminate
+            if (e.num() == EINTR) {
+                terminate();
+                break;
+            }
+            // Otherwise rethrow the exception
+            throw;
+        }
         const auto entry = handlers.find(message.at(0));
         if (entry != handlers.end()) {
             auto& handler = dereference(entry->second);
@@ -73,10 +95,19 @@ void MessageQueue::Impl::run()
     }
 }
 
+void MessageQueue::Impl::terminate()
+{
+    go = false;
+}
+
 MessageQueue::MessageQueue(
     MessageQueue::HandlerMap handlers, zmq::context_t& context,
-    const std::string& endpoint) :
-    impl {std::make_unique<Impl>(std::move(handlers), context, endpoint)}
+    const std::string& endpoint,
+    const boost::optional<std::string>& terminateCommand) :
+    impl {
+        std::make_unique<Impl>(
+            std::move(addTerminateHandler(handlers, *this, terminateCommand)),
+            context, endpoint)}
 {
 }
 
@@ -86,6 +117,12 @@ void MessageQueue::run()
 {
     assert(impl);
     impl->run();
+}
+
+void MessageQueue::terminate()
+{
+    assert(impl);
+    impl->terminate();
 }
 
 }

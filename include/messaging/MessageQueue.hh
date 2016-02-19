@@ -7,6 +7,7 @@
 #define MESSAGING_MESSAGEQUEUE_HH_
 
 #include <boost/noncopyable.hpp>
+#include <boost/optional/optional.hpp>
 #include <zmq.hpp>
 
 #include <map>
@@ -47,10 +48,6 @@ public:
      */
     using HandlerMap = std::map<std::string, std::shared_ptr<MessageHandler>>;
 
-    /** \brief Message used to request termination
-     */
-    static const std::string MESSAGE_TERMINATE;
-
     /** \brief Message used as reply to indicate successful request
      */
     static const std::string REPLY_SUCCESS;
@@ -64,54 +61,47 @@ public:
      * \param handlers mapping from commands to message handlers
      * \param context the ZeroMQ context for the message queue
      * \param endpoint the ZeroMQ endpoint the message queue binds to
+     * \param terminateCommand If provided, command for requesting termination
+     * of the message queue. If not provided, the message queue will have no
+     * termination command.
      */
     MessageQueue(
         HandlerMap handlers, zmq::context_t& context,
-        const std::string& endpoint);
-
-    /** \brief Create message queue
-     *
-     * \tparam HandlerIterator Iterator that, when dereferenced, returns a
-     * pair containing the message and a std::shared_ptr to MessageHandler to
-     * handle that message.
-     *
-     * \param first iterator to the first handler
-     * \param last iterator to the last handler
-     * \param context the ZeroMQ context for the message queue
-     * \param endpoint the ZeroMQ endpoint the message queue binds to
-     */
-    template<typename HandlerIterator>
-    MessageQueue(
-        HandlerIterator first, HandlerIterator last,
-        zmq::context_t& context, const std::string& endpoint);
+        const std::string& endpoint,
+        const boost::optional<std::string>& terminateCommand = boost::none);
 
     ~MessageQueue();
 
     /** \brief Start handling messages
      *
-     * This function blocks until termination is requested, i.e. message \ref
-     * MESSAGE_TERMINATE is received. For each message it will dispatch the
-     * command to the correct MessageHandler. If the handling is successful, a
-     * multipart message containing REPLY_SUCCESS as its first part and
-     * strings returned by the handler as subsecuent parts is sent. If the
-     * handling fails or no handler is registered for the message, a message
-     * containing REPLY_FAILURE is sent.
+     * This function blocks until termination is requested using
+     * terminate(). For each message it will dispatch the command to the
+     * correct MessageHandler. If the handling is successful, a multipart
+     * message containing REPLY_SUCCESS as its first part and strings returned
+     * by the handler as subsecuent parts is sent. If the handling fails or no
+     * handler is registered for the message, a message containing
+     * REPLY_FAILURE is sent.
+     *
+     * This method is exception neutral with regards to all exceptions expect
+     * zmq::error_t indicating interrupt when receiving messages. If
+     * interrupted, the exception is caught and message handling terminated
+     * cleanly.
      */
     void run();
+
+    /** \brief Request the message queue to terminate
+     *
+     * After this function is called (from kernel signal handler, message
+     * handler etc.), run() will return. If run() is called after this
+     * function, it will return immediately.
+     */
+    void terminate();
 
 private:
 
     class Impl;
     const std::unique_ptr<Impl> impl;
 };
-
-template<typename HandlerIterator>
-MessageQueue::MessageQueue(
-    HandlerIterator first, HandlerIterator last,
-    zmq::context_t& context, const std::string& endpoint) :
-    MessageQueue {HandlerMap(first, last), context, endpoint}
-{
-}
 
 }
 }
