@@ -26,7 +26,7 @@ include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
 add_subdirectory(src)
 add_subdirectory(test/src)
 
-add_executable(bridge Main.cc)
+add_executable(bridge Bridge.cc)
 
 target_link_libraries(bridge ${BRIDGE_LIBRARIES} ${ZEROMQ_LIBRARIES}
   Threads::Threads)

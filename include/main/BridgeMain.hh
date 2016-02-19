@@ -1,6 +1,31 @@
 /** \file
  *
  * \brief Definition of Bridge::Main::BridgeMain class
+ *
+ * \page bridgeapp Bridge application structure
+ *
+ * Bridge application uses client–server model where the backend application
+ * acts as server for the frontend user interface. The interaction between the
+ * backend and frontend happens using the protocol described in \ref
+ * bridgeprotocol.
+ *
+ * \section bridgeprotocol Bridge protocol
+ *
+ * Bridge protocol uses ZMTP over TCP (http://rfc.zeromq.org/spec:23). The
+ * backend opens two ZeroMQ sockets: control socket (REP) and data socket
+ * (PUB).
+ *
+ * The control socket supports the following commands:
+ *   - state
+ *   - call
+ *   - play
+ *   - score
+ *
+ * The data socket publishes the following data:
+ *   - state
+ *   - score
+ *
+ * \todo This section is incomplete
  */
 
 #ifndef MAIN_BRIDGEMAIN_HH_
@@ -14,16 +39,14 @@
 namespace Bridge {
 namespace Main {
 
-/** \brief Main business logic of the Bridge application
+/** \brief Configure and run the event loop for the Bridge backend
  *
- * BridgeMain is used to configure and mediate the components of which the
- * main functionality of the bridge application consists of. In its
- * constructor it spawns the main application thread, which is joined at the
- * destructor.
+ * When constructed, BridgeMain configures and sets up Bridge application and
+ * sockets for communicating with external frontend applications. The backend
+ * starts processing and publishing messages when run() is called. The
+ * destructor closes sockets and cleans up the application.
  *
- * Communication with the thread is handled through ZeroMQ socket. BridgeMain
- * has a control socket (REP) to accept commands from the user, and data
- * socket (PUB) to publish the state of the game.
+ * \sa \ref bridgeapp
  */
 class BridgeMain : private boost::noncopyable {
 public:
@@ -31,7 +54,7 @@ public:
     /** \brief Command for requesting deal state
      *
      * When state command is received, the current deal state serialized into
-     * JSON is sent through the data socket with STATE_PREFIX.
+     * JSON is sent through the data socket with \ref STATE_PREFIX.
      */
     static const std::string STATE_COMMAND;
 
@@ -51,7 +74,7 @@ public:
     /** \brief Command for requesting score sheet
      *
      * When score command is received, the current score sheet serialized into
-     * JSON is sent through the data socket with SCORE_PREFIX.
+     * JSON is sent through the data socket with \ref SCORE_PREFIX.
      */
     static const std::string SCORE_COMMAND;
 
@@ -63,9 +86,7 @@ public:
      */
     static const std::string SCORE_PREFIX;
 
-    /** \brief Create bridge main
-     *
-     * The constructor creates the necessary classes and starts the game.
+    /** \brief Create Bridge backend
      *
      * \param context the ZeroMQ context for the game
      * \param controlEndpoint the endpoint for the control socket
@@ -74,6 +95,12 @@ public:
     BridgeMain(
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& dataEndpoint);
+
+    /** \brief Run the backend message queue
+     *
+     * This method blocks until termination command is received.
+     */
+    void run();
 
     ~BridgeMain();
 

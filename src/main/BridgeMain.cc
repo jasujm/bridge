@@ -23,7 +23,6 @@
 
 #include <array>
 #include <iterator>
-#include <thread>
 #include <utility>
 
 namespace Bridge {
@@ -48,6 +47,8 @@ public:
 
     ~Impl();
 
+    void run();
+
 private:
 
     bool state();
@@ -67,7 +68,6 @@ private:
         gameManager, players.begin(), players.end()};
     Messaging::MessageQueue messageQueue;
     zmq::socket_t dataSocket;
-    std::thread thread;
 };
 
 BridgeMain::Impl::Impl(
@@ -93,15 +93,18 @@ BridgeMain::Impl::Impl(
             }
         },
         context, controlEndpoint},
-    dataSocket {context, zmq::socket_type::pub},
-    thread {[&messageQueue = this->messageQueue]() { messageQueue.run(); }}
+    dataSocket {context, zmq::socket_type::pub}
 {
     dataSocket.bind(dataEndpoint);
 }
 
 BridgeMain::Impl::~Impl()
 {
-    thread.join();
+}
+
+void BridgeMain::Impl::run()
+{
+    messageQueue.run();
 }
 
 bool BridgeMain::Impl::state()
@@ -148,6 +151,12 @@ BridgeMain::BridgeMain(
 }
 
 BridgeMain::~BridgeMain() = default;
+
+void BridgeMain::run()
+{
+    assert(impl);
+    impl->run();
+}
 
 }
 }
