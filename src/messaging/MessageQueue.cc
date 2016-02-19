@@ -1,5 +1,6 @@
-#include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
+
+#include "messaging/MessageHandler.hh"
 #include "messaging/MessageUtility.hh"
 #include "Utility.hh"
 
@@ -70,8 +71,9 @@ MessageQueue::Impl::Impl(
 
 void MessageQueue::Impl::run()
 {
+    auto message = std::vector<std::string> {};
     while (go) {
-        auto message = std::vector<std::string> {};
+        message.clear();
         try {
             recvAll(std::back_inserter(message), socket);
         } catch (const zmq::error_t& e) {
