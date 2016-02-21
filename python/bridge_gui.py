@@ -1,56 +1,114 @@
 #!/usr/bin/env python3
 
+import json
+from collections import namedtuple
+
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
+import zmq
 
-from collections import namedtuple
-
-SUITS = "C", "D", "H", "S"
+POSITIONS = "North", "East", "South", "West"
 RANKS = "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"
 STRAINS = "C", "D", "H", "S", "NT"
-PASS, DOUBLE, REDOUBLE = "PASS", "DBL", "RDBL"
-POSITIONS = "North", "East", "South", "West"
+SUITS = "C", "D", "H", "S"
 NORTH, EAST, SOUTH, WEST = POSITIONS
 NORTH_SOUTH, EAST_WEST = "NS", "EW"
+PASS, DOUBLE, REDOUBLE = "PASS", "DBL", "RDBL"
 
-SUIT_TAGS = "clubs", "diamonds", "hearts", "spades"
+BID_TAG, PASS_TAG, DBL_TAG, RDBL_TAG = "bid", "pass", "double", "redouble"
+NORTH_SOUTH_TAG, EAST_WEST_TAG = "northSouth", "eastWest"
+POSITION_TAGS = "north", "east", "south", "west"
 RANK_TAGS = ("2", "3", "4", "5", "6", "7", "8", "9", "10", "jack", "queen",
              "king", "ace")
 STRAIN_TAGS = "clubs", "diamonds", "hearts", "spades", "notrump"
+SUIT_TAGS = "clubs", "diamonds", "hearts", "spades"
 CLUBS_TAG, DIAMONDS_TAG, HEARTS_TAG, SPADES_TAG, NOTRUMP_TAG = STRAIN_TAGS
-POSITION_TAGS = "north", "east", "south", "west"
 NORTH_TAG, EAST_TAG, SOUTH_TAG, WEST_TAG = POSITION_TAGS
-BID_TAG, PASS_TAG, DBL_TAG, RDBL_TAG = "bid", "pass", "double", "redouble"
-NORTH_SOUTH_TAG, EAST_WEST_TAG = "northSouth", "eastWest"
 
-SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
+POSITION_MAP = {key: text for (key, text) in zip(POSITION_TAGS, POSITIONS)}
 RANK_MAP = {key: text for (key, text) in zip(RANK_TAGS, RANKS)}
 STRAIN_MAP = {key: text for (key, text) in zip(STRAIN_TAGS, STRAINS)}
-POSITION_MAP = {
-    key: text for (key, text) in zip(POSITION_TAGS, POSITIONS)}
+SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
 
-Card = namedtuple("Card", ("rank", "suit"))
+CALL_COMMAND = b"call"
+PLAY_COMMAND = b"play"
+REPLY_SUCCESS = b"success"
+STATE_COMMAND = b"state"
+
+BID_KEY = "bid"
+CALLS_KEY = "calls"
+CALL_KEY = "call"
+CARDS_KEY = "cards"
+CARD_KEY = "card"
+CURRENT_TRICK_KEY = "currentTrick"
+LEVEL_KEY = "level"
+PARTNERSHIP_KEY = "partnership"
+POSITION_IN_TURN_KEY = "positionInTurn"
+POSITION_KEY = "position"
+RANK_KEY = "rank"
+SCORE_KEY = "score"
+STRAIN_KEY = "strain"
+SUIT_KEY = "suit"
+TRICKS_WON_KEY = "tricksWon"
+TYPE_KEY = "type"
+
+Bid = namedtuple("Bid", (LEVEL_KEY, STRAIN_KEY))
+Call = namedtuple("Call", ("type_", BID_KEY))
+CallEntry = namedtuple("CallEntry", (POSITION_KEY, CALL_KEY))
+Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
+ScoreEntry = namedtuple("ScoreEntry", (PARTNERSHIP_KEY, SCORE_KEY))
+TrickEntry = namedtuple("TrickEntry", (POSITION_KEY, CARD_KEY))
 TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
-CallEntry = namedtuple("CallEntry", ("position", "call"))
-Call = namedtuple("Call", ("call", "bid"))
-Bid = namedtuple("Bid", ("level", "strain"))
-TrickEntry = namedtuple("TrickEntry", ("position", "card"))
-ScoreEntry = namedtuple("ScoreEntry", ("partnership", "score"))
+
+def check_command_success(socket):
+    reply = socket.recv_multipart()
+    assert len(reply) == 1 and reply[0] == REPLY_SUCCESS
+
+def parse_hand(obj):
+    return [Card(**card) for card in obj]
+
+def parse_call_entry(obj):
+    position = obj[POSITION_KEY]
+    call = obj[CALL_KEY]
+    call_type = call[TYPE_KEY]
+    call_bid = Bid(**call[BID_KEY]) if BID_KEY in call else None
+    return CallEntry(position, Call(call_type, call_bid))
+
+def parse_trick_entry(obj):
+    position = obj[POSITION_KEY]
+    card = Card(**obj[CARD_KEY])
+    return TrickEntry(position, card)
 
 class CallPanel(GridLayout):
-    def __init__(self, **kwargs):
+    def __init__(self, socket, **kwargs):
         super(CallPanel, self).__init__(**kwargs)
+        self._socket = socket
         self.cols = 5
         for level in range(1, 8):
-            for strain in STRAINS:
-                self.add_widget(Button(text="%d%s" % (level, strain)))
-        self.add_widget(Button(text=PASS))
-        self.add_widget(Button(text=DOUBLE))
-        self.add_widget(Button(text=REDOUBLE))
+            for strain_tag, strain in zip(STRAIN_TAGS, STRAINS):
+                self._add_button(
+                    "%d%s" % (level, strain), BID_TAG, Bid(level, strain_tag))
+        self._add_button(PASS, PASS_TAG)
+        self._add_button(DOUBLE, DBL_TAG)
+        self._add_button(REDOUBLE, RDBL_TAG)
+    def _add_button(self, text, call_type, call_bid=None):
+        button = Button(text=text)
+        button.call_type = call_type
+        button.call_bid = call_bid
+        button.bind(on_press=self._make_call)
+        self.add_widget(button)
+    def _make_call(self, button):
+        # TODO: Should not wait reply in GUI thread
+        call = {TYPE_KEY: button.call_type}
+        if button.call_bid:
+            call[BID_KEY] = button.call_bid._asdict()
+        self._socket.send(CALL_COMMAND, flags=zmq.SNDMORE)
+        self._socket.send_string(json.dumps(call))
+        check_command_success(self._socket)
 
 class BiddingPanel(GridLayout):
     def __init__(self, **kwargs):
@@ -70,20 +128,21 @@ class BiddingPanel(GridLayout):
         for i in range(n_skip):
             self.add_widget(Label())
         for call in calls:
-            if call.call.call == BID_TAG:
+            if call.call.type_ == BID_TAG:
                 level = call.call.bid.level
                 strain = STRAIN_MAP[call.call.bid.strain]
                 self.add_widget(Label(text="%d%s" % (level, strain)))
-            elif call.call.call == PASS_TAG:
+            elif call.call.type_ == PASS_TAG:
                 self.add_widget(Label(text=PASS))
-            elif call.call.call == DBL_TAG:
+            elif call.call.type_ == DBL_TAG:
                 self.add_widget(Label(text=DOUBLE))
-            elif call.call.call == RDBL_TAG:
+            elif call.call.type_ == RDBL_TAG:
                 self.add_widget(Label(text=REDOUBLE))
 
 class HandPanel(BoxLayout):
-    def __init__(self, position, **kwargs):
+    def __init__(self, socket, position, **kwargs):
         super(HandPanel, self).__init__(**kwargs)
+        self._socket = socket
         self.orientation = "vertical"
         self._buttons = {}
         self.add_widget(Label(text=str(position)))
@@ -92,6 +151,9 @@ class HandPanel(BoxLayout):
             row.add_widget(Label(text=suit))
             for rank_tag, rank in zip(RANK_TAGS, RANKS):
                 button = Button(text=rank, disabled=True)
+                button.card_rank = rank_tag
+                button.card_suit = suit_tag
+                button.bind(on_press=self._make_play)
                 self._buttons[(rank_tag, suit_tag)] = button
                 row.add_widget(button)
             self.add_widget(row)
@@ -101,6 +163,12 @@ class HandPanel(BoxLayout):
         # TODO: Error handling
         for card in hand:
             self._buttons[(card.rank, card.suit)].disabled = False
+    def _make_play(self, button):
+        # TODO: Should not wait reply in GUI thread
+        card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
+        self._socket.send(PLAY_COMMAND, flags=zmq.SNDMORE)
+        self._socket.send_string(json.dumps(card))
+        check_command_success(self._socket)
 
 class TrickPanel(GridLayout):
     _POSITIONS = { 1: NORTH_TAG, 3: WEST_TAG, 5: EAST_TAG, 7: SOUTH_TAG }
@@ -151,12 +219,12 @@ class InfoPanel(BoxLayout):
 
 class PlayAreaPanel(GridLayout):
     _POSITIONS = { 1: NORTH_TAG, 3: WEST_TAG, 5: EAST_TAG, 7: SOUTH_TAG }
-    def __init__(self, info_label, trick_panel, **kwargs):
+    def __init__(self, socket, info_label, trick_panel, **kwargs):
         super(PlayAreaPanel, self).__init__(**kwargs)
         self.rows = 3
         self.cols = 3
         self._hands = {
-            position: HandPanel(POSITION_MAP[position]) for
+            position: HandPanel(socket, POSITION_MAP[position]) for
             position in POSITION_TAGS}
         for i in range(9):
             if i == 0:
@@ -202,44 +270,56 @@ class ScoreSheetPanel(GridLayout):
 
 class BridgeApp(App):
     def build(self):
+        # Socket
+        zmqctx = zmq.Context.instance()
+        control_socket = zmqctx.socket(zmq.REQ)
+        control_socket.connect("tcp://localhost:5555")
+        self._data_socket = zmqctx.socket(zmq.SUB)
+        self._data_socket.setsockopt(zmq.SUBSCRIBE, STATE_COMMAND)
+        self._data_socket.connect("tcp://localhost:5556")
+        control_socket.send(STATE_COMMAND)
+        check_command_success(control_socket)
+        Clock.schedule_interval(self._poll_data, 0)
+        # UI
         view = BoxLayout(orientation="horizontal")
         panel = BoxLayout(orientation="vertical", size_hint_x=0.35)
-        self._call_panel = CallPanel()
+        self._call_panel = CallPanel(control_socket)
         panel.add_widget(self._call_panel)
         self._bidding_panel = BiddingPanel()
-        self._bidding_panel.set_calls([
-            CallEntry(EAST_TAG, Call(PASS_TAG, None)),
-            CallEntry(SOUTH_TAG, Call(BID_TAG, Bid(7, NOTRUMP_TAG))),
-            CallEntry(WEST_TAG, Call(DBL_TAG, None)),
-            CallEntry(NORTH_TAG, Call(RDBL_TAG, None)),
-        ])
         panel.add_widget(self._bidding_panel)
         view.add_widget(panel)
         self._info_label = InfoPanel()
-        self._info_label.set_position_in_turn(NORTH_TAG)
-        self._info_label.set_tricks_won(TricksWon(0, 0))
         self._trick_panel = TrickPanel()
-        self._trick_panel.set_trick([
-            TrickEntry(NORTH_TAG, Card(RANK_TAGS[9], SUIT_TAGS[0])),
-            TrickEntry(EAST_TAG, Card(RANK_TAGS[10], SUIT_TAGS[1])),
-        ])
         self._play_area_panel = PlayAreaPanel(
-            self._info_label, self._trick_panel)
-        self._play_area_panel.set_cards({
-            NORTH_TAG: [Card(RANK_TAGS[0], SUIT_TAGS[0])],
-            EAST_TAG: [Card(RANK_TAGS[1], SUIT_TAGS[1])],
-            SOUTH_TAG: [Card(RANK_TAGS[2], SUIT_TAGS[2])],
-            WEST_TAG: [Card(RANK_TAGS[3], SUIT_TAGS[3])],
-        })
+            control_socket, self._info_label, self._trick_panel)
         view.add_widget(self._play_area_panel)
         self._score_sheet_panel = ScoreSheetPanel(size_hint_x=0.2)
-        self._score_sheet_panel.set_score_sheet([
-            ScoreEntry(NORTH_SOUTH_TAG, 100),
-            ScoreEntry(EAST_WEST_TAG, 420),
-            None,
-        ])
         view.add_widget(self._score_sheet_panel)
         return view
-
+    def _poll_data(self, dt):
+        try:
+            msg = self._data_socket.recv_multipart(flags=zmq.NOBLOCK)
+        except zmq.Again:
+            # Silently ignore
+            return
+        if msg[0] == STATE_COMMAND:
+            # TODO: Error handling
+            state = json.loads(msg[1].decode("utf-8"))
+            self._info_label.set_position_in_turn(
+                state.get(POSITION_IN_TURN_KEY))
+            cards = {position: parse_hand(hand) for (position, hand) in
+                     state[CARDS_KEY].items()} if CARDS_KEY in state else {}
+            self._play_area_panel.set_cards(cards)
+            calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
+                     CALLS_KEY in state else [])
+            self._bidding_panel.set_calls(calls)
+            trick = ([parse_trick_entry(obj) for obj in
+                      state[CURRENT_TRICK_KEY]] if
+                     CURRENT_TRICK_KEY in state else [])
+            self._trick_panel.set_trick(trick)
+            tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
+                          TRICKS_WON_KEY in state else None)
+            self._info_label.set_tricks_won(tricks_won)
+            
 if __name__ == '__main__':
     BridgeApp().run()
