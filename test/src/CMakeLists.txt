@@ -43,6 +43,5 @@ if (BRIDGE_BUILD_TESTS)
   add_subdirectory(messaging)
   add_subdirectory(scoring)
   add_subdirectory(engine)
-  add_subdirectory(main)
 
 endif()
