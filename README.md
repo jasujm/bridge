@@ -11,7 +11,7 @@ project and will see improvements eventually. :wink:
 
 Currently you can only do few things with the application
 
-- Only command-line interface with verbose syntax
+- Run backend application and simple GUI
 - All four players are controlled locally…
 - …and the cards are visible all the time
 - Duplicate scoring
@@ -21,18 +21,24 @@ Currently you can only do few things with the application
 [CMake](https://cmake.org/) is currently the only supported build system for
 the project.
 
-Bridge uses many features from C++14 — deliberately as one of the goals of
-this project was to learn C++14 — so you need modern-ish compiler. The project
-depends on [ZeroMQ](http://zeromq.org/) for interprocess communication,
-[json](https://github.com/nlohmann/json) to serialize and deserialize messages
-and [Boost](http://www.boost.org/) for various things.
+Bridge is written in C++ (backend) and Python (GUI). The backend does all
+actual game logic and communicates with the frontend using TCP sockets.
+
+The backend uses many features from C++14 — deliberately as one of the goals
+of this project was to learn C++14 — so you need modern-ish compiler. The
+project depends on [ZeroMQ](http://zeromq.org/) for interprocess
+communication, [json](https://github.com/nlohmann/json) to serialize and
+deserialize messages and [Boost](http://www.boost.org/) for various things.
 
 [Googletest](https://github.com/google/googletest) is used to build unit
 tests. As recommended by the maintainers of the project, instead of relying on
 any version of googletest found on the local computer, it is downloaded when
 required.
 
-To build and run unit tests
+The GUI depends on [Kivy](https://kivy.org/) as GUI toolkit and
+[PyZQM](https://github.com/zeromq/pyzmq) for communication.
+
+To build and run unit tests for the backend
 
     mkdir /the/build/directory
     cd /the/build/directory
@@ -42,41 +48,38 @@ To build and run unit tests
 
 ## Usage
 
-Run the application located in the top level build directory
+Run the backend located in the top level build directory
 
     /the/build/directory/bridge
 
-You will see information about the current deal. More becomes available as the
-deal progresses. There are three commands:
+Run the GUI
+
+    python /the/source/directory/python/bridge_gui.py
+
+You can run the backend and the GUI in any order. Note, however, that the
+frontend blocks before both are running. Backend runs until interrupted. The
+GUI can connect to the backend at any point. In fact, there can be multiple
+GUIs connected to the same backend (they all then share and control the same
+state). Currently the backend opens fixed ports so multiple backends cannot be
+run at the same time.
+
+There are three parts in the screen:
 
 ### Score
 
-Display scoresheet
-
-    score
+Scoresheet is displayed on the right. More rows are added to the sheet after
+every deal.
 
 ### Call
 
-Make a call during the auction. The call type (pass, bid, double, redouble) is
-named after the call command. A bid is specified after the bid command by
-naming the level (number between 1–7) and the strain (clubs, diamonds, hearts,
-spades, notrump).
-
-    call pass
-    call bid 1 clubs
-    call bid 7 notrump
-    call double
-    call redouble
+Bidding for the current deal is displayed on the right. Calls are made using
+the buttons and the bidding is shown in the table underneath.
 
 ### Play
 
-Play a card during the playing phase. The card is specified by naming the rank
-and the suit (clubs, diamonds, hearts, spades) separated by whitespace. The
-rank of non-honors is a number between 2–10, and the rank of honor is either
-jack, queen, king or ace.
-
-    play 2 clubs
-    play ace spades
+Cards for all the players are displayed in the middle. Enabled buttons
+correspond to cards currently held by the player. After the auction cards are
+played by pushing the buttons.
 
 ## TODO
 
@@ -87,7 +90,6 @@ peer-to-peer communication.
 
 Short term goals:
 
-- Nice GUI
 - Networking
   - Use ZeroMQ to send and receive messages between different Bridge
     application instances
@@ -96,12 +98,13 @@ Short term goals:
 
 Long term goals:
 
+- Actually usable GUI
 - Integrating mental card game library for more serious use
   (e.g. [LibTMCG](http://www.nongnu.org/libtmcg/))
 
 ## Copyright
 
-Copyright © 2015 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2016 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
