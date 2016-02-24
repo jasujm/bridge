@@ -65,12 +65,15 @@ ScoreEntry = namedtuple("ScoreEntry", (PARTNERSHIP_KEY, SCORE_KEY))
 TrickEntry = namedtuple("TrickEntry", (POSITION_KEY, CARD_KEY))
 TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 
+
 def check_command_success(socket):
     reply = socket.recv_multipart()
     assert len(reply) == 1 and reply[0] == REPLY_SUCCESS
 
+
 def parse_hand(obj):
     return [Card(**card) for card in obj]
+
 
 def parse_call_entry(obj):
     position = obj[POSITION_KEY]
@@ -79,10 +82,12 @@ def parse_call_entry(obj):
     call_bid = Bid(**call[BID_KEY]) if BID_KEY in call else None
     return CallEntry(position, Call(call_type, call_bid))
 
+
 def parse_trick_entry(obj):
     position = obj[POSITION_KEY]
     card = Card(**obj[CARD_KEY])
     return TrickEntry(position, card)
+
 
 def parse_score_entry(obj):
     if obj is None:
@@ -91,7 +96,9 @@ def parse_score_entry(obj):
     score = obj[SCORE_KEY]
     return ScoreEntry(partnership, score)
 
+
 class CallPanel(GridLayout):
+
     def __init__(self, socket, **kwargs):
         super(CallPanel, self).__init__(**kwargs)
         self._socket = socket
@@ -103,12 +110,14 @@ class CallPanel(GridLayout):
         self._add_button(PASS, PASS_TAG)
         self._add_button(DOUBLE, DBL_TAG)
         self._add_button(REDOUBLE, RDBL_TAG)
+
     def _add_button(self, text, call_type, call_bid=None):
         button = Button(text=text)
         button.call_type = call_type
         button.call_bid = call_bid
         button.bind(on_press=self._make_call)
         self.add_widget(button)
+
     def _make_call(self, button):
         # TODO: Should not wait reply in GUI thread
         call = {TYPE_KEY: button.call_type}
@@ -118,11 +127,14 @@ class CallPanel(GridLayout):
         self._socket.send_string(json.dumps(call))
         check_command_success(self._socket)
 
+
 class BiddingPanel(GridLayout):
+
     def __init__(self, **kwargs):
         super(BiddingPanel, self).__init__(**kwargs)
         self.cols = 4
         self.set_calls([])
+
     def set_calls(self, calls):
         self.clear_widgets()
         self.add_widget(Label(text=NORTH))
@@ -147,7 +159,9 @@ class BiddingPanel(GridLayout):
             elif call.call.type_ == RDBL_TAG:
                 self.add_widget(Label(text=REDOUBLE))
 
+
 class HandPanel(BoxLayout):
+
     def __init__(self, socket, position, **kwargs):
         super(HandPanel, self).__init__(**kwargs)
         self._socket = socket
@@ -165,12 +179,14 @@ class HandPanel(BoxLayout):
                 self._buttons[(rank_tag, suit_tag)] = button
                 row.add_widget(button)
             self.add_widget(row)
+
     def set_hand(self, hand):
         for button in self._buttons.values():
             button.disabled = True
         # TODO: Error handling
         for card in hand:
             self._buttons[(card.rank, card.suit)].disabled = False
+
     def _make_play(self, button):
         # TODO: Should not wait reply in GUI thread
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
@@ -178,8 +194,11 @@ class HandPanel(BoxLayout):
         self._socket.send_string(json.dumps(card))
         check_command_success(self._socket)
 
+
 class TrickPanel(GridLayout):
+
     _POSITIONS = { 1: NORTH_TAG, 3: WEST_TAG, 5: EAST_TAG, 7: SOUTH_TAG }
+
     def __init__(self, **kwargs):
         super(TrickPanel, self).__init__(**kwargs)
         self.rows = 3
@@ -190,6 +209,7 @@ class TrickPanel(GridLayout):
                 self.add_widget(self._cards[self._POSITIONS[i]])
             else:
                 self.add_widget(Label())
+
     def set_trick(self, trick):
         for label in self._cards.values():
             label.text = ""
@@ -199,7 +219,9 @@ class TrickPanel(GridLayout):
             suit = SUIT_MAP[entry.card.suit]
             self._cards[entry.position].text = "%s%s" % (rank, suit)
 
+
 class InfoPanel(BoxLayout):
+
     def __init__(self, **kwargs):
         super(InfoPanel, self).__init__(**kwargs)
         self.orientation = "vertical"
@@ -207,12 +229,15 @@ class InfoPanel(BoxLayout):
         self._position_in_turn = None
         self._tricks_won = None
         self.add_widget(self._label)
+
     def set_position_in_turn(self, position_in_turn):
         self._position_in_turn = position_in_turn
         self._update_text()
+
     def set_tricks_won(self, tricks_won):
         self._tricks_won = tricks_won
         self._update_text()
+
     def _update_text(self):
         texts = []
         # TODO: Error handling
@@ -225,8 +250,11 @@ class InfoPanel(BoxLayout):
                 (self._tricks_won[0], self._tricks_won[1]))
         self._label.text = "\n".join(texts)
 
+
 class PlayAreaPanel(GridLayout):
+
     _POSITIONS = { 1: NORTH_TAG, 3: WEST_TAG, 5: EAST_TAG, 7: SOUTH_TAG }
+
     def __init__(self, socket, info_label, trick_panel, **kwargs):
         super(PlayAreaPanel, self).__init__(**kwargs)
         self.rows = 3
@@ -244,18 +272,22 @@ class PlayAreaPanel(GridLayout):
                 self.add_widget(self._hands[tag])
             else:
                 self.add_widget(Label())
+
     def set_cards(self, cards):
         # TODO: Error handling
         for (position, hand) in cards.items():
             self._hands[position].set_hand(hand)
 
+
 class ScoreSheetPanel(GridLayout):
+
     def __init__(self, **kwargs):
         super(ScoreSheetPanel, self).__init__(**kwargs)
         self.cols = 2
         self.add_widget(Label(text=NORTH_SOUTH))
         self.add_widget(Label(text=EAST_WEST))
         self._score_sheet = []
+
     def set_score_sheet(self, score_sheet):
         # TODO: Now we assume that new score extends old one
         first_new_entry = len(self._score_sheet)
@@ -276,7 +308,9 @@ class ScoreSheetPanel(GridLayout):
         self.add_widget(Label(text=north_south_score))
         self.add_widget(Label(text=east_west_score))
 
+
 class BridgeApp(App):
+
     def build(self):
         # Socket
         zmqctx = zmq.Context.instance()
@@ -307,6 +341,7 @@ class BridgeApp(App):
         self._score_sheet_panel = ScoreSheetPanel(size_hint_x=0.2)
         view.add_widget(self._score_sheet_panel)
         return view
+
     def _poll_data(self, dt):
         while True:
             try:
@@ -339,5 +374,6 @@ class BridgeApp(App):
             scores = [parse_score_entry(entry) for entry in score_sheet]
             self._score_sheet_panel.set_score_sheet(scores)
             
+
 if __name__ == '__main__':
     BridgeApp().run()
