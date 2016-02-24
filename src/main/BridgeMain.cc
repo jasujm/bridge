@@ -18,6 +18,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/MessageQueue.hh"
 #include "scoring/DuplicateScoreSheet.hh"
+#include "Observer.hh"
 
 #include <zmq.hpp>
 
@@ -35,23 +36,26 @@ const std::string BridgeMain::SCORE_COMMAND {"score"};
 const std::string BridgeMain::STATE_PREFIX {"state"};
 const std::string BridgeMain::SCORE_PREFIX {"score"};
 
+using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
 
-class BridgeMain::Impl {
+class BridgeMain::Impl : public Observer<BridgeEngine::DealEnded> {
 public:
 
     Impl(
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& dataEndpoint);
 
-    ~Impl();
-
     void run();
 
     void terminate();
 
+    BridgeEngine& getEngine();
+
 private:
+
+    void handleNotify(const BridgeEngine::DealEnded&);
 
     bool state();
     bool call(const Call& call);
@@ -65,7 +69,7 @@ private:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
-    Engine::BridgeEngine engine {
+    BridgeEngine engine {
         std::make_shared<Engine::SimpleCardManager>(),
         gameManager, players.begin(), players.end()};
     Messaging::MessageQueue messageQueue;
@@ -100,10 +104,6 @@ BridgeMain::Impl::Impl(
     dataSocket.bind(dataEndpoint);
 }
 
-BridgeMain::Impl::~Impl()
-{
-}
-
 void BridgeMain::Impl::run()
 {
     messageQueue.run();
@@ -114,11 +114,21 @@ void BridgeMain::Impl::terminate()
     messageQueue.terminate();
 }
 
+void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
+{
+    score();
+}
+
 bool BridgeMain::Impl::state()
 {
     sendCommand(
         dataSocket, JsonSerializer {}, STATE_PREFIX, makeDealState(engine));
     return true;
+}
+
+BridgeEngine& BridgeMain::Impl::getEngine()
+{
+    return engine;
 }
 
 bool BridgeMain::Impl::call(const Call& call)
@@ -153,8 +163,9 @@ bool BridgeMain::Impl::score()
 BridgeMain::BridgeMain(
     zmq::context_t& context, const std::string& controlEndpoint,
     const std::string& dataEndpoint) :
-    impl {std::make_unique<Impl>(context, controlEndpoint, dataEndpoint)}
+    impl {std::make_shared<Impl>(context, controlEndpoint, dataEndpoint)}
 {
+    impl->getEngine().subscribe(impl);
 }
 
 BridgeMain::~BridgeMain() = default;

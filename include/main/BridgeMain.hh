@@ -111,7 +111,7 @@ public:
 private:
 
     class Impl;
-    const std::unique_ptr<Impl> impl;
+    const std::shared_ptr<Impl> impl;
 };
 
 }

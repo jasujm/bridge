@@ -37,6 +37,7 @@ SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
 CALL_COMMAND = b"call"
 PLAY_COMMAND = b"play"
 REPLY_SUCCESS = b"success"
+SCORE_COMMAND = b"score"
 STATE_COMMAND = b"state"
 
 BID_KEY = "bid"
@@ -82,6 +83,13 @@ def parse_trick_entry(obj):
     position = obj[POSITION_KEY]
     card = Card(**obj[CARD_KEY])
     return TrickEntry(position, card)
+
+def parse_score_entry(obj):
+    if obj is None:
+        return obj
+    partnership = obj[PARTNERSHIP_KEY]
+    score = obj[SCORE_KEY]
+    return ScoreEntry(partnership, score)
 
 class CallPanel(GridLayout):
     def __init__(self, socket, **kwargs):
@@ -276,8 +284,11 @@ class BridgeApp(App):
         control_socket.connect("tcp://localhost:5555")
         self._data_socket = zmqctx.socket(zmq.SUB)
         self._data_socket.setsockopt(zmq.SUBSCRIBE, STATE_COMMAND)
+        self._data_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
         self._data_socket.connect("tcp://localhost:5556")
         control_socket.send(STATE_COMMAND)
+        check_command_success(control_socket)
+        control_socket.send(SCORE_COMMAND)
         check_command_success(control_socket)
         Clock.schedule_interval(self._poll_data, 0)
         # UI
@@ -297,11 +308,14 @@ class BridgeApp(App):
         view.add_widget(self._score_sheet_panel)
         return view
     def _poll_data(self, dt):
-        try:
-            msg = self._data_socket.recv_multipart(flags=zmq.NOBLOCK)
-        except zmq.Again:
-            # Silently ignore
-            return
+        while True:
+            try:
+                msg = self._data_socket.recv_multipart(flags=zmq.NOBLOCK)
+            except zmq.Again:
+                break
+            self._handle_message(msg)
+
+    def _handle_message(self, msg):
         if msg[0] == STATE_COMMAND:
             # TODO: Error handling
             state = json.loads(msg[1].decode("utf-8"))
@@ -320,6 +334,10 @@ class BridgeApp(App):
             tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
                           TRICKS_WON_KEY in state else None)
             self._info_label.set_tricks_won(tricks_won)
+        elif msg[0] == SCORE_COMMAND:
+            score_sheet = json.loads(msg[1].decode("utf-8"))
+            scores = [parse_score_entry(entry) for entry in score_sheet]
+            self._score_sheet_panel.set_score_sheet(scores)
             
 if __name__ == '__main__':
     BridgeApp().run()

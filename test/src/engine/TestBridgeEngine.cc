@@ -17,6 +17,7 @@
 #include "MockCard.hh"
 #include "MockCardManager.hh"
 #include "MockGameManager.hh"
+#include "MockObserver.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
 
@@ -36,6 +37,7 @@ using testing::NiceMock;
 using testing::Return;
 using testing::ReturnRef;
 
+using Bridge::Engine::BridgeEngine;
 using Bridge::N_CARDS;
 using Bridge::N_CARDS_PER_PLAYER;
 using Bridge::N_POSITIONS;
@@ -72,7 +74,7 @@ protected:
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
         EXPECT_CALL(*cardManager, handleRequestShuffle());
-        engine = std::make_unique<Bridge::Engine::BridgeEngine>(
+        engine = std::make_unique<BridgeEngine>(
             cardManager, gameManager, players.begin(), players.end());
         Mock::VerifyAndClearExpectations(engine.get());
     }
@@ -103,14 +105,14 @@ protected:
         std::make_shared<Bridge::BasicPlayer>(),
         std::make_shared<Bridge::BasicPlayer>(),
         std::make_shared<Bridge::BasicPlayer>()}};
-    std::unique_ptr<Bridge::Engine::BridgeEngine> engine;
+    std::unique_ptr<BridgeEngine> engine;
     Bridge::DealState expectedState;
 };
 
 TEST_F(BridgeEngineTest, testInvalidConstruction)
 {
     EXPECT_THROW(
-        (Bridge::Engine::BridgeEngine {
+        (BridgeEngine {
             cardManager, gameManager, players.begin(), players.end() - 1}),
         std::invalid_argument);
 }
@@ -190,7 +192,15 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
+            auto observer =
+                std::make_shared<MockObserver<BridgeEngine::DealEnded>>();
+            const auto notify_count = (
+                i == N_CARDS_PER_PLAYER - 1 &&
+                &player == &players.back()) ? 1 : 0;
+            EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             ASSERT_EQ(expectedState, makeDealState(*engine));
+
+            engine->subscribe(observer);
             engine->play(*player, i);
             updateExpectedStateAfterPlay(*player);
         }

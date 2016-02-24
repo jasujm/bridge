@@ -7,6 +7,7 @@
 #define ENGINE_BRIDGEENINE_HH_
 
 #include "bridge/Call.hh"
+#include "Observer.hh"
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/optional/optional_fwd.hpp>
@@ -48,6 +49,10 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
+    /** \brief Tag for announcing that deal has ended
+     */
+    struct DealEnded {};
+
     /** \brief Create new bridge engine
      *
      * \tparam PlayerIterator an input iterator which must return a shared_ptr
@@ -67,6 +72,12 @@ public:
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
     ~BridgeEngine();
+
+    /** \brief Subscribe to notifications about deal ending
+     *
+     * BridgeEngine notifies its observers when a deal has ended.
+     */
+    void subscribe(std::weak_ptr<Observer<DealEnded>> observer);
 
     /** \brief Make call
      *

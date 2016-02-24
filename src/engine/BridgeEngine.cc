@@ -101,7 +101,8 @@ class Shuffling;
 
 class BridgeEngine::Impl :
     public sc::state_machine<BridgeEngine::Impl, Shuffling>,
-    public Observer<Engine::Shuffled> {
+    public Observer<Engine::Shuffled>,
+    public Observable<DealEnded> {
 public:
     using EventQueue = std::queue<std::function<void()>>;
 
@@ -109,6 +110,9 @@ public:
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
+
+    using Observable<DealEnded>::subscribe;
+    using Observable<DealEnded>::notifyAll;
 
     void enqueueAndProcess(const EventQueue::value_type event);
 
@@ -209,6 +213,8 @@ public:
 
     InDeal(my_context ctx);
 
+    void exit();
+
     sc::result react(const DealCompletedEvent&);
     sc::result react(const DealPassedOutEvent&);
 
@@ -264,6 +270,13 @@ InDeal::InDeal(my_context ctx) :
     hands {internalMakeHands()},
     handsMap {internalMakePositionMapping(hands)}
 {
+}
+
+void InDeal::exit()
+{
+    // This must be in exit() instead of ~InDeal(). Context might be
+    // destructed if we ended up here due to destruction of Impl.
+    outermost_context().notifyAll(BridgeEngine::DealEnded {});
 }
 
 Bidding& InDeal::getBidding()
@@ -657,6 +670,12 @@ std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
 }
 
 BridgeEngine::~BridgeEngine() = default;
+
+void BridgeEngine::subscribe(std::weak_ptr<Observer<DealEnded>> observer)
+{
+    assert(impl);
+    impl->subscribe(std::move(observer));
+}
 
 void BridgeEngine::call(const Player& player, const Call& call)
 {
