@@ -18,6 +18,7 @@ SUITS = "C", "D", "H", "S"
 NORTH, EAST, SOUTH, WEST = POSITIONS
 NORTH_SOUTH, EAST_WEST = "NS", "EW"
 PASS, DOUBLE, REDOUBLE = "PASS", "DBL", "RDBL"
+DOUBLINGS = "", "X", "XX"
 
 BID_TAG, PASS_TAG, DBL_TAG, RDBL_TAG = "bid", "pass", "double", "redouble"
 NORTH_SOUTH_TAG, EAST_WEST_TAG = "northSouth", "eastWest"
@@ -28,7 +29,9 @@ STRAIN_TAGS = "clubs", "diamonds", "hearts", "spades", "notrump"
 SUIT_TAGS = "clubs", "diamonds", "hearts", "spades"
 CLUBS_TAG, DIAMONDS_TAG, HEARTS_TAG, SPADES_TAG, NOTRUMP_TAG = STRAIN_TAGS
 NORTH_TAG, EAST_TAG, SOUTH_TAG, WEST_TAG = POSITION_TAGS
+DOUBLING_TAGS = "undoubled", "doubled", "redoubled"
 
+DOUBLING_MAP = {key: text for (key, text) in zip(DOUBLING_TAGS, DOUBLINGS)}
 POSITION_MAP = {key: text for (key, text) in zip(POSITION_TAGS, POSITIONS)}
 RANK_MAP = {key: text for (key, text) in zip(RANK_TAGS, RANKS)}
 STRAIN_MAP = {key: text for (key, text) in zip(STRAIN_TAGS, STRAINS)}
@@ -46,6 +49,9 @@ CALL_KEY = "call"
 CARDS_KEY = "cards"
 CARD_KEY = "card"
 CURRENT_TRICK_KEY = "currentTrick"
+CONTRACT_KEY = "contract"
+DECLARER_KEY = "declarer"
+DOUBLING_KEY = "doubling"
 LEVEL_KEY = "level"
 PARTNERSHIP_KEY = "partnership"
 POSITION_IN_TURN_KEY = "positionInTurn"
@@ -56,14 +62,17 @@ STRAIN_KEY = "strain"
 SUIT_KEY = "suit"
 TRICKS_WON_KEY = "tricksWon"
 TYPE_KEY = "type"
+VULNERABILITY_KEY = "vulnerability"
 
 Bid = namedtuple("Bid", (LEVEL_KEY, STRAIN_KEY))
 Call = namedtuple("Call", ("type_", BID_KEY))
 CallEntry = namedtuple("CallEntry", (POSITION_KEY, CALL_KEY))
 Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
+Contract = namedtuple("Contract", (BID_KEY, DOUBLING_KEY))
 ScoreEntry = namedtuple("ScoreEntry", (PARTNERSHIP_KEY, SCORE_KEY))
 TrickEntry = namedtuple("TrickEntry", (POSITION_KEY, CARD_KEY))
 TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
+Vulnerability = namedtuple("Vulnerability", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 
 
 def check_command_success(socket):
@@ -83,6 +92,10 @@ def parse_call_entry(obj):
     return CallEntry(position, Call(call_type, call_bid))
 
 
+def parse_contract(obj):
+    return Contract(Bid(**obj[BID_KEY]), obj[DOUBLING_KEY])
+
+
 def parse_trick_entry(obj):
     position = obj[POSITION_KEY]
     card = Card(**obj[CARD_KEY])
@@ -97,6 +110,9 @@ def parse_score_entry(obj):
     return ScoreEntry(partnership, score)
 
 
+def format_bid(bid):
+    return "%d%s" % (bid.level, STRAIN_MAP[bid.strain])
+
 class CallPanel(GridLayout):
 
     def __init__(self, socket, **kwargs):
@@ -105,8 +121,8 @@ class CallPanel(GridLayout):
         self.cols = 5
         for level in range(1, 8):
             for strain_tag, strain in zip(STRAIN_TAGS, STRAINS):
-                self._add_button(
-                    "%d%s" % (level, strain), BID_TAG, Bid(level, strain_tag))
+                bid = Bid(level, strain_tag)
+                self._add_button(format_bid(bid), BID_TAG, bid)
         self._add_button(PASS, PASS_TAG)
         self._add_button(DOUBLE, DBL_TAG)
         self._add_button(REDOUBLE, RDBL_TAG)
@@ -167,7 +183,8 @@ class HandPanel(BoxLayout):
         self._socket = socket
         self.orientation = "vertical"
         self._buttons = {}
-        self.add_widget(Label(text=str(position)))
+        self._position_label = Label(text=str(position))
+        self.add_widget(self._position_label)
         for suit_tag, suit in zip(SUIT_TAGS, SUITS):
             row = BoxLayout(orientation="horizontal")
             row.add_widget(Label(text=suit))
@@ -179,6 +196,15 @@ class HandPanel(BoxLayout):
                 self._buttons[(rank_tag, suit_tag)] = button
                 row.add_widget(button)
             self.add_widget(row)
+
+    def set_in_turn(self, in_turn):
+        self._position_label.bold = in_turn
+
+    def set_vulnerable(self, vulnerable):
+        if vulnerable:
+            self._position_label.color = (1, 0, 0, 1)
+        else:
+            self._position_label.color = (1, 1, 1, 1)
 
     def set_hand(self, hand):
         for button in self._buttons.values():
@@ -226,12 +252,17 @@ class InfoPanel(BoxLayout):
         super(InfoPanel, self).__init__(**kwargs)
         self.orientation = "vertical"
         self._label = Label()
-        self._position_in_turn = None
+        self._contract = None
+        self._declarer = None
         self._tricks_won = None
         self.add_widget(self._label)
 
-    def set_position_in_turn(self, position_in_turn):
-        self._position_in_turn = position_in_turn
+    def set_declarer(self, declarer):
+        self._declarer = declarer
+        self._update_text()
+
+    def set_contract(self, contract):
+        self._contract = contract
         self._update_text()
 
     def set_tricks_won(self, tricks_won):
@@ -241,9 +272,12 @@ class InfoPanel(BoxLayout):
     def _update_text(self):
         texts = []
         # TODO: Error handling
-        if self._position_in_turn:
-            texts.append(
-                "Position in turn: %s" % POSITION_MAP[self._position_in_turn])
+        if self._declarer:
+            texts.append("Declarer: %s" % POSITION_MAP[self._declarer])
+        if self._contract:
+            texts.append("Contract: %s%s" % (
+                format_bid(self._contract.bid),
+                DOUBLING_MAP[self._contract.doubling]))
         if self._tricks_won:
             texts.append(
                 "Tricks won\nNorth-South: %d\nEast-West: %d" %
@@ -255,7 +289,7 @@ class PlayAreaPanel(GridLayout):
 
     _POSITIONS = { 1: NORTH_TAG, 3: WEST_TAG, 5: EAST_TAG, 7: SOUTH_TAG }
 
-    def __init__(self, socket, info_label, trick_panel, **kwargs):
+    def __init__(self, socket, info_panel, trick_panel, **kwargs):
         super(PlayAreaPanel, self).__init__(**kwargs)
         self.rows = 3
         self.cols = 3
@@ -264,7 +298,7 @@ class PlayAreaPanel(GridLayout):
             position in POSITION_TAGS}
         for i in range(9):
             if i == 0:
-                self.add_widget(info_label)
+                self.add_widget(info_panel)
             elif i == 4:
                 self.add_widget(trick_panel)
             elif i in self._POSITIONS:
@@ -272,6 +306,20 @@ class PlayAreaPanel(GridLayout):
                 self.add_widget(self._hands[tag])
             else:
                 self.add_widget(Label())
+
+    def set_position_in_turn(self, position):
+        for (tag, hand) in self._hands.items():
+            hand.set_in_turn(tag == position)
+
+    def set_vulnerability(self, vulnerability):
+        self._hands[NORTH_TAG].set_vulnerable(
+            vulnerability and vulnerability.northSouth)
+        self._hands[SOUTH_TAG].set_vulnerable(
+            vulnerability and vulnerability.northSouth)
+        self._hands[EAST_TAG].set_vulnerable(
+            vulnerability and vulnerability.eastWest)
+        self._hands[WEST_TAG].set_vulnerable(
+            vulnerability and vulnerability.eastWest)
 
     def set_cards(self, cards):
         # TODO: Error handling
@@ -333,10 +381,10 @@ class BridgeApp(App):
         self._bidding_panel = BiddingPanel()
         panel.add_widget(self._bidding_panel)
         view.add_widget(panel)
-        self._info_label = InfoPanel()
+        self._info_panel = InfoPanel()
         self._trick_panel = TrickPanel()
         self._play_area_panel = PlayAreaPanel(
-            control_socket, self._info_label, self._trick_panel)
+            control_socket, self._info_panel, self._trick_panel)
         view.add_widget(self._play_area_panel)
         self._score_sheet_panel = ScoreSheetPanel(size_hint_x=0.2)
         view.add_widget(self._score_sheet_panel)
@@ -354,21 +402,29 @@ class BridgeApp(App):
         if msg[0] == STATE_COMMAND:
             # TODO: Error handling
             state = json.loads(msg[1].decode("utf-8"))
-            self._info_label.set_position_in_turn(
-                state.get(POSITION_IN_TURN_KEY))
+            position_in_turn = state.get(POSITION_IN_TURN_KEY)
+            self._play_area_panel.set_position_in_turn(position_in_turn)
+            vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
+                             VULNERABILITY_KEY in state else None)
+            self._play_area_panel.set_vulnerability(vulnerability)
             cards = {position: parse_hand(hand) for (position, hand) in
                      state[CARDS_KEY].items()} if CARDS_KEY in state else {}
             self._play_area_panel.set_cards(cards)
             calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
                      CALLS_KEY in state else [])
             self._bidding_panel.set_calls(calls)
+            declarer = state.get(DECLARER_KEY)
+            self._info_panel.set_declarer(declarer)
+            contract = (parse_contract(state[CONTRACT_KEY]) if
+                        CONTRACT_KEY in state else None)
+            self._info_panel.set_contract(contract)
             trick = ([parse_trick_entry(obj) for obj in
                       state[CURRENT_TRICK_KEY]] if
                      CURRENT_TRICK_KEY in state else [])
             self._trick_panel.set_trick(trick)
             tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
                           TRICKS_WON_KEY in state else None)
-            self._info_label.set_tricks_won(tricks_won)
+            self._info_panel.set_tricks_won(tricks_won)
         elif msg[0] == SCORE_COMMAND:
             score_sheet = json.loads(msg[1].decode("utf-8"))
             scores = [parse_score_entry(entry) for entry in score_sheet]
