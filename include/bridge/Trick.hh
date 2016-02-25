@@ -33,9 +33,8 @@ public:
 
     /** \brief Play card to the trick.
      *
-     * The play is successful if the card is a known card that belongs to the
-     * hand, the hand has turn and it is legal to play the card according to
-     * the rules.
+     * The play is successful if and only if canPlay() would return true for
+     * the arguments.
      *
      * \note Trick class will borrow the reference to the Card object. The
      * client of the class is responsible of ensuring that the lifetime of the
@@ -47,6 +46,18 @@ public:
      * \return true if the card was played successfully, false otherwise
      */
     bool play(const Hand& hand, const Card& card);
+
+    /** \brief Determine if the card can be played from the hand
+     *
+     * The card can be played if it is a known card, belongs to the hand, the
+     * hand has turn and it is legal to play the card according to the rules.
+     *
+     * \param hand the hand from which the card would be played
+     * \param card the card to be played
+     *
+     * \return true if the card can be played, false otherwise
+     */
+    bool canPlay(const Hand& hand, const Card& card) const;
 
     /** \brief Determine which hand has the turn
      *

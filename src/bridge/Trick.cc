@@ -11,15 +11,21 @@ Trick::~Trick() = default;
 
 bool Trick::play(const Hand& hand, const Card& card)
 {
-    if (!card.isKnown()) {
-        return false;
+    if (canPlay(hand, card)) {
+        handleAddCardToTrick(card);
+        return true;
     }
-    const auto hand_in_turn = getHandInTurn();
-    if (hand_in_turn != &hand || !handleIsPlayAllowed(*hand_in_turn, card)) {
-        return false;
+    return false;
+}
+
+bool Trick::canPlay(const Hand& hand, const Card& card) const
+{
+    if (card.isKnown()) {
+        const auto hand_in_turn = getHandInTurn();
+        return hand_in_turn == &hand &&
+            handleIsPlayAllowed(*hand_in_turn, card);
     }
-    handleAddCardToTrick(card);
-    return true;
+    return false;
 }
 
 const Hand* Trick::getHandInTurn() const

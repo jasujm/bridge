@@ -58,12 +58,19 @@ TEST_F(TrickTest, testTrickIncompletionWhenComplete)
     EXPECT_TRUE(trick.isCompleted());
 }
 
-TEST_P(TrickTest, testPlayWhenHandHasTurnAndCanPlay)
+TEST_P(TrickTest, testPlayWhenHandHasTurnAndPlayIsAllowed)
 {
     const auto n = GetParam();
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
     EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[n])));
     EXPECT_TRUE(trick.play(hands[n], cards[n]));
+}
+
+TEST_P(TrickTest, testCanPlayWhenHandHasTurnAndPlayIsAllowed)
+{
+    const auto n = GetParam();
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
+    EXPECT_TRUE(trick.canPlay(hands[n], cards[n]));
 }
 
 TEST_F(TrickTest, testPlayWhenCardIsNotKnown)
@@ -73,11 +80,23 @@ TEST_F(TrickTest, testPlayWhenCardIsNotKnown)
     EXPECT_FALSE(trick.play(hands[0], cards[0]));
 }
 
+TEST_F(TrickTest, testCanPlayWhenCardIsNotKnown)
+{
+    EXPECT_CALL(cards[0], handleIsKnown()).WillOnce(Return(false));
+    EXPECT_FALSE(trick.canPlay(hands[0], cards[0]));
+}
+
 TEST_F(TrickTest, testPlayWhenHandHasNotTurn)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
     EXPECT_CALL(trick, handleAddCardToTrick(_)).Times(0);
     EXPECT_FALSE(trick.play(hands[0], cards[0]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenHandHasNotTurn)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_FALSE(trick.canPlay(hands[0], cards[0]));
 }
 
 TEST_F(TrickTest, testPlayWhenPlayIsNotAllowed)
@@ -86,6 +105,13 @@ TEST_F(TrickTest, testPlayWhenPlayIsNotAllowed)
         .WillOnce(Return(false));
     EXPECT_CALL(trick, handleAddCardToTrick(_)).Times(0);
     EXPECT_FALSE(trick.play(hands[0], cards[0]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenPlayIsNotAllowed)
+{
+    EXPECT_CALL(trick, handleIsPlayAllowed(Ref(hands[0]), Ref(cards[0])))
+        .WillOnce(Return(false));
+    EXPECT_FALSE(trick.canPlay(hands[0], cards[0]));
 }
 
 TEST_F(TrickTest, testGetHandWhenTrickIsNotCompleted)
