@@ -64,13 +64,24 @@ struct DealState : private boost::equality_comparable<DealState> {
     /** \brief The position to act next
      *
      * This member is none if the game is not in a phase where a player can
-     * act
+     * act.
      */
     boost::optional<Position> positionInTurn;
 
+    /** \brief Type of the \ref allowedCards member
+     */
+    using AllowedCards = std::vector<CardType>;
+
+    /** \brief The cards the current player is allowed to play to the current
+     * trick
+     *
+     * This member is none if the deal is not in the playing stage.
+     */
+    boost::optional<AllowedCards> allowedCards;
+
     /** \brief The vulnerability status of the deal
      *
-     * This member if none if the game has ended
+     * This member if none if the game has ended.
      */
     boost::optional<Vulnerability> vulnerability;
 
@@ -100,13 +111,13 @@ struct DealState : private boost::equality_comparable<DealState> {
 
     /** \brief The declarer determined by the bidding
      *
-     * This member is none if the bidding isn’t finished
+     * This member is none if the bidding isn’t finished.
      */
     boost::optional<Position> declarer;
 
     /** \brief The contract made by the declarer
      *
-     * This member is none if the bidding isn’t finished
+     * This member is none if the bidding isn’t finished.
      */
     boost::optional<Contract> contract;
 
@@ -124,7 +135,7 @@ struct DealState : private boost::equality_comparable<DealState> {
 
     /** \brief The number of tricks won in the current deal
      *
-     * This member if none if the playing hasn’t started yet
+     * This member if none if the playing hasn’t started yet.
      */
     boost::optional<TricksWon> tricksWon;
 };

@@ -28,6 +28,7 @@ bool operator==(const DealState& lhs, const DealState& rhs)
         lhs.stage == rhs.stage &&
         lhs.vulnerability == rhs.vulnerability &&
         lhs.positionInTurn == rhs.positionInTurn &&
+        lhs.allowedCards == rhs.allowedCards &&
         lhs.cards == rhs.cards &&
         lhs.calls == rhs.calls &&
         lhs.declarer == rhs.declarer &&
@@ -47,6 +48,11 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
     os << "\nStage: " << state.stage;
     if (const auto& position_in_turn = state.positionInTurn) {
         os << "\nIn turn: " << *position_in_turn;
+    }
+    if (const auto& allowed_cards = state.allowedCards) {
+        os << "\nAllowed cards: ";
+        std::copy(allowed_cards->begin(), allowed_cards->end(),
+                  std::ostream_iterator<CardType>(os, ", "));
     }
     if (const auto& vulnerability = state.vulnerability) {
         os << "\nVulnerability: " << *vulnerability;

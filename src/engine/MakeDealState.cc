@@ -18,6 +18,19 @@ namespace Engine {
 
 namespace {
 
+void fillAllowedCards(
+    DealState& state, const Hand& hand, const Trick& trick)
+{
+    auto cards = DealState::AllowedCards {};
+    for (const auto& card : hand) {
+        if (trick.canPlay(hand, card)) {
+            // If card can be played, it's type is known
+            cards.emplace_back(card.getType().get());
+        }
+    }
+    state.allowedCards.emplace(std::move(cards));
+}
+
 void fillCards(DealState& state, const Position position, const Hand& hand)
 {
     auto cards = std::vector<CardType> {};
@@ -70,6 +83,11 @@ DealState makeDealState(const BridgeEngine& engine)
 
     if (const auto player = engine.getPlayerInTurn()) {
         state.positionInTurn = engine.getPosition(*player);
+        if (const auto trick = engine.getCurrentTrick()) {
+            if (const auto hand = engine.getHand(*player)) {
+                fillAllowedCards(state, *hand, *trick);
+            }
+        }
     }
 
     // Fill cards

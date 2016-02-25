@@ -79,11 +79,18 @@ protected:
         Mock::VerifyAndClearExpectations(engine.get());
     }
 
+    void updateAllowedCards(Bridge::Position position)
+    {
+        expectedState.allowedCards.emplace(expectedState.cards->at(position));
+    }
+
     void updateExpectedStateAfterPlay(const Bridge::Player& player)
     {
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
-        expectedState.positionInTurn.emplace(clockwise(position));
+        const auto new_position = clockwise(position);
+        expectedState.positionInTurn.emplace(new_position);
+        updateAllowedCards(new_position);
         expectedState.currentTrick->emplace_back(position, cards.front());
         cards.erase(cards.begin());
     }
@@ -147,7 +154,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Shuffling
     cardManager->notifyAll(Engine::Shuffled {});
     expectedState.stage = Stage::BIDDING;
-    expectedState.positionInTurn = Position::NORTH;
+    expectedState.positionInTurn.emplace(Position::NORTH);
     expectedState.cards.emplace();
     expectedState.calls.emplace();
     for (const auto position : POSITIONS) {
@@ -158,7 +165,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         for (const auto& card : *hand) {
             card_types.emplace_back(*card.getType());
         }
-        expectedState.cards->emplace(position, card_types);
+        expectedState.cards->emplace(position, std::move(card_types));
     }
 
     // Bidding
@@ -176,6 +183,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Playing
     expectedState.stage = Stage::PLAYING;
     expectedState.positionInTurn.emplace(Position::SOUTH);
+    updateAllowedCards(Position::SOUTH);
     expectedState.declarer.emplace(Position::EAST);
     expectedState.contract.emplace(BID, Doubling::UNDOUBLED);
     expectedState.currentTrick.emplace();
@@ -189,6 +197,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     }
 
     expectedState.positionInTurn.emplace(Position::NORTH);
+    updateAllowedCards(Position::NORTH);
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
