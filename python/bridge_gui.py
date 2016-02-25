@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 from collections import namedtuple
 
 from kivy.app import App
@@ -38,6 +37,7 @@ STRAIN_MAP = {key: text for (key, text) in zip(STRAIN_TAGS, STRAINS)}
 SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
 
 CALL_COMMAND = b"call"
+EMPTY_FRAME = b""
 PLAY_COMMAND = b"play"
 REPLY_SUCCESS = b"success"
 SCORE_COMMAND = b"score"
@@ -75,9 +75,20 @@ TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 Vulnerability = namedtuple("Vulnerability", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 
 
-def check_command_success(socket):
-    reply = socket.recv_multipart()
-    assert len(reply) == 1 and reply[0] == REPLY_SUCCESS
+def send_message(socket, msg, **flags):
+    if isinstance(msg, str):
+        socket.send_string(msg, **flags)
+    elif isinstance(msg, bytes):
+        socket.send(msg, **flags)
+    else:
+        socket.send_json(msg, **flags)
+
+
+def send_command(socket, *parts):
+    socket.send(EMPTY_FRAME, flags=zmq.SNDMORE)
+    for part in parts[:-1]:
+        send_message(socket, part, flags=zmq.SNDMORE)
+    send_message(socket, parts[-1])
 
 
 def parse_hand(obj):
@@ -135,13 +146,10 @@ class CallPanel(GridLayout):
         self.add_widget(button)
 
     def _make_call(self, button):
-        # TODO: Should not wait reply in GUI thread
         call = {TYPE_KEY: button.call_type}
         if button.call_bid:
             call[BID_KEY] = button.call_bid._asdict()
-        self._socket.send(CALL_COMMAND, flags=zmq.SNDMORE)
-        self._socket.send_string(json.dumps(call))
-        check_command_success(self._socket)
+        send_command(self._socket, CALL_COMMAND, call)
 
 
 class BiddingPanel(GridLayout):
@@ -214,11 +222,8 @@ class HandPanel(BoxLayout):
             self._buttons[(card.rank, card.suit)].disabled = False
 
     def _make_play(self, button):
-        # TODO: Should not wait reply in GUI thread
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
-        self._socket.send(PLAY_COMMAND, flags=zmq.SNDMORE)
-        self._socket.send_string(json.dumps(card))
-        check_command_success(self._socket)
+        send_command(self._socket, PLAY_COMMAND, card)
 
 
 class TrickPanel(GridLayout):
@@ -362,21 +367,26 @@ class BridgeApp(App):
     def build(self):
         # Socket
         zmqctx = zmq.Context.instance()
-        control_socket = zmqctx.socket(zmq.REQ)
-        control_socket.connect("tcp://localhost:5555")
+        self._control_socket = zmqctx.socket(zmq.DEALER)
+        self._control_socket.connect("tcp://localhost:5555")
         self._data_socket = zmqctx.socket(zmq.SUB)
         self._data_socket.setsockopt(zmq.SUBSCRIBE, STATE_COMMAND)
         self._data_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
         self._data_socket.connect("tcp://localhost:5556")
-        control_socket.send(STATE_COMMAND)
-        check_command_success(control_socket)
-        control_socket.send(SCORE_COMMAND)
-        check_command_success(control_socket)
+        send_command(self._control_socket, STATE_COMMAND)
+        send_command(self._control_socket, SCORE_COMMAND)
+        self._command_handlers = {
+            STATE_COMMAND: self._handle_state,
+            SCORE_COMMAND: self._handle_score,
+        }
+        self._poller = zmq.Poller()
+        self._poller.register(self._data_socket, flags=zmq.POLLIN)
+        self._poller.register(self._control_socket, flags=zmq.POLLIN)
         Clock.schedule_interval(self._poll_data, 0)
         # UI
         view = BoxLayout(orientation="horizontal")
         panel = BoxLayout(orientation="vertical", size_hint_x=0.35)
-        self._call_panel = CallPanel(control_socket)
+        self._call_panel = CallPanel(self._control_socket)
         panel.add_widget(self._call_panel)
         self._bidding_panel = BiddingPanel()
         panel.add_widget(self._bidding_panel)
@@ -384,51 +394,60 @@ class BridgeApp(App):
         self._info_panel = InfoPanel()
         self._trick_panel = TrickPanel()
         self._play_area_panel = PlayAreaPanel(
-            control_socket, self._info_panel, self._trick_panel)
+            self._control_socket, self._info_panel, self._trick_panel)
         view.add_widget(self._play_area_panel)
         self._score_sheet_panel = ScoreSheetPanel(size_hint_x=0.2)
         view.add_widget(self._score_sheet_panel)
         return view
 
     def _poll_data(self, dt):
-        while True:
-            try:
-                msg = self._data_socket.recv_multipart(flags=zmq.NOBLOCK)
-            except zmq.Again:
-                break
-            self._handle_message(msg)
+        events = True
+        while events:
+            events = self._poller.poll(0)
+            for socket, event in events:
+                assert event == zmq.POLLIN
+                if socket == self._control_socket:
+                    reply = socket.recv_multipart()
+                    assert reply == [EMPTY_FRAME, REPLY_SUCCESS]
+                elif socket == self._data_socket:
+                    command = socket.recv()
+                    # TODO: Error handling
+                    self._command_handlers[command](socket)
 
-    def _handle_message(self, msg):
-        if msg[0] == STATE_COMMAND:
-            # TODO: Error handling
-            state = json.loads(msg[1].decode("utf-8"))
-            position_in_turn = state.get(POSITION_IN_TURN_KEY)
-            self._play_area_panel.set_position_in_turn(position_in_turn)
-            vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
-                             VULNERABILITY_KEY in state else None)
-            self._play_area_panel.set_vulnerability(vulnerability)
-            cards = {position: parse_hand(hand) for (position, hand) in
-                     state[CARDS_KEY].items()} if CARDS_KEY in state else {}
-            self._play_area_panel.set_cards(cards)
-            calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
-                     CALLS_KEY in state else [])
-            self._bidding_panel.set_calls(calls)
-            declarer = state.get(DECLARER_KEY)
-            self._info_panel.set_declarer(declarer)
-            contract = (parse_contract(state[CONTRACT_KEY]) if
-                        CONTRACT_KEY in state else None)
-            self._info_panel.set_contract(contract)
-            trick = ([parse_trick_entry(obj) for obj in
-                      state[CURRENT_TRICK_KEY]] if
-                     CURRENT_TRICK_KEY in state else [])
-            self._trick_panel.set_trick(trick)
-            tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
-                          TRICKS_WON_KEY in state else None)
-            self._info_panel.set_tricks_won(tricks_won)
-        elif msg[0] == SCORE_COMMAND:
-            score_sheet = json.loads(msg[1].decode("utf-8"))
-            scores = [parse_score_entry(entry) for entry in score_sheet]
-            self._score_sheet_panel.set_score_sheet(scores)
+    def _handle_score(self, socket):
+        assert socket.getsockopt(zmq.RCVMORE)
+        score_sheet = socket.recv_json()
+        scores = [parse_score_entry(entry) for entry in score_sheet]
+        self._score_sheet_panel.set_score_sheet(scores)
+        assert not socket.getsockopt(zmq.RCVMORE)
+
+    def _handle_state(self, socket):
+        assert socket.getsockopt(zmq.RCVMORE)
+        state = socket.recv_json()
+        position_in_turn = state.get(POSITION_IN_TURN_KEY)
+        self._play_area_panel.set_position_in_turn(position_in_turn)
+        vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
+                         VULNERABILITY_KEY in state else None)
+        self._play_area_panel.set_vulnerability(vulnerability)
+        cards = {position: parse_hand(hand) for (position, hand) in
+                 state[CARDS_KEY].items()} if CARDS_KEY in state else {}
+        self._play_area_panel.set_cards(cards)
+        calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
+                 CALLS_KEY in state else [])
+        self._bidding_panel.set_calls(calls)
+        declarer = state.get(DECLARER_KEY)
+        self._info_panel.set_declarer(declarer)
+        contract = (parse_contract(state[CONTRACT_KEY]) if
+                    CONTRACT_KEY in state else None)
+        self._info_panel.set_contract(contract)
+        trick = ([parse_trick_entry(obj) for obj in
+                  state[CURRENT_TRICK_KEY]] if
+                 CURRENT_TRICK_KEY in state else [])
+        self._trick_panel.set_trick(trick)
+        tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
+                      TRICKS_WON_KEY in state else None)
+        self._info_panel.set_tricks_won(tricks_won)
+        assert not socket.getsockopt(zmq.RCVMORE)
             
 
 if __name__ == '__main__':
