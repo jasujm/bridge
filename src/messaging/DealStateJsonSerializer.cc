@@ -20,6 +20,7 @@ namespace Messaging {
 
 const std::string DEAL_STATE_STAGE_KEY {"stage"};
 const std::string DEAL_STATE_POSITION_IN_TURN_KEY {"positionInTurn"};
+const std::string DEAL_STATE_ALLOWED_CARDS_KEY {"allowedCards"};
 const std::string DEAL_STATE_VULNERABILITY_KEY {"vulnerability"};
 const std::string DEAL_STATE_CARDS_KEY {"cards"};
 const std::string DEAL_STATE_CALLS_KEY {"calls"};
@@ -45,12 +46,8 @@ json JsonConverter<DealState::Cards>::convertToJson(
     const DealState::Cards& cards)
 {
     auto ret = json::object();
-    for (const auto& p : cards) {
-        auto arr = json::array();
-        for (const auto& c : p.second) {
-            arr.push_back(toJson(c));
-        }
-        ret[POSITION_TO_STRING_MAP.left.at(p.first)] = std::move(arr);
+    for (const auto& c : cards) {
+        ret[POSITION_TO_STRING_MAP.left.at(c.first)] = toJson(c.second);
     }
     return ret;
 }
@@ -59,12 +56,9 @@ DealState::Cards JsonConverter<DealState::Cards>::convertFromJson(const json& j)
 {
     auto ret = DealState::Cards {};
     for (auto iter = j.begin(); iter != j.end(); ++iter) {
-        std::vector<CardType> cards;
-        for (const auto c : iter.value()) {
-            cards.push_back(fromJson<CardType>(c));
-        }
         ret.emplace(
-            POSITION_TO_STRING_MAP.right.at(iter.key()), std::move(cards));
+            POSITION_TO_STRING_MAP.right.at(iter.key()),
+            fromJson<std::vector<CardType>>(iter.value()));
     }
     return ret;
 }
@@ -117,6 +111,7 @@ json JsonConverter<DealState>::convertToJson(const DealState& dealState)
 {
     auto j = json {{DEAL_STATE_STAGE_KEY, toJson(dealState.stage)}};
     optionalPut(j, DEAL_STATE_POSITION_IN_TURN_KEY, dealState.positionInTurn);
+    optionalPut(j, DEAL_STATE_ALLOWED_CARDS_KEY, dealState.allowedCards);
     optionalPut(j, DEAL_STATE_VULNERABILITY_KEY, dealState.vulnerability);
     optionalPut(j, DEAL_STATE_CARDS_KEY, dealState.cards);
     optionalPut(j, DEAL_STATE_CALLS_KEY, dealState.calls);
@@ -133,6 +128,8 @@ DealState JsonConverter<DealState>::convertFromJson(const json& j)
     state.stage = checkedGet<Stage>(j, DEAL_STATE_STAGE_KEY);
     state.positionInTurn = optionalGet<Position>(
         j, DEAL_STATE_POSITION_IN_TURN_KEY);
+    state.allowedCards = optionalGet<std::vector<CardType>>(
+        j, DEAL_STATE_ALLOWED_CARDS_KEY);
     state.vulnerability = optionalGet<Vulnerability>(
         j, DEAL_STATE_VULNERABILITY_KEY);
     state.cards = optionalGet<DealState::Cards>(j, DEAL_STATE_CARDS_KEY);

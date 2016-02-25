@@ -11,6 +11,7 @@
  * {
  *     "stage": <stage>,
  *     "positionInTurn": <positionInTurn>,
+ *     "allowedCards": <allowedCards>,
  *     "vulnerability": <vulnerability>,
  *     "cards": <cards>,
  *     "calls": <calls>,
@@ -25,6 +26,8 @@
  *   one of the following: "shuffling", "bidding", "playing", "ended".
  * - &lt;positionInTurn&gt; is the position that has turn. It must be one of
  *   the following: "north", "east", "south", "west". Optional.
+ * - &lt;allowedCards&gt; is JSON array of cards that the player in the position
+     can play to the current trick. Optional.
  * - &lt;vulnerability&gt; is the vulnerability status of the current
  *   deal. See \ref jsonvulnerability. Optional.
  * - &lt;cards&gt; See \ref jsondealstatecards. Optional.
@@ -111,6 +114,12 @@ extern const std::string DEAL_STATE_STAGE_KEY;
  * \sa jsondealstate
  */
 extern const std::string DEAL_STATE_POSITION_IN_TURN_KEY;
+
+/** \brief Key for DealState::allowedCards in JSON object
+ *
+ * \sa jsondealstate
+ */
+extern const std::string DEAL_STATE_ALLOWED_CARDS_KEY;
 
 /** \brief Key for DealState::vulnerability in JSON object
  *

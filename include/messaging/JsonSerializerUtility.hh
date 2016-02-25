@@ -220,6 +220,55 @@ boost::optional<T> JsonConverter<boost::optional<T>>::convertFromJson(
     return fromJson<T>(j);
 }
 
+/** \brief JSON converter for vectors
+ *
+ * \sa JsonSerializer.hh
+ */
+template<typename T>
+struct JsonConverter<std::vector<T>>
+{
+
+    /** \brief Convert vector to JSON
+     *
+     * \param v the vector to convert
+     *
+     * \return JSON array consisting of each element of \c v converted to JSON
+     * using toJson().
+     */
+    static nlohmann::json convertToJson(const std::vector<T>& v);
+
+    /** \brief Convert JSON to vector
+     *
+     * \param j the JSON array to convert
+     *
+     * \return Vector consisting of each element of \j converted from JSON
+     * using fromJson().
+     */
+    static std::vector<T> convertFromJson(const nlohmann::json& j);
+};
+
+template<typename T>
+nlohmann::json JsonConverter<std::vector<T>>::convertToJson(
+    const std::vector<T>& v)
+{
+    auto ret = nlohmann::json::array();
+    for (const auto& t : v) {
+        ret.push_back(toJson(t));
+    }
+    return ret;
+}
+
+template<typename T>
+std::vector<T> JsonConverter<std::vector<T>>::convertFromJson(
+    const nlohmann::json& j)
+{
+    auto ret = std::vector<T> {};
+    for (const auto& t : j) {
+        ret.push_back(fromJson<T>(t));
+    }
+    return ret;
+}
+
 /// \{
 template<typename T>
 decltype(auto) validate(T&& t)
