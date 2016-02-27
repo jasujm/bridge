@@ -43,6 +43,7 @@ REPLY_SUCCESS = b"success"
 SCORE_COMMAND = b"score"
 STATE_COMMAND = b"state"
 
+ALLOWED_CALLS_KEY = "allowedCalls"
 ALLOWED_CARDS_KEY = "allowedCards"
 BID_KEY = "bid"
 CALLS_KEY = "calls"
@@ -66,7 +67,7 @@ TYPE_KEY = "type"
 VULNERABILITY_KEY = "vulnerability"
 
 Bid = namedtuple("Bid", (LEVEL_KEY, STRAIN_KEY))
-Call = namedtuple("Call", ("type_", BID_KEY))
+Call = namedtuple("Call", (TYPE_KEY, BID_KEY))
 CallEntry = namedtuple("CallEntry", (POSITION_KEY, CALL_KEY))
 Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
 Contract = namedtuple("Contract", (BID_KEY, DOUBLING_KEY))
@@ -96,12 +97,14 @@ def parse_cards(obj):
     return [Card(**card) for card in obj]
 
 
+def parse_call(obj):
+    type = obj[TYPE_KEY]
+    bid = Bid(**obj[BID_KEY]) if BID_KEY in obj else None
+    return Call(type, bid)
+
+
 def parse_call_entry(obj):
-    position = obj[POSITION_KEY]
-    call = obj[CALL_KEY]
-    call_type = call[TYPE_KEY]
-    call_bid = Bid(**call[BID_KEY]) if BID_KEY in call else None
-    return CallEntry(position, Call(call_type, call_bid))
+    return CallEntry(obj[POSITION_KEY], parse_call(obj[CALL_KEY]))
 
 
 def parse_contract(obj):
@@ -129,27 +132,32 @@ class CallPanel(GridLayout):
 
     def __init__(self, socket, **kwargs):
         super(CallPanel, self).__init__(**kwargs)
-        self._socket = socket
         self.cols = 5
+        self._socket = socket
+        self._buttons = []
         for level in range(1, 8):
             for strain_tag, strain in zip(STRAIN_TAGS, STRAINS):
                 bid = Bid(level, strain_tag)
-                self._add_button(format_bid(bid), BID_TAG, bid)
-        self._add_button(PASS, PASS_TAG)
-        self._add_button(DOUBLE, DBL_TAG)
-        self._add_button(REDOUBLE, RDBL_TAG)
+                self._add_button(format_bid(bid), Call(BID_TAG, bid))
+        self._add_button(PASS, Call(PASS_TAG, None))
+        self._add_button(DOUBLE, Call(DBL_TAG, None))
+        self._add_button(REDOUBLE, Call(RDBL_TAG, None))
 
-    def _add_button(self, text, call_type, call_bid=None):
+    def set_allowed_calls(self, allowed_calls):
+        for button in self._buttons:
+            button.disabled = button.call not in allowed_calls
+
+    def _add_button(self, text, call):
         button = Button(text=text)
-        button.call_type = call_type
-        button.call_bid = call_bid
+        button.call = call
         button.bind(on_press=self._make_call)
+        self._buttons.append(button)
         self.add_widget(button)
 
     def _make_call(self, button):
-        call = {TYPE_KEY: button.call_type}
-        if button.call_bid:
-            call[BID_KEY] = button.call_bid._asdict()
+        call = {TYPE_KEY: button.call.type}
+        if button.call.bid:
+            call[BID_KEY] = button.call.bid._asdict()
         send_command(self._socket, CALL_COMMAND, call)
 
 
@@ -173,15 +181,15 @@ class BiddingPanel(GridLayout):
         for i in range(n_skip):
             self.add_widget(Label())
         for call in calls:
-            if call.call.type_ == BID_TAG:
+            if call.call.type == BID_TAG:
                 level = call.call.bid.level
                 strain = STRAIN_MAP[call.call.bid.strain]
                 self.add_widget(Label(text="%d%s" % (level, strain)))
-            elif call.call.type_ == PASS_TAG:
+            elif call.call.type == PASS_TAG:
                 self.add_widget(Label(text=PASS))
-            elif call.call.type_ == DBL_TAG:
+            elif call.call.type == DBL_TAG:
                 self.add_widget(Label(text=DOUBLE))
-            elif call.call.type_ == RDBL_TAG:
+            elif call.call.type == RDBL_TAG:
                 self.add_widget(Label(text=REDOUBLE))
 
 
@@ -434,16 +442,17 @@ class BridgeApp(App):
         state = socket.recv_json()
         position_in_turn = state.get(POSITION_IN_TURN_KEY)
         self._play_area_panel.set_position_in_turn(position_in_turn)
+        allowed_calls = {parse_call(call) for call in
+                         state.get(ALLOWED_CALLS_KEY, [])}
+        self._call_panel.set_allowed_calls(allowed_calls)
         vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
                          VULNERABILITY_KEY in state else None)
         self._play_area_panel.set_vulnerability(vulnerability)
         cards = {position: parse_cards(hand) for (position, hand) in
-                 state[CARDS_KEY].items()} if CARDS_KEY in state else {}
-        allowed_cards = (set(parse_cards(state[ALLOWED_CARDS_KEY])) if
-                         ALLOWED_CARDS_KEY in state else [])
+                 state.get(CARDS_KEY, {}).items()}
+        allowed_cards = set(parse_cards(state.get(ALLOWED_CARDS_KEY, [])))
         self._play_area_panel.set_cards(cards, allowed_cards)
-        calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
-                 CALLS_KEY in state else [])
+        calls = [parse_call_entry(obj) for obj in state.get(CALLS_KEY, [])]
         self._bidding_panel.set_calls(calls)
         declarer = state.get(DECLARER_KEY)
         self._info_panel.set_declarer(declarer)
@@ -451,8 +460,7 @@ class BridgeApp(App):
                     CONTRACT_KEY in state else None)
         self._info_panel.set_contract(contract)
         trick = ([parse_trick_entry(obj) for obj in
-                  state[CURRENT_TRICK_KEY]] if
-                 CURRENT_TRICK_KEY in state else [])
+                  state.get(CURRENT_TRICK_KEY, [])])
         self._trick_panel.set_trick(trick)
         tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
                       TRICKS_WON_KEY in state else None)
