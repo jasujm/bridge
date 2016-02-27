@@ -12,7 +12,7 @@
  * \section bridgeprotocol Bridge protocol
  *
  * Bridge protocol uses ZMTP over TCP (http://rfc.zeromq.org/spec:23). The
- * backend opens two ZeroMQ sockets: control socket (REP) and data socket
+ * backend opens two ZeroMQ sockets: control socket (ROUTER) and data socket
  * (PUB).
  *
  * The control socket supports the following commands:

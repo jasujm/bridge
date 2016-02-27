@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <iterator>
+#include <tuple>
 #include <vector>
 
 namespace Bridge {
@@ -39,6 +40,32 @@ MessageQueue::HandlerMap& addTerminateHandler(
     return handlerMap;
 }
 
+bool recvMessageHelper(
+    std::string& identity, std::vector<std::string>& message,
+    zmq::socket_t& socket)
+{
+    auto more = false;
+    std::tie(identity, more) = recvMessage(socket);
+    if (!more) {
+        return false;
+    }
+    message.clear();
+    recvAll(std::back_inserter(message), socket);
+    // There should be at least two more frames, the first one which is empty,
+    // and the second one which contains the command
+    return message.size() >= 2 && message.front().size() == 0;
+}
+
+void sendReplyHelper(
+    const std::string& identity, const bool success, zmq::socket_t& socket)
+{
+    sendMessage(socket, identity, true);
+    sendMessage(socket, std::string {}, true);
+    sendMessage(
+        socket,
+        success ? MessageQueue::REPLY_SUCCESS : MessageQueue::REPLY_FAILURE);
+}
+
 }
 
 const std::string MessageQueue::REPLY_SUCCESS {"success"};
@@ -56,6 +83,8 @@ public:
 
 private:
 
+    void messageLoop();
+
     HandlerMap handlers;
     zmq::socket_t socket;
     bool go {true};
@@ -64,35 +93,23 @@ private:
 MessageQueue::Impl::Impl(
     HandlerMap handlers, zmq::context_t& context, const std::string& endpoint) :
     handlers {std::move(handlers)},
-    socket {context, zmq::socket_type::rep}
+    socket {context, zmq::socket_type::router}
 {
     socket.bind(endpoint);
 }
 
 void MessageQueue::Impl::run()
 {
-    auto message = std::vector<std::string> {};
-    while (go) {
-        message.clear();
-        try {
-            recvAll(std::back_inserter(message), socket);
-        } catch (const zmq::error_t& e) {
-            // If receiving failed because of interrupt signal, terminate
-            if (e.num() == EINTR) {
-                terminate();
-                break;
-            }
-            // Otherwise rethrow the exception
-            throw;
+    try {
+        messageLoop();
+    } catch (const zmq::error_t& e) {
+        // If receiving failed because of interrupt signal, terminate
+        if (e.num() == EINTR) {
+            terminate();
         }
-        const auto entry = handlers.find(message.at(0));
-        if (entry != handlers.end()) {
-            auto& handler = dereference(entry->second);
-            const auto success = handler.handle(
-                std::next(message.begin()), message.end());
-            sendMessage(socket, success ? REPLY_SUCCESS : REPLY_FAILURE);
-        } else {
-            sendMessage(socket, REPLY_FAILURE);
+        // Otherwise rethrow the exception
+        else {
+            throw;
         }
     }
 }
@@ -100,6 +117,26 @@ void MessageQueue::Impl::run()
 void MessageQueue::Impl::terminate()
 {
     go = false;
+}
+
+void MessageQueue::Impl::messageLoop()
+{
+    auto message = std::vector<std::string> {};
+    auto identity = std::string {};
+    while (go) {
+        if (recvMessageHelper(identity, message, socket)) {
+            assert(message.size() >= 2);
+            const auto entry = handlers.find(message.at(1));
+            if (entry != handlers.end()) {
+                auto& handler = dereference(entry->second);
+                const auto success = handler.handle(
+                    std::next(message.begin(), 2), message.end());
+                sendReplyHelper(identity, success, socket);
+                continue;
+            }
+        }
+        sendReplyHelper(identity, false, socket);
+    }
 }
 
 MessageQueue::MessageQueue(
