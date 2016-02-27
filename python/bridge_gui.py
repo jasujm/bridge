@@ -43,6 +43,7 @@ REPLY_SUCCESS = b"success"
 SCORE_COMMAND = b"score"
 STATE_COMMAND = b"state"
 
+ALLOWED_CARDS_KEY = "allowedCards"
 BID_KEY = "bid"
 CALLS_KEY = "calls"
 CALL_KEY = "call"
@@ -91,7 +92,7 @@ def send_command(socket, *parts):
     send_message(socket, parts[-1])
 
 
-def parse_hand(obj):
+def parse_cards(obj):
     return [Card(**card) for card in obj]
 
 
@@ -192,18 +193,14 @@ class HandPanel(BoxLayout):
         self.orientation = "vertical"
         self._buttons = {}
         self._position_label = Label(text=str(position))
-        self.add_widget(self._position_label)
-        for suit_tag, suit in zip(SUIT_TAGS, SUITS):
-            row = BoxLayout(orientation="horizontal")
-            row.add_widget(Label(text=suit))
+        for suit_tag in SUIT_TAGS:
             for rank_tag, rank in zip(RANK_TAGS, RANKS):
-                button = Button(text=rank, disabled=True)
+                button = Button(text=rank)
                 button.card_rank = rank_tag
                 button.card_suit = suit_tag
                 button.bind(on_press=self._make_play)
                 self._buttons[(rank_tag, suit_tag)] = button
-                row.add_widget(button)
-            self.add_widget(row)
+        self.set_hand([], [])
 
     def set_in_turn(self, in_turn):
         self._position_label.bold = in_turn
@@ -214,12 +211,22 @@ class HandPanel(BoxLayout):
         else:
             self._position_label.color = (1, 1, 1, 1)
 
-    def set_hand(self, hand):
-        for button in self._buttons.values():
-            button.disabled = True
-        # TODO: Error handling
-        for card in hand:
-            self._buttons[(card.rank, card.suit)].disabled = False
+    def set_hand(self, hand, allowed_cards):
+        self.clear_widgets()
+        self.add_widget(self._position_label)
+        for suit, suit_text in zip(SUIT_TAGS, SUITS):
+            row = BoxLayout(orientation="horizontal")
+            row.add_widget(Label(text=suit_text))
+            suit_cards = [card for card in hand if card.suit == suit]
+            suit_cards.sort(key=lambda card: RANK_TAGS.index(card.rank))
+            for card in suit_cards:
+                button = self._buttons[(card.rank, card.suit)]
+                # To ensure buttons parent isn't unused layout
+                if button.parent:
+                    button.parent.clear_widgets()
+                button.disabled = card not in allowed_cards
+                row.add_widget(button)
+            self.add_widget(row)
 
     def _make_play(self, button):
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
@@ -326,10 +333,11 @@ class PlayAreaPanel(GridLayout):
         self._hands[WEST_TAG].set_vulnerable(
             vulnerability and vulnerability.eastWest)
 
-    def set_cards(self, cards):
+    def set_cards(self, cards, allowed_cards):
         # TODO: Error handling
         for (position, hand) in cards.items():
-            self._hands[position].set_hand(hand)
+            hand_panel = self._hands[position]
+            hand_panel.set_hand(hand, allowed_cards)
 
 
 class ScoreSheetPanel(GridLayout):
@@ -429,9 +437,11 @@ class BridgeApp(App):
         vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
                          VULNERABILITY_KEY in state else None)
         self._play_area_panel.set_vulnerability(vulnerability)
-        cards = {position: parse_hand(hand) for (position, hand) in
+        cards = {position: parse_cards(hand) for (position, hand) in
                  state[CARDS_KEY].items()} if CARDS_KEY in state else {}
-        self._play_area_panel.set_cards(cards)
+        allowed_cards = (set(parse_cards(state[ALLOWED_CARDS_KEY])) if
+                         ALLOWED_CARDS_KEY in state else [])
+        self._play_area_panel.set_cards(cards, allowed_cards)
         calls = ([parse_call_entry(obj) for obj in state[CALLS_KEY]] if
                  CALLS_KEY in state else [])
         self._bidding_panel.set_calls(calls)
