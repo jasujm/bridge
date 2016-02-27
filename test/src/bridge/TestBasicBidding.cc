@@ -105,6 +105,17 @@ TEST_F(BasicBiddingTest, testLowerBidIsNotAllowed)
     EXPECT_FALSE(bidding.call(Position::EAST, BID));
 }
 
+TEST_F(BasicBiddingTest, testInitiallyLowestBidIsAllowed)
+{
+    EXPECT_EQ(Bridge::Bid::LOWEST_BID, bidding.getLowestAllowedBid());
+}
+
+TEST_F(BasicBiddingTest, testAfterBiddingTheNextHigherBidIsAllowed)
+{
+    bidding.call(Position::NORTH, BID);
+    EXPECT_EQ(nextHigherBid(BID), bidding.getLowestAllowedBid());
+}
+
 TEST_F(BasicBiddingTest, testEmptyContractMayNotBeDoubled)
 {
     EXPECT_FALSE(bidding.call(Position::NORTH, Double {}));

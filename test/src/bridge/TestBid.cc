@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <boost/optional/optional.hpp>
+
 #include <sstream>
 #include <stdexcept>
 
@@ -25,6 +27,21 @@ TEST(BidTest, testLevelAboveUpperBound)
 {
     EXPECT_THROW(Bid(Bid::MAXIMUM_LEVEL + 1, Strain::NO_TRUMP),
                  std::invalid_argument);
+}
+
+TEST(BidTest, testNextHigherBidWhenStrainIsNotNoTrumpIncreasesStrain)
+{
+    EXPECT_EQ(Bid(1, Strain::HEARTS), nextHigherBid(Bid(1, Strain::DIAMONDS)));
+}
+
+TEST(BidTest, testNextHigherBidWhenStrainIsNoTrumpIncreasesLevel)
+{
+    EXPECT_EQ(Bid(2, Strain::CLUBS), nextHigherBid(Bid(1, Strain::NO_TRUMP)));
+}
+
+TEST(BidTest, testThereIsNoHigherBidThanHighestBid)
+{
+    EXPECT_FALSE(nextHigherBid(Bid::HIGHEST_BID));
 }
 
 TEST(BidTest, testEquality)

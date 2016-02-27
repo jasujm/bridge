@@ -18,6 +18,7 @@ public:
     MOCK_CONST_METHOD0(handleGetOpeningPosition, Position());
     MOCK_CONST_METHOD1(handleGetCall, Call(std::size_t));
     MOCK_CONST_METHOD1(handleIsCallAllowed, bool(const Call&));
+    MOCK_CONST_METHOD0(handleGetLowestAllowedBid, boost::optional<Bid>());
     MOCK_CONST_METHOD0(handleGetContract, Contract());
     MOCK_CONST_METHOD0(handleGetDeclarerPosition, Position());
     MOCK_CONST_METHOD0(handleHasEnded, bool());

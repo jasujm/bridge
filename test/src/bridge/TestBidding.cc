@@ -30,8 +30,11 @@ constexpr Contract CONTRACT {
     Bridge::Bid {2, Bridge::Strain::CLUBS},
     Bridge::Doubling::UNDOUBLED,
 };
+constexpr Bridge::Bid LOWEST_ALLOWED_BID {2, Bridge::Strain::DIAMONDS};
 const Bridge::Call VALID_CALL {Bridge::Pass {}};
 const Bridge::Call INVALID_CALL {Bridge::Double {}};
+const Bridge::Call DOUBLE_CALL {Bridge::Double {}};
+const Bridge::Call REDOUBLE_CALL {Bridge::Redouble {}};
 }
 
 class BiddingTest : public testing::TestWithParam<std::size_t> {
@@ -40,12 +43,16 @@ protected:
     {
         ON_CALL(bidding, handleIsCallAllowed(VALID_CALL))
             .WillByDefault(Return(true));
+        ON_CALL(bidding, handleIsCallAllowed(VALID_CALL))
+            .WillByDefault(Return(true));
         ON_CALL(bidding, handleGetOpeningPosition())
             .WillByDefault(Return(Position::NORTH));
         ON_CALL(bidding, handleGetCall(_))
             .WillByDefault(Return(VALID_CALL));
         ON_CALL(bidding, handleIsCallAllowed(INVALID_CALL))
             .WillByDefault(Return(false));
+        ON_CALL(bidding, handleGetLowestAllowedBid())
+            .WillByDefault(Return(LOWEST_ALLOWED_BID));
         ON_CALL(bidding, handleHasContract())
             .WillByDefault(Return(true));
         ON_CALL(bidding, handleGetContract())
@@ -114,6 +121,66 @@ TEST_F(BiddingTest, testCallWhenBiddingHasEnded)
     EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
     EXPECT_CALL(bidding, handleAddCall(INVALID_CALL)).Times(0);
     EXPECT_FALSE(bidding.call(Position::NORTH, VALID_CALL));
+}
+
+TEST_F(BiddingTest, testLowestAllowedBidWhenBiddingIsOngoing)
+{
+    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(bidding, handleGetLowestAllowedBid());
+    EXPECT_EQ(LOWEST_ALLOWED_BID, bidding.getLowestAllowedBid());
+}
+
+TEST_F(BiddingTest, testLowestAllowedBidWhenBiddingHasEnded)
+{
+    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
+    EXPECT_CALL(bidding, handleGetLowestAllowedBid()).Times(0);
+    EXPECT_FALSE(bidding.getLowestAllowedBid());
+}
+
+TEST_F(BiddingTest, testDoublingAllowed)
+{
+    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(
+        bidding, handleIsCallAllowed(DOUBLE_CALL)).WillOnce(Return(true));
+    EXPECT_TRUE(bidding.isDoublingAllowed());
+}
+
+TEST_F(BiddingTest, testDoublingNotAllowed)
+{
+    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(
+        bidding, handleIsCallAllowed(DOUBLE_CALL)).WillOnce(Return(false));
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+}
+
+TEST_F(BiddingTest, testDoublingNotAllowedWhenBiddingHasEnded)
+{
+    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
+    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+}
+
+TEST_F(BiddingTest, testRedoublingAllowed)
+{
+    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(
+        bidding, handleIsCallAllowed(REDOUBLE_CALL)).WillOnce(Return(true));
+    EXPECT_TRUE(bidding.isRedoublingAllowed());
+}
+
+TEST_F(BiddingTest, testRedoublingNotAllowed)
+{
+    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(
+        bidding, handleIsCallAllowed(REDOUBLE_CALL)).WillOnce(Return(false));
+    EXPECT_FALSE(bidding.isRedoublingAllowed());
+}
+
+TEST_F(BiddingTest, testRedoublingNotAllowedWhenBiddingHasEnded)
+{
+    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
+    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
+    EXPECT_FALSE(bidding.isRedoublingAllowed());
 }
 
 TEST_P(BiddingTest, testPlayerInTurnWhenBiddingIsOngoing)

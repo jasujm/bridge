@@ -44,6 +44,8 @@ private:
 
     bool handleIsCallAllowed(const Call& call) const override;
 
+    boost::optional<Bid> handleGetLowestAllowedBid() const override;
+
     Contract handleGetContract() const override;
 
     Position handleGetDeclarerPosition() const override;

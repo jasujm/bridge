@@ -42,6 +42,27 @@ public:
      */
     bool call(Position position, const Call& call);
 
+    /** \brief Determine the lowest allowed bid
+     *
+     * \return the lowest Bid that the position in turn can make, or none if
+     * hasEnded() == true or no higher bids are allowed
+     */
+    boost::optional<Bid> getLowestAllowedBid() const;
+
+    /** \brief Determine if doubling is allowed
+     *
+     * \return true if hasEnded() == false and the player in turn can double,
+     * false otherwise
+     */
+    bool isDoublingAllowed() const;
+
+    /** \brief Determine if redoubling is allowed
+     *
+     * \return true if hasEnded() == false and the player in turn can
+     * redouble, false otherwise
+     */
+    bool isRedoublingAllowed() const;
+
     /** \brief Determine which position has the turn to bid
      *
      * \return the position in turn, or none if the bidding has ended
@@ -157,6 +178,14 @@ private:
      * \return true if call is allowed, false otherwise
      */
     virtual bool handleIsCallAllowed(const Call& call) const = 0;
+
+    /** \brief Handle for determining the lowest allowed bid
+     *
+     * It may be assumed that hasEnded() == false.
+     *
+     * \return The lowest bid that the position in turn can make
+     */
+    virtual boost::optional<Bid> handleGetLowestAllowedBid() const = 0;
 
     /** \brief Handle for determining which contract was determined by the
      * bidding

@@ -8,6 +8,7 @@
 
 #include <boost/bimap/bimap.hpp>
 #include <boost/operators.hpp>
+#include <boost/optional/optional_fwd.hpp>
 
 #include <array>
 #include <iosfwd>
@@ -76,6 +77,9 @@ struct Bid : private boost::totally_ordered<Bid> {
     static constexpr int MINIMUM_LEVEL = 1; ///< \brief Minimum level allowed
     static constexpr int MAXIMUM_LEVEL = 7; ///< \brief Maximum level allowed
 
+    static const Bid LOWEST_BID; ///< \brief The lowest possible bid
+    static const Bid HIGHEST_BID; ///< \brief The highest possible bid
+
     /** \brief Determine whether given level is valid bidding level
      *
      * \param level the level to be validated
@@ -104,6 +108,15 @@ struct Bid : private boost::totally_ordered<Bid> {
     {
     }
 };
+
+/** \brief Determine the next bid in bidding order
+ *
+ * \param bid the bid
+ *
+ * \return The lowest bid greater that \p bid, or none if \p bid is already
+ * the highest possible bid
+ */
+boost::optional<Bid> nextHigherBid(const Bid& bid);
 
 /** \brief Equality operator for bids
  *

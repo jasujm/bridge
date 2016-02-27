@@ -18,6 +18,24 @@ bool Bidding::call(const Position position, const Call& call)
     return false;
 }
 
+boost::optional<Bid> Bidding::getLowestAllowedBid() const
+{
+    if (!hasEnded()) {
+        return handleGetLowestAllowedBid();
+    }
+    return boost::none;
+}
+
+bool Bidding::isDoublingAllowed() const
+{
+    return !hasEnded() && handleIsCallAllowed(Call {Double {}});
+}
+
+bool Bidding::isRedoublingAllowed() const
+{
+    return !hasEnded() && handleIsCallAllowed(Call {Redouble {}});
+}
+
 boost::optional<Position> Bidding::getPositionInTurn() const
 {
     if (!hasEnded()) {

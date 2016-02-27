@@ -159,6 +159,14 @@ bool BasicBidding::handleIsCallAllowed(const Call& call) const
         CallAllowedVisitor {contract, lastBidderHasTurn}, call);
 }
 
+boost::optional<Bid> BasicBidding::handleGetLowestAllowedBid() const
+{
+    if (contract) {
+        return nextHigherBid(contract->bid);
+    }
+    return Bid::LOWEST_BID;
+}
+
 Contract BasicBidding::handleGetContract() const
 {
     assert(contract);
