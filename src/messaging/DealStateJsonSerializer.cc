@@ -20,6 +20,7 @@ namespace Messaging {
 
 const std::string DEAL_STATE_STAGE_KEY {"stage"};
 const std::string DEAL_STATE_POSITION_IN_TURN_KEY {"positionInTurn"};
+const std::string DEAL_STATE_ALLOWED_CALLS_KEY {"allowedCalls"};
 const std::string DEAL_STATE_ALLOWED_CARDS_KEY {"allowedCards"};
 const std::string DEAL_STATE_VULNERABILITY_KEY {"vulnerability"};
 const std::string DEAL_STATE_CARDS_KEY {"cards"};
@@ -111,6 +112,7 @@ json JsonConverter<DealState>::convertToJson(const DealState& dealState)
 {
     auto j = json {{DEAL_STATE_STAGE_KEY, toJson(dealState.stage)}};
     optionalPut(j, DEAL_STATE_POSITION_IN_TURN_KEY, dealState.positionInTurn);
+    optionalPut(j, DEAL_STATE_ALLOWED_CALLS_KEY, dealState.allowedCalls);
     optionalPut(j, DEAL_STATE_ALLOWED_CARDS_KEY, dealState.allowedCards);
     optionalPut(j, DEAL_STATE_VULNERABILITY_KEY, dealState.vulnerability);
     optionalPut(j, DEAL_STATE_CARDS_KEY, dealState.cards);
@@ -128,6 +130,8 @@ DealState JsonConverter<DealState>::convertFromJson(const json& j)
     state.stage = checkedGet<Stage>(j, DEAL_STATE_STAGE_KEY);
     state.positionInTurn = optionalGet<Position>(
         j, DEAL_STATE_POSITION_IN_TURN_KEY);
+    state.allowedCalls = optionalGet<std::vector<Call>>(
+        j, DEAL_STATE_ALLOWED_CALLS_KEY);
     state.allowedCards = optionalGet<std::vector<CardType>>(
         j, DEAL_STATE_ALLOWED_CARDS_KEY);
     state.vulnerability = optionalGet<Vulnerability>(

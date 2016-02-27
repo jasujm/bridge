@@ -345,6 +345,13 @@ TEST_F(JsonSerializerTest, testComplexDealState)
             toJson(Position::EAST)
         },
         {
+            DEAL_STATE_ALLOWED_CALLS_KEY,
+            {
+                toJson(call1),
+                toJson(call2)
+            }
+        },
+        {
             DEAL_STATE_ALLOWED_CARDS_KEY,
             {
                 toJson(card1),
@@ -439,15 +446,16 @@ TEST_F(JsonSerializerTest, testComplexDealState)
     };
     auto state = DealState {};
     state.stage = Stage::PLAYING;
-    state.positionInTurn.emplace(Position::EAST);
-    state.allowedCards.emplace(DealState::AllowedCards {card1, card2, card3});
-    state.vulnerability.emplace(VULNERABILITY);
-    state.cards.emplace(cards);
-    state.calls.emplace(calls);
-    state.declarer.emplace(Position::SOUTH);
-    state.contract.emplace(CONTRACT);
-    state.currentTrick.emplace(trick);
-    state.tricksWon.emplace(TRICKS_WON);
+    state.positionInTurn = Position::EAST;
+    state.allowedCalls = DealState::AllowedCalls {call1, call2};
+    state.allowedCards = DealState::AllowedCards {card1, card2, card3};
+    state.vulnerability = VULNERABILITY;
+    state.cards = cards;
+    state.calls = calls;
+    state.declarer = Position::SOUTH;
+    state.contract = CONTRACT;
+    state.currentTrick = trick;
+    state.tricksWon = TRICKS_WON;
     testHelper(state, j);
 }
 
