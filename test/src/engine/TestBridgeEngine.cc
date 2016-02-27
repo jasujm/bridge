@@ -1,6 +1,7 @@
 #include "bridge/BasicHand.hh"
 #include "bridge/BasicPlayer.hh"
 #include "bridge/Bid.hh"
+#include "bridge/BidIterator.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
@@ -24,9 +25,12 @@
 #include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 using testing::_;
@@ -37,24 +41,18 @@ using testing::NiceMock;
 using testing::Return;
 using testing::ReturnRef;
 
-using Bridge::Engine::BridgeEngine;
-using Bridge::N_CARDS;
-using Bridge::N_CARDS_PER_PLAYER;
-using Bridge::N_POSITIONS;
-using Bridge::N_PLAYERS;
-using Bridge::from_to;
-using Bridge::enumerate;
-using Bridge::to;
+using namespace Bridge;
+using Engine::BridgeEngine;
 
 class BridgeEngineTest : public testing::Test {
 private:
-    auto cardsForFunctor(const Bridge::Position position)
+    auto cardsForFunctor(const Position position)
     {
         return [&cards = cards, position]() {
             auto ns = cardsFor(position);
-            return std::make_unique<Bridge::BasicHand>(
-                Bridge::containerAccessIterator(ns.begin(), cards),
-                Bridge::containerAccessIterator(ns.end(), cards));
+            return std::make_unique<BasicHand>(
+                containerAccessIterator(ns.begin(), cards),
+                containerAccessIterator(ns.end(), cards));
         };
     }
 
@@ -64,10 +62,10 @@ protected:
         for (const auto e : enumerate(cards))
         {
             ON_CALL(e.second, handleGetType())
-                .WillByDefault(Return(Bridge::enumerateCardType(e.first)));
+                .WillByDefault(Return(enumerateCardType(e.first)));
             ON_CALL(e.second, handleIsKnown()).WillByDefault(Return(true));
         }
-        for (const auto position : Bridge::POSITIONS) {
+        for (const auto position : POSITIONS) {
             ON_CALL(*cardManager, handleGetHand(cardsFor(position)))
                 .WillByDefault(InvokeWithoutArgs(cardsForFunctor(position)));
         }
@@ -79,17 +77,33 @@ protected:
         Mock::VerifyAndClearExpectations(engine.get());
     }
 
-    void updateAllowedCards(Bridge::Position position)
+    void updateAllowedCards(Position position)
     {
-        expectedState.allowedCards.emplace(expectedState.cards->at(position));
+        expectedState.allowedCards = expectedState.cards->at(position);
     }
 
-    void updateExpectedStateAfterPlay(const Bridge::Player& player)
+    void updateAllowedCalls(
+        bool doublingAllowed, bool redoublingAllowed,
+        const Bid& lowestAllowedBid)
+    {
+        expectedState.allowedCalls = DealState::AllowedCalls {Pass {}};
+        if (doublingAllowed) {
+            expectedState.allowedCalls->emplace_back(Double {});
+        }
+        if (redoublingAllowed) {
+            expectedState.allowedCalls->emplace_back(Redouble {});
+        }
+        std::copy(
+            BidIterator(lowestAllowedBid), BidIterator(boost::none),
+            std::back_inserter(*expectedState.allowedCalls));
+    }
+
+    void updateExpectedStateAfterPlay(const Player& player)
     {
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
         const auto new_position = clockwise(position);
-        expectedState.positionInTurn.emplace(new_position);
+        expectedState.positionInTurn = new_position;
         updateAllowedCards(new_position);
         expectedState.currentTrick->emplace_back(position, cards.front());
         cards.erase(cards.begin());
@@ -101,19 +115,19 @@ protected:
         ++expectedState.tricksWon->tricksWonByNorthSouth;
     }
 
-    std::array<NiceMock<Bridge::MockCard>, N_CARDS> cards;
-    std::array<std::shared_ptr<Bridge::BasicHand>, N_POSITIONS> hands;
-    const std::shared_ptr<Bridge::Engine::MockCardManager> cardManager {
-        std::make_shared<NiceMock<Bridge::Engine::MockCardManager>>()};
-    const std::shared_ptr<Bridge::Engine::MockGameManager> gameManager {
-        std::make_shared<NiceMock<Bridge::Engine::MockGameManager>>()};
-    std::array<std::shared_ptr<Bridge::Player>, N_PLAYERS> players {{
-        std::make_shared<Bridge::BasicPlayer>(),
-        std::make_shared<Bridge::BasicPlayer>(),
-        std::make_shared<Bridge::BasicPlayer>(),
-        std::make_shared<Bridge::BasicPlayer>()}};
+    std::array<NiceMock<MockCard>, N_CARDS> cards;
+    std::array<std::shared_ptr<BasicHand>, N_POSITIONS> hands;
+    const std::shared_ptr<Engine::MockCardManager> cardManager {
+        std::make_shared<NiceMock<Engine::MockCardManager>>()};
+    const std::shared_ptr<Engine::MockGameManager> gameManager {
+        std::make_shared<NiceMock<Engine::MockGameManager>>()};
+    std::array<std::shared_ptr<Player>, N_PLAYERS> players {{
+        std::make_shared<BasicPlayer>(),
+        std::make_shared<BasicPlayer>(),
+        std::make_shared<BasicPlayer>(),
+        std::make_shared<BasicPlayer>()}};
     std::unique_ptr<BridgeEngine> engine;
-    Bridge::DealState expectedState;
+    DealState expectedState;
 };
 
 TEST_F(BridgeEngineTest, testInvalidConstruction)
@@ -126,7 +140,7 @@ TEST_F(BridgeEngineTest, testInvalidConstruction)
 
 TEST_F(BridgeEngineTest, testPlayers)
 {
-    for (const auto position : Bridge::POSITIONS) {
+    for (const auto position : POSITIONS) {
         EXPECT_EQ(position, engine->getPosition(engine->getPlayer(position)));
     }
 }
@@ -134,13 +148,12 @@ TEST_F(BridgeEngineTest, testPlayers)
 TEST_F(BridgeEngineTest, testBridgeEngine)
 {
     // TODO: Could this test be less ugly?
-    using namespace Bridge;
     constexpr Bid BID {7, Strain::CLUBS};
 
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
         *gameManager, handleAddResult(
-            Partnership::EAST_WEST, Contract {BID, Doubling::UNDOUBLED}, 0));
+            Partnership::EAST_WEST, Contract {BID, Doubling::REDOUBLED}, 0));
     EXPECT_CALL(*gameManager, handleGetOpenerPosition())
         .WillRepeatedly(Return(Position::NORTH));
     EXPECT_CALL(*gameManager, handleGetVulnerability())
@@ -154,7 +167,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Shuffling
     cardManager->notifyAll(Engine::Shuffled {});
     expectedState.stage = Stage::BIDDING;
-    expectedState.positionInTurn.emplace(Position::NORTH);
+    expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();
     expectedState.calls.emplace();
     for (const auto position : POSITIONS) {
@@ -169,23 +182,36 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     }
 
     // Bidding
-    const auto calls = std::vector<Call>{
-        Pass {}, BID, Pass {}, Pass {}, Pass {}};
+    const auto next_bid = nextHigherBid(BID).value();
+    const auto calls = {
+        std::make_tuple(Call {Pass {}},     false, false, Bid::LOWEST_BID),
+        std::make_tuple(Call {BID},         false, false, Bid::LOWEST_BID),
+        std::make_tuple(Call {Double {}},   true,  false, next_bid),
+        std::make_tuple(Call {Redouble {}}, false, true,  next_bid),
+        std::make_tuple(Call {Pass {}},     false, false, next_bid),
+        std::make_tuple(Call {Pass {}},     false, false, next_bid),
+        std::make_tuple(Call {Pass {}},     false, false, next_bid),
+    };
     for (const auto e : enumerate(calls)) {
+        const auto& call = std::get<0>(e.second);
+        updateAllowedCalls(
+            std::get<1>(e.second), std::get<2>(e.second),
+            std::get<3>(e.second));
         ASSERT_EQ(expectedState, makeDealState(*engine));
         const auto& player = *players[e.first % players.size()];
         const auto position = engine->getPosition(player);
-        engine->call(player, e.second);
-        expectedState.calls->emplace_back(position, e.second);
+        engine->call(player, call);
+        expectedState.calls->emplace_back(position, call);
         expectedState.positionInTurn.emplace(clockwise(position));
     }
 
     // Playing
     expectedState.stage = Stage::PLAYING;
-    expectedState.positionInTurn.emplace(Position::SOUTH);
+    expectedState.positionInTurn = Position::SOUTH;
+    expectedState.allowedCalls = boost::none;
     updateAllowedCards(Position::SOUTH);
-    expectedState.declarer.emplace(Position::EAST);
-    expectedState.contract.emplace(BID, Doubling::UNDOUBLED);
+    expectedState.declarer = Position::EAST;
+    expectedState.contract.emplace(BID, Doubling::REDOUBLED);
     expectedState.currentTrick.emplace();
     expectedState.tricksWon.emplace(0, 0);
     for (const auto i : to(players.size())) {
@@ -196,7 +222,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         updateExpectedStateAfterPlay(player);
     }
 
-    expectedState.positionInTurn.emplace(Position::NORTH);
+    expectedState.positionInTurn = Position::NORTH;
     updateAllowedCards(Position::NORTH);
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
@@ -219,8 +245,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
 TEST_F(BridgeEngineTest, testPassOut)
 {
-    using namespace Bridge;
-
     // Two deals as game does not end
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(*gameManager, handleAddPassedOut());
@@ -234,8 +258,6 @@ TEST_F(BridgeEngineTest, testPassOut)
 
 TEST_F(BridgeEngineTest, testEndGame)
 {
-    using namespace Bridge;
-
     // Just one deal as game ends
     EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));

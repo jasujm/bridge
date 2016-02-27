@@ -241,7 +241,7 @@ struct JsonConverter<std::vector<T>>
      *
      * \param j the JSON array to convert
      *
-     * \return Vector consisting of each element of \j converted from JSON
+     * \return Vector consisting of each element of \p j converted from JSON
      * using fromJson().
      */
     static std::vector<T> convertFromJson(const nlohmann::json& j);

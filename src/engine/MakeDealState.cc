@@ -1,5 +1,6 @@
 #include "engine/MakeDealState.hh"
 
+#include "bridge/BidIterator.hh"
 #include "bridge/Bidding.hh"
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
@@ -11,12 +12,30 @@
 
 #include <boost/logic/tribool.hpp>
 
+#include <algorithm>
 #include <utility>
 
 namespace Bridge {
 namespace Engine {
 
 namespace {
+
+void fillAllowedCalls(DealState& state, const Bidding& bidding)
+{
+    const auto position = dereference(state.positionInTurn);
+    auto calls = DealState::AllowedCalls {Pass {}};
+    if (bidding.isDoublingAllowed()) {
+        calls.emplace_back(Double {});
+    }
+    if (bidding.isRedoublingAllowed()) {
+        calls.emplace_back(Redouble {});
+    }
+    std::copy(
+        BidIterator(bidding.getLowestAllowedBid()),
+        BidIterator(boost::none),
+        std::back_inserter(calls));
+    state.allowedCalls.emplace(std::move(calls));
+}
 
 void fillAllowedCards(
     DealState& state, const Hand& hand, const Trick& trick)
@@ -83,11 +102,6 @@ DealState makeDealState(const BridgeEngine& engine)
 
     if (const auto player = engine.getPlayerInTurn()) {
         state.positionInTurn = engine.getPosition(*player);
-        if (const auto trick = engine.getCurrentTrick()) {
-            if (const auto hand = engine.getHand(*player)) {
-                fillAllowedCards(state, *hand, *trick);
-            }
-        }
     }
 
     // Fill cards
@@ -113,6 +127,8 @@ DealState makeDealState(const BridgeEngine& engine)
         fillBidding(state, *bidding);
         if (bidding->hasContract()) {
             fillContract(state, *bidding);
+        } else {
+            fillAllowedCalls(state, *bidding);
         }
     }
 
@@ -120,6 +136,11 @@ DealState makeDealState(const BridgeEngine& engine)
     if (const auto current_trick = engine.getCurrentTrick()) {
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, engine);
+        if (const auto player = engine.getPlayerInTurn()) {
+            if (const auto hand = engine.getHand(*player)) {
+                fillAllowedCards(state, *hand, *current_trick);
+            }
+        }
     }
 
     // Fill tricks won by each partnership
