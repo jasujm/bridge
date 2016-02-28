@@ -16,7 +16,8 @@ using testing::Return;
 
 namespace {
 
-const auto IDENTITY = std::string {"identity"};
+using namespace std::string_literals;
+const auto IDENTITY = "identity"s;
 
 class MockFunction {
 public:

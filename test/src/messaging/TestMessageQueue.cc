@@ -13,17 +13,19 @@
 #include <thread>
 #include <utility>
 
+using namespace Bridge::Messaging;
+
 using testing::_;
 using testing::ElementsAre;
 using testing::Return;
 
-using namespace Bridge::Messaging;
+using namespace std::string_literals;
 
 namespace {
-const auto IDENTITY = std::string {"identity"};
-const auto ENDPOINT = std::string {"inproc://testing"};
-const auto COMMAND = std::string {"command"};
-const auto TERMINATE = std::string {"terminate"};
+const auto IDENTITY = "identity"s;
+const auto ENDPOINT = "inproc://testing"s;
+const auto COMMAND = "command"s;
+const auto TERMINATE = "terminate"s;
 }
 
 class MessageQueueTest : public testing::Test {
@@ -55,8 +57,8 @@ protected:
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 {
-    const auto p1 = std::string {"p1"};
-    const auto p2 = std::string {"p2"};
+    const auto p1 = "p1"s;
+    const auto p2 = "p2"s;
 
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
         .WillOnce(Return(true));
@@ -70,8 +72,8 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 {
-    const auto p1 = std::string {"p1"};
-    const auto p2 = std::string {"p2"};
+    const auto p1 = "p1"s;
+    const auto p2 = "p2"s;
 
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
         .WillOnce(Return(false));
