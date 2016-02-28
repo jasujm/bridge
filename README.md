@@ -63,23 +63,26 @@ GUIs connected to the same backend (they all then share and control the same
 state). Currently the backend opens fixed ports so multiple backends cannot be
 run at the same time.
 
-There are three parts in the screen:
+Players and their cards are shown in the middle of the screen. The player
+whose position is bolded has turn to call (during auction) or play a card to
+the trick (during playing).
 
 ### Score
 
-Scoresheet is displayed on the right. More rows are added to the sheet after
+Score sheet is displayed on the right. More rows are added to the sheet after
 every deal.
 
 ### Call
 
-Bidding for the current deal is displayed on the right. Calls are made using
-the buttons and the bidding is shown in the table underneath.
+Bidding for the current deal is displayed on the right. Calls are made pushing
+the buttons and the call sequence is shown in the table underneath. Enabled
+buttons correspond to the allowed cals.
 
 ### Play
 
-Cards for all the players are displayed in the middle. Enabled buttons
-correspond to cards currently held by the player. After the auction cards are
-played by pushing the buttons.
+Cards for all the players are displayed in the middle as buttons. During the
+playing phase cards are played by pushing the buttons. Enabled buttons
+correspond to the cards that can be played to the current trick.
 
 ## TODO
 
