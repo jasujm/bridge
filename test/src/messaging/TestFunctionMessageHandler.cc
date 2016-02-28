@@ -21,9 +21,9 @@ const auto IDENTITY = "identity"s;
 
 class MockFunction {
 public:
-    MOCK_METHOD0(call0, bool());
-    MOCK_METHOD1(call1, bool(std::string));
-    MOCK_METHOD2(call2, bool(int, std::string));
+    MOCK_METHOD1(call0, bool(std::string));
+    MOCK_METHOD2(call1, bool(std::string, std::string));
+    MOCK_METHOD3(call2, bool(std::string, int, std::string));
 };
 
 class TestPolicy {
@@ -66,9 +66,12 @@ TEST_P(FunctionMessageHandlerTest, testNoParams)
 {
     const auto success = GetParam();
     auto handler = makeMessageHandler(
-        [this]() { return function.call0(); }, TestPolicy {});
+        [this](const auto& identity)
+        {
+            return function.call0(identity);
+        }, TestPolicy {});
     const auto params = std::vector<std::string> {};
-    EXPECT_CALL(function, call0()).WillOnce(Return(success));
+    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(success));
     EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
@@ -76,10 +79,12 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
 {
     const auto success = GetParam();
     auto handler = makeMessageHandler<std::string>(
-        [this](std::string param) { return function.call1(param); },
-        TestPolicy {});
+        [this](const auto& identity, std::string param)
+        {
+            return function.call1(identity, param);
+        }, TestPolicy {});
     const auto params = std::vector<std::string> { "param" };
-    EXPECT_CALL(function, call1("param")).WillOnce(Return(success));
+    EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(success));
     EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
@@ -87,20 +92,22 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
 {
     const auto success = GetParam();
     auto handler = makeMessageHandler<int, std::string>(
-        [this](int param1, std::string param2)
+        [this](const auto& identity, int param1, std::string param2)
         {
-            return function.call2(param1, param2);
+            return function.call2(identity, param1, param2);
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "1", "param" };
-    EXPECT_CALL(function, call2(1, "param")).WillOnce(Return(success));
+    EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(success));
     EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
 {
     auto handler = makeMessageHandler<std::string>(
-        [this](std::string param) { return function.call1(param); },
-        FailingPolicy {});
+        [this](const auto& identity, std::string param)
+        {
+            return function.call1(identity, param);
+        }, FailingPolicy {});
     const auto params = std::vector<std::string> { "param" };
     EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
 }
@@ -108,7 +115,10 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
 TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
 {
     auto handler = makeMessageHandler(
-        [this]() { return function.call0(); }, TestPolicy {});
+        [this](const auto& identity)
+        {
+            return function.call0(identity);
+        }, TestPolicy {});
     const auto params = std::vector<std::string> { "invalid" };
     EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
 }

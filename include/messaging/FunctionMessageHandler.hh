@@ -33,14 +33,18 @@ namespace Messaging {
  * invocation was successful.
  *
  * \tparam Function Type of the function that FunctionMessageHandler
- * wraps. The function may take an arbitrary number of parameters. It must
- * return a value convertible to boolean indicating whether or not the command
- * was successfully handled.
+ * wraps. The function must take the identity of the sender of the message
+ * (std::string or something to which it can be converted) as it’s first
+ * argument, and may take an arbitrary number of parameters after that. It
+ * must return a value convertible to bool indicating whether or not the
+ * command was successfully handled.
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
- * \tparam Args The types of the arguments used when calling the
- * function. This needs to be specified to distinguish between different
- * possible calling signatures provided by the function.
+ *
+ * \tparam Args The types of the arguments used when calling the function
+ * (excluding the first identity parameter). This needs to be specified to
+ * distinguish between different possible calling signatures provided by the
+ * function.
  *
  * \sa makeMessageHandler()
  */
@@ -61,10 +65,16 @@ private:
     bool doHandle(const std::string& identity, ParameterRange params) override;
 
     template<std::size_t... Ns>
-    bool internalCallFunction(ParameterRange params, std::index_sequence<Ns...>)
+    bool internalCallFunction(
+        const std::string& identity, ParameterRange params,
+        std::index_sequence<Ns...>)
     {
-        auto&& params_ = deserializeAll<Args...>(serializer, params[Ns]...);
-        return params_ ? function(std::move(std::get<Ns>(*params_))...) : false;
+        auto&& params_ = deserializeAll<std::decay_t<Args>...>(
+            serializer, params[Ns]...);
+        if (params_) {
+            return function(identity, std::move(std::get<Ns>(*params_))...);
+        }
+        return false;
     }
 
     Function function;
@@ -81,21 +91,23 @@ FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageH
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    const std::string&, MessageHandler::ParameterRange params)
+    const std::string& identity, MessageHandler::ParameterRange params)
 {
     if (params.size() != sizeof...(Args)) {
         return false;
     }
 
     return internalCallFunction(
-        params,
-        std::index_sequence_for<Args...>());
+        identity, params, std::index_sequence_for<Args...>());
 }
 
 /** \brief Utility for wrapping function into message handler
  *
  * This function constructs FunctionMessageHandler to the heap using the
  * parameters passed to this function and returns pointer to it.
+ *
+ * \tparam Args the parameter types to the function, excluding the leading
+ * identity string
  *
  * \param function the function to be wrapped
  * \param serializer the serializer used for converting to/from argument and
@@ -128,16 +140,23 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
  * \sa FunctionMessageHandler
  */
 template<
-    typename Handler, typename Bool, typename... Args,
+    typename Handler, typename Bool, typename String, typename... Args,
     typename SerializationPolicy>
 auto makeMessageHandler(
-    Handler& handler, Bool (Handler::*memfn)(Args...),
+    Handler& handler, Bool (Handler::*memfn)(String, Args...),
     SerializationPolicy&& serializer)
 {
-    return makeMessageHandler<std::decay_t<Args>...>(
-        [&handler, memfn](std::add_rvalue_reference_t<Args>... args)
+    // Identity always comes as const std::string& from
+    // FunctionMessageHandler::doHandle so no need to move/forward
+    // it. However, other parameters are constructed in doHandle and moved to
+    // the handler function, so there might be performance to be gained by
+    // accepting them as rvalue references.
+    return makeMessageHandler<Args...>(
+        [&handler, memfn](
+            const std::string& identity,
+            std::add_rvalue_reference_t<Args>... args)
         {
-            return (handler.*memfn)(std::move(args)...);
+            return (handler.*memfn)(identity, std::move(args)...);
         }, std::forward<SerializationPolicy>(serializer));
 }
 

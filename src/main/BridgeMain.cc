@@ -57,10 +57,13 @@ private:
 
     void handleNotify(const BridgeEngine::DealEnded&);
 
-    bool state();
-    bool call(const Call& call);
-    bool play(const CardType& card);
-    bool score();
+    bool state(const std::string& identity);
+    bool call(const std::string& identity, const Call& call);
+    bool play(const std::string& identity, const CardType& card);
+    bool score(const std::string& identity);
+
+    void publishState();
+    void publishScore();
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -114,32 +117,32 @@ void BridgeMain::Impl::terminate()
     messageQueue.terminate();
 }
 
-void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
-{
-    score();
-}
-
-bool BridgeMain::Impl::state()
-{
-    sendCommand(
-        dataSocket, JsonSerializer {}, STATE_PREFIX, makeDealState(engine));
-    return true;
-}
-
 BridgeEngine& BridgeMain::Impl::getEngine()
 {
     return engine;
 }
 
-bool BridgeMain::Impl::call(const Call& call)
+void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
+{
+    publishScore();
+}
+
+bool BridgeMain::Impl::state(const std::string&)
+{
+    publishState();
+    return true;
+}
+
+bool BridgeMain::Impl::call(const std::string&, const Call& call)
 {
     if (const auto player = engine.getPlayerInTurn()) {
         engine.call(*player, call);
     }
-    return state();
+    publishState();
+    return true;
 }
 
-bool BridgeMain::Impl::play(const CardType& card)
+bool BridgeMain::Impl::play(const std::string&, const CardType& card)
 {
     if (const auto player = engine.getPlayerInTurn()) {
         if (const auto hand = engine.getHand(*player)) {
@@ -148,16 +151,28 @@ bool BridgeMain::Impl::play(const CardType& card)
             }
         }
     }
-    return state();
+    publishState();
+    return true;
 }
 
-bool BridgeMain::Impl::score()
+bool BridgeMain::Impl::score(const std::string&)
+{
+    publishScore();
+    return true;
+}
+
+void BridgeMain::Impl::publishState()
+{
+    sendCommand(
+        dataSocket, JsonSerializer {}, STATE_PREFIX, makeDealState(engine));
+}
+
+void BridgeMain::Impl::publishScore()
 {
     assert(gameManager);
     sendCommand(
         dataSocket, JsonSerializer {}, SCORE_PREFIX,
         gameManager->getScoreSheet());
-    return true;
 }
 
 BridgeMain::BridgeMain(
