@@ -16,6 +16,8 @@ using testing::Return;
 
 namespace {
 
+const auto IDENTITY = std::string {"identity"};
+
 class MockFunction {
 public:
     MOCK_METHOD0(call0, bool());
@@ -66,7 +68,7 @@ TEST_P(FunctionMessageHandlerTest, testNoParams)
         [this]() { return function.call0(); }, TestPolicy {});
     const auto params = std::vector<std::string> {};
     EXPECT_CALL(function, call0()).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
+    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 TEST_P(FunctionMessageHandlerTest, testOneParam)
@@ -77,7 +79,7 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         TestPolicy {});
     const auto params = std::vector<std::string> { "param" };
     EXPECT_CALL(function, call1("param")).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
+    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 TEST_P(FunctionMessageHandlerTest, testTwoParams)
@@ -90,7 +92,7 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "1", "param" };
     EXPECT_CALL(function, call2(1, "param")).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(params.begin(), params.end()));
+    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
@@ -99,7 +101,7 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
         [this](std::string param) { return function.call1(param); },
         FailingPolicy {});
     const auto params = std::vector<std::string> { "param" };
-    EXPECT_FALSE(handler->handle(params.begin(), params.end()));
+    EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
@@ -107,7 +109,7 @@ TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
     auto handler = makeMessageHandler(
         [this]() { return function.call0(); }, TestPolicy {});
     const auto params = std::vector<std::string> { "invalid" };
-    EXPECT_FALSE(handler->handle(params.begin(), params.end()));
+    EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
 }
 
 INSTANTIATE_TEST_CASE_P(

@@ -27,6 +27,7 @@ public:
      * \tparam ParameterIterator Random access iterator for iterating the
      * parameters (convertible to strings)
      *
+     * \param identity the identity of the sender of the message
      * \param first iterator to the first parameter
      * \param last iterator to the last parameter
      *
@@ -35,7 +36,9 @@ public:
      * \todo Could the iterator category be weakened?
      */
     template<typename ParameterIterator>
-    bool handle(ParameterIterator first, ParameterIterator last);
+    bool handle(
+        const std::string& identity,
+        ParameterIterator first, ParameterIterator last);
 
 protected:
 
@@ -48,19 +51,23 @@ private:
 
     /** \brief Handle action of this handler
      *
+     * \param identity the identity of the sender of the message
      * \param params range containing the parameters passed to handle()
      *
      * \return true if the message was handled successfully, false otherwise
      *
      * \sa handle()
      */
-    virtual bool doHandle(ParameterRange params) = 0;
+    virtual bool doHandle(
+        const std::string& identity, ParameterRange params) = 0;
 };
 
 template<typename ParameterIterator>
-bool MessageHandler::handle(ParameterIterator first, ParameterIterator last)
+bool MessageHandler::handle(
+    const std::string& identity,
+    ParameterIterator first, ParameterIterator last)
 {
-    return doHandle(ParameterRange(first, last));
+    return doHandle(identity, ParameterRange(first, last));
 }
 
 

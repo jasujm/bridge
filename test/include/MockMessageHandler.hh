@@ -10,7 +10,7 @@ namespace Messaging {
 
 class MockMessageHandler : public MessageHandler {
 public:
-    MOCK_METHOD1(doHandle, bool(ParameterRange));
+    MOCK_METHOD2(doHandle, bool(const std::string&, ParameterRange));
 };
 
 }

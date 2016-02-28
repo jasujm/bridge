@@ -20,6 +20,7 @@ using testing::Return;
 using namespace Bridge::Messaging;
 
 namespace {
+const auto IDENTITY = std::string {"identity"};
 const auto ENDPOINT = std::string {"inproc://testing"};
 const auto COMMAND = std::string {"command"};
 const auto TERMINATE = std::string {"terminate"};
@@ -30,6 +31,7 @@ protected:
 
     virtual void SetUp()
     {
+        socket.setsockopt(ZMQ_IDENTITY, IDENTITY.c_str(), IDENTITY.size());
         socket.connect(ENDPOINT);
     }
 
@@ -56,7 +58,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     const auto p1 = std::string {"p1"};
     const auto p2 = std::string {"p2"};
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(ElementsAre(p1, p2)))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
         .WillOnce(Return(true));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
@@ -71,7 +73,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     const auto p1 = std::string {"p1"};
     const auto p2 = std::string {"p2"};
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(ElementsAre(p1, p2)))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
         .WillOnce(Return(false));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
@@ -83,7 +85,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_)).Times(0);
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _)).Times(0);
     sendMessage(socket, "invalid");
 
     const auto reply = recvMessage(socket);
