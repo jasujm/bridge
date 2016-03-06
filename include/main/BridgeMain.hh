@@ -105,6 +105,9 @@ public:
     void run();
 
     /** \brief Terminate the backend message queue
+     *
+     * This method is intended to be called from signal handler for clean
+     * termination.
      */
     void terminate();
 

@@ -4,6 +4,7 @@
 #include "messaging/MessageUtility.hh"
 #include "Utility.hh"
 
+#include <atomic>
 #include <cassert>
 #include <iterator>
 #include <tuple>
@@ -89,7 +90,7 @@ private:
 
     HandlerMap handlers;
     zmq::socket_t socket;
-    bool go {true};
+    std::atomic<bool> go {true};
 };
 
 MessageQueue::Impl::Impl(

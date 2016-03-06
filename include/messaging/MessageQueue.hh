@@ -94,6 +94,10 @@ public:
      * After this function is called (from kernel signal handler, message
      * handler etc.), run() will return. If run() is called after this
      * function, it will return immediately.
+     *
+     * \note It is safe to call this function from other threads or signal
+     * handlers. However, for inter‐thread use, termination by message is
+     * preferred.
      */
     void terminate();
 
