@@ -59,7 +59,7 @@ void sendMessage(
 
 /** \brief Receive message sent through socket
  *
- * \tparam CharType the character type of the string the message consists of
+ * \tparam String the type of the string returned by the function
  *
  * \param socket the socket used to receive the message
  *
@@ -67,9 +67,10 @@ void sendMessage(
  *   - string containing the message
  *   - boolean indicating whether there are more parts in the message
  */
-template<typename CharType = char>
-std::pair<std::basic_string<CharType>, bool> recvMessage(zmq::socket_t& socket)
+template<typename String = std::string>
+std::pair<String, bool> recvMessage(zmq::socket_t& socket)
 {
+    using CharType = typename String::value_type;
     auto msg = zmq::message_t {};
     socket.recv(&msg);
     const auto more = socket.getsockopt<std::int64_t>(ZMQ_RCVMORE);
@@ -78,17 +79,17 @@ std::pair<std::basic_string<CharType>, bool> recvMessage(zmq::socket_t& socket)
 
 /** \brief Receive all parts of a multipart message
  *
- * \tparam CharType the character type of the string the messages consist of
+ * \tparam String the type of the string written to the output iterator
  *
  * \param out output iterator the messages are written to
  * \param socket socket used to receive the messages
  */
-template<typename CharType = char, typename OutputIterator>
+template<typename String = std::string, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
 {
     auto more = true;
     while (more) {
-        auto&& message = recvMessage<CharType>(socket);
+        auto&& message = recvMessage<String>(socket);
         *out++ = std::move(message.first);
         more = message.second;
     }
