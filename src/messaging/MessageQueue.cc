@@ -18,7 +18,7 @@ namespace {
 class TerminateMessageHandler : public MessageHandler {
 public:
     TerminateMessageHandler(MessageQueue& queue) : queue {queue} {}
-    bool doHandle(const std::string&, ParameterRange) override
+    bool doHandle(const std::string&, ParameterRange, OutputSink) override
     {
         // TODO: We should check identity and accept termination only from the
         // instance that controls this application
@@ -124,6 +124,7 @@ void MessageQueue::Impl::terminate()
 
 void MessageQueue::Impl::messageLoop()
 {
+    auto output = std::vector<std::string> {};
     auto message = std::vector<std::string> {};
     auto identity = std::string {};
     while (go) {
@@ -132,9 +133,12 @@ void MessageQueue::Impl::messageLoop()
             const auto entry = handlers.find(message.at(1));
             if (entry != handlers.end()) {
                 auto& handler = dereference(entry->second);
+                assert(output.empty());
                 const auto success = handler.handle(
-                    identity, std::next(message.begin(), 2), message.end());
+                    identity, std::next(message.begin(), 2), message.end(),
+                    std::back_inserter(output));
                 sendReplyHelper(identity, success, socket);
+                output.clear();
                 continue;
             }
         }

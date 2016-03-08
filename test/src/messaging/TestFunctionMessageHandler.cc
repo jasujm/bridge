@@ -5,8 +5,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <iterator>
 #include <string>
 #include <tuple>
+#include <vector>
 
 using Bridge::Messaging::makeMessageHandler;
 using Bridge::Messaging::MessageHandler;
@@ -59,6 +61,18 @@ T FailingPolicy::deserialize(const std::string&)
 
 class FunctionMessageHandlerTest : public testing::TestWithParam<bool> {
 protected:
+    void testHelper(
+        MessageHandler& handler, const bool success,
+        const std::vector<std::string>& params)
+    {
+        EXPECT_EQ(
+            success,
+            handler.handle(
+                IDENTITY, params.begin(), params.end(),
+                std::back_inserter(output)));
+    }
+
+    std::vector<std::string> output;
     testing::StrictMock<MockFunction> function;
 };
 
@@ -72,7 +86,7 @@ TEST_P(FunctionMessageHandlerTest, testNoParams)
         }, TestPolicy {});
     const auto params = std::vector<std::string> {};
     EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
+    testHelper(*handler, success, params);
 }
 
 TEST_P(FunctionMessageHandlerTest, testOneParam)
@@ -85,7 +99,7 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "param" };
     EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
+    testHelper(*handler, success, params);
 }
 
 TEST_P(FunctionMessageHandlerTest, testTwoParams)
@@ -98,7 +112,7 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "1", "param" };
     EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(success));
-    EXPECT_EQ(success, handler->handle(IDENTITY, params.begin(), params.end()));
+    testHelper(*handler, success, params);
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
@@ -109,7 +123,7 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
             return function.call1(identity, param);
         }, FailingPolicy {});
     const auto params = std::vector<std::string> { "param" };
-    EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
+    testHelper(*handler, false, params);
 }
 
 TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
@@ -120,7 +134,7 @@ TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
             return function.call0(identity);
         }, TestPolicy {});
     const auto params = std::vector<std::string> { "invalid" };
-    EXPECT_FALSE(handler->handle(IDENTITY, params.begin(), params.end()));
+    testHelper(*handler, false, params);
 }
 
 INSTANTIATE_TEST_CASE_P(

@@ -6,6 +6,7 @@
 #ifndef MESSAGING_MESSAGEHANDLER_HH_
 #define MESSAGING_MESSAGEHANDLER_HH_
 
+#include <functional>
 #include <string>
 #include <vector>
 #include <utility>
@@ -30,22 +31,28 @@ public:
      * \param identity the identity of the sender of the message
      * \param first iterator to the first parameter
      * \param last iterator to the last parameter
+     * \param out output iterator to which the output of the message handler
+     * is written to
      *
      * \return true if the message was handled successfully, false otherwise
      *
      * \todo Could the iterator category be weakened?
      */
-    template<typename ParameterIterator>
+    template<typename OutputIterator, typename ParameterIterator>
     bool handle(
         const std::string& identity,
-        ParameterIterator first, ParameterIterator last);
+        ParameterIterator first, ParameterIterator last, OutputIterator out);
 
 protected:
 
-    /** \brief Parameter to doHandle()
+    /** \brief Input parameter to doHandle()
      */
     using ParameterRange = boost::any_range<
         std::string, boost::random_access_traversal_tag>;
+
+    /** \brief Output parameter to doHandle()
+     */
+    using OutputSink = std::function<void(std::string)>;
 
 private:
 
@@ -53,26 +60,31 @@ private:
      *
      * \param identity the identity of the sender of the message
      * \param params range containing the parameters passed to handle()
+     * \param sink sink that can be invoked to write to the output passed to
+     * handle()
      *
      * \return true if the message was handled successfully, false otherwise
      *
      * \sa handle()
      */
     virtual bool doHandle(
-        const std::string& identity, ParameterRange params) = 0;
+        const std::string& identity, ParameterRange params,
+        OutputSink sink) = 0;
 };
 
-template<typename ParameterIterator>
+template<typename OutputIterator, typename ParameterIterator>
 bool MessageHandler::handle(
     const std::string& identity,
-    ParameterIterator first, ParameterIterator last)
+    ParameterIterator first, ParameterIterator last, OutputIterator out)
 {
-    return doHandle(identity, ParameterRange(first, last));
+    return doHandle(
+        identity, ParameterRange(first, last), [&out](std::string output)
+        {
+            *out++ = std::move(output);
+        });
 }
 
-
 }
 }
-
 
 #endif // MESSAGING_MESSAGEHANDLER_HH_

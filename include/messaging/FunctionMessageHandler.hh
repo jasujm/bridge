@@ -62,7 +62,9 @@ public:
 
 private:
 
-    bool doHandle(const std::string& identity, ParameterRange params) override;
+    bool doHandle(
+        const std::string& identity, ParameterRange params,
+        OutputSink sink) override;
 
     template<std::size_t... Ns>
     bool internalCallFunction(
@@ -91,7 +93,8 @@ FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageH
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    const std::string& identity, MessageHandler::ParameterRange params)
+    const std::string& identity, MessageHandler::ParameterRange params,
+    OutputSink)
 {
     if (params.size() != sizeof...(Args)) {
         return false;

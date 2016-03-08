@@ -60,7 +60,8 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     const auto p1 = "p1"s;
     const auto p2 = "p2"s;
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
+    EXPECT_CALL(
+        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
         .WillOnce(Return(true));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
@@ -75,7 +76,8 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     const auto p1 = "p1"s;
     const auto p2 = "p2"s;
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2)))
+    EXPECT_CALL(
+        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
         .WillOnce(Return(false));
     sendMessage(socket, COMMAND, true);
     sendMessage(socket, p1, true);
@@ -87,7 +89,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _)).Times(0);
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
     sendMessage(socket, "invalid");
 
     const auto reply = recvMessage(socket);
