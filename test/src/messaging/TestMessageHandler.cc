@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <array>
 #include <iterator>
 #include <string>
@@ -18,19 +17,9 @@ using testing::Return;
 using testing::StrictMock;
 
 namespace {
-
 const auto IDENTITY = std::string {"identity"};
 const std::array<std::string, 2> PARAMS {{"param1", "param2"}};
 const std::array<std::string, 2> OUTPUTS {{"output1", "output2"}};
-
-struct DummyMessageHandler : private MessageHandler {
-    static bool writeToSink(const std::string&, ParameterRange, OutputSink sink)
-    {
-        std::for_each(OUTPUTS.begin(), OUTPUTS.end(), sink);
-        return true;
-    }
-};
-
 }
 
 class MessageHandlerTest : public testing::Test
@@ -63,7 +52,10 @@ TEST_F(MessageHandlerTest, testMessageHandlerFailure)
 TEST_F(MessageHandlerTest, testMessageHandlerOutput)
 {
     EXPECT_CALL(messageHandler, doHandle(_, _, _))
-        .WillOnce(Invoke(DummyMessageHandler::writeToSink));
+        .WillOnce(
+            Invoke(
+                MockMessageHandler::writeToSink(
+                    OUTPUTS.begin(), OUTPUTS.end())));
     messageHandler.handle(
         IDENTITY, PARAMS.begin(), PARAMS.end(), std::back_inserter(output));
     EXPECT_THAT(output, ElementsAreArray(OUTPUTS));

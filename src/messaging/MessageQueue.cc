@@ -60,13 +60,16 @@ bool recvMessageHelper(
 }
 
 void sendReplyHelper(
-    const std::string& identity, const bool success, zmq::socket_t& socket)
+    const std::string& identity, const bool success,
+    const std::vector<std::string>& output, zmq::socket_t& socket)
 {
     sendMessage(socket, identity, true);
     sendMessage(socket, std::string {}, true);
     sendMessage(
         socket,
-        success ? MessageQueue::REPLY_SUCCESS : MessageQueue::REPLY_FAILURE);
+        success ? MessageQueue::REPLY_SUCCESS : MessageQueue::REPLY_FAILURE,
+        !output.empty());
+    sendMessage(socket, output.begin(), output.end());
 }
 
 }
@@ -137,12 +140,12 @@ void MessageQueue::Impl::messageLoop()
                 const auto success = handler.handle(
                     identity, std::next(message.begin(), 2), message.end(),
                     std::back_inserter(output));
-                sendReplyHelper(identity, success, socket);
+                sendReplyHelper(identity, success, output, socket);
                 output.clear();
                 continue;
             }
         }
-        sendReplyHelper(identity, false, socket);
+        sendReplyHelper(identity, false, output, socket);
     }
 }
 

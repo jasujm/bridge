@@ -17,6 +17,8 @@ using namespace Bridge::Messaging;
 
 using testing::_;
 using testing::ElementsAre;
+using testing::Invoke;
+using testing::IsEmpty;
 using testing::Return;
 
 using namespace std::string_literals;
@@ -94,4 +96,22 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 
     const auto reply = recvMessage(socket);
     EXPECT_EQ(std::make_pair(MessageQueue::REPLY_FAILURE, false), reply);
+}
+
+TEST_F(MessageQueueTest, testReply)
+{
+    const auto outputs = {"output1"s, "output2"s};
+
+    EXPECT_CALL(
+        *handlers.at(COMMAND), doHandle(IDENTITY, IsEmpty(), _))
+        .WillOnce(
+            Invoke(
+                MockMessageHandler::writeToSink(
+                    outputs.begin(), outputs.end())));
+    sendMessage(socket, COMMAND, false);
+
+    EXPECT_EQ(
+        std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
+    EXPECT_EQ(std::make_pair(outputs.begin()[0], true), recvMessage(socket));
+    EXPECT_EQ(std::make_pair(outputs.begin()[1], false), recvMessage(socket));
 }
