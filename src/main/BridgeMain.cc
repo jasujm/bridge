@@ -33,12 +33,11 @@ const std::string BridgeMain::STATE_COMMAND {"state"};
 const std::string BridgeMain::CALL_COMMAND {"call"};
 const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
-const std::string BridgeMain::STATE_PREFIX {"state"};
-const std::string BridgeMain::SCORE_PREFIX {"score"};
 
 using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
+using Scoring::DuplicateScoreSheet;
 
 class BridgeMain::Impl : public Observer<BridgeEngine::DealEnded> {
 public:
@@ -55,15 +54,17 @@ public:
 
 private:
 
-    void handleNotify(const BridgeEngine::DealEnded&);
-
-    bool state(const std::string& identity);
-    bool call(const std::string& identity, const Call& call);
-    bool play(const std::string& identity, const CardType& card);
-    bool score(const std::string& identity);
+    template<typename T>
+    void publish(const std::string& command, const T& t);
 
     void publishState();
-    void publishScore();
+
+    void handleNotify(const BridgeEngine::DealEnded&);
+
+    DealState state(const std::string& identity);
+    bool call(const std::string& identity, const Call& call);
+    bool play(const std::string& identity, const CardType& card);
+    DuplicateScoreSheet score(const std::string& identity);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -122,15 +123,26 @@ BridgeEngine& BridgeMain::Impl::getEngine()
     return engine;
 }
 
-void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
+template<typename T>
+void BridgeMain::Impl::publish(const std::string& command, const T& t)
 {
-    publishScore();
+    sendCommand(dataSocket, JsonSerializer {}, command, t);
 }
 
-bool BridgeMain::Impl::state(const std::string&)
+void BridgeMain::Impl::publishState()
 {
-    publishState();
-    return true;
+    publish(STATE_COMMAND, makeDealState(engine));
+}
+
+void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
+{
+    assert(gameManager);
+    publish(SCORE_COMMAND, gameManager->getScoreSheet());
+}
+
+DealState BridgeMain::Impl::state(const std::string&)
+{
+    return makeDealState(engine);
 }
 
 bool BridgeMain::Impl::call(const std::string&, const Call& call)
@@ -155,24 +167,10 @@ bool BridgeMain::Impl::play(const std::string&, const CardType& card)
     return true;
 }
 
-bool BridgeMain::Impl::score(const std::string&)
-{
-    publishScore();
-    return true;
-}
-
-void BridgeMain::Impl::publishState()
-{
-    sendCommand(
-        dataSocket, JsonSerializer {}, STATE_PREFIX, makeDealState(engine));
-}
-
-void BridgeMain::Impl::publishScore()
+DuplicateScoreSheet BridgeMain::Impl::score(const std::string&)
 {
     assert(gameManager);
-    sendCommand(
-        dataSocket, JsonSerializer {}, SCORE_PREFIX,
-        gameManager->getScoreSheet());
+    return gameManager->getScoreSheet();
 }
 
 BridgeMain::BridgeMain(

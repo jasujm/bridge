@@ -42,8 +42,9 @@ protected:
     virtual void TearDown()
     {
         sendMessage(socket, TERMINATE);
-        const auto reply = recvMessage(socket);
-        EXPECT_FALSE(reply.second);
+        ASSERT_EQ(
+            std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
+        ASSERT_EQ(std::make_pair(TERMINATE, false), recvMessage(socket));
         messageThread.join();
     }
 
@@ -69,8 +70,9 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     sendMessage(socket, p1, true);
     sendMessage(socket, p2);
 
-    const auto reply = recvMessage(socket);
-    ASSERT_EQ(std::make_pair(MessageQueue::REPLY_SUCCESS, false), reply);
+    ASSERT_EQ(
+        std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
+    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(socket));
 }
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
@@ -85,8 +87,9 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     sendMessage(socket, p1, true);
     sendMessage(socket, p2);
 
-    const auto reply = recvMessage(socket);
-    ASSERT_EQ(std::make_pair(MessageQueue::REPLY_FAILURE, false), reply);
+    ASSERT_EQ(
+        std::make_pair(MessageQueue::REPLY_FAILURE, true), recvMessage(socket));
+    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(socket));
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
@@ -94,8 +97,9 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
     sendMessage(socket, "invalid");
 
-    const auto reply = recvMessage(socket);
-    EXPECT_EQ(std::make_pair(MessageQueue::REPLY_FAILURE, false), reply);
+    EXPECT_EQ(
+        std::make_pair(MessageQueue::REPLY_FAILURE, false),
+        recvMessage(socket));
 }
 
 TEST_F(MessageQueueTest, testReply)
@@ -112,6 +116,7 @@ TEST_F(MessageQueueTest, testReply)
 
     EXPECT_EQ(
         std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
+    ASSERT_EQ(std::make_pair(COMMAND, true), recvMessage(socket));
     EXPECT_EQ(std::make_pair(outputs.begin()[0], true), recvMessage(socket));
     EXPECT_EQ(std::make_pair(outputs.begin()[1], false), recvMessage(socket));
 }

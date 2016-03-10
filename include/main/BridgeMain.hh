@@ -53,8 +53,7 @@ public:
 
     /** \brief Command for requesting deal state
      *
-     * When state command is received, the current deal state serialized into
-     * JSON is sent through the data socket with \ref STATE_PREFIX.
+     * The reply to this command contains the deal state.
      */
     static const std::string STATE_COMMAND;
 
@@ -73,18 +72,9 @@ public:
 
     /** \brief Command for requesting score sheet
      *
-     * When score command is received, the current score sheet serialized into
-     * JSON is sent through the data socket with \ref SCORE_PREFIX.
+     * The reply to this command contains the score sheet.
      */
     static const std::string SCORE_COMMAND;
-
-    /** \brief Prefix used by the data socket to publish state
-     */
-    static const std::string STATE_PREFIX;
-
-    /** \brief Prefix used by the data socket to publish score sheet
-     */
-    static const std::string SCORE_PREFIX;
 
     /** \brief Create Bridge backend
      *

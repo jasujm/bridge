@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+import json
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -422,24 +423,21 @@ class BridgeApp(App):
             events = self._poller.poll(0)
             for socket, event in events:
                 assert event == zmq.POLLIN
+                # TODO: Error handling
+                msg = socket.recv_multipart()
                 if socket == self._control_socket:
-                    reply = socket.recv_multipart()
-                    assert reply == [EMPTY_FRAME, REPLY_SUCCESS]
-                elif socket == self._data_socket:
-                    command = socket.recv()
-                    # TODO: Error handling
-                    self._command_handlers[command](socket)
+                    assert msg[:2] == [EMPTY_FRAME, REPLY_SUCCESS]
+                    del msg[:2]
+                command = msg[0]
+                args = (json.loads(arg.decode("utf-8")) for arg in msg[1:])
+                if command in self._command_handlers:
+                    self._command_handlers[command](*args)
 
-    def _handle_score(self, socket):
-        assert socket.getsockopt(zmq.RCVMORE)
-        score_sheet = socket.recv_json()
+    def _handle_score(self, score_sheet):
         scores = [parse_score_entry(entry) for entry in score_sheet]
         self._score_sheet_panel.set_score_sheet(scores)
-        assert not socket.getsockopt(zmq.RCVMORE)
 
-    def _handle_state(self, socket):
-        assert socket.getsockopt(zmq.RCVMORE)
-        state = socket.recv_json()
+    def _handle_state(self, state):
         position_in_turn = state.get(POSITION_IN_TURN_KEY)
         self._play_area_panel.set_position_in_turn(position_in_turn)
         allowed_calls = {parse_call(call) for call in
@@ -465,7 +463,6 @@ class BridgeApp(App):
         tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
                       TRICKS_WON_KEY in state else None)
         self._info_panel.set_tricks_won(tricks_won)
-        assert not socket.getsockopt(zmq.RCVMORE)
             
 
 if __name__ == '__main__':

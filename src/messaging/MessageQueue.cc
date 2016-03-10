@@ -133,10 +133,12 @@ void MessageQueue::Impl::messageLoop()
     while (go) {
         if (recvMessageHelper(identity, message, socket)) {
             assert(message.size() >= 2);
-            const auto entry = handlers.find(message.at(1));
+            const auto command = message.at(1);
+            const auto entry = handlers.find(command);
             if (entry != handlers.end()) {
                 auto& handler = dereference(entry->second);
                 assert(output.empty());
+                output.push_back(command);
                 const auto success = handler.handle(
                     identity, std::next(message.begin(), 2), message.end(),
                     std::back_inserter(output));
@@ -145,6 +147,7 @@ void MessageQueue::Impl::messageLoop()
                 continue;
             }
         }
+        assert(output.empty());
         sendReplyHelper(identity, false, output, socket);
     }
 }
