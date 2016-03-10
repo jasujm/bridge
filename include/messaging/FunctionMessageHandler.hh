@@ -35,9 +35,12 @@ namespace Messaging {
  * \tparam Function Type of the function that FunctionMessageHandler
  * wraps. The function must take the identity of the sender of the message
  * (std::string or something to which it can be converted) as it’s first
- * argument, and may take an arbitrary number of parameters after that. It
- * must return a value convertible to bool indicating whether or not the
- * command was successfully handled.
+ * argument, and may take an arbitrary number of parameters after
+ * that. Depending on the type of the return value handling behaves as follows:
+ *   - If the return value of the function is implicitly convertible to bool,
+ *     handle() returns the return value as is
+ *   - Otherwise the return value is serialized and written to the output
+ *     parameter used to invoke the handler. The handler returns true.
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
@@ -66,15 +69,35 @@ private:
         const std::string& identity, ParameterRange params,
         OutputSink sink) override;
 
+    bool invokeHelper(
+        const std::string& identity, std::decay_t<Args>&&... args, OutputSink&,
+        std::true_type)
+    {
+        return function(identity, std::move(args)...);
+    }
+
+    bool invokeHelper(
+        const std::string& identity, std::decay_t<Args>&&... args,
+        OutputSink& sink, std::false_type)
+    {
+        auto&& result = function(identity, std::move(args)...);
+        sink(serializer.serialize(result));
+        return true;
+    }
+
     template<std::size_t... Ns>
     bool internalCallFunction(
-        const std::string& identity, ParameterRange params,
+        const std::string& identity, ParameterRange params, OutputSink& sink,
         std::index_sequence<Ns...>)
     {
         auto&& params_ = deserializeAll<std::decay_t<Args>...>(
             serializer, params[Ns]...);
         if (params_) {
-            return function(identity, std::move(std::get<Ns>(*params_))...);
+            using Result = std::result_of_t<
+                Function(std::string, std::decay_t<Args>&&...)>;
+            return invokeHelper(
+                identity, std::move(std::get<Ns>(*params_))..., sink,
+                typename std::is_convertible<Result, bool>::type());
         }
         return false;
     }
@@ -94,14 +117,14 @@ FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageH
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     const std::string& identity, MessageHandler::ParameterRange params,
-    OutputSink)
+    OutputSink sink)
 {
     if (params.size() != sizeof...(Args)) {
         return false;
     }
 
     return internalCallFunction(
-        identity, params, std::index_sequence_for<Args...>());
+        identity, params, sink, std::index_sequence_for<Args...>());
 }
 
 /** \brief Utility for wrapping function into message handler
@@ -156,8 +179,7 @@ auto makeMessageHandler(
     // accepting them as rvalue references.
     return makeMessageHandler<Args...>(
         [&handler, memfn](
-            const std::string& identity,
-            std::add_rvalue_reference_t<Args>... args)
+            const std::string& identity, std::decay_t<Args>&&... args)
         {
             return (handler.*memfn)(identity, std::move(args)...);
         }, std::forward<SerializationPolicy>(serializer));
