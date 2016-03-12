@@ -32,6 +32,7 @@
 #include <stdexcept>
 #include <tuple>
 #include <vector>
+#include <utility>
 
 using testing::_;
 using testing::AtLeast;
@@ -43,6 +44,19 @@ using testing::ReturnRef;
 
 using namespace Bridge;
 using Engine::BridgeEngine;
+
+namespace {
+
+template<typename Iterator>
+bool isInVisibleHands(
+    Iterator first, Iterator last, const BridgeEngine& engine,
+    const Player& player)
+{
+    const auto& hand = dereference(engine.getHand(player));
+    return std::find_if(first, last, compareAddress(hand)) != last;
+}
+
+}
 
 class BridgeEngineTest : public testing::Test {
 private:
@@ -109,6 +123,21 @@ protected:
         cards.erase(cards.begin());
     }
 
+    void assertHandsVisible(bool ownVisible, const Player* dummy = nullptr)
+    {
+        for (const auto position : POSITIONS) {
+            const auto& player = engine->getPlayer(position);
+            auto hands = std::vector<std::reference_wrapper<const Hand>> {};
+            engine->getVisibleHands(player, std::back_inserter(hands));
+            EXPECT_TRUE(
+                !ownVisible ||
+                isInVisibleHands(hands.begin(), hands.end(), *engine, player));
+            EXPECT_TRUE(
+                dummy == nullptr ||
+                isInVisibleHands(hands.begin(), hands.end(), *engine, *dummy));
+        }
+    }
+
     void addTrickToNorthSouth()
     {
         expectedState.currentTrick->clear();
@@ -163,6 +192,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability.emplace(true, true);
     ASSERT_EQ(expectedState, makeDealState(*engine));
+    assertHandsVisible(false);
 
     // Shuffling
     cardManager->notifyAll(Engine::Shuffled {});
@@ -198,6 +228,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             std::get<1>(e.second), std::get<2>(e.second),
             std::get<3>(e.second));
         ASSERT_EQ(expectedState, makeDealState(*engine));
+        assertHandsVisible(true);
         const auto& player = *players[e.first % players.size()];
         const auto position = engine->getPosition(player);
         engine->call(player, call);
@@ -220,6 +251,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         auto& player = *players[turn_i % players.size()];
         engine->play(player, 0);
         updateExpectedStateAfterPlay(player);
+        assertHandsVisible(true, &engine->getPlayer(Position::WEST));
     }
 
     expectedState.positionInTurn = Position::NORTH;
@@ -234,6 +266,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 &player == &players.back()) ? 1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             ASSERT_EQ(expectedState, makeDealState(*engine));
+            assertHandsVisible(true, &engine->getPlayer(Position::WEST));
 
             engine->subscribe(observer);
             engine->play(*player, i);

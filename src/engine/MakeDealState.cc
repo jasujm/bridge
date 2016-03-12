@@ -22,7 +22,6 @@ namespace {
 
 void fillAllowedCalls(DealState& state, const Bidding& bidding)
 {
-    const auto position = dereference(state.positionInTurn);
     auto calls = DealState::AllowedCalls {Pass {}};
     if (bidding.isDoublingAllowed()) {
         calls.emplace_back(Double {});

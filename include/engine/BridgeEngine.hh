@@ -12,6 +12,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <boost/optional/optional_fwd.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -150,6 +151,25 @@ public:
      */
     const Hand* getHand(const Player& player) const;
 
+    /** \brief Retrieve all hands visible to the given player
+     *
+     * If a deal is ongoing, each player sees his own hand. If the opening
+     * lead has been played, each player also sees the hand of the dummy. At
+     * most two hands will be output.
+     *
+     * \tparam OutputIterator an output iterator which must accept const Hand&
+     *
+     * \param player the player
+     * \param the iterator to which the the visible hands will be written
+     *
+     * \return one past the position the last hand was written to
+     *
+     * \throw std::out_of_range if the player is not in the current game
+     */
+    template<typename OutputIterator>
+    OutputIterator getVisibleHands(
+        const Player& player, OutputIterator out) const;
+
     /** \brief Determine the position of given hand
      *
      * \param hand the hand
@@ -197,11 +217,14 @@ private:
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
+
+    const Hand* getDummyHandIfVisible() const;
+
     const std::shared_ptr<Impl> impl;
 };
 
 template<typename PlayerIterator>
-inline BridgeEngine::BridgeEngine(
+BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager,
     PlayerIterator first, PlayerIterator last) :
@@ -211,6 +234,24 @@ inline BridgeEngine::BridgeEngine(
             std::move(gameManager),
             std::vector<std::shared_ptr<Player>>(first, last))}
 {
+}
+
+template<typename OutputIterator>
+OutputIterator BridgeEngine::getVisibleHands(
+    const Player& player, OutputIterator out) const
+{
+    std::array<const Hand*, 2> hands {
+        {getHand(player), getDummyHandIfVisible()}};
+    const auto first = hands.begin();
+    auto last = hands.end();
+    last = std::remove(first, last, nullptr);
+    last = std::unique(first, last);
+    return std::transform(
+        first, last, out, [](const auto* hand) -> decltype(auto)
+        {
+            assert(hand);
+            return *hand;
+        });
 }
 
 }

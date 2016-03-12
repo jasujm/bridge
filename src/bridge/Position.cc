@@ -46,6 +46,11 @@ Position clockwise(const Position position, int steps)
     return POSITIONS[(diff + steps) % N_POSITIONS];
 }
 
+Position partnerFor(Position position)
+{
+    return clockwise(position, 2);
+}
+
 std::ostream& operator<<(std::ostream& os, const Position position)
 {
     return outputEnum(os, position, POSITION_TO_STRING_MAP.left);

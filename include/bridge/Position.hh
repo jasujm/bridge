@@ -81,6 +81,14 @@ std::vector<std::size_t> cardsFor(Position position);
  */
 Position clockwise(Position position, int steps = 1);
 
+/** \brief Determine partner of given position
+ *
+ * \param position the position
+ *
+ * \return the position sitting opposite of \p position
+ */
+Position partnerFor(Position position);
+
 /** \brief Output a Position to stream
  *
  * \param os the output stream

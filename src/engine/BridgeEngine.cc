@@ -90,6 +90,7 @@ public:
     {
     }
 };
+class RevealDummyEvent : public sc::event<RevealDummyEvent> {};
 class ShuffledEvent : public sc::event<ShuffledEvent> {};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,6 +130,7 @@ public:
     const Trick* getCurrentTrick() const;
     boost::optional<std::size_t> getNumberOfTricksPlayed() const;
     boost::optional<TricksWon> getTricksWon() const;
+    const Hand* getDummyHandIfVisible() const;
 
 private:
 
@@ -388,22 +390,20 @@ sc::result InBidding::react(const CallEvent& event)
 ////////////////////////////////////////////////////////////////////////////////
 
 class PlayingTrick;
+class DummyNotVisible;
 
-class Playing : public sc::simple_state<Playing, InDeal, PlayingTrick> {
+class Playing : public sc::simple_state<
+    Playing, InDeal, boost::mpl::list<PlayingTrick, DummyNotVisible>> {
 public:
-    std::size_t getNumberOfTricksPlayed() const;
-
-    TricksWon getTricksWon() const;
-
-private:
 
     void addTrick(std::unique_ptr<Trick>&& trick);
+    std::size_t getNumberOfTricksPlayed() const;
+    TricksWon getTricksWon() const;
     Position getLeaderPosition() const;
     boost::optional<Suit> getTrump() const;
 
+private:
     std::vector<std::unique_ptr<Trick>> tricks;
-
-    friend class PlayingTrick;
 };
 
 void Playing::addTrick(std::unique_ptr<Trick>&& trick)
@@ -414,6 +414,32 @@ void Playing::addTrick(std::unique_ptr<Trick>&& trick)
     } else {
         post_event(NewTrickEvent {});
     }
+}
+
+std::size_t Playing::getNumberOfTricksPlayed() const
+{
+    return tricks.size();
+}
+
+TricksWon Playing::getTricksWon() const
+{
+    auto north_south = 0;
+    auto east_west = 0;
+    for (const auto& trick : tricks) {
+        assert(trick);
+        if (const auto& winner = trick->getWinner()) {
+            const auto winner_position = context<InDeal>().getPosition(*winner);
+            const auto winner_partnership = partnershipFor(winner_position);
+            switch (winner_partnership) {
+            case Partnership::NORTH_SOUTH:
+                ++north_south;
+                break;
+            case Partnership::EAST_WEST:
+                ++east_west;
+            }
+        }
+    }
+    return {north_south, east_west};
 }
 
 Position Playing::getLeaderPosition() const
@@ -443,32 +469,6 @@ boost::optional<Suit> Playing::getTrump() const
     default:
         return boost::none;
     }
-}
-
-std::size_t Playing::getNumberOfTricksPlayed() const
-{
-    return tricks.size();
-}
-
-TricksWon Playing::getTricksWon() const
-{
-    auto north_south = 0;
-    auto east_west = 0;
-    for (const auto& trick : tricks) {
-        assert(trick);
-        if (const auto& winner = trick->getWinner()) {
-            const auto winner_position = context<InDeal>().getPosition(*winner);
-            const auto winner_partnership = partnershipFor(winner_position);
-            switch (winner_partnership) {
-            case Partnership::NORTH_SOUTH:
-                ++north_south;
-                break;
-            case Partnership::EAST_WEST:
-                ++east_west;
-            }
-        }
-    }
-    return {north_south, east_west};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -501,12 +501,6 @@ PlayingTrick::PlayingTrick(my_context ctx) :
         context<Playing>().getTrump());
 }
 
-const Trick& PlayingTrick::getTrick() const
-{
-    assert(trick);
-    return *trick;
-}
-
 sc::result PlayingTrick::react(const PlayCardEvent& event)
 {
     assert(trick);
@@ -518,8 +512,46 @@ sc::result PlayingTrick::react(const PlayCardEvent& event)
         if (trick->isCompleted()) {
             context<Playing>().addTrick(std::move(trick));
         }
+        post_event(RevealDummyEvent {});
     }
     return discard_event();
+}
+
+const Trick& PlayingTrick::getTrick() const
+{
+    assert(trick);
+    return *trick;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DummyNotVisible
+////////////////////////////////////////////////////////////////////////////////
+
+class DummyVisible;
+
+class DummyNotVisible : public sc::simple_state<
+    DummyNotVisible, Playing::orthogonal<1>> {
+public:
+    using reactions = sc::transition<RevealDummyEvent, DummyVisible>;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// DummyNotVisible
+////////////////////////////////////////////////////////////////////////////////
+
+class DummyVisible : public sc::simple_state<
+    DummyVisible, Playing::orthogonal<1>> {
+public:
+    const Hand& getDummyHand() const;
+};
+
+const Hand& DummyVisible::getDummyHand() const
+{
+    const auto& in_deal = context<InDeal>();
+    const auto& bidding = in_deal.getBidding();
+    const auto dummy_position = partnerFor(
+        dereference(dereference(bidding.getDeclarerPosition())));
+    return in_deal.getHand(dummy_position);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -619,6 +651,11 @@ boost::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
 boost::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 {
     return internalCallIfInState(&Playing::getTricksWon);
+}
+
+const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
+{
+    return internalCallIfInState(&DummyVisible::getDummyHand);
 }
 
 void BridgeEngine::Impl::enqueueAndProcess(
@@ -760,6 +797,12 @@ boost::optional<TricksWon> BridgeEngine::getTricksWon() const
 {
     assert(impl);
     return impl->getTricksWon();
+}
+
+const Hand* BridgeEngine::getDummyHandIfVisible() const
+{
+    assert(impl);
+    return impl->getDummyHandIfVisible();
 }
 
 }
