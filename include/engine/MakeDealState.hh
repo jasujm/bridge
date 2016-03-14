@@ -9,6 +9,7 @@
 namespace Bridge {
 
 struct DealState;
+class Player;
 
 namespace Engine {
 
@@ -17,10 +18,12 @@ class BridgeEngine;
 /** \brief Extract deal state from given BridgeEngine
  *
  * \param engine the engine
+ * \param player the player whose deal state to extract
  *
- * \return DealState object describing the state of the game
+ * \return DealState object describing the state of the deal as seen by \p
+ * player
  */
-DealState makeDealState(const BridgeEngine& engine);
+DealState makeDealState(const BridgeEngine& engine, const Player& player);
 
 }
 }

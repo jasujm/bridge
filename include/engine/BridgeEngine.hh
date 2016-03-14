@@ -160,7 +160,7 @@ public:
      * \tparam OutputIterator an output iterator which must accept const Hand&
      *
      * \param player the player
-     * \param the iterator to which the the visible hands will be written
+     * \param out the iterator to which the the visible hands will be written
      *
      * \return one past the position the last hand was written to
      *

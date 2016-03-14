@@ -10,6 +10,7 @@
 #include "engine/BridgeEngine.hh"
 #include "Utility.hh"
 
+#include <boost/function_output_iterator.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
@@ -88,7 +89,7 @@ void fillTricks(
 
 }
 
-DealState makeDealState(const BridgeEngine& engine)
+DealState makeDealState(const BridgeEngine& engine, const Player& player)
 {
     DealState state;
 
@@ -103,30 +104,32 @@ DealState makeDealState(const BridgeEngine& engine)
         state.positionInTurn = engine.getPosition(*player);
     }
 
-    // Fill cards
-    for (const auto position : POSITIONS) {
-        const auto& player = engine.getPlayer(position);
-        if (const auto hand = engine.getHand(player)) {
-            if (!state.cards) {
-                state.cards.emplace();
-            }
-            fillCards(state, position, *hand);
-        }
-    }
-
-    // If there were no cards, we assume that the stage is shuffling
-    if (!state.cards) {
+    // If no one has turn, assume shuffling
+    if (!state.positionInTurn) {
         state.stage = Stage::SHUFFLING;
         return state;
     }
 
+    // Fill cards
+    {
+        state.cards.emplace();
+        auto fill_cards = [&state, &engine](const auto& hand)
+        {
+            const auto position = dereference(engine.getPosition(hand));
+            fillCards(state, position, hand);
+        };
+        engine.getVisibleHands(
+            player, boost::make_function_output_iterator(fill_cards));
+    }
+
     // Fill bidding
+    const auto position = engine.getPosition(player);
     if (const auto bidding = engine.getBidding()) {
         state.stage = Stage::BIDDING;
         fillBidding(state, *bidding);
         if (bidding->hasContract()) {
             fillContract(state, *bidding);
-        } else {
+        } else if (position == state.positionInTurn) {
             fillAllowedCalls(state, *bidding);
         }
     }
@@ -135,9 +138,11 @@ DealState makeDealState(const BridgeEngine& engine)
     if (const auto current_trick = engine.getCurrentTrick()) {
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, engine);
-        if (const auto player = engine.getPlayerInTurn()) {
-            if (const auto hand = engine.getHand(*player)) {
-                fillAllowedCards(state, *hand, *current_trick);
+        if (position == state.positionInTurn) {
+            if (const auto player = engine.getPlayerInTurn()) {
+                if (const auto hand = engine.getHand(*player)) {
+                    fillAllowedCards(state, *hand, *current_trick);
+                }
             }
         }
     }

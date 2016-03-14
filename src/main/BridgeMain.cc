@@ -131,7 +131,10 @@ void BridgeMain::Impl::publish(const std::string& command, const T& t)
 
 void BridgeMain::Impl::publishState()
 {
-    publish(STATE_COMMAND, makeDealState(engine));
+    // TODO: Happens to work in current version as getPlayerInTurn() returns
+    // true. In the future return each player their own view.
+    const auto player_in_turn = engine.getPlayerInTurn();
+    publish(STATE_COMMAND, makeDealState(engine, dereference(player_in_turn)));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
@@ -142,7 +145,8 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 
 DealState BridgeMain::Impl::state(const std::string&)
 {
-    return makeDealState(engine);
+    const auto player_in_turn = engine.getPlayerInTurn();
+    return makeDealState(engine, dereference(player_in_turn));
 }
 
 bool BridgeMain::Impl::call(const std::string&, const Call& call)

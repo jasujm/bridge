@@ -123,6 +123,32 @@ protected:
         cards.erase(cards.begin());
     }
 
+    void assertDealState(boost::optional<Position> dummy = boost::none)
+    {
+        // Deal states for different positions (remove all visible cards
+        // except position and dummy)
+        for (const auto position : POSITIONS) {
+            auto state = expectedState;
+            if (state.cards) {
+                std::cout << "\n" << position << "\n";
+                for (auto iter = state.cards->begin();
+                     iter != state.cards->end(); ) {
+                    if (iter->first != position && iter->first != dummy) {
+                        iter = state.cards->erase(iter);
+                    } else {
+                        ++iter;
+                    }
+                }
+            }
+            if (position != state.positionInTurn) {
+                state.allowedCalls = boost::none;
+                state.allowedCards = boost::none;
+            }
+            EXPECT_EQ(
+                state, makeDealState(*engine, engine->getPlayer(position)));
+        }
+    }
+
     void assertHandsVisible(bool ownVisible, const Player* dummy = nullptr)
     {
         for (const auto position : POSITIONS) {
@@ -191,7 +217,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Startup
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability.emplace(true, true);
-    ASSERT_EQ(expectedState, makeDealState(*engine));
+    assertDealState();
     assertHandsVisible(false);
 
     // Shuffling
@@ -227,7 +253,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         updateAllowedCalls(
             std::get<1>(e.second), std::get<2>(e.second),
             std::get<3>(e.second));
-        ASSERT_EQ(expectedState, makeDealState(*engine));
+        assertDealState();
         assertHandsVisible(true);
         const auto& player = *players[e.first % players.size()];
         const auto position = engine->getPosition(player);
@@ -246,7 +272,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.currentTrick.emplace();
     expectedState.tricksWon.emplace(0, 0);
     for (const auto i : to(players.size())) {
-        ASSERT_EQ(expectedState, makeDealState(*engine));
+        assertDealState(i == 0 ? boost::none : boost::make_optional(Position::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         engine->play(player, 0);
@@ -265,7 +291,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 i == N_CARDS_PER_PLAYER - 1 &&
                 &player == &players.back()) ? 1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
-            ASSERT_EQ(expectedState, makeDealState(*engine));
+            assertDealState(Position::WEST);
             assertHandsVisible(true, &engine->getPlayer(Position::WEST));
 
             engine->subscribe(observer);

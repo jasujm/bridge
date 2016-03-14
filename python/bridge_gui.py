@@ -344,9 +344,12 @@ class PlayAreaPanel(GridLayout):
 
     def set_cards(self, cards, allowed_cards):
         # TODO: Error handling
-        for (position, hand) in cards.items():
+        for position in POSITION_TAGS:
             hand_panel = self._hands[position]
-            hand_panel.set_hand(hand, allowed_cards)
+            if position in cards:
+                hand_panel.set_hand(cards[position], allowed_cards)
+            else:
+                hand_panel.set_hand([], [])
 
 
 class ScoreSheetPanel(GridLayout):
