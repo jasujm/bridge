@@ -163,7 +163,7 @@ bool BridgeMain::Impl::play(const std::string&, const CardType& card)
     if (const auto player = engine.getPlayerInTurn()) {
         if (const auto hand = engine.getHandInTurn()) {
             if (const auto n_card = findFromHand(*hand, card)) {
-                engine.play(*player, *n_card);
+                engine.play(*player, *hand, *n_card);
             }
         }
     }

@@ -83,9 +83,11 @@ class NewTrickEvent : public sc::event<NewTrickEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
     const Player& player;
+    const Hand& hand;
     std::size_t card;
-    PlayCardEvent(const Player& player, std::size_t card) :
+    PlayCardEvent(const Player& player, const Hand& hand, std::size_t card) :
         player {player},
+        hand {hand},
         card {card}
     {
     }
@@ -503,7 +505,8 @@ public:
     const Hand& getHandInTurn() const;
 
 private:
-    Hand* getHandInTurnFor(const Player& player) const;
+    Hand* getHandInTurnFor(const Player& player, const Hand& hand);
+
     std::unique_ptr<Trick> trick;
 };
 
@@ -520,7 +523,7 @@ PlayingTrick::PlayingTrick(my_context ctx) :
 sc::result PlayingTrick::react(const PlayCardEvent& event)
 {
     assert(trick);
-    if (auto hand = getHandInTurnFor(event.player)) {
+    if (auto hand = getHandInTurnFor(event.player, event.hand)) {
         const auto& card = hand->getCard(event.card);
         if (card && trick->play(*hand, *card)) {
             hand->markPlayed(event.card);
@@ -556,10 +559,12 @@ const Hand& PlayingTrick::getHandInTurn() const
     return dereference(trick->getHandInTurn());
 }
 
-Hand* PlayingTrick::getHandInTurnFor(const Player& player) const
+Hand* PlayingTrick::getHandInTurnFor(const Player& player, const Hand& hand)
 {
-    if (&player == &getPlayerInTurn()) {
-        return &const_cast<Hand&>(getHandInTurn());
+    if (&player == &getPlayerInTurn() && &hand == &getHandInTurn()) {
+        auto& in_deal = context<InDeal>();
+        const auto position = in_deal.getPosition(hand);
+        return &in_deal.getHand(position);
     }
     return nullptr;
 }
@@ -765,13 +770,14 @@ void BridgeEngine::call(const Player& player, const Call& call)
         });
 }
 
-void BridgeEngine::play(const Player& player, std::size_t card)
+void BridgeEngine::play(
+    const Player& player, const Hand& hand, std::size_t card)
 {
     assert(impl);
     impl->enqueueAndProcess(
-        [&impl = *impl, &player, card]()
+        [&impl = *impl, &player, &hand, card]()
         {
-            impl.process_event(PlayCardEvent {player, card});
+            impl.process_event(PlayCardEvent {player, hand, card});
         });
 }
 

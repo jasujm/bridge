@@ -127,8 +127,12 @@ protected:
     {
         const auto& partner = engine->getPlayer(
             partnerFor(engine->getPosition(player)));
-        engine->play(player, card);
-        engine->play(partner, card);
+        const auto& hand = dereference(engine->getHand(player));
+        const auto& partner_hand = dereference(engine->getHand(partner));
+        engine->play(player, hand, card);
+        engine->play(partner, hand, card);
+        engine->play(player, partner_hand, card);
+        engine->play(partner, partner_hand, card);
     }
 
     void assertDealState(boost::optional<Position> dummy = boost::none)
@@ -181,7 +185,6 @@ protected:
     }
 
     std::array<NiceMock<MockCard>, N_CARDS> cards;
-    std::array<std::shared_ptr<BasicHand>, N_POSITIONS> hands;
     const std::shared_ptr<Engine::MockCardManager> cardManager {
         std::make_shared<NiceMock<Engine::MockCardManager>>()};
     const std::shared_ptr<Engine::MockGameManager> gameManager {

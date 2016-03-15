@@ -88,6 +88,8 @@ public:
      *
      * \param player the player who wants to make the call
      * \param call the call to be made
+     *
+     * \throw std::out_of_score if \p player is not in the game
      */
     void call(const Player& player, const Call& call);
 
@@ -97,10 +99,18 @@ public:
      * if the call fails for any reason. If the method throws an exception,
      * the state machine is in unspecified state.
      *
+     * The method call succeeds if the player has turn, plays the card from
+     * the correct hand and the card can be played to the current trick. The
+     * declarer plays from both his and dummy’s hand, i.e. has two turns per
+     * trick.
+     *
      * \param player the player who wants to play the card
-     * \param card the index referring to a card in the hand of \p player
+     * \param hand the hand from which the card is played
+     * \param card the index referring to a card in the \p hand
+     *
+     * \throw std::out_of_score if \p player or \p hand is not in the game
      */
-    void play(const Player& player, std::size_t card);
+    void play(const Player& player, const Hand& hand, std::size_t card);
 
     /** \brief Determine if the game has ended
      *
