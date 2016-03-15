@@ -139,10 +139,8 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, engine);
         if (position == state.positionInTurn) {
-            if (const auto player = engine.getPlayerInTurn()) {
-                if (const auto hand = engine.getHand(*player)) {
-                    fillAllowedCards(state, *hand, *current_trick);
-                }
+            if (const auto hand = engine.getHandInTurn()) {
+                fillAllowedCards(state, *hand, *current_trick);
             }
         }
     }

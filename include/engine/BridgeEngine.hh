@@ -97,7 +97,7 @@ public:
      * if the call fails for any reason. If the method throws an exception,
      * the state machine is in unspecified state.
      *
-     * \param player the player who wants to make the call
+     * \param player the player who wants to play the card
      * \param card the index referring to a card in the hand of \p player
      */
     void play(const Player& player, std::size_t card);
@@ -115,12 +115,20 @@ public:
      */
     boost::optional<Vulnerability> getVulnerability() const;
 
-    /** \brief Retrieve the player currently in turn§
+    /** \brief Retrieve the player currently in turn
      *
-     * \return pointer to the player who is next to act, or nullptr if the
-     * game is not in a phase where anyone would have turn
+     * \return Pointer to the player who is next to act, or nullptr if the
+     * game is not in a phase where anyone would have turn. During the playing
+     * phase declarer takes turns instead of dummy.
      */
     const Player* getPlayerInTurn() const;
+
+    /** \brief Retrieve the hand that plays to the trick next
+     *
+     * \return pointer to the hand from which the next card is played to the
+     * trick, or nullptr if the game is not in the playing phase
+     */
+    const Hand* getHandInTurn() const;
 
     /** \brief Determine the player at given position
      *

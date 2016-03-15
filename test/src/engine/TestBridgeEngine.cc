@@ -140,6 +140,9 @@ protected:
                     }
                 }
             }
+            if (dummy && dummy == state.positionInTurn) {
+                state.positionInTurn = partnerFor(*dummy);
+            }
             if (position != state.positionInTurn) {
                 state.allowedCalls = boost::none;
                 state.allowedCards = boost::none;

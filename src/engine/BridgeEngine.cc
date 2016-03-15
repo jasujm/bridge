@@ -122,6 +122,7 @@ public:
 
     boost::optional<Vulnerability> getVulnerability() const;
     const Player* getPlayerInTurn() const;
+    const Hand* getHandInTurn() const;
     const Player& getPlayer(Position position) const;
     Position getPosition(const Player& player) const;
     const Hand* getHand(const Player& player) const;
@@ -486,6 +487,7 @@ public:
     sc::result react(const PlayCardEvent&);
 
     const Trick& getTrick() const;
+    Hand& getHandInTurn() const;
 
 private:
     std::unique_ptr<Trick> trick;
@@ -504,8 +506,8 @@ PlayingTrick::PlayingTrick(my_context ctx) :
 sc::result PlayingTrick::react(const PlayCardEvent& event)
 {
     assert(trick);
-    const auto player_position = outermost_context().getPosition(event.player);
-    auto& hand = context<InDeal>().getHand(player_position);
+    // TODO: Now player is just ignored
+    auto& hand = getHandInTurn();
     const auto& card = hand.getCard(event.card);
     if (card && trick->play(hand, *card)) {
         hand.markPlayed(event.card);
@@ -521,6 +523,13 @@ const Trick& PlayingTrick::getTrick() const
 {
     assert(trick);
     return *trick;
+}
+
+Hand& PlayingTrick::getHandInTurn() const
+{
+    assert(trick);
+    // TODO: const_cast
+    return const_cast<Hand&>(dereference(trick->getHandInTurn()));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -603,10 +612,23 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
         const auto& bidding = state_cast<const InDeal&>().getBidding();
         return &getPlayer(dereference(bidding.getPositionInTurn()));
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
-        const auto& hand = dereference(state->getTrick().getHandInTurn());
-        return &getPlayer(state_cast<const InDeal&>().getPosition(hand));
+        const auto& hand = state->getHandInTurn();
+        const auto& in_deal = state_cast<const InDeal&>();
+        auto position = in_deal.getPosition(hand);
+        // Declarer plays for dummy
+        const auto partner_position = partnerFor(position);
+        if (in_deal.getBidding().getDeclarerPosition() ==
+            boost::make_optional(partner_position)) {
+            position = partner_position;
+        }
+        return &getPlayer(position);
     }
     return nullptr;
+}
+
+const Hand* BridgeEngine::Impl::getHandInTurn() const
+{
+    return internalCallIfInState(&PlayingTrick::getHandInTurn);
 }
 
 const Player& BridgeEngine::Impl::getPlayer(const Position position) const
@@ -749,6 +771,12 @@ const Player* BridgeEngine::getPlayerInTurn() const
 {
     assert(impl);
     return impl->getPlayerInTurn();
+}
+
+const Hand* BridgeEngine::getHandInTurn() const
+{
+    assert(impl);
+    return impl->getHandInTurn();
 }
 
 const Player& BridgeEngine::getPlayer(const Position position) const
