@@ -123,6 +123,14 @@ protected:
         cards.erase(cards.begin());
     }
 
+    void playCard(const Player& player, std::size_t card)
+    {
+        const auto& partner = engine->getPlayer(
+            partnerFor(engine->getPosition(player)));
+        engine->play(player, card);
+        engine->play(partner, card);
+    }
+
     void assertDealState(boost::optional<Position> dummy = boost::none)
     {
         // Deal states for different positions (remove all visible cards
@@ -130,7 +138,6 @@ protected:
         for (const auto position : POSITIONS) {
             auto state = expectedState;
             if (state.cards) {
-                std::cout << "\n" << position << "\n";
                 for (auto iter = state.cards->begin();
                      iter != state.cards->end(); ) {
                     if (iter->first != position && iter->first != dummy) {
@@ -275,10 +282,11 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.currentTrick.emplace();
     expectedState.tricksWon.emplace(0, 0);
     for (const auto i : to(players.size())) {
-        assertDealState(i == 0 ? boost::none : boost::make_optional(Position::WEST));
+        assertDealState(
+            i == 0 ? boost::none : boost::make_optional(Position::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
-        engine->play(player, 0);
+        playCard(player, 0);
         updateExpectedStateAfterPlay(player);
         assertHandsVisible(true, &engine->getPlayer(Position::WEST));
     }
@@ -298,7 +306,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             assertHandsVisible(true, &engine->getPlayer(Position::WEST));
 
             engine->subscribe(observer);
-            engine->play(*player, i);
+            playCard(*player, i);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();

@@ -401,6 +401,8 @@ public:
     std::size_t getNumberOfTricksPlayed() const;
     TricksWon getTricksWon() const;
     Position getLeaderPosition() const;
+    Position getDeclarerPosition() const;
+    Position getDummyPosition() const;
     boost::optional<Suit> getTrump() const;
 
 private:
@@ -446,12 +448,22 @@ TricksWon Playing::getTricksWon() const
 Position Playing::getLeaderPosition() const
 {
     if (tricks.empty()) {
-        const auto declarer_position = dereference(
-            dereference(context<InDeal>().getBidding().getDeclarerPosition()));
+        const auto declarer_position = getDeclarerPosition();
         return clockwise(declarer_position);
     }
     const auto& winner = dereference(tricks.back()->getWinner());
     return context<InDeal>().getPosition(winner);
+}
+
+Position Playing::getDeclarerPosition() const
+{
+    return dereference(
+        dereference(context<InDeal>().getBidding().getDeclarerPosition()));
+}
+
+Position Playing::getDummyPosition() const
+{
+    return partnerFor(getDeclarerPosition());
 }
 
 boost::optional<Suit> Playing::getTrump() const
@@ -487,9 +499,11 @@ public:
     sc::result react(const PlayCardEvent&);
 
     const Trick& getTrick() const;
-    Hand& getHandInTurn() const;
+    const Player& getPlayerInTurn() const;
+    const Hand& getHandInTurn() const;
 
 private:
+    Hand* getHandInTurnFor(const Player& player) const;
     std::unique_ptr<Trick> trick;
 };
 
@@ -506,15 +520,15 @@ PlayingTrick::PlayingTrick(my_context ctx) :
 sc::result PlayingTrick::react(const PlayCardEvent& event)
 {
     assert(trick);
-    // TODO: Now player is just ignored
-    auto& hand = getHandInTurn();
-    const auto& card = hand.getCard(event.card);
-    if (card && trick->play(hand, *card)) {
-        hand.markPlayed(event.card);
-        if (trick->isCompleted()) {
-            context<Playing>().addTrick(std::move(trick));
+    if (auto hand = getHandInTurnFor(event.player)) {
+        const auto& card = hand->getCard(event.card);
+        if (card && trick->play(*hand, *card)) {
+            hand->markPlayed(event.card);
+            if (trick->isCompleted()) {
+                context<Playing>().addTrick(std::move(trick));
+            }
+            post_event(RevealDummyEvent {});
         }
-        post_event(RevealDummyEvent {});
     }
     return discard_event();
 }
@@ -525,11 +539,29 @@ const Trick& PlayingTrick::getTrick() const
     return *trick;
 }
 
-Hand& PlayingTrick::getHandInTurn() const
+const Player& PlayingTrick::getPlayerInTurn() const
+{
+    const auto& hand = getHandInTurn();
+    auto position = context<InDeal>().getPosition(hand);
+    // Declarer plays for dummy
+    if (position == context<Playing>().getDummyPosition()) {
+        position = partnerFor(position);
+    }
+    return outermost_context().getPlayer(position);
+}
+
+const Hand& PlayingTrick::getHandInTurn() const
 {
     assert(trick);
-    // TODO: const_cast
-    return const_cast<Hand&>(dereference(trick->getHandInTurn()));
+    return dereference(trick->getHandInTurn());
+}
+
+Hand* PlayingTrick::getHandInTurnFor(const Player& player) const
+{
+    if (&player == &getPlayerInTurn()) {
+        return &const_cast<Hand&>(getHandInTurn());
+    }
+    return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -556,11 +588,7 @@ public:
 
 const Hand& DummyVisible::getDummyHand() const
 {
-    const auto& in_deal = context<InDeal>();
-    const auto& bidding = in_deal.getBidding();
-    const auto dummy_position = partnerFor(
-        dereference(dereference(bidding.getDeclarerPosition())));
-    return in_deal.getHand(dummy_position);
+    return context<InDeal>().getHand(context<Playing>().getDummyPosition());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -612,16 +640,7 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
         const auto& bidding = state_cast<const InDeal&>().getBidding();
         return &getPlayer(dereference(bidding.getPositionInTurn()));
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
-        const auto& hand = state->getHandInTurn();
-        const auto& in_deal = state_cast<const InDeal&>();
-        auto position = in_deal.getPosition(hand);
-        // Declarer plays for dummy
-        const auto partner_position = partnerFor(position);
-        if (in_deal.getBidding().getDeclarerPosition() ==
-            boost::make_optional(partner_position)) {
-            position = partner_position;
-        }
-        return &getPlayer(position);
+        return &state->getPlayerInTurn();
     }
     return nullptr;
 }
