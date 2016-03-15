@@ -12,8 +12,7 @@ project and will see improvements eventually. :wink:
 Currently you can only do few things with the application
 
 - Run backend application and simple GUI
-- All four players are controlled locally…
-- …and the cards are visible all the time
+- All four players are controlled locally
 - Duplicate scoring
 
 ## Installing
@@ -65,7 +64,8 @@ run at the same time.
 
 Players and their cards are shown in the middle of the screen. The player
 whose position is bolded has turn to call (during auction) or play a card to
-the trick (during playing).
+the trick (during playing). Only the cards of the player in turn and (during
+the playing phase) the dummy are shown at any time.
 
 ### Score
 
