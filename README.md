@@ -11,8 +11,9 @@ project and will see improvements eventually. :wink:
 
 Currently you can only do few things with the application
 
-- Run backend application and simple GUI
-- All four players are controlled locally
+- Run backend application and simple frontend GUI
+- Four frontends can be connected to the backend — but the addresses are
+  currently hardcoded to localhost so no real network games
 - Duplicate scoring
 
 ## Installing
@@ -47,25 +48,24 @@ To build and run unit tests for the backend
 
 ## Usage
 
-Run the backend located in the top level build directory
+Run the backend (server) located in the top level build directory
 
     /the/build/directory/bridge
 
-Run the GUI
+Run four frontend (client) instances
 
-    python /the/source/directory/python/bridge_gui.py
+    for i in {1..4}; do
+    python /the/source/directory/python/bridge_gui.py &
+    done
 
-You can run the backend and the GUI in any order. Note, however, that the
-frontend blocks before both are running. Backend runs until interrupted. The
-GUI can connect to the backend at any point. In fact, there can be multiple
-GUIs connected to the same backend (they all then share and control the same
-state). Currently the backend opens fixed ports so multiple backends cannot be
-run at the same time.
+Each frontend controls one player. Players and their cards are shown in the
+middle of the screen. The player whose position is bolded has turn to call
+(during auction) or play a card to the trick (during playing). Only the cards
+of the player in turn and (during the playing phase) the dummy are shown at
+any time.
 
-Players and their cards are shown in the middle of the screen. The player
-whose position is bolded has turn to call (during auction) or play a card to
-the trick (during playing). Only the cards of the player in turn and (during
-the playing phase) the dummy are shown at any time.
+Note! The application does not yet correctly handle clients leaving and
+rejoining the game. If connection is lost, the player is never reassigned.
 
 ### Score
 
@@ -89,15 +89,15 @@ correspond to the cards that can be played to the current trick.
 Obviously the application isn’t very nice yet. My goal is to make it a
 lightweight bridge game that supports playing over network. Instead of
 centralized server I plan to use mental card game library to implement
-peer-to-peer communication.
+peer‐to‐peer communication.
 
 Short term goals:
 
-- Networking
-  - Use ZeroMQ to send and receive messages between different Bridge
-    application instances
-  - In the first phase I’ll use some simple plain text protocol for
-    non-serious use
+- Make networking robust
+- Make several backends connect to each other for true peer‐to‐peer games
+  (instead of client–server)
+- In the first phase I’ll use some simple plain text protocol between the
+  backends for non‐serious use
 
 Long term goals:
 
