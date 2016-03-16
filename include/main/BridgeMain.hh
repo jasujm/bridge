@@ -12,10 +12,11 @@
  * \section bridgeprotocol Bridge protocol
  *
  * Bridge protocol uses ZMTP over TCP (http://rfc.zeromq.org/spec:23). The
- * backend opens two ZeroMQ sockets: control socket (ROUTER) and data socket
- * (PUB).
+ * backend opens control socket (ROUTER). For each player that joins the game
+ * a data socket (PUB) is opened and the endpoint told to the player.
  *
  * The control socket supports the following commands:
+ *   - bridgehlo
  *   - state
  *   - call
  *   - play
@@ -34,6 +35,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
 
+#include <deque>
 #include <memory>
 
 namespace Bridge {
@@ -51,6 +53,18 @@ namespace Main {
 class BridgeMain : private boost::noncopyable {
 public:
 
+    /** \brief Type for list of data socket endpoints
+     */
+    using DataEndpointList = std::deque<std::string>;
+
+    /** \brief Handshake command for joining the game
+     *
+     * If the player can join, the reply to this command is success with
+     * endpoint for the data socket for the player. Otherwise the reply is
+     * failure.
+     */
+    static const std::string HELLO_COMMAND;
+
     /** \brief Command for requesting deal state
      *
      * The reply to this command contains the deal state.
@@ -59,14 +73,17 @@ public:
 
     /** \brief Command for making a call during bidding
      *
-     * The Call serialized into JSON is sent as the second part of the message.
+     * The Call serialized into JSON is sent as the second part of the
+     * message. The reply to this command is success if the sender has joined
+     * the game, false otherwise.
      */
     static const std::string CALL_COMMAND;
 
     /** \brief Command for playing a card during playing phase
      *
      * The CardType serialized into JSON is sent as the second part of the
-     * message.
+     * message. The reply to this command is success if the sender has joined
+     * the game, false otherwise.
      */
     static const std::string PLAY_COMMAND;
 
@@ -80,11 +97,14 @@ public:
      *
      * \param context the ZeroMQ context for the game
      * \param controlEndpoint the endpoint for the control socket
-     * \param dataEndpoint the endpoint for the data socket
+     * \param dataEndpoints the endpoints for the data sockets
+     *
+     * \throw std::domain_error if there are not at least four elements in \p
+     * dataEndpoints
      */
     BridgeMain(
         zmq::context_t& context, const std::string& controlEndpoint,
-        const std::string& dataEndpoint);
+        DataEndpointList dataEndpoints);
 
     ~BridgeMain();
 

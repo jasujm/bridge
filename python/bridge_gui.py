@@ -37,6 +37,7 @@ RANK_MAP = {key: text for (key, text) in zip(RANK_TAGS, RANKS)}
 STRAIN_MAP = {key: text for (key, text) in zip(STRAIN_TAGS, STRAINS)}
 SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
 
+HELLO_COMMAND = b"bridgehlo"
 CALL_COMMAND = b"call"
 EMPTY_FRAME = b""
 PLAY_COMMAND = b"play"
@@ -392,10 +393,9 @@ class BridgeApp(App):
         self._data_socket = zmqctx.socket(zmq.SUB)
         self._data_socket.setsockopt(zmq.SUBSCRIBE, STATE_COMMAND)
         self._data_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
-        self._data_socket.connect("tcp://localhost:5556")
-        send_command(self._control_socket, STATE_COMMAND)
-        send_command(self._control_socket, SCORE_COMMAND)
+        send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
+            HELLO_COMMAND: self._handle_hello,
             STATE_COMMAND: self._handle_state,
             SCORE_COMMAND: self._handle_score,
         }
@@ -435,6 +435,11 @@ class BridgeApp(App):
                 args = (json.loads(arg.decode("utf-8")) for arg in msg[1:])
                 if command in self._command_handlers:
                     self._command_handlers[command](*args)
+
+    def _handle_hello(self, data_endpoint):
+        self._data_socket.connect(data_endpoint)
+        send_command(self._control_socket, STATE_COMMAND)
+        send_command(self._control_socket, SCORE_COMMAND)
 
     def _handle_score(self, score_sheet):
         scores = [parse_score_entry(entry) for entry in score_sheet]
