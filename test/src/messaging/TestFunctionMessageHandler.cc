@@ -10,29 +10,66 @@
 #include <tuple>
 #include <vector>
 
-using Bridge::Messaging::makeMessageHandler;
 using Bridge::Messaging::MessageHandler;
+using Bridge::Messaging::Reply;
+using Bridge::Messaging::failure;
+using Bridge::Messaging::makeMessageHandler;
+using Bridge::Messaging::success;
 
 using testing::Bool;
 using testing::ElementsAreArray;
 using testing::Return;
 
+namespace Bridge {
+namespace Messaging {
+
+// TODO: Are output operators for reply types generally useful?
+
+std::ostream& operator<<(std::ostream& os, Bridge::Messaging::ReplyFailure)
+{
+    return os << "reply failure";
+}
+
+template<typename... Ts>
+std::ostream& operator<<(
+    std::ostream& os, Bridge::Messaging::ReplySuccess<Ts...>)
+{
+    return os << "reply success";
+}
+
+}
+}
+
 namespace {
 
 using namespace std::string_literals;
 const auto IDENTITY = "identity"s;
-const auto REPLY = "reply"s;
+const auto REPLY1 = "reply"s;
+const auto REPLY2 = 3;
 
-std::string getReply(const std::string&)
+Reply<> makeReply(const bool successful)
 {
-    return REPLY;
+    if (successful) {
+        return success();
+    }
+    return failure();
+}
+
+Reply<std::string> reply1(const std::string&)
+{
+    return success(REPLY1);
+}
+
+Reply<std::string, int> reply2(const std::string&)
+{
+    return success(REPLY1, REPLY2);
 }
 
 class MockFunction {
 public:
-    MOCK_METHOD1(call0, bool(std::string));
-    MOCK_METHOD2(call1, bool(std::string, std::string));
-    MOCK_METHOD3(call2, bool(std::string, int, std::string));
+    MOCK_METHOD1(call0, Reply<>(std::string));
+    MOCK_METHOD2(call1, Reply<>(std::string, std::string));
+    MOCK_METHOD3(call2, Reply<>(std::string, int, std::string));
 };
 
 class TestPolicy {
@@ -94,7 +131,7 @@ TEST_P(FunctionMessageHandlerTest, testNoParams)
         {
             return function.call0(identity);
         }, TestPolicy {});
-    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(success));
+    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {}, success);
 }
 
@@ -106,7 +143,7 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         {
             return function.call1(identity, param);
         }, TestPolicy {});
-    EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(success));
+    EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {"param"}, success);
 }
 
@@ -118,7 +155,7 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         {
             return function.call2(identity, param1, param2);
         }, TestPolicy {});
-    EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(success));
+    EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {"1", "param"}, success);
 }
 
@@ -143,10 +180,17 @@ TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
     testHelper(*handler, {"invalid"}, false);
 }
 
-TEST_F(FunctionMessageHandlerTest, testGetReplySuccess)
+TEST_F(FunctionMessageHandlerTest, testGetReply1)
 {
-    auto handler = makeMessageHandler(&getReply, TestPolicy {});
-    testHelper(*handler, {}, true, {REPLY});
+    auto handler = makeMessageHandler(&reply1, TestPolicy {});
+    testHelper(*handler, {}, true, {REPLY1});
+}
+
+TEST_F(FunctionMessageHandlerTest, testGetReply2)
+{
+    auto handler = makeMessageHandler(&reply2, TestPolicy {});
+    testHelper(
+        *handler, {}, true, {REPLY1, boost::lexical_cast<std::string>(REPLY2)});
 }
 
 INSTANTIATE_TEST_CASE_P(

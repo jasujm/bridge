@@ -37,8 +37,11 @@ const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
 
 using Engine::BridgeEngine;
+using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
+using Messaging::Reply;
+using Messaging::success;
 using Scoring::DuplicateScoreSheet;
 
 namespace {
@@ -80,11 +83,11 @@ private:
 
     void handleNotify(const BridgeEngine::DealEnded&);
 
-    std::string hello(const std::string& indentity);
-    DealState state(const std::string& identity);
-    bool call(const std::string& identity, const Call& call);
-    bool play(const std::string& identity, const CardType& card);
-    DuplicateScoreSheet score(const std::string& identity);
+    Reply<std::string> hello(const std::string& indentity);
+    Reply<DealState> state(const std::string& identity);
+    Reply<> call(const std::string& identity, const Call& call);
+    Reply<> play(const std::string& identity, const CardType& card);
+    Reply<DuplicateScoreSheet> score(const std::string& identity);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -178,11 +181,11 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
     }
 }
 
-std::string BridgeMain::Impl::hello(const std::string& identity)
+Reply<std::string> BridgeMain::Impl::hello(const std::string& identity)
 {
     const auto n = entries.size();
     if (n >= N_PLAYERS) {
-        return {};
+        return failure();
     }
 
     assert(players.size() >= n);
@@ -193,37 +196,36 @@ std::string BridgeMain::Impl::hello(const std::string& identity)
         identity, PlayerEntry {*players[n], context, dataEndpoints.front()});
     auto ret = std::move(dataEndpoints.front());
     dataEndpoints.pop_front();
-    return ret;
+    return success(std::move(ret));
 }
 
-DealState BridgeMain::Impl::state(const std::string& identity)
+Reply<DealState> BridgeMain::Impl::state(const std::string& identity)
 {
     const auto iter = entries.find(identity);
     if (iter == entries.end()) {
-        // TODO: Signal failure
-        return DealState {};
+        return failure();
     }
 
-    return makeDealState(engine, iter->second.player);
+    return success(makeDealState(engine, iter->second.player));
 }
 
-bool BridgeMain::Impl::call(const std::string& identity, const Call& call)
+Reply<> BridgeMain::Impl::call(const std::string& identity, const Call& call)
 {
     const auto iter = entries.find(identity);
     if (iter == entries.end()) {
-        return false;
+        return failure();
     }
 
     engine.call(iter->second.player, call);
     publishState();
-    return true;
+    return success();
 }
 
-bool BridgeMain::Impl::play(const std::string& identity, const CardType& card)
+Reply<> BridgeMain::Impl::play(const std::string& identity, const CardType& card)
 {
     const auto iter = entries.find(identity);
     if (iter == entries.end()) {
-        return false;
+        return failure();
     }
 
     if (const auto hand = engine.getHandInTurn()) {
@@ -232,19 +234,18 @@ bool BridgeMain::Impl::play(const std::string& identity, const CardType& card)
         }
     }
     publishState();
-    return true;
+    return success();
 }
 
-DuplicateScoreSheet BridgeMain::Impl::score(const std::string& identity)
+Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string& identity)
 {
     const auto iter = entries.find(identity);
     if (iter == entries.end()) {
-        // TODO: Signal failure
-        return DuplicateScoreSheet {};
+        return failure();
     }
 
     assert(gameManager);
-    return gameManager->getScoreSheet();
+    return success(gameManager->getScoreSheet());
 }
 
 BridgeMain::BridgeMain(

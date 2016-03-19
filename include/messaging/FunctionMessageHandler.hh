@@ -9,38 +9,119 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationUtility.hh"
 
+#include <boost/variant/variant.hpp>
+
 #include <iterator>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
 namespace Bridge {
 namespace Messaging {
 
+/** \brief Struct that represents failed reply to message
+ *
+ * \sa Reply
+ */
+struct ReplyFailure {};
+
+/** \brief Struct that represents successful reply to message
+ *
+ * A successful reply may contain an arbitrary number of arguments passed to
+ * the sender of the message.
+ *
+ * \tparam Args the types of the arguments of the reply
+ *
+ * \sa Reply
+ */
+template<typename... Args>
+struct ReplySuccess {
+
+    /** \brief Create ReplySuccess from other type of ReplySuccess
+     *
+     * This constructor is used to convert between compatible ReplySuccess
+     * objects.
+     *
+     * \param other compatible ReplySuccess object
+     */
+    template<typename... Args2>
+    ReplySuccess(ReplySuccess<Args2...> other) :
+        arguments {std::move(other.arguments)}
+    {
+    }
+
+    /** \brief Create ReplySuccess from tuple
+     *
+     * \param args arguments that will be passed to the sender of the message
+     */
+    template<typename... Args2>
+    explicit ReplySuccess(std::tuple<Args2...> args) :
+        arguments {std::move(args)}
+    {
+    }
+
+    /** \brief Arguments of the reply
+     */
+    std::tuple<Args...> arguments;
+};
+
+/** \brief Reply to message handled by FunctionMessageHandler
+ */
+template<typename... Args>
+using Reply = boost::variant<ReplyFailure, ReplySuccess<Args...>>;
+
+/** \brief Convenience function for creating successful reply
+ *
+ * \param args Arguments of the reply
+ *
+ * \return Successful reply with the given arguments
+ */
+template<typename... Args>
+auto success(Args&&... args)
+{
+    return ReplySuccess<Args...> {
+        std::forward_as_tuple<Args...>(std::forward<Args>(args)...)};
+}
+
+/** \brief Convenience function for creating failed reply
+ *
+ * \return Failed reply
+ */
+inline auto failure()
+{
+    return ReplyFailure {};
+}
+
 /** \brief Class that adapts a function into MessageHandler interface
  *
  * FunctionMessageHandler wraps any function into MessageHandler interface. It
- * is responsible for forwarding the string arguments to the handler to the
- * function in type safe manner, as well as forwarding the return value of the
- * function to report failures. The deserialization of function parameters is
+ * is responsible for forwarding the string arguments of the handler to the
+ * function in type safe manner, as well as outputting the return value of the
+ * function back to the caller. The deserialization of function parameters is
  * controlled by serialization policy.
  *
- * FunctionMessageHandler reports failure by returning false from handle() if
- * the number of parameters does not match the argument count of the function
- * or if deserialization of any parameter fails. The wrapped function also
- * needs to return a value convertible to bool to indicate whether or not its
- * invocation was successful.
+ * The function that handles the message must return an object of type \ref
+ * Reply. Depending on the type of the reply (ReplySuccess or ReplyFailure)
+ * the message handler returns true or false to the caller. In case of
+ * successful reply, any arguments of ReplySuccess are serialized and written
+ * to the output iterator provided by the caller.
  *
- * \tparam Function Type of the function that FunctionMessageHandler
- * wraps. The function must take the identity of the sender of the message
- * (std::string or something to which it can be converted) as it’s first
- * argument, and may take an arbitrary number of parameters after
- * that. Depending on the type of the return value handling behaves as follows:
- *   - If the return value of the function is implicitly convertible to bool,
- *     handle() returns the return value as is
- *   - Otherwise the return value is serialized and written to the output
- *     parameter used to invoke the handler. The handler returns true.
+ * The following is an example of message handler function in hypothetical
+ * cloud service that checks credentials of a client and returns list of files
+ * if the check passes.
+ *
+ * \code{.cc}
+ * Reply<std::vector<std::string>> getFiles(
+ *     const std::string& identity, const std::string& credentials)
+ * {
+ *     if (checkCredentials(identity, credentials)) {
+ *         return success(getFilesForUser(identity));
+ *     }
+ *     return failure();
+ * }
+ * \endcode
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
@@ -69,21 +150,32 @@ private:
         const std::string& identity, ParameterRange params,
         OutputSink sink) override;
 
-    bool invokeHelper(
-        const std::string& identity, std::decay_t<Args>&&... args, OutputSink&,
-        std::true_type)
-    {
-        return function(identity, std::move(args)...);
-    }
+    class ReplyVisitor {
+    public:
 
-    bool invokeHelper(
-        const std::string& identity, std::decay_t<Args>&&... args,
-        OutputSink& sink, std::false_type)
-    {
-        auto&& result = function(identity, std::move(args)...);
-        sink(serializer.serialize(result));
-        return true;
-    }
+        ReplyVisitor(SerializationPolicy& serializer, OutputSink& sink);
+
+        bool operator()(ReplyFailure) const;
+
+        template<typename... Args2>
+        bool operator()(const ReplySuccess<Args2...>& reply) const;
+
+    private:
+
+        template<std::size_t N = 0, typename... Args2>
+        bool internalReplySuccess(const std::tuple<Args2...>& args) const;
+
+        template<std::size_t N, typename... Args2>
+        bool internalReplySuccessHelper(
+            const std::tuple<Args2...>& args, std::true_type) const;
+
+        template<std::size_t N, typename... Args2>
+        bool internalReplySuccessHelper(
+            const std::tuple<Args2...>& args, std::false_type) const;
+
+        SerializationPolicy& serializer;
+        OutputSink& sink;
+    };
 
     template<std::size_t... Ns>
     bool internalCallFunction(
@@ -93,11 +185,9 @@ private:
         auto&& params_ = deserializeAll<std::decay_t<Args>...>(
             serializer, params[Ns]...);
         if (params_) {
-            using Result = std::result_of_t<
-                Function(std::string, std::decay_t<Args>&&...)>;
-            return invokeHelper(
-                identity, std::move(std::get<Ns>(*params_))..., sink,
-                typename std::is_convertible<Result, bool>::type());
+            auto&& result = function(
+                identity, std::move(std::get<Ns>(*params_))...);
+            return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
         }
         return false;
     }
@@ -107,7 +197,8 @@ private:
 };
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-FunctionMessageHandler<Function, SerializationPolicy, Args...>::FunctionMessageHandler(
+FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+FunctionMessageHandler(
     Function function, SerializationPolicy serializer) :
     function {std::move(function)},
     serializer {std::move(serializer)}
@@ -125,6 +216,58 @@ bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
 
     return internalCallFunction(
         identity, params, sink, std::index_sequence_for<Args...>());
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::ReplyVisitor(SerializationPolicy& serializer, OutputSink& sink) :
+    serializer {serializer},
+    sink {sink}
+{
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::operator()(ReplyFailure) const
+{
+    return false;
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<typename... Args2>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::operator()(const ReplySuccess<Args2...>& reply) const
+{
+    return internalReplySuccess(reply.arguments);
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N, typename... Args2>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::internalReplySuccess(const std::tuple<Args2...>& args) const
+{
+    return internalReplySuccessHelper<N>(
+        args,
+        typename std::integral_constant<bool, sizeof...(Args2) == N>::type());
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N, typename... Args2>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::internalReplySuccessHelper(
+    const std::tuple<Args2...>&, std::true_type) const
+{
+    return true;
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N, typename... Args2>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::internalReplySuccessHelper(
+    const std::tuple<Args2...>& args, std::false_type) const
+{
+    sink(serializer.serialize(std::get<N>(args)));
+    return internalReplySuccess<N+1>(args);
 }
 
 /** \brief Utility for wrapping function into message handler
@@ -166,10 +309,10 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
  * \sa FunctionMessageHandler
  */
 template<
-    typename Handler, typename Bool, typename String, typename... Args,
+    typename Handler, typename Reply, typename String, typename... Args,
     typename SerializationPolicy>
 auto makeMessageHandler(
-    Handler& handler, Bool (Handler::*memfn)(String, Args...),
+    Handler& handler, Reply (Handler::*memfn)(String, Args...),
     SerializationPolicy&& serializer)
 {
     // Identity always comes as const std::string& from
