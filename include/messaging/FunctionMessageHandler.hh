@@ -246,9 +246,8 @@ template<std::size_t N, typename... Args2>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::internalReplySuccess(const std::tuple<Args2...>& args) const
 {
-    return internalReplySuccessHelper<N>(
-        args,
-        typename std::integral_constant<bool, sizeof...(Args2) == N>::type());
+    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
+    return internalReplySuccessHelper<N>(args, IsLast());
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
