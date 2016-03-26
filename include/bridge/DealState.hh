@@ -68,27 +68,6 @@ struct DealState : private boost::equality_comparable<DealState> {
      */
     boost::optional<Position> positionInTurn;
 
-    /** \brief Type of the \ref allowedCalls member
-     */
-    using AllowedCalls = std::vector<Call>;
-
-    /** \brief The calls the current player is allowed to make in the bidding
-     *
-     * This member is none if the deal is not in the bidding stage.
-     */
-    boost::optional<AllowedCalls> allowedCalls;
-
-    /** \brief Type of the \ref allowedCards member
-     */
-    using AllowedCards = std::vector<CardType>;
-
-    /** \brief The cards the current player is allowed to play to the current
-     * trick
-     *
-     * This member is none if the deal is not in the playing stage.
-     */
-    boost::optional<AllowedCards> allowedCards;
-
     /** \brief The vulnerability status of the deal
      *
      * This member if none if the game has ended.

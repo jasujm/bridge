@@ -1,6 +1,5 @@
 #include "engine/MakeDealState.hh"
 
-#include "bridge/BidIterator.hh"
 #include "bridge/Bidding.hh"
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
@@ -20,35 +19,6 @@ namespace Bridge {
 namespace Engine {
 
 namespace {
-
-void fillAllowedCalls(DealState& state, const Bidding& bidding)
-{
-    auto calls = DealState::AllowedCalls {Pass {}};
-    if (bidding.isDoublingAllowed()) {
-        calls.emplace_back(Double {});
-    }
-    if (bidding.isRedoublingAllowed()) {
-        calls.emplace_back(Redouble {});
-    }
-    std::copy(
-        BidIterator(bidding.getLowestAllowedBid()),
-        BidIterator(boost::none),
-        std::back_inserter(calls));
-    state.allowedCalls.emplace(std::move(calls));
-}
-
-void fillAllowedCards(
-    DealState& state, const Hand& hand, const Trick& trick)
-{
-    auto cards = DealState::AllowedCards {};
-    for (const auto& card : hand) {
-        if (trick.canPlay(hand, card)) {
-            // If card can be played, it's type is known
-            cards.emplace_back(card.getType().get());
-        }
-    }
-    state.allowedCards.emplace(std::move(cards));
-}
 
 void fillCards(DealState& state, const Position position, const Hand& hand)
 {
@@ -123,14 +93,11 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     }
 
     // Fill bidding
-    const auto position = engine.getPosition(player);
     if (const auto bidding = engine.getBidding()) {
         state.stage = Stage::BIDDING;
         fillBidding(state, *bidding);
         if (bidding->hasContract()) {
             fillContract(state, *bidding);
-        } else if (position == state.positionInTurn) {
-            fillAllowedCalls(state, *bidding);
         }
     }
 
@@ -138,11 +105,6 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     if (const auto current_trick = engine.getCurrentTrick()) {
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, engine);
-        if (position == state.positionInTurn) {
-            if (const auto hand = engine.getHandInTurn()) {
-                fillAllowedCards(state, *hand, *current_trick);
-            }
-        }
     }
 
     // Fill tricks won by each partnership

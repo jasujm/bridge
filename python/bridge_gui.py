@@ -448,18 +448,17 @@ class BridgeApp(App):
         scores = [parse_score_entry(entry) for entry in score_sheet]
         self._score_sheet_panel.set_score_sheet(scores)
 
-    def _handle_state(self, state):
+    def _handle_state(self, state, allowed_calls, allowed_cards):
         position_in_turn = state.get(POSITION_IN_TURN_KEY)
         self._play_area_panel.set_position_in_turn(position_in_turn)
-        allowed_calls = {parse_call(call) for call in
-                         state.get(ALLOWED_CALLS_KEY, [])}
+        allowed_calls = {parse_call(call) for call in allowed_calls}
         self._call_panel.set_allowed_calls(allowed_calls)
         vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
                          VULNERABILITY_KEY in state else None)
         self._play_area_panel.set_vulnerability(vulnerability)
         cards = {position: parse_cards(hand) for (position, hand) in
                  state.get(CARDS_KEY, {}).items()}
-        allowed_cards = set(parse_cards(state.get(ALLOWED_CARDS_KEY, [])))
+        allowed_cards = set(parse_cards(allowed_cards))
         self._play_area_panel.set_cards(cards, allowed_cards)
         calls = [parse_call_entry(obj) for obj in state.get(CALLS_KEY, [])]
         self._bidding_panel.set_calls(calls)

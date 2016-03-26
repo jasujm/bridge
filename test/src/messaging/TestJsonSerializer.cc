@@ -345,21 +345,6 @@ TEST_F(JsonSerializerTest, testComplexDealState)
             toJson(Position::EAST)
         },
         {
-            DEAL_STATE_ALLOWED_CALLS_KEY,
-            {
-                toJson(call1),
-                toJson(call2)
-            }
-        },
-        {
-            DEAL_STATE_ALLOWED_CARDS_KEY,
-            {
-                toJson(card1),
-                toJson(card2),
-                toJson(card3)
-            }
-        },
-        {
             DEAL_STATE_VULNERABILITY_KEY,
             toJson(VULNERABILITY)
         },
@@ -447,8 +432,6 @@ TEST_F(JsonSerializerTest, testComplexDealState)
     auto state = DealState {};
     state.stage = Stage::PLAYING;
     state.positionInTurn = Position::EAST;
-    state.allowedCalls = DealState::AllowedCalls {call1, call2};
-    state.allowedCards = DealState::AllowedCards {card1, card2, card3};
     state.vulnerability = VULNERABILITY;
     state.cards = cards;
     state.calls = calls;

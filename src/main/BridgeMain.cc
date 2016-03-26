@@ -1,5 +1,7 @@
 #include "main/BridgeMain.hh"
 
+#include "bridge/AllowedCalls.hh"
+#include "bridge/AllowedCards.hh"
 #include "bridge/BasicPlayer.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Call.hh"
@@ -16,6 +18,7 @@
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
+#include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageQueue.hh"
 #include "scoring/DuplicateScoreSheet.hh"
 #include "Observer.hh"
@@ -28,6 +31,11 @@
 
 namespace Bridge {
 namespace Main {
+
+namespace {
+using AllowedCalls = std::vector<Call>;
+using AllowedCards = std::vector<CardType>;
+}
 
 const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
 const std::string BridgeMain::STATE_COMMAND {"state"};
@@ -64,7 +72,8 @@ private:
     void handleNotify(const BridgeEngine::DealEnded&);
 
     Reply<> hello(const std::string& indentity);
-    Reply<DealState> state(const std::string& identity);
+    Reply<DealState, AllowedCalls, AllowedCards> state(
+        const std::string& identity);
     Reply<> call(const std::string& identity, const Call& call);
     Reply<> play(const std::string& identity, const CardType& card);
     Reply<DuplicateScoreSheet> score(const std::string& identity);
@@ -156,14 +165,27 @@ Reply<> BridgeMain::Impl::hello(const std::string& identity)
     return success();
 }
 
-Reply<DealState> BridgeMain::Impl::state(const std::string& identity)
+Reply<DealState, AllowedCalls, AllowedCards> BridgeMain::Impl::state(
+    const std::string& identity)
 {
     const auto iter = clients.find(identity);
     if (iter == clients.end()) {
         return failure();
     }
 
-    return success(makeDealState(engine, iter->second));
+    const auto& deal_state = makeDealState(engine, iter->second);
+    auto allowed_calls = AllowedCalls {};
+    auto allowed_cards = AllowedCards {};
+    if (engine.getPlayerInTurn() == &iter->second.get()) {
+        if (const auto bidding = engine.getBidding()) {
+            getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
+        }
+        if (const auto trick = engine.getCurrentTrick()) {
+            getAllowedCards(*trick, std::back_inserter(allowed_cards));
+        }
+    }
+    return success(
+        deal_state, std::move(allowed_calls), std::move(allowed_cards));
 }
 
 Reply<> BridgeMain::Impl::call(const std::string& identity, const Call& call)

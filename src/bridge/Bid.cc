@@ -8,6 +8,7 @@
 #include <istream>
 #include <ostream>
 #include <string>
+#include <utility>
 
 namespace Bridge {
 
@@ -44,13 +45,14 @@ boost::optional<Bid> nextHigherBid(const Bid& bid)
 
 bool operator==(const Bid& lhs, const Bid& rhs)
 {
-    return &lhs == &rhs || (lhs.level == rhs.level && lhs.strain == rhs.strain);
+    return std::make_pair(lhs.level, lhs.strain) ==
+        std::make_pair(rhs.level, lhs.strain);
 }
 
 bool operator<(const Bid& lhs, const Bid& rhs)
 {
-    return (lhs.level < rhs.level ||
-            static_cast<int>(lhs.strain) < static_cast<int>(rhs.strain));
+    return std::make_pair(lhs.level, static_cast<int>(lhs.strain)) <
+        std::make_pair(rhs.level, static_cast<int>(rhs.strain));
 }
 
 std::ostream& operator<<(std::ostream& os, Strain strain)

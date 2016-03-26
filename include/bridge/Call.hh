@@ -10,6 +10,7 @@
 // cryptic error messages if Bid is not available
 #include "bridge/Bid.hh"
 
+#include <boost/operators.hpp>
 #include <boost/variant/variant.hpp>
 
 #include <iosfwd>
@@ -18,15 +19,15 @@ namespace Bridge {
 
 /** \brief Tag for bridge call pass
  */
-struct Pass {};
+struct Pass : private boost::totally_ordered<Pass> {};
 
 /** \brief Tag for bridge call double
  */
-struct Double {};
+struct Double : private boost::totally_ordered<Double> {};
 
 /** \brief Tag for bridge call redouble
  */
-struct Redouble {};
+struct Redouble : private boost::totally_ordered<Redouble> {};
 
 /** \brief Bridge call
  *
@@ -37,59 +38,39 @@ struct Redouble {};
  */
 using Call = boost::variant<Pass, Bid, Double, Redouble>;
 
-/** \brief Compare two Pass objects for equality
- *
- * Two Pass objects always compare equal. This function is required to
- * generate operator== for \ref Call.
+/** \brief Equality operator for Pass
  *
  * \return true
  */
 inline bool operator==(Pass, Pass) { return true; }
 
-/** \brief Compare two Pass objects for inequality
- *
- * Two Pass objects always compare equal. This function is required to
- * generate operator== for \ref Call.
- *
- * \return false
+/** \brief Less than operator for Pass
  */
-inline bool operator!=(Pass, Pass) { return false; }
+inline bool operator<(Pass, Pass) { return false; }
 
-/** \brief Compare two Double objects for equality
- *
- * Two Double objects always compare equal. This function is required to
- * generate operator!= for \ref Call.
+/** \brief Equality operator for Double
  *
  * \return true
  */
 inline bool operator==(Double, Double) { return true; }
 
-/** \brief Compare two Double objects for inequality
- *
- * Two Double objects always compare equal. This function is required to
- * generate operator!= for \ref Call.
+/** \brief Less than operator for Double
  *
  * \return false
  */
-inline bool operator!=(Double, Double) { return false; }
+inline bool operator<(Double, Double) { return false; }
 
-/** \brief Compare two Redouble objects for equality
- *
- * Two Redouble objects always compare equal. This function is required to
- * generate operator== for \ref Call.
+/** \brief Equality operator for Redouble
  *
  * \return true
  */
 inline bool operator==(Redouble, Redouble) { return true; }
 
-/** \brief Compare two Redouble objects for inequality
- *
- * Two Redouble objects always compare equal. This function is required to
- * generate operator!= for \ref Call.
+/** \brief Less than operator for Redouble
  *
  * \return false
  */
-inline bool operator!=(Redouble, Redouble) { return false; }
+inline bool operator<(Redouble, Redouble) { return false; }
 
 /** \brief Output pass to stream
  *

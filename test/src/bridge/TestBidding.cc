@@ -11,10 +11,11 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <iterator>
 #include <utility>
-#include <stdexcept>
 
 using Bridge::Bidding;
+using Bridge::Call;
 using Bridge::Contract;
 using Bridge::Position;
 using Bridge::to;
@@ -31,10 +32,10 @@ constexpr Contract CONTRACT {
     Bridge::Doubling::UNDOUBLED,
 };
 constexpr Bridge::Bid LOWEST_ALLOWED_BID {2, Bridge::Strain::DIAMONDS};
-const Bridge::Call VALID_CALL {Bridge::Pass {}};
-const Bridge::Call INVALID_CALL {Bridge::Double {}};
-const Bridge::Call DOUBLE_CALL {Bridge::Double {}};
-const Bridge::Call REDOUBLE_CALL {Bridge::Redouble {}};
+const Call VALID_CALL {Bridge::Pass {}};
+const Call INVALID_CALL {Bridge::Double {}};
+const Call DOUBLE_CALL {Bridge::Double {}};
+const Call REDOUBLE_CALL {Bridge::Redouble {}};
 }
 
 class BiddingTest : public testing::TestWithParam<std::size_t> {

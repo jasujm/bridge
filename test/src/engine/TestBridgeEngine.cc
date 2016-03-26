@@ -91,34 +91,12 @@ protected:
         Mock::VerifyAndClearExpectations(engine.get());
     }
 
-    void updateAllowedCards(Position position)
-    {
-        expectedState.allowedCards = expectedState.cards->at(position);
-    }
-
-    void updateAllowedCalls(
-        bool doublingAllowed, bool redoublingAllowed,
-        const Bid& lowestAllowedBid)
-    {
-        expectedState.allowedCalls = DealState::AllowedCalls {Pass {}};
-        if (doublingAllowed) {
-            expectedState.allowedCalls->emplace_back(Double {});
-        }
-        if (redoublingAllowed) {
-            expectedState.allowedCalls->emplace_back(Redouble {});
-        }
-        std::copy(
-            BidIterator(lowestAllowedBid), BidIterator(boost::none),
-            std::back_inserter(*expectedState.allowedCalls));
-    }
-
     void updateExpectedStateAfterPlay(const Player& player)
     {
         const auto position = engine->getPosition(player);
         auto& cards = expectedState.cards->at(position);
         const auto new_position = clockwise(position);
         expectedState.positionInTurn = new_position;
-        updateAllowedCards(new_position);
         expectedState.currentTrick->emplace_back(position, cards.front());
         cards.erase(cards.begin());
     }
@@ -153,10 +131,6 @@ protected:
             }
             if (dummy && dummy == state.positionInTurn) {
                 state.positionInTurn = partnerFor(*dummy);
-            }
-            if (position != state.positionInTurn) {
-                state.allowedCalls = boost::none;
-                state.allowedCards = boost::none;
             }
             EXPECT_EQ(
                 state, makeDealState(*engine, engine->getPlayer(position)));
@@ -251,21 +225,11 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     }
 
     // Bidding
-    const auto next_bid = nextHigherBid(BID).value();
     const auto calls = {
-        std::make_tuple(Call {Pass {}},     false, false, Bid::LOWEST_BID),
-        std::make_tuple(Call {BID},         false, false, Bid::LOWEST_BID),
-        std::make_tuple(Call {Double {}},   true,  false, next_bid),
-        std::make_tuple(Call {Redouble {}}, false, true,  next_bid),
-        std::make_tuple(Call {Pass {}},     false, false, next_bid),
-        std::make_tuple(Call {Pass {}},     false, false, next_bid),
-        std::make_tuple(Call {Pass {}},     false, false, next_bid),
-    };
+        Call {Pass {}}, Call {BID}, Call {Double {}}, Call {Redouble {}},
+        Call {Pass {}}, Call {Pass {}}, Call {Pass {}}};
     for (const auto e : enumerate(calls)) {
-        const auto& call = std::get<0>(e.second);
-        updateAllowedCalls(
-            std::get<1>(e.second), std::get<2>(e.second),
-            std::get<3>(e.second));
+        const auto& call = e.second;
         assertDealState();
         assertHandsVisible(true);
         const auto& player = *players[e.first % players.size()];
@@ -278,8 +242,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Playing
     expectedState.stage = Stage::PLAYING;
     expectedState.positionInTurn = Position::SOUTH;
-    expectedState.allowedCalls = boost::none;
-    updateAllowedCards(Position::SOUTH);
     expectedState.declarer = Position::EAST;
     expectedState.contract.emplace(BID, Doubling::REDOUBLED);
     expectedState.currentTrick.emplace();
@@ -295,7 +257,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     }
 
     expectedState.positionInTurn = Position::NORTH;
-    updateAllowedCards(Position::NORTH);
     addTrickToNorthSouth();
     for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
         for (const auto& player : players) {
