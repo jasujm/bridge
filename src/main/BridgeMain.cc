@@ -25,7 +25,6 @@
 #include <array>
 #include <iterator>
 #include <utility>
-#include <stdexcept>
 
 namespace Bridge {
 namespace Main {
@@ -44,30 +43,12 @@ using Messaging::Reply;
 using Messaging::success;
 using Scoring::DuplicateScoreSheet;
 
-namespace {
-
-struct PlayerEntry {
-    PlayerEntry(
-        const Player& player, zmq::context_t& context,
-        const std::string& endpoint) :
-        player {player},
-        dataSocket {context, zmq::socket_type::pub}
-    {
-        dataSocket.bind(endpoint);
-    }
-
-    const Player& player;
-    zmq::socket_t dataSocket;
-};
-
-}
-
 class BridgeMain::Impl : public Observer<BridgeEngine::DealEnded> {
 public:
 
     Impl(
         zmq::context_t& context, const std::string& controlEndpoint,
-        DataEndpointList dataEndpoints);
+        const std::string& eventEndpoint);
 
     void run();
 
@@ -77,13 +58,12 @@ public:
 
 private:
 
-    template<typename T>
-    void publish(zmq::socket_t& socket, const std::string& command, const T& t);
-    void publishState();
+    template<typename... Args>
+    void publish(const std::string& command, const Args&... args);
 
     void handleNotify(const BridgeEngine::DealEnded&);
 
-    Reply<std::string> hello(const std::string& indentity);
+    Reply<> hello(const std::string& indentity);
     Reply<DealState> state(const std::string& identity);
     Reply<> call(const std::string& identity, const Call& call);
     Reply<> play(const std::string& identity, const CardType& card);
@@ -100,14 +80,13 @@ private:
         std::make_shared<Engine::SimpleCardManager>(),
         gameManager, players.begin(), players.end()};
     Messaging::MessageQueue messageQueue;
-    zmq::context_t& context;
-    DataEndpointList dataEndpoints;
-    std::map<std::string, PlayerEntry> entries;
+    zmq::socket_t eventSocket;
+    std::map<std::string, std::reference_wrapper<const Player>> clients;
 };
 
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& controlEndpoint,
-    DataEndpointList dataEndpoints) :
+    const std::string& eventEndpoint) :
     messageQueue {
         {
             {
@@ -131,13 +110,10 @@ BridgeMain::Impl::Impl(
                 makeMessageHandler(*this, &Impl::score, JsonSerializer {})
             }
         },
-        context, controlEndpoint},
-    context {context},
-    dataEndpoints {std::move(dataEndpoints)}
+    context, controlEndpoint},
+    eventSocket {context, zmq::socket_type::pub}
 {
-    if (this->dataEndpoints.size() < N_PLAYERS) {
-        throw std::domain_error("At least four data endpoints needed");
-    }
+    eventSocket.bind(eventEndpoint);
 }
 
 void BridgeMain::Impl::run()
@@ -155,92 +131,73 @@ BridgeEngine& BridgeMain::Impl::getEngine()
     return engine;
 }
 
-template<typename T>
-void BridgeMain::Impl::publish(
-    zmq::socket_t& socket, const std::string& command, const T& t)
+template<typename... Args>
+void BridgeMain::Impl::publish(const std::string& command, const Args&... args)
 {
-    sendCommand(socket, JsonSerializer {}, command, t);
-}
-
-void BridgeMain::Impl::publishState()
-{
-    for (auto& entry : entries) {
-        publish(
-            entry.second.dataSocket, STATE_COMMAND,
-            makeDealState(engine, entry.second.player));
-    }
+    sendCommand(eventSocket, JsonSerializer {}, command, args...);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
     assert(gameManager);
-    const auto& score_sheet = gameManager->getScoreSheet();
-    for (auto& entry : entries) {
-        publish(
-            entry.second.dataSocket, SCORE_COMMAND, score_sheet);
-    }
+    publish(SCORE_COMMAND, gameManager->getScoreSheet());
 }
 
-Reply<std::string> BridgeMain::Impl::hello(const std::string& identity)
+Reply<> BridgeMain::Impl::hello(const std::string& identity)
 {
-    const auto n = entries.size();
+    const auto n = clients.size();
     if (n >= N_PLAYERS) {
         return failure();
     }
 
     assert(players.size() >= n);
     assert(players[n]);
-    assert(!dataEndpoints.empty());
-
-    entries.emplace(
-        identity, PlayerEntry {*players[n], context, dataEndpoints.front()});
-    auto ret = std::move(dataEndpoints.front());
-    dataEndpoints.pop_front();
-    return success(std::move(ret));
+    clients.emplace(identity, *players[n]);
+    return success();
 }
 
 Reply<DealState> BridgeMain::Impl::state(const std::string& identity)
 {
-    const auto iter = entries.find(identity);
-    if (iter == entries.end()) {
+    const auto iter = clients.find(identity);
+    if (iter == clients.end()) {
         return failure();
     }
 
-    return success(makeDealState(engine, iter->second.player));
+    return success(makeDealState(engine, iter->second));
 }
 
 Reply<> BridgeMain::Impl::call(const std::string& identity, const Call& call)
 {
-    const auto iter = entries.find(identity);
-    if (iter == entries.end()) {
+    const auto iter = clients.find(identity);
+    if (iter == clients.end()) {
         return failure();
     }
 
-    engine.call(iter->second.player, call);
-    publishState();
+    engine.call(iter->second, call);
+    publish(CALL_COMMAND);
     return success();
 }
 
 Reply<> BridgeMain::Impl::play(const std::string& identity, const CardType& card)
 {
-    const auto iter = entries.find(identity);
-    if (iter == entries.end()) {
+    const auto iter = clients.find(identity);
+    if (iter == clients.end()) {
         return failure();
     }
 
     if (const auto hand = engine.getHandInTurn()) {
         if (const auto n_card = findFromHand(*hand, card)) {
-            engine.play(iter->second.player, *hand, *n_card);
+            engine.play(iter->second, *hand, *n_card);
         }
     }
-    publishState();
+    publish(PLAY_COMMAND);
     return success();
 }
 
 Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string& identity)
 {
-    const auto iter = entries.find(identity);
-    if (iter == entries.end()) {
+    const auto iter = clients.find(identity);
+    if (iter == clients.end()) {
         return failure();
     }
 
@@ -250,10 +207,9 @@ Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string& identity)
 
 BridgeMain::BridgeMain(
     zmq::context_t& context, const std::string& controlEndpoint,
-    DataEndpointList dataEndpoints) :
+    const std::string& eventEndpoint) :
     impl {
-        std::make_shared<Impl>(
-            context, controlEndpoint, std::move(dataEndpoints))}
+        std::make_shared<Impl>(context, controlEndpoint, eventEndpoint)}
 {
     impl->getEngine().subscribe(impl);
 }

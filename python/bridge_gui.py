@@ -390,17 +390,21 @@ class BridgeApp(App):
         zmqctx = zmq.Context.instance()
         self._control_socket = zmqctx.socket(zmq.DEALER)
         self._control_socket.connect("tcp://localhost:5555")
-        self._data_socket = zmqctx.socket(zmq.SUB)
-        self._data_socket.setsockopt(zmq.SUBSCRIBE, STATE_COMMAND)
-        self._data_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
+        self._event_socket = zmqctx.socket(zmq.SUB)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+        self._event_socket.connect("tcp://localhost:5556")
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
             STATE_COMMAND: self._handle_state,
             SCORE_COMMAND: self._handle_score,
+            CALL_COMMAND: self._handle_update,
+            PLAY_COMMAND: self._handle_update,
         }
         self._poller = zmq.Poller()
-        self._poller.register(self._data_socket, flags=zmq.POLLIN)
+        self._poller.register(self._event_socket, flags=zmq.POLLIN)
         self._poller.register(self._control_socket, flags=zmq.POLLIN)
         Clock.schedule_interval(self._poll_data, 0)
         # UI
@@ -436,8 +440,7 @@ class BridgeApp(App):
                 if command in self._command_handlers:
                     self._command_handlers[command](*args)
 
-    def _handle_hello(self, data_endpoint):
-        self._data_socket.connect(data_endpoint)
+    def _handle_hello(self):
         send_command(self._control_socket, STATE_COMMAND)
         send_command(self._control_socket, SCORE_COMMAND)
 
@@ -471,7 +474,10 @@ class BridgeApp(App):
         tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
                       TRICKS_WON_KEY in state else None)
         self._info_panel.set_tricks_won(tricks_won)
-            
+
+    def _handle_update(self):
+        send_command(self._control_socket, STATE_COMMAND)
+
 
 if __name__ == '__main__':
     BridgeApp().run()

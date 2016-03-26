@@ -12,8 +12,8 @@
  * \section bridgeprotocol Bridge protocol
  *
  * Bridge protocol uses ZMTP over TCP (http://rfc.zeromq.org/spec:23). The
- * backend opens control socket (ROUTER). For each player that joins the game
- * a data socket (PUB) is opened and the endpoint told to the player.
+ * backend opens control socket (ROUTER) for communicating commands and game
+ * state with clients, and event socket (PUB) for publishing events.
  *
  * The control socket supports the following commands:
  *   - bridgehlo
@@ -22,8 +22,9 @@
  *   - play
  *   - score
  *
- * The data socket publishes the following data:
- *   - state
+ * The event socket publishes the following events:
+ *   - call
+ *   - play
  *   - score
  *
  * \todo This section is incomplete
@@ -53,15 +54,10 @@ namespace Main {
 class BridgeMain : private boost::noncopyable {
 public:
 
-    /** \brief Type for list of data socket endpoints
-     */
-    using DataEndpointList = std::deque<std::string>;
-
     /** \brief Handshake command for joining the game
      *
-     * If the player can join, the reply to this command is success with
-     * endpoint for the data socket for the player. Otherwise the reply is
-     * failure.
+     * If the client can join, it is added to the list of players and the
+     * reply to this command is success. Otherwise the reply is failure.
      */
     static const std::string HELLO_COMMAND;
 
@@ -97,14 +93,11 @@ public:
      *
      * \param context the ZeroMQ context for the game
      * \param controlEndpoint the endpoint for the control socket
-     * \param dataEndpoints the endpoints for the data sockets
-     *
-     * \throw std::domain_error if there are not at least four elements in \p
-     * dataEndpoints
+     * \param eventEndpoint the endpoint for the event socket
      */
     BridgeMain(
         zmq::context_t& context, const std::string& controlEndpoint,
-        DataEndpointList dataEndpoints);
+        const std::string& eventEndpoint);
 
     ~BridgeMain();
 

@@ -48,8 +48,25 @@ void sendCommand(
     serializeAll(
         params_.begin(), serializer,
         std::forward<Params>(params)...);
-    sendMessage(socket, command, sizeof...(Params) > 0);
+    sendMessage(socket, command, true);
     sendMessage(socket, params_.begin(), params_.end());
+}
+
+/** \brief Send command throught ZeroMQ socket
+ *
+ * \note This overload is for commands without parameters, so
+ * SerializationPolicy is ignored.
+ *
+ * \param socket socket used for sending the command
+ * \param command the command sent
+ */
+template<typename SerializationPolicy, typename CommandString>
+void sendCommand(
+    zmq::socket_t& socket,
+    SerializationPolicy&&,
+    CommandString&& command)
+{
+    sendMessage(socket, command);
 }
 
 }
