@@ -1,6 +1,7 @@
 #include "bridge/Trick.hh"
 
 #include "bridge/Card.hh"
+#include "bridge/CardType.hh"
 #include "Utility.hh"
 
 #include <cassert>
@@ -37,14 +38,6 @@ const Hand* Trick::getHandInTurn() const
     return &handleGetHand(n);
 }
 
-const Hand* Trick::getWinner() const
-{
-    if (isCompleted()) {
-        return &handleGetWinner();
-    }
-    return nullptr;
-}
-
 const Card* Trick::getCard(const Hand& hand) const
 {
     // It is assumed that this is reasonably efficient:
@@ -69,6 +62,30 @@ std::size_t Trick::internalGetNumberOfCardsPlayed() const
     const auto n = handleGetNumberOfCardsPlayed();
     assert(n <= N_CARDS_IN_TRICK);
     return n;
+}
+
+const Hand* getWinner(const Trick& trick, const boost::optional<Suit> trump)
+{
+    if (!trick.isCompleted()) {
+        return nullptr;
+    }
+
+    auto iter = trick.begin();
+    const auto last = trick.end();
+    const auto* winner = &iter->first;
+    auto winner_card_type = dereference(iter->second.getType());
+
+    for (++iter; iter != last; ++iter) {
+        const auto card_type = dereference(iter->second.getType());
+        if ((card_type.suit == trump && winner_card_type.suit != trump) ||
+            (card_type.suit == winner_card_type.suit &&
+             card_type.rank > winner_card_type.rank)) {
+            winner = &iter->first;
+            winner_card_type = card_type;
+        }
+    }
+
+    return winner;
 }
 
 }

@@ -10,7 +10,6 @@
 #include "bridge/Trick.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <functional>
 #include <stdexcept>
@@ -45,13 +44,11 @@ public:
      *
      * \param first the first hand
      * \param last the last hand
-     * \param trump optional trump suit, or none if trick is no trump
      *
      * \throw std::invalid_argument if the number of hands is not four
      */
     template<typename HandIterator>
-    BasicTrick(HandIterator first, HandIterator last,
-               boost::optional<Suit> trump = boost::none);
+    BasicTrick(HandIterator first, HandIterator last);
 
     virtual ~BasicTrick();
 
@@ -65,21 +62,16 @@ private:
 
     const Hand& handleGetHand(std::size_t n) const override;
 
-    bool handleIsPlayAllowed(const Hand& hand,
-                             const Card& card) const override;
-
-    const Hand& handleGetWinner() const override;
+    bool handleIsPlayAllowed(
+        const Hand& hand, const Card& card) const override;
 
     const std::vector<std::reference_wrapper<const Hand>> hands;
-    const boost::optional<Suit> trump;
     std::vector<std::reference_wrapper<const Card>> cards;
 };
 
 template<typename HandIterator>
-BasicTrick::BasicTrick(HandIterator first, HandIterator last,
-                       boost::optional<Suit> trump) :
-    hands(first, last),
-    trump {trump}
+BasicTrick::BasicTrick(HandIterator first, HandIterator last) :
+    hands(first, last)
 {
     if (hands.size() != N_CARDS_IN_TRICK) {
         throw std::invalid_argument("Invalid number of hands");

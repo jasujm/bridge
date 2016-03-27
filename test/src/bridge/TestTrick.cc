@@ -12,7 +12,10 @@
 #include <array>
 
 using Bridge::Card;
+using Bridge::CardType;
 using Bridge::to;
+using Bridge::Rank;
+using Bridge::Suit;
 using Bridge::Trick;
 
 using testing::_;
@@ -38,8 +41,17 @@ protected:
             .WillByDefault(Return(true));
     }
 
-    std::array<NiceMock<Bridge::MockCard>,
-               Bridge::Trick::N_CARDS_IN_TRICK> cards;
+    void setCardTypes(
+        const CardType& card1, const CardType& card2,
+        const CardType& card3, const CardType& card4)
+    {
+        ON_CALL(cards[0], handleGetType()).WillByDefault(Return(card1));
+        ON_CALL(cards[1], handleGetType()).WillByDefault(Return(card2));
+        ON_CALL(cards[2], handleGetType()).WillByDefault(Return(card3));
+        ON_CALL(cards[3], handleGetType()).WillByDefault(Return(card4));
+    }
+
+    std::array<NiceMock<Bridge::MockCard>, Trick::N_CARDS_IN_TRICK> cards;
     std::array<Bridge::MockHand, Bridge::Trick::N_CARDS_IN_TRICK> hands;
     NiceMock<Bridge::MockTrick> trick;
 };
@@ -128,16 +140,55 @@ TEST_F(TrickTest, testGetHandWhenTrickIsCompleted)
 
 TEST_F(TrickTest, testGetWinnerWhenTrickIsNotCompleted)
 {
-    EXPECT_FALSE(trick.getWinner());
+    EXPECT_FALSE(getWinner(trick));
 }
 
-TEST_P(TrickTest, testGetWinnerWhenTrickIsCompleted)
+TEST_F(TrickTest, testHighestCardOfOriginalSuitWinsNoTrump)
 {
-    const auto& hand = hands[GetParam()];
-    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
-        .WillOnce(Return(Trick::N_CARDS_IN_TRICK));
-    EXPECT_CALL(trick, handleGetWinner()).WillOnce(ReturnRef(hand));
-    EXPECT_EQ(&hand, trick.getWinner());
+    ON_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::SPADES},
+        {Rank::ACE,   Suit::SPADES},
+        {Rank::FOUR,  Suit::SPADES});
+    EXPECT_EQ(&hands[2], getWinner(trick));
+}
+
+TEST_F(TrickTest, testOnlyCardOfOriginalSuitWinsNoTrump)
+{
+    ON_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_EQ(&hands[0], getWinner(trick));
+}
+
+TEST_F(TrickTest, testHighestTrumpWinsIfTrumpIsLead)
+{
+    ON_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::SPADES},
+        {Rank::ACE,   Suit::SPADES},
+        {Rank::FOUR,  Suit::SPADES});
+    EXPECT_EQ(&hands[2], getWinner(trick, Suit::SPADES));
+}
+
+TEST_F(TrickTest, testHighestTrumpWinsIfTrumpIsNotLead)
+{
+    ON_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
+    setCardTypes(
+        {Rank::ACE,   Suit::SPADES},
+        {Rank::TWO,   Suit::CLUBS},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_EQ(&hands[3], getWinner(trick, Suit::CLUBS));
 }
 
 TEST_P(TrickTest, testGetCardWhenTrickIsEmpty)

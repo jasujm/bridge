@@ -10,6 +10,7 @@
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/optional/optional.hpp>
 
 #include <cstddef>
 #include <functional>
@@ -19,6 +20,7 @@ namespace Bridge {
 
 class Card;
 class Hand;
+enum class Suit;
 
 /** \brief A trick in contract bridge
  */
@@ -65,13 +67,6 @@ public:
      * if the trick is completed
      */
     const Hand* getHandInTurn() const;
-
-    /** \brief Determine the winner of the trick
-     *
-     * \return pointer to the hand who has won the trick, or nullptr if the
-     * trick is not completed
-     */
-    const Hand* getWinner() const;
 
     /** \brief Retrieve card played by the given hand
      *
@@ -144,14 +139,23 @@ private:
     virtual bool handleIsPlayAllowed(
         const Hand& hand, const Card& card) const = 0;
 
-    /** \brief Handle for returning the winner of the trick
-     *
-     * It may be assumed isCompleted() == true.
-     */
-    virtual const Hand& handleGetWinner() const = 0;
-
     std::size_t internalGetNumberOfCardsPlayed() const;
 };
+
+/** \brief Determine the winner of the trick
+ *
+ * The winner of the trick is determined according to the rules of the
+ * contract bridge. The hand that played the highest trump, or the highest
+ * card of the leading suit if there are no trumps, wins the trick.
+ *
+ * \param trick the trick
+ * \param trump the trump suit, if any
+ *
+ * \return pointer to the hand who has won the trick, or nullptr if the trick
+ * is not completed
+ */
+const Hand* getWinner(
+    const Trick& trick, boost::optional<Suit> trump = boost::none);
 
 inline auto Trick::trickCardIterator(std::size_t n) const
 {

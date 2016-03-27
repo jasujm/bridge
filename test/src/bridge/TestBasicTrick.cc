@@ -33,16 +33,9 @@ protected:
         }
     }
 
-    void playAll()
-    {
-        for (const auto t : zip(hands, cards)) {
-            trick.play(t.get<0>(), t.get<1>());
-        }
-    }
-
     std::array<NiceMock<Bridge::MockHand>, Trick::N_CARDS_IN_TRICK> hands;
     std::array<NiceMock<Bridge::MockCard>, Trick::N_CARDS_IN_TRICK> cards;
-    Bridge::BasicTrick trick {hands.begin(), hands.end(), Suit::DIAMONDS};
+    Bridge::BasicTrick trick {hands.begin(), hands.end()};
 };
 
 TEST_F(BasicTrickTest, testTurns)
@@ -81,26 +74,4 @@ TEST_F(BasicTrickTest, testHandUnableToFollowSuit)
 
     trick.play(hands[0], cards[0]);
     EXPECT_TRUE(trick.play(hands[1], cards[1]));
-}
-
-TEST_F(BasicTrickTest, testHighestCardOfOriginalSuitWinsNoTrump)
-{
-    ON_CALL(cards[1], handleGetType())
-        .WillByDefault(Return(CardType {Rank::ACE, Suit::HEARTS}));
-    ON_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
-        .WillByDefault(Return(true));
-
-    playAll();
-    EXPECT_EQ(&hands[3], trick.getWinner());
-}
-
-TEST_F(BasicTrickTest, testHighestTrumpWins)
-{
-    ON_CALL(cards[1], handleGetType())
-        .WillByDefault(Return(CardType {Rank::TWO, Suit::DIAMONDS}));
-    ON_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
-        .WillByDefault(Return(true));
-
-    playAll();
-    EXPECT_EQ(&hands[1], trick.getWinner());
 }

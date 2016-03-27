@@ -16,7 +16,6 @@ public:
     MOCK_CONST_METHOD1(handleGetCard, const Card&(std::size_t));
     MOCK_CONST_METHOD1(handleGetHand, const Hand&(std::size_t));
     MOCK_CONST_METHOD2(handleIsPlayAllowed, bool(const Hand&, const Card&));
-    MOCK_CONST_METHOD0(handleGetWinner, const Hand&());
 };
 
 }

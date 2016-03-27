@@ -430,9 +430,11 @@ TricksWon Playing::getTricksWon() const
 {
     auto north_south = 0;
     auto east_west = 0;
+    const auto trump = getTrump();
+
     for (const auto& trick : tricks) {
         assert(trick);
-        if (const auto& winner = trick->getWinner()) {
+        if (const auto winner = getWinner(*trick, trump)) {
             const auto winner_position = context<InDeal>().getPosition(*winner);
             const auto winner_partnership = partnershipFor(winner_position);
             switch (winner_partnership) {
@@ -453,7 +455,7 @@ Position Playing::getLeaderPosition() const
         const auto declarer_position = getDeclarerPosition();
         return clockwise(declarer_position);
     }
-    const auto& winner = dereference(tricks.back()->getWinner());
+    const auto& winner = dereference(getWinner(*tricks.back(), getTrump()));
     return context<InDeal>().getPosition(winner);
 }
 
@@ -515,9 +517,7 @@ PlayingTrick::PlayingTrick(my_context ctx) :
 {
     const auto& hands = context<InDeal>().getHands(
         context<Playing>().getLeaderPosition());
-    trick = std::make_unique<BasicTrick>(
-        hands.begin(), hands.end(),
-        context<Playing>().getTrump());
+    trick = std::make_unique<BasicTrick>(hands.begin(), hands.end());
 }
 
 sc::result PlayingTrick::react(const PlayCardEvent& event)
