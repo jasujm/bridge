@@ -37,8 +37,6 @@ protected:
             ON_CALL(e.second.get<0>(), handleIsKnown())
                 .WillByDefault(Return(true));
         }
-        ON_CALL(trick, handleIsPlayAllowed(_, _))
-            .WillByDefault(Return(true));
     }
 
     void setCardTypes(
@@ -52,7 +50,8 @@ protected:
     }
 
     std::array<NiceMock<Bridge::MockCard>, Trick::N_CARDS_IN_TRICK> cards;
-    std::array<Bridge::MockHand, Bridge::Trick::N_CARDS_IN_TRICK> hands;
+    std::array<
+        NiceMock<Bridge::MockHand>, Bridge::Trick::N_CARDS_IN_TRICK> hands;
     NiceMock<Bridge::MockTrick> trick;
 };
 
@@ -68,21 +67,6 @@ TEST_F(TrickTest, testTrickIncompletionWhenComplete)
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillOnce(Return(Bridge::Trick::N_CARDS_IN_TRICK));
     EXPECT_TRUE(trick.isCompleted());
-}
-
-TEST_P(TrickTest, testPlayWhenHandHasTurnAndPlayIsAllowed)
-{
-    const auto n = GetParam();
-    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
-    EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[n])));
-    EXPECT_TRUE(trick.play(hands[n], cards[n]));
-}
-
-TEST_P(TrickTest, testCanPlayWhenHandHasTurnAndPlayIsAllowed)
-{
-    const auto n = GetParam();
-    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
-    EXPECT_TRUE(trick.canPlay(hands[n], cards[n]));
 }
 
 TEST_F(TrickTest, testPlayWhenCardIsNotKnown)
@@ -111,19 +95,100 @@ TEST_F(TrickTest, testCanPlayWhenHandHasNotTurn)
     EXPECT_FALSE(trick.canPlay(hands[0], cards[0]));
 }
 
-TEST_F(TrickTest, testPlayWhenPlayIsNotAllowed)
+TEST_F(TrickTest, testPlayWhenHandHasTurnAndTrickIsEmpty)
 {
-    EXPECT_CALL(trick, handleIsPlayAllowed(Ref(hands[0]), Ref(cards[0])))
-        .WillOnce(Return(false));
-    EXPECT_CALL(trick, handleAddCardToTrick(_)).Times(0);
-    EXPECT_FALSE(trick.play(hands[0], cards[0]));
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(0));
+    EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[0])));
+    EXPECT_TRUE(trick.play(hands[0], cards[0]));
 }
 
-TEST_F(TrickTest, testCanPlayWhenPlayIsNotAllowed)
+TEST_P(TrickTest, testCanPlayWhenHandHasTurnAndTrickIsEmpty)
 {
-    EXPECT_CALL(trick, handleIsPlayAllowed(Ref(hands[0]), Ref(cards[0])))
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(0));
+    EXPECT_TRUE(trick.canPlay(hands[0], cards[0]));
+}
+
+TEST_F(TrickTest, testPlayWhenHandHasTurnAndFollowsSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::SPADES},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.play(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndFollowsSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::SPADES},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testPlayWhenHandHasTurnAndIsOutOfSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+        .WillOnce(Return(true));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.play(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndIsOutOfSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+        .WillOnce(Return(true));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testPlayWhenHandHasTurnAndDoesNotFollowSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(trick, handleAddCardToTrick(_)).Times(0);
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
         .WillOnce(Return(false));
-    EXPECT_FALSE(trick.canPlay(hands[0], cards[0]));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_FALSE(trick.play(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndDoesNotFollowSuit)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+        .WillOnce(Return(false));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_FALSE(trick.canPlay(hands[1], cards[1]));
 }
 
 TEST_F(TrickTest, testGetHandWhenTrickIsNotCompleted)

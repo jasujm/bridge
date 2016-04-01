@@ -52,7 +52,10 @@ public:
     /** \brief Determine if the card can be played from the hand
      *
      * The card can be played if it is a known card, belongs to the hand, the
-     * hand has turn and it is legal to play the card according to the rules.
+     * hand has turn and it is legal to play the card according to the
+     * rules. The contract bridge rules allow any card to be played to an
+     * empty trick and later cards to follow suit if the hand has the lead
+     * suit.
      *
      * \param hand the hand from which the card would be played
      * \param card the card to be played
@@ -127,17 +130,6 @@ private:
      * It may be assumed that N < \ref N_CARDS_IN_TRICK.
      */
     virtual const Hand& handleGetHand(std::size_t n) const = 0;
-
-    /** \brief Handle for returning whether the play is allowed
-     *
-     * This method returns whether the hand in turn can play given card to the
-     * trick. It may be assumed that the hand parameter is the current hand
-     * and that card.isKnown() == true.
-     *
-     * \return true if the card may be played, false otherwise
-     */
-    virtual bool handleIsPlayAllowed(
-        const Hand& hand, const Card& card) const = 0;
 
     std::size_t internalGetNumberOfCardsPlayed() const;
 };

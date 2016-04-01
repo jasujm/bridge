@@ -2,9 +2,11 @@
 
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Hand.hh"
 #include "Utility.hh"
 
 #include <cassert>
+#include <boost/logic/tribool.hpp>
 
 namespace Bridge {
 
@@ -22,9 +24,17 @@ bool Trick::play(const Hand& hand, const Card& card)
 bool Trick::canPlay(const Hand& hand, const Card& card) const
 {
     if (card.isKnown()) {
-        const auto hand_in_turn = getHandInTurn();
-        return hand_in_turn == &hand &&
-            handleIsPlayAllowed(*hand_in_turn, card);
+        const auto n = internalGetNumberOfCardsPlayed();
+        if (n == 0) {
+            return true;
+        }
+        const auto& hand_in_turn = handleGetHand(n);
+        if (&hand_in_turn != &hand) {
+            return false;
+        }
+        const auto suit = dereference(card.getType()).suit;
+        const auto first_suit = dereference(handleGetCard(0).getType()).suit;
+        return suit == first_suit || hand.isOutOfSuit(first_suit);
     }
     return false;
 }

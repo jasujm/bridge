@@ -19,10 +19,8 @@ namespace Bridge {
 
 /** \brief Concrete implementation of the Trick interface
  *
- * BasicTrick maintains turns based on predetermined list of hands. It
- * enforces standard contract bridge rules. In addition it doesn’t allow new
- * suit to be played to trick if it is indeterminate whether the hand is out
- * of the suit.
+ * BasicTrick keeps list of cards played to the trick and maintains turns
+ * based on predetermined list of hands.
  */
 class BasicTrick : public Trick, private boost::noncopyable {
 public:
@@ -61,9 +59,6 @@ private:
     const Card& handleGetCard(std::size_t n) const override;
 
     const Hand& handleGetHand(std::size_t n) const override;
-
-    bool handleIsPlayAllowed(
-        const Hand& hand, const Card& card) const override;
 
     const std::vector<std::reference_wrapper<const Hand>> hands;
     std::vector<std::reference_wrapper<const Card>> cards;

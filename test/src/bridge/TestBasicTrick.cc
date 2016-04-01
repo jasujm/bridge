@@ -55,23 +55,3 @@ TEST_F(BasicTrickTest, testCardsPlayed)
         EXPECT_EQ(&e.get<1>(), trick.getCard(e.get<0>()));
     }
 }
-
-TEST_F(BasicTrickTest, testHandMustFollowSuitIfHeCan)
-{
-    ON_CALL(cards[1], handleGetType())
-        .WillByDefault(Return(CardType {Rank::TWO, Suit::HEARTS}));
-
-    trick.play(hands[0], cards[0]);
-    EXPECT_FALSE(trick.play(hands[1], cards[1]));
-}
-
-TEST_F(BasicTrickTest, testHandUnableToFollowSuit)
-{
-    ON_CALL(cards[1], handleGetType())
-        .WillByDefault(Return(CardType {Rank::TWO, Suit::HEARTS}));
-    ON_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
-        .WillByDefault(Return(true));
-
-    trick.play(hands[0], cards[0]);
-    EXPECT_TRUE(trick.play(hands[1], cards[1]));
-}
