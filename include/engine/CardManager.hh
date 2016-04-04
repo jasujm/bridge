@@ -9,9 +9,11 @@
 #include "Observer.hh"
 #include "Utility.hh"
 
+#include <boost/range/any_range.hpp>
+
+#include <algorithm>
 #include <cstddef>
 #include <memory>
-#include <vector>
 
 namespace Bridge {
 
@@ -85,6 +87,13 @@ public:
      */
     std::size_t getNumberOfCards() const;
 
+protected:
+
+    /** Forward traversable range of indices
+     */
+    using IndexRange = boost::any_range<
+        std::size_t, boost::forward_traversal_tag, std::size_t>;
+
 private:
 
     /* \brief Handle for requesting that cards be shuffled
@@ -101,8 +110,7 @@ private:
      *
      * \sa getHand()
      */
-    virtual std::unique_ptr<Hand> handleGetHand(
-        const std::vector<std::size_t>& ns) = 0;
+    virtual std::unique_ptr<Hand> handleGetHand(IndexRange ns) = 0;
 
     /** \brief Handle for returning total number of cards
      *
@@ -115,13 +123,12 @@ template<typename IndexIterator>
 std::unique_ptr<Hand> CardManager::getHand(
     IndexIterator first, IndexIterator last)
 {
-    const auto n_cards = handleGetNumberOfCards();
-    auto ns = std::vector<std::size_t> {};
-    for (; first != last; ++first) {
-        const auto n = *first;
-        ns.emplace_back(checkIndex(n, n_cards));
-    }
-    return handleGetHand(ns);
+    std::for_each(
+        first, last,
+        [n_cards = getNumberOfCards()](const auto n) {
+            checkIndex(n, n_cards);
+        });
+    return handleGetHand(IndexRange(first, last));
 }
 
 }

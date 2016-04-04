@@ -24,8 +24,7 @@ private:
 
     void handleRequestShuffle() override;
 
-    std::unique_ptr<Hand> handleGetHand(
-        const std::vector<std::size_t>& ns) override;
+    std::unique_ptr<Hand> handleGetHand(IndexRange ns) override;
 
     std::size_t handleGetNumberOfCards() const override;
 

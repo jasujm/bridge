@@ -6,13 +6,13 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <vector>
 
 using Bridge::MockHand;
 using Bridge::N_CARDS;
 using Bridge::to;
 
 using testing::_;
+using testing::ElementsAreArray;
 using testing::InvokeWithoutArgs;
 using testing::Return;
 
@@ -56,10 +56,9 @@ TEST_F(CardManagerTest, testGetNumberOfCards)
 
 TEST_F(CardManagerTest, testGetHand)
 {
-    const auto& range = to(N_CARDS);
-    const auto ns = std::vector<std::size_t>(range.begin(), range.end());
+    const auto ns = to(N_CARDS);
     EXPECT_CALL(cardManager, handleGetNumberOfCards());
-    EXPECT_CALL(cardManager, handleGetHand(ns));
+    EXPECT_CALL(cardManager, handleGetHand(ElementsAreArray(ns)));
     cardManager.getHand(ns.begin(), ns.end());
 }
 

@@ -25,8 +25,7 @@ void SimpleCardManager::handleRequestShuffle()
     notifyAll(Shuffled {});
 }
 
-std::unique_ptr<Hand> SimpleCardManager::handleGetHand(
-    const std::vector<std::size_t>& ns)
+std::unique_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)
 {
     return std::make_unique<BasicHand>(
         containerAccessIterator(ns.begin(), cards),

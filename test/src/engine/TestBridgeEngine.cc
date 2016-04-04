@@ -35,7 +35,7 @@
 #include <utility>
 
 using testing::_;
-using testing::AtLeast;
+using testing::ElementsAreArray;
 using testing::InvokeWithoutArgs;
 using testing::Mock;
 using testing::NiceMock;
@@ -80,7 +80,9 @@ protected:
             ON_CALL(e.second, handleIsKnown()).WillByDefault(Return(true));
         }
         for (const auto position : POSITIONS) {
-            ON_CALL(*cardManager, handleGetHand(cardsFor(position)))
+            ON_CALL(
+                *cardManager,
+                handleGetHand(ElementsAreArray(cardsFor(position))))
                 .WillByDefault(InvokeWithoutArgs(cardsForFunctor(position)));
         }
         ON_CALL(*cardManager, handleGetNumberOfCards())

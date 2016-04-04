@@ -12,8 +12,7 @@ class MockCardManager : public CardManager {
 public:
     using Observable<Shuffled>::notifyAll;
     MOCK_METHOD0(handleRequestShuffle, void());
-    MOCK_METHOD1(handleGetHand,
-                 std::unique_ptr<Hand>(const std::vector<std::size_t>&));
+    MOCK_METHOD1(handleGetHand, std::unique_ptr<Hand>(IndexRange));
     MOCK_CONST_METHOD0(handleGetNumberOfCards, std::size_t());
 };
 
