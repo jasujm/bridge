@@ -85,6 +85,8 @@ protected:
                 handleGetHand(ElementsAreArray(cardsFor(position))))
                 .WillByDefault(InvokeWithoutArgs(cardsForFunctor(position)));
         }
+        ON_CALL(*cardManager, handleIsShuffleCompleted())
+            .WillByDefault(Return(true));
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
         EXPECT_CALL(*cardManager, handleRequestShuffle());

@@ -9,6 +9,7 @@
 #include "Observer.hh"
 #include "Utility.hh"
 
+#include <boost/optional/optional.hpp>
 #include <boost/range/any_range.hpp>
 
 #include <algorithm>
@@ -66,7 +67,8 @@ public:
      * \param first iterator to the index of the first card
      * \param last iterator to one past the index of the last card
      *
-     * \return the hand containing references to the selected cards
+     * \return the hand containing references to the selected cards, or
+     * nullptr if the shuffling is not completed
      *
      * \throw std::out_of_range if any index is out of range
      */
@@ -75,17 +77,19 @@ public:
 
     /** \brief Determine if the deck is shuffled
      *
-     * This is equivalent to getNumberOfCards() > 0.
+     * \return true if shuffling is completed, false otherwise
      *
-     * \return getNumberOfCards() > 0
+     * \note If the shuffling has not been requested for the first time, this
+     * method always returns false.
      */
     bool isShuffleCompleted() const;
 
     /** \brief Determine the number of cards available
      *
-     * \return the number of cards managed by this object
+     * \return the number of cards managed by this object, or none if
+     * isShuffleCompleted() == false
      */
-    std::size_t getNumberOfCards() const;
+    boost::optional<std::size_t> getNumberOfCards() const;
 
 protected:
 
@@ -104,7 +108,8 @@ private:
 
     /** \brief Handle for returning a hand
      *
-     * It may be assumed that ns[n] < getNumberOfCards() for each n.
+     * It may be assumed that isShuffleCompleted() == true and ns[n] <
+     * getNumberOfCards() for each n.
      *
      * \param ns list of indices
      *
@@ -112,7 +117,17 @@ private:
      */
     virtual std::unique_ptr<Hand> handleGetHand(IndexRange ns) = 0;
 
+    /** \brief Handle for determining if the shuffle is completed
+     *
+     * \return true if the shuffle is completed, false otherwise
+     *
+     * \sa isShuffleCompleted()
+     */
+    virtual bool handleIsShuffleCompleted() const = 0;
+
     /** \brief Handle for returning total number of cards
+     *
+     * It may be assumed that isShuffleCompleted() == true
      *
      * \sa getNumberOfCards()
      */
@@ -123,12 +138,15 @@ template<typename IndexIterator>
 std::unique_ptr<Hand> CardManager::getHand(
     IndexIterator first, IndexIterator last)
 {
-    std::for_each(
-        first, last,
-        [n_cards = getNumberOfCards()](const auto n) {
-            checkIndex(n, n_cards);
-        });
-    return handleGetHand(IndexRange(first, last));
+    if (const auto n_cards = getNumberOfCards()) {
+        std::for_each(
+            first, last,
+            [n_cards = *n_cards](const auto n) {
+                checkIndex(n, n_cards);
+            });
+        return handleGetHand(IndexRange(first, last));
+    }
+    return nullptr;
 }
 
 }

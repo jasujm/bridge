@@ -37,5 +37,10 @@ std::size_t SimpleCardManager::handleGetNumberOfCards() const
     return cards.size();
 }
 
+bool SimpleCardManager::handleIsShuffleCompleted() const
+{
+    return !cards.empty();
+}
+
 }
 }

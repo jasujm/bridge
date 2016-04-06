@@ -17,7 +17,8 @@ namespace Engine {
 /** \brief A simple card manager for local play
  *
  * SimpleCardManager just generates a randomly shuffled 52 card playing card
- * deck locally.
+ * deck locally. When requestShuffle() is called, SimpleCardManager completes
+ * the shuffling immediately and notifies subscribers.
  */
 class SimpleCardManager : public CardManager, private boost::noncopyable {
 private:
@@ -25,6 +26,8 @@ private:
     void handleRequestShuffle() override;
 
     std::unique_ptr<Hand> handleGetHand(IndexRange ns) override;
+
+    bool handleIsShuffleCompleted() const override;
 
     std::size_t handleGetNumberOfCards() const override;
 

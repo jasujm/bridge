@@ -86,17 +86,18 @@ TEST_F(SimpleCardManagerTest, testGetNumberOfCards)
 TEST_F(SimpleCardManagerTest, testAllPlayingCardsAreIncluded)
 {
     const auto cards = getCardTypes(cardManager);
-    ASSERT_TRUE(
-        std::is_permutation(cards.begin(), cards.end(),
-                            ALL_CARDS_BEGIN, ALL_CARDS_END));
+    EXPECT_TRUE(
+        std::is_permutation(
+            cards.begin(), cards.end(),
+            ALL_CARDS_BEGIN, ALL_CARDS_END));
 }
 
 TEST_F(SimpleCardManagerTest, testCardsAreShuffled)
 {
     // The probability of this test failing is 1/52!
     const auto cards = getCardTypes(cardManager);
-    ASSERT_NE(
-        std::make_pair(cards.end(), ALL_CARDS_END),
-        std::mismatch(cards.begin(), cards.end(),
-                      ALL_CARDS_BEGIN, ALL_CARDS_END));
+    EXPECT_FALSE(
+        std::equal(
+            cards.begin(), cards.end(),
+            ALL_CARDS_BEGIN, ALL_CARDS_END));
 }

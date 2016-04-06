@@ -12,12 +12,15 @@ void CardManager::requestShuffle()
 
 bool CardManager::isShuffleCompleted() const
 {
-    return getNumberOfCards() > 0;
+    return handleIsShuffleCompleted();
 }
 
-std::size_t CardManager::getNumberOfCards() const
+boost::optional<std::size_t> CardManager::getNumberOfCards() const
 {
-    return handleGetNumberOfCards();
+    if (isShuffleCompleted()) {
+        return handleGetNumberOfCards();
+    }
+    return boost::none;
 }
 
 }
