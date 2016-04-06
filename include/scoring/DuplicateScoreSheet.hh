@@ -31,7 +31,7 @@ namespace Scoring {
 class DuplicateScoreSheet {
 public:
 
-    /** \brief An score in duplicate score sheet
+    /** \brief A score in duplicate score sheet
      *
      * Score object represents score for a finished (non passed‐out)
      * deal. Score objects are equality comparable. They compare equal when
@@ -73,11 +73,11 @@ public:
 
     /** \brief Create duplicate score sheet that initially contains some entries
      *
-     * \tparam EntryIterator An input iterator that, when dereferenced,
-     * returns element convertible to optional Score.
+     * \tparam EntryIterator an input iterator that must return an object
+     * convertible to boost::optional<Score> when dereferenced
      *
-     * \param first iterator to the first entry
-     * \param last iterator to the last entry
+     * \param first iterator to the first score entry
+     * \param last iterator one past the last score entry
      */
     template<typename EntryIterator>
     DuplicateScoreSheet(EntryIterator first, EntryIterator last);

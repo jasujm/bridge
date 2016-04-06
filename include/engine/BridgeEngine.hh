@@ -61,8 +61,8 @@ public:
      *
      * \param cardManager the card manager used to manage playing cards
      * \param gameManager the game manager used to manage the rules of the game
-     * \param firstPlayer the first player in the game
-     * \param lastPlayer the last player in the game
+     * \param firstPlayer iterator to the first player in the game
+     * \param lastPlayer iterator one past the last player in the game
      *
      * \throw std::invalid_argument unless there is exactly four players
      */

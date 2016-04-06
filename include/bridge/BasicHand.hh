@@ -22,11 +22,18 @@ public:
 
     /** \brief Create new hand
      *
-     * \tparam CardIterator an input iterator which must return a
+     * Create new hand holding cards specified by the range given as as
+     * arguments to the constructor.
+     *
+     * \note The BasicHand object borrows references to the cards. It is the
+     * resposibility of the client of this class to ensure that the lifetime
+     * of the card objects exceeds the lifetime of the constructed hand.
+     *
+     * \tparam CardIterator an input iterator that must return a constant
      * reference to a Card object when dereferenced
      *
-     * \param first the first card to be dealt
-     * \param last the last card to be dealt
+     * \param first iterator to the first card to be dealt
+     * \param last iterator one past the last card to be dealt
      */
     template<typename CardIterator>
     BasicHand(CardIterator first, CardIterator last);

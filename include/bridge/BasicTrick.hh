@@ -30,18 +30,18 @@ public:
      * The constructor takes a list of hands. The order of the hands will also
      * be the order in which they get turns.
      *
-     * \note This class borrows reference to the hands. It is the
+     * \note The BasicTrick object borrows references to the hands. It is the
      * responsibility of the client of this class to ensure that the lifetime
      * of the hand objects exceeds the lifetime of the constructed trick
      * object.
      *
      * \note There must be exactly four hands.
      *
-     * \tparam HandIterator an input iterator which must return a reference to
-     * a Hand object when dereferenced
+     * \tparam HandIterator an input iterator which must return a constant
+     * reference to a Hand object when dereferenced
      *
-     * \param first the first hand
-     * \param last the last hand
+     * \param first iterator to the firts hand to play to the trick
+     * \param last iterator one past the last hand to play to the trick
      *
      * \throw std::invalid_argument if the number of hands is not four
      */

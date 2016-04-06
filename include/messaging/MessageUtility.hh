@@ -41,8 +41,8 @@ void sendMessage(
  * multipart message.
  *
  * \param socket socket used for sending the message
- * \param first iterator to the begin of the messages to send
- * \param last iterator to the end of the messages to send
+ * \param first iterator to the first message to be sent
+ * \param last iterator one past the last message to be sent
  * \param more true if there are more parts in the message, false otherwise
  */
 template<typename MessageIterator>

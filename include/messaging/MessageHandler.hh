@@ -30,7 +30,7 @@ public:
      *
      * \param identity the identity of the sender of the message
      * \param first iterator to the first parameter
-     * \param last iterator to the last parameter
+     * \param last iterator one past the last parameter
      * \param out output iterator to which the output of the message handler
      * is written to
      *

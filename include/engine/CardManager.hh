@@ -63,8 +63,8 @@ public:
      * \tparam IndexIterator an input iterator which must return index when
      * dereferenced
      *
-     * \param first the index of the first card
-     * \param last the index of the last card
+     * \param first iterator to the index of the first card
+     * \param last iterator to one past the index of the last card
      *
      * \return the hand containing references to the selected cards
      *
