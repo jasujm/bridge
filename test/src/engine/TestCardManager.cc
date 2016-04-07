@@ -2,11 +2,13 @@
 #include "Utility.hh"
 #include "MockCardManager.hh"
 #include "MockHand.hh"
+#include "MockObserver.hh"
 
 #include <gtest/gtest.h>
 
 #include <memory>
 
+using Bridge::Engine::CardManager;
 using Bridge::MockHand;
 using Bridge::N_CARDS;
 using Bridge::to;
@@ -14,6 +16,7 @@ using Bridge::to;
 using testing::_;
 using testing::ElementsAreArray;
 using testing::InvokeWithoutArgs;
+using testing::Property;
 using testing::Return;
 
 class CardManagerTest : public testing::Test {
@@ -33,6 +36,19 @@ protected:
     const MockHand& hand_ref {*hand};
     testing::StrictMock<Bridge::Engine::MockCardManager> cardManager;
 };
+
+TEST_F(CardManagerTest, testSubsrcibe)
+{
+    auto observer = std::make_shared<
+        Bridge::MockObserver<CardManager::Shuffled>>();
+    EXPECT_CALL(
+        cardManager,
+        handleSubscribe(
+            Property(
+                &std::weak_ptr<Bridge::Observer<CardManager::Shuffled>>::lock,
+                observer)));
+    cardManager.subscribe(observer);
+}
 
 TEST_F(CardManagerTest, testRequestDeal)
 {

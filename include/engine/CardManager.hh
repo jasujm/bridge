@@ -22,12 +22,6 @@ class Hand;
 
 namespace Engine {
 
-/** \brief Tag for announcing that shuffling is completed
- *
- * \sa CardManager
- */
-struct Shuffled {};
-
 /** \brief The link between the bridge engine and the underlying card
  * management protocol
  *
@@ -36,14 +30,18 @@ struct Shuffled {};
  * protocol, CardManager does not allow its client to take ownership of the
  * card objects it manages.
  */
-class CardManager : public Observable<Shuffled> {
+class CardManager {
 public:
+
+    /** \brief Tag for announcing that shuffling is completed
+     */
+    struct Shuffled {};
 
     virtual ~CardManager();
 
     /** \brief Subscribe to notification announced when the cards are shuffled
      */
-    using Observable<Shuffled>::subscribe;
+    void subscribe(std::weak_ptr<Observer<Shuffled>> observer);
 
     /** \brief Request that the deck be (re)shuffled
      *
@@ -99,6 +97,13 @@ protected:
         std::size_t, boost::forward_traversal_tag, std::size_t>;
 
 private:
+
+    /** \brief Handle subscribing to shuffled notificatons
+     *
+     * \sa subscribe()
+     */
+    virtual void handleSubscribe(
+        std::weak_ptr<Observer<Shuffled>> observer) = 0;
 
     /* \brief Handle for requesting that cards be shuffled
      *

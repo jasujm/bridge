@@ -23,6 +23,8 @@ namespace Engine {
 class SimpleCardManager : public CardManager, private boost::noncopyable {
 private:
 
+    void handleSubscribe(std::weak_ptr<Observer<Shuffled>> observer) override;
+
     void handleRequestShuffle() override;
 
     std::unique_ptr<Hand> handleGetHand(IndexRange ns) override;
@@ -31,6 +33,7 @@ private:
 
     std::size_t handleGetNumberOfCards() const override;
 
+    Observable<Shuffled> notifier;
     std::vector<SimpleCard> cards;
 };
 

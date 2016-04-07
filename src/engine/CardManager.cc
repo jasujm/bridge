@@ -1,9 +1,16 @@
 #include "engine/CardManager.hh"
 
+#include <utility>
+
 namespace Bridge {
 namespace Engine {
 
 CardManager::~CardManager() = default;
+
+void CardManager::subscribe(std::weak_ptr<Observer<Shuffled>> observer)
+{
+    handleSubscribe(std::move(observer));
+}
 
 void CardManager::requestShuffle()
 {

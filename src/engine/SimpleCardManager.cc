@@ -11,6 +11,12 @@
 namespace Bridge {
 namespace Engine {
 
+void SimpleCardManager::handleSubscribe(
+    std::weak_ptr<Observer<Shuffled>> observer)
+{
+    notifier.subscribe(std::move(observer));
+}
+
 void SimpleCardManager::handleRequestShuffle()
 {
     std::random_device rd;
@@ -22,7 +28,7 @@ void SimpleCardManager::handleRequestShuffle()
     std::shuffle(new_cards.begin(), new_cards.end(), re);
 
     cards.swap(new_cards);
-    notifyAll(Shuffled {});
+    notifier.notifyAll(Shuffled {});
 }
 
 std::unique_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)

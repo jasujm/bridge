@@ -12,7 +12,7 @@ namespace Engine {
 
 class MockCardManager : public CardManager {
 public:
-    using Observable<Shuffled>::notifyAll;
+    MOCK_METHOD1(handleSubscribe, void(std::weak_ptr<Observer<Shuffled>>));
     MOCK_METHOD0(handleRequestShuffle, void());
     MOCK_METHOD1(handleGetHand, std::unique_ptr<Hand>(IndexRange));
     MOCK_CONST_METHOD0(handleIsShuffleCompleted, bool());

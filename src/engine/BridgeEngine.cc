@@ -104,8 +104,8 @@ class Shuffling;
 
 class BridgeEngine::Impl :
     public sc::state_machine<BridgeEngine::Impl, Shuffling>,
-    public Observer<Engine::Shuffled>,
-    public Observable<DealEnded> {
+    public Observer<CardManager::Shuffled>,
+    protected Observable<DealEnded> {
 public:
     using EventQueue = std::queue<std::function<void()>>;
 
@@ -147,7 +147,7 @@ private:
 
     void processQueue();
 
-    void handleNotify(const Engine::Shuffled&) override;
+    void handleNotify(const CardManager::Shuffled&) override;
 
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
@@ -721,7 +721,7 @@ void BridgeEngine::Impl::processQueue()
     }
 }
 
-void BridgeEngine::Impl::handleNotify(const Engine::Shuffled&)
+void BridgeEngine::Impl::handleNotify(const CardManager::Shuffled&)
 {
     enqueueAndProcess(
         [this]()

@@ -36,6 +36,7 @@
 
 using testing::_;
 using testing::ElementsAreArray;
+using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::Mock;
 using testing::NiceMock;
@@ -85,6 +86,13 @@ protected:
                 handleGetHand(ElementsAreArray(cardsFor(position))))
                 .WillByDefault(InvokeWithoutArgs(cardsForFunctor(position)));
         }
+        ON_CALL(*cardManager, handleSubscribe(_))
+            .WillByDefault(
+                Invoke(
+                    [this](auto observer)
+                    {
+                        shuffledNotifier.subscribe(std::move(observer));
+                    }));
         ON_CALL(*cardManager, handleIsShuffleCompleted())
             .WillByDefault(Return(true));
         ON_CALL(*cardManager, handleGetNumberOfCards())
@@ -173,6 +181,7 @@ protected:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
     std::unique_ptr<BridgeEngine> engine;
+    Observable<Engine::CardManager::Shuffled> shuffledNotifier;
     DealState expectedState;
 };
 
@@ -212,7 +221,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     assertHandsVisible(false);
 
     // Shuffling
-    cardManager->notifyAll(Engine::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();
@@ -287,7 +296,7 @@ TEST_F(BridgeEngineTest, testPassOut)
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(*gameManager, handleAddPassedOut());
 
-    cardManager->notifyAll(Engine::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
     for (const auto& player : players) {
         engine->call(*player, Pass {});
     }
@@ -300,7 +309,7 @@ TEST_F(BridgeEngineTest, testEndGame)
     EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));
 
-    cardManager->notifyAll(Engine::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
 
     Mock::VerifyAndClearExpectations(engine.get());
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(true));

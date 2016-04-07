@@ -54,18 +54,19 @@ inline void Observer<T...>::notify(const T&... args)
 
 /** \brief Observable part of the observer pattern
  *
- * This class is meant to be inherited by a class that wishes to publish
- * events that interest observers.
+ * This class is meant to be used by or inherited by a class that wishes to
+ * publish events to Observer objects.
  *
- * \note The implementation of Observable is not thread safe
+ * \note To prevent external callers from calling notifyAll() and to prevent
+ * nonvirtual destruction of the object, the inheritance shoud be protected
+ * and subscribe() should be exposed by using declaration if needed.
  *
- * \sa Observer
+ * \note The implementation of Observable is not meant for inter‐thread
+ * communication and is not thread safe
  */
 template<typename... T>
 class Observable {
-protected:
-
-    ~Observable() = default;
+public:
 
     /** \brief Subscribe observer to this Observable
      *

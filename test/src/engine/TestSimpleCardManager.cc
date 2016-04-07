@@ -59,8 +59,8 @@ protected:
         cardManager.subscribe(shuffledObserver);
     }
 
-    using ShuffledObserver =
-        testing::NiceMock<Bridge::MockObserver<Bridge::Engine::Shuffled>>;
+    using ShuffledObserver = testing::NiceMock<
+        Bridge::MockObserver<Bridge::Engine::CardManager::Shuffled>>;
     SimpleCardManager cardManager;
     std::shared_ptr<ShuffledObserver> shuffledObserver {
         std::make_shared<ShuffledObserver>() };
