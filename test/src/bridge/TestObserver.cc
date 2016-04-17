@@ -1,5 +1,7 @@
 #include "MockObserver.hh"
 
+#include "FunctionObserver.hh"
+
 #include <gtest/gtest.h>
 
 class ObserverTest : public testing::Test {
@@ -44,4 +46,17 @@ TEST_F(ObserverTest, testUnsubscribe)
     observable.subscribe(observer2);
     observer.reset();
     observable.notifyAll(1);
+}
+
+TEST_F(ObserverTest, testFunctionObserver)
+{
+    auto function_observer = Bridge::makeFunctionObserver<int>(
+        [this](int t)
+        {
+            observer2->notify(t);
+        });
+
+    EXPECT_CALL(*observer2, handleNotify(3));
+    observable.subscribe(function_observer);
+    observable.notifyAll(3);
 }
