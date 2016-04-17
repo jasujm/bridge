@@ -33,15 +33,22 @@ namespace Engine {
 class CardManager {
 public:
 
-    /** \brief Tag for announcing that shuffling is completed
+    /** \brief Shuffling state
      */
-    struct Shuffled {};
+    enum class ShufflingState {
+        IDLE,       ///< Shuffling neither requested nor completed
+        REQUESTED,  ///< Shuffling requested
+        COMPLETED,  ///< Shuffling completed
+    };
 
     virtual ~CardManager();
 
-    /** \brief Subscribe to notification announced when the cards are shuffled
+    /** \brief Subscribe to notifications about shuffling state
+     *
+     * The subscriber receives notifications whenever state of the card
+     * manager changes.
      */
-    void subscribe(std::weak_ptr<Observer<Shuffled>> observer);
+    void subscribe(std::weak_ptr<Observer<ShufflingState>> observer);
 
     /** \brief Request that the deck be (re)shuffled
      *
@@ -98,12 +105,12 @@ protected:
 
 private:
 
-    /** \brief Handle subscribing to shuffled notificatons
+    /** \brief Handle subscribing to shuffling state notificatons
      *
      * \sa subscribe()
      */
     virtual void handleSubscribe(
-        std::weak_ptr<Observer<Shuffled>> observer) = 0;
+        std::weak_ptr<Observer<ShufflingState>> observer) = 0;
 
     /* \brief Handle for requesting that cards be shuffled
      *

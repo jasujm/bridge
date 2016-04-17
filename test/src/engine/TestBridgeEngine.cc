@@ -101,6 +101,8 @@ protected:
         engine = std::make_unique<BridgeEngine>(
             cardManager, gameManager, players.begin(), players.end());
         Mock::VerifyAndClearExpectations(engine.get());
+        shuffledNotifier.notifyAll(
+            Engine::CardManager::ShufflingState::REQUESTED);
     }
 
     void updateExpectedStateAfterPlay(const Player& player)
@@ -181,7 +183,7 @@ protected:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
     std::unique_ptr<BridgeEngine> engine;
-    Observable<Engine::CardManager::Shuffled> shuffledNotifier;
+    Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
     DealState expectedState;
 };
 
@@ -221,7 +223,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     assertHandsVisible(false);
 
     // Shuffling
-    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();
@@ -296,7 +298,7 @@ TEST_F(BridgeEngineTest, testPassOut)
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(*gameManager, handleAddPassedOut());
 
-    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     for (const auto& player : players) {
         engine->call(*player, Pass {});
     }
@@ -309,7 +311,7 @@ TEST_F(BridgeEngineTest, testEndGame)
     EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));
 
-    shuffledNotifier.notifyAll(Engine::CardManager::Shuffled {});
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
 
     Mock::VerifyAndClearExpectations(engine.get());
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(true));

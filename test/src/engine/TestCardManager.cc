@@ -40,12 +40,13 @@ protected:
 TEST_F(CardManagerTest, testSubsrcibe)
 {
     auto observer = std::make_shared<
-        Bridge::MockObserver<CardManager::Shuffled>>();
+        Bridge::MockObserver<CardManager::ShufflingState>>();
     EXPECT_CALL(
         cardManager,
         handleSubscribe(
             Property(
-                &std::weak_ptr<Bridge::Observer<CardManager::Shuffled>>::lock,
+                &std::weak_ptr<
+                    Bridge::Observer<CardManager::ShufflingState>>::lock,
                 observer)));
     cardManager.subscribe(observer);
 }

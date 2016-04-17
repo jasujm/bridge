@@ -50,7 +50,7 @@ TEST_F(ObserverTest, testUnsubscribe)
 
 TEST_F(ObserverTest, testFunctionObserver)
 {
-    auto function_observer = Bridge::makeFunctionObserver<int>(
+    auto function_observer = Bridge::makeObserver<int>(
         [this](int t)
         {
             observer2->notify(t);

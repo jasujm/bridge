@@ -5,6 +5,7 @@
 #include "bridge/BasicPlayer.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Call.hh"
+#include "bridge/CardTypeIterator.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -21,20 +22,55 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageQueue.hh"
 #include "scoring/DuplicateScoreSheet.hh"
+#include "FunctionObserver.hh"
 #include "Observer.hh"
 
 #include <zmq.hpp>
 
 #include <array>
-#include <iterator>
+#include <random>
 #include <utility>
 
 namespace Bridge {
 namespace Main {
 
+using Engine::BridgeEngine;
+using Engine::CardManager;
+using Engine::SimpleCardManager;
+using Messaging::failure;
+using Messaging::JsonSerializer;
+using Messaging::makeMessageHandler;
+using Messaging::Reply;
+using Messaging::success;
+using Scoring::DuplicateScoreSheet;
+
 namespace {
+
 using AllowedCalls = std::vector<Call>;
 using AllowedCards = std::vector<CardType>;
+
+// TODO: This function is used to generate shuffled cards for
+// SimpleCardManager whenever shuffling of cards is requested. In the future
+// the cards need to be synchronized between peers.
+auto makeCardShuffler(SimpleCardManager& cardManager)
+{
+    auto shuffler = Bridge::makeObserver<CardManager::ShufflingState>(
+        [&cardManager](const auto state)
+        {
+            if (state == CardManager::ShufflingState::REQUESTED) {
+                std::random_device rd;
+                std::default_random_engine re {rd()};
+                auto cards = std::vector<CardType>(
+                    cardTypeIterator(0),
+                    cardTypeIterator(N_CARDS));
+                std::shuffle(cards.begin(), cards.end(), re);
+                cardManager.shuffle(cards.begin(), cards.end());
+            }
+        });
+    cardManager.subscribe(shuffler);
+    return shuffler;
+}
+
 }
 
 const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
@@ -42,14 +78,6 @@ const std::string BridgeMain::STATE_COMMAND {"state"};
 const std::string BridgeMain::CALL_COMMAND {"call"};
 const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
-
-using Engine::BridgeEngine;
-using Messaging::failure;
-using Messaging::JsonSerializer;
-using Messaging::makeMessageHandler;
-using Messaging::Reply;
-using Messaging::success;
-using Scoring::DuplicateScoreSheet;
 
 class BridgeMain::Impl : public Observer<BridgeEngine::DealEnded> {
 public:
@@ -69,7 +97,7 @@ private:
     template<typename... Args>
     void publish(const std::string& command, const Args&... args);
 
-    void handleNotify(const BridgeEngine::DealEnded&);
+    void handleNotify(const BridgeEngine::DealEnded&) override;
 
     Reply<> hello(const std::string& indentity);
     Reply<DealState, AllowedCalls, AllowedCards> state(
@@ -78,6 +106,10 @@ private:
     Reply<> play(const std::string& identity, const CardType& card);
     Reply<DuplicateScoreSheet> score(const std::string& identity);
 
+    std::shared_ptr<Engine::SimpleCardManager> cardManager {
+        std::make_shared<Engine::SimpleCardManager>()};
+    std::shared_ptr<Observer<CardManager::ShufflingState>> cardShuffler {
+        makeCardShuffler(*cardManager)};
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
     std::array<std::shared_ptr<BasicPlayer>, N_PLAYERS> players {{
@@ -86,8 +118,7 @@ private:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
     BridgeEngine engine {
-        std::make_shared<Engine::SimpleCardManager>(),
-        gameManager, players.begin(), players.end()};
+        cardManager, gameManager, players.begin(), players.end()};
     Messaging::MessageQueue messageQueue;
     zmq::socket_t eventSocket;
     std::map<std::string, std::reference_wrapper<const Player>> clients;

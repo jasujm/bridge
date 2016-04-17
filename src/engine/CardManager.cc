@@ -7,7 +7,7 @@ namespace Engine {
 
 CardManager::~CardManager() = default;
 
-void CardManager::subscribe(std::weak_ptr<Observer<Shuffled>> observer)
+void CardManager::subscribe(std::weak_ptr<Observer<ShufflingState>> observer)
 {
     handleSubscribe(std::move(observer));
 }

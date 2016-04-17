@@ -1,103 +1,121 @@
+#include "engine/SimpleCardManager.hh"
+
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Hand.hh"
-#include "engine/SimpleCardManager.hh"
-#include "Utility.hh"
 #include "MockObserver.hh"
+#include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <memory>
-#include <utility>
+#include <random>
 #include <vector>
 
-using Bridge::CardType;
-using Bridge::cardTypeIterator;
-using Bridge::Hand;
+using testing::_;
+using testing::InvokeWithoutArgs;
+
 using Bridge::N_CARDS;
-using Bridge::Suit;
-using Bridge::to;
-using Bridge::Engine::SimpleCardManager;
-
-namespace {
-
-const auto ALL_CARDS_BEGIN = cardTypeIterator(0);
-const auto ALL_CARDS_END = cardTypeIterator(N_CARDS);
-
-auto getCardTypes(const Hand& hand)
-{
-    std::vector<CardType> card_types;
-    for (const auto& card : hand) {
-        if (const auto type = card.getType()) {
-            card_types.emplace_back(*type);
-        }
-    }
-    return card_types;
-}
-
-auto getCardTypes(SimpleCardManager& cardManager)
-{
-    cardManager.requestShuffle();
-    const auto& range = to(N_CARDS);
-    const auto hand = cardManager.getHand(range.begin(), range.end());
-
-    if (hand) {
-        return getCardTypes(*hand);
-    }
-    return std::vector<CardType> {};
-}
-
-}
+using Bridge::Engine::CardManager;
 
 class SimpleCardManagerTest : public testing::Test {
 protected:
-    virtual void SetUp()
+    using CardTypeVector = std::vector<Bridge::CardType>;
+
+    void shuffleCards()
     {
-        cardManager.subscribe(shuffledObserver);
+        // Generate predictable yet not quite ordered sequence of cards
+        std::minstd_rand0 re;
+        cards = CardTypeVector(
+            Bridge::cardTypeIterator(0),
+            Bridge::cardTypeIterator(N_CARDS));
+        std::shuffle(cards.begin(), cards.end(), re);
+        cardManager.shuffle(cards.begin(), cards.end());
     }
 
-    using ShuffledObserver = testing::NiceMock<
-        Bridge::MockObserver<Bridge::Engine::CardManager::Shuffled>>;
-    SimpleCardManager cardManager;
-    std::shared_ptr<ShuffledObserver> shuffledObserver {
-        std::make_shared<ShuffledObserver>() };
+    CardTypeVector cards;
+    Bridge::Engine::SimpleCardManager cardManager;
 };
 
-TEST_F(SimpleCardManagerTest, testInitialDeck)
+TEST_F(SimpleCardManagerTest, testInitiallyShuffleIsNotCompleted)
 {
     EXPECT_FALSE(cardManager.isShuffleCompleted());
 }
 
-TEST_F(SimpleCardManagerTest, testRequestShuffle)
+TEST_F(SimpleCardManagerTest, testShuffleInIdleStateDoesNotCompleteShuffle)
 {
-    EXPECT_CALL(*shuffledObserver, handleNotify(testing::_));
+    shuffleCards();
+    EXPECT_FALSE(cardManager.isShuffleCompleted());
+}
+
+TEST_F(
+    SimpleCardManagerTest, testShuffleInShuffleRequestedStateCompletesShuffle)
+{
+    cardManager.requestShuffle();
+    shuffleCards();
+    EXPECT_TRUE(cardManager.isShuffleCompleted());
+}
+
+TEST_F(SimpleCardManagerTest, testRequestShuffleNotifiesObserver)
+{
+    auto observer = std::make_shared<
+        Bridge::MockObserver<CardManager::ShufflingState>>();
+    EXPECT_CALL(
+        *observer, handleNotify(CardManager::ShufflingState::REQUESTED));
+    cardManager.subscribe(observer);
     cardManager.requestShuffle();
 }
 
-TEST_F(SimpleCardManagerTest, testGetNumberOfCards)
+TEST_F(
+    SimpleCardManagerTest, testShuffleCompletedNotifiesObservers)
 {
     cardManager.requestShuffle();
+
+    auto observer = std::make_shared<
+        Bridge::MockObserver<CardManager::ShufflingState>>();
+    cardManager.subscribe(observer);
+    EXPECT_CALL(
+        *observer,
+        handleNotify(CardManager::ShufflingState::COMPLETED)).WillOnce(
+        InvokeWithoutArgs(
+            [this]()
+            {
+                // Verify that shuffle is already completed when the observer
+                // gets notification
+                EXPECT_TRUE(cardManager.isShuffleCompleted());
+            }));
+    shuffleCards();
+}
+
+TEST_F(SimpleCardManagerTest, testNumberOfCards)
+{
+    cardManager.requestShuffle();
+    shuffleCards();
     EXPECT_EQ(N_CARDS, cardManager.getNumberOfCards());
 }
 
-TEST_F(SimpleCardManagerTest, testAllPlayingCardsAreIncluded)
+TEST_F(SimpleCardManagerTest, testGetHand)
 {
-    const auto cards = getCardTypes(cardManager);
+    cardManager.requestShuffle();
+    shuffleCards();
+    const auto range = Bridge::to(N_CARDS);
+    const auto hand = cardManager.getHand(range.begin(), range.end());
+    ASSERT_TRUE(hand);
     EXPECT_TRUE(
-        std::is_permutation(
-            cards.begin(), cards.end(),
-            ALL_CARDS_BEGIN, ALL_CARDS_END));
-}
-
-TEST_F(SimpleCardManagerTest, testCardsAreShuffled)
-{
-    // The probability of this test failing is 1/52!
-    const auto cards = getCardTypes(cardManager);
-    EXPECT_FALSE(
         std::equal(
             cards.begin(), cards.end(),
-            ALL_CARDS_BEGIN, ALL_CARDS_END));
+            hand->begin(), hand->end(),
+            [](const auto& card_type, const auto& card)
+            {
+                return card_type == card.getType();
+            }));
+}
+
+TEST_F(SimpleCardManagerTest, testRequestingShuffleWhenShuffleIsCompleted)
+{
+    cardManager.requestShuffle();
+    shuffleCards();
+    cardManager.requestShuffle();
+    EXPECT_FALSE(cardManager.isShuffleCompleted());
 }

@@ -6,24 +6,72 @@
 #ifndef ENGINE_SIMPLECARDMANAGER_HH_
 #define ENGINE_SIMPLECARDMANAGER_HH_
 
-#include "bridge/SimpleCard.hh"
 #include "engine/CardManager.hh"
 
+#include <boost/range/any_range.hpp>
 #include <boost/core/noncopyable.hpp>
 
+#include <memory>
+
 namespace Bridge {
+
+class CardType;
+
 namespace Engine {
 
-/** \brief A simple card manager for local play
+/** \brief A simple card manager
  *
- * SimpleCardManager just generates a randomly shuffled 52 card playing card
- * deck locally. When requestShuffle() is called, SimpleCardManager completes
- * the shuffling immediately and notifies subscribers.
+ * SimpleCardManager can be used to manage cards in simple protocol where the
+ * permutation of the cards is negotiated once at the beginning of the deal
+ * and is known to all peers (including the case where the bridge application
+ * works as server without peers and controls the whole game). Because it does
+ * not support hiding information about the cards owned by one particular
+ * peer, it is only suitable for social games between parties that trust each
+ * other.
+ *
+ * SimpleCardManager is a state machine with three states:
+ *
+ * - Initially the card manager is in “idle” state
+ * - When shuffle is requested using requestShuffle(), the card manager is in
+ *   “shuffle requested” state. Any hands retrieved from the card manager
+ *   earlier are invalidated and new hands cannot be retrieved before
+ *   completing the shuffle.
+ * - When cards are shuffled using shuffle(), the card manager is in “shuffle
+ *   completed” state. Hands determined by the cards added by shuffle() call
+ *   can be retrieved as hands.
  */
 class SimpleCardManager : public CardManager, private boost::noncopyable {
+public:
+
+    /** \brief Create new card manager
+     */
+    SimpleCardManager();
+
+    ~SimpleCardManager();
+
+    /** \brief Add shuffled cards
+     *
+     * After shuffling is requested, this method can be called to complete the
+     * shuffle. It has no effect in “idle” or “shuffle completed” states.
+     *
+     * \tparam CardTypeIterator An input iterator that, when derefernced,
+     * returns and object convertible to CardType.
+     *
+     * \param first iterator to the first card
+     * \param last iterator one past the last card
+     */
+    template<typename CardTypeIterator>
+    void shuffle(CardTypeIterator first, CardTypeIterator last);
+
+    class Impl;
+
 private:
 
-    void handleSubscribe(std::weak_ptr<Observer<Shuffled>> observer) override;
+    using CardTypeRange = boost::any_range<
+        CardType, boost::single_pass_traversal_tag>;
+
+    void handleSubscribe(
+        std::weak_ptr<Observer<ShufflingState>> observer) override;
 
     void handleRequestShuffle() override;
 
@@ -33,9 +81,16 @@ private:
 
     std::size_t handleGetNumberOfCards() const override;
 
-    Observable<Shuffled> notifier;
-    std::vector<SimpleCard> cards;
+    void internalShuffle(CardTypeRange cards);
+
+    const std::unique_ptr<Impl> impl;
 };
+
+template<typename CardTypeIterator>
+void SimpleCardManager::shuffle(CardTypeIterator first, CardTypeIterator last)
+{
+    internalShuffle(CardTypeRange(first, last));
+}
 
 }
 }

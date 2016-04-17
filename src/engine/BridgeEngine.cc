@@ -61,39 +61,46 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
 
 class CallEvent : public sc::event<CallEvent> {
 public:
-    const Player& player;
-    Call call;
     CallEvent(const Player& player, const Call& call) :
         player {player},
         call {call}
     {
     }
+    const Player& player;
+    Call call;
 };
 class GameEndedEvent : public sc::event<GameEndedEvent> {};
 class DealCompletedEvent : public sc::event<DealCompletedEvent> {
 public:
-    TricksWon tricksWon;
     explicit DealCompletedEvent(const TricksWon& tricksWon) :
         tricksWon {tricksWon}
     {
     }
+    TricksWon tricksWon;
 };
 class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {};
 class NewTrickEvent : public sc::event<NewTrickEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
-    const Player& player;
-    const Hand& hand;
-    std::size_t card;
     PlayCardEvent(const Player& player, const Hand& hand, std::size_t card) :
         player {player},
         hand {hand},
         card {card}
     {
     }
+    const Player& player;
+    const Hand& hand;
+    std::size_t card;
 };
 class RevealDummyEvent : public sc::event<RevealDummyEvent> {};
-class ShuffledEvent : public sc::event<ShuffledEvent> {};
+class ShufflingStateEvent : public sc::event<ShufflingStateEvent> {
+public:
+    explicit ShufflingStateEvent(CardManager::ShufflingState state) :
+        state {state}
+    {
+    }
+    CardManager::ShufflingState state;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // BridgeEngine::Impl
@@ -104,8 +111,8 @@ class Shuffling;
 
 class BridgeEngine::Impl :
     public sc::state_machine<BridgeEngine::Impl, Shuffling>,
-    public Observer<CardManager::Shuffled>,
-    protected Observable<DealEnded> {
+    public Observer<CardManager::ShufflingState>,
+    public Observable<DealEnded> {
 public:
     using EventQueue = std::queue<std::function<void()>>;
 
@@ -113,9 +120,6 @@ public:
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
-
-    using Observable<DealEnded>::subscribe;
-    using Observable<DealEnded>::notifyAll;
 
     void enqueueAndProcess(const EventQueue::value_type event);
 
@@ -147,7 +151,7 @@ private:
 
     void processQueue();
 
-    void handleNotify(const CardManager::Shuffled&) override;
+    void handleNotify(const CardManager::ShufflingState&) override;
 
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
@@ -176,12 +180,12 @@ BridgeEngine::Impl::Impl(
 class Shuffling : public sc::state<Shuffling, BridgeEngine::Impl> {
 public:
     using reactions = boost::mpl::list<
-        sc::custom_reaction<ShuffledEvent>,
+        sc::custom_reaction<ShufflingStateEvent>,
         sc::termination<GameEndedEvent>>;
 
     Shuffling(my_context ctx);
 
-    sc::result react(const ShuffledEvent&);
+    sc::result react(const ShufflingStateEvent&);
 };
 
 Shuffling::Shuffling(my_context ctx) :
@@ -195,11 +199,13 @@ Shuffling::Shuffling(my_context ctx) :
     }
 }
 
-sc::result Shuffling::react(const ShuffledEvent&)
+sc::result Shuffling::react(const ShufflingStateEvent& event)
 {
-    const auto& card_manager = outermost_context().getCardManager();
-    if (card_manager.getNumberOfCards() == N_CARDS) {
-        return transit<InDeal>();
+    if (event.state == CardManager::ShufflingState::COMPLETED) {
+        const auto& card_manager = outermost_context().getCardManager();
+        if (card_manager.getNumberOfCards() == N_CARDS) {
+            return transit<InDeal>();
+        }
     }
     return discard_event();
 }
@@ -721,12 +727,12 @@ void BridgeEngine::Impl::processQueue()
     }
 }
 
-void BridgeEngine::Impl::handleNotify(const CardManager::Shuffled&)
+void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
 {
     enqueueAndProcess(
-        [this]()
+        [this, state]()
         {
-            process_event(ShuffledEvent {});
+            process_event(ShufflingStateEvent {state});
         });
 }
 
