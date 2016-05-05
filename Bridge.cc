@@ -1,5 +1,7 @@
 #include "main/BridgeMain.hh"
 
+#include "bridge/Position.hh"
+
 #include <zmq.hpp>
 
 #include <atomic>
@@ -46,7 +48,8 @@ private:
 
     zmq::context_t zmqctx;
     Bridge::Main::BridgeMain app {
-        zmqctx, "tcp://127.0.0.1:5555", "tcp://127.0.0.1:5556"};
+        zmqctx, "tcp://127.0.0.1:5555", "tcp://127.0.0.1:5556",
+        Bridge::POSITIONS};
 };
 
 }

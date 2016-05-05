@@ -79,20 +79,15 @@ TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 Vulnerability = namedtuple("Vulnerability", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 
 
-def send_message(socket, msg, **flags):
-    if isinstance(msg, str):
-        socket.send_string(msg, **flags)
-    elif isinstance(msg, bytes):
-        socket.send(msg, **flags)
-    else:
-        socket.send_json(msg, **flags)
-
-
-def send_command(socket, *parts):
+def send_command(socket, cmd, *parts):
     socket.send(EMPTY_FRAME, flags=zmq.SNDMORE)
-    for part in parts[:-1]:
-        send_message(socket, part, flags=zmq.SNDMORE)
-    send_message(socket, parts[-1])
+    if parts:
+        socket.send(cmd, flags=zmq.SNDMORE)
+        for part in parts[:-1]:
+            socket.send_json(part, flags=zmq.SNDMORE)
+        socket.send_json(parts[-1])
+    else:
+        socket.send(cmd)
 
 
 def parse_cards(obj):
@@ -135,6 +130,7 @@ class CallPanel(GridLayout):
     def __init__(self, socket, **kwargs):
         super(CallPanel, self).__init__(**kwargs)
         self.cols = 5
+        self._player_position = None
         self._socket = socket
         self._buttons = []
         for level in range(1, 8):
@@ -144,6 +140,9 @@ class CallPanel(GridLayout):
         self._add_button(PASS, Call(PASS_TAG, None))
         self._add_button(DOUBLE, Call(DBL_TAG, None))
         self._add_button(REDOUBLE, Call(RDBL_TAG, None))
+
+    def set_player_position(self, position):
+        self._player_position = position
 
     def set_allowed_calls(self, allowed_calls):
         for button in self._buttons:
@@ -160,7 +159,7 @@ class CallPanel(GridLayout):
         call = {TYPE_KEY: button.call.type}
         if button.call.bid:
             call[BID_KEY] = button.call.bid._asdict()
-        send_command(self._socket, CALL_COMMAND, call)
+        send_command(self._socket, CALL_COMMAND, self._player_position, call)
 
 
 class BiddingPanel(GridLayout):
@@ -201,8 +200,9 @@ class HandPanel(BoxLayout):
         super(HandPanel, self).__init__(**kwargs)
         self._socket = socket
         self.orientation = "vertical"
+        self._player_position = None
         self._buttons = {}
-        self._position_label = Label(text=str(position))
+        self._position_label = Label(text=POSITION_MAP[position])
         for suit_tag in SUIT_TAGS:
             for rank_tag, rank in zip(RANK_TAGS, RANKS):
                 button = Button(text=rank)
@@ -212,6 +212,9 @@ class HandPanel(BoxLayout):
                 self._buttons[(rank_tag, suit_tag)] = button
         self.set_hand([], [])
 
+    def set_player_position(self, position):
+        self._player_position = position
+        
     def set_in_turn(self, in_turn):
         self._position_label.bold = in_turn
 
@@ -240,7 +243,7 @@ class HandPanel(BoxLayout):
 
     def _make_play(self, button):
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
-        send_command(self._socket, PLAY_COMMAND, card)
+        send_command(self._socket, PLAY_COMMAND, self._player_position, card)
 
 
 class TrickPanel(GridLayout):
@@ -316,7 +319,7 @@ class PlayAreaPanel(GridLayout):
         self.rows = 3
         self.cols = 3
         self._hands = {
-            position: HandPanel(socket, POSITION_MAP[position]) for
+            position: HandPanel(socket, position) for
             position in POSITION_TAGS}
         for i in range(9):
             if i == 0:
@@ -328,6 +331,10 @@ class PlayAreaPanel(GridLayout):
                 self.add_widget(self._hands[tag])
             else:
                 self.add_widget(Label())
+
+    def set_player_position(self, position):
+        for hand in self._hands.values():
+            hand.set_player_position(position)
 
     def set_position_in_turn(self, position):
         for (tag, hand) in self._hands.items():
@@ -386,6 +393,7 @@ class ScoreSheetPanel(GridLayout):
 class BridgeApp(App):
 
     def build(self):
+        self._position = None
         # Socket
         zmqctx = zmq.Context.instance()
         self._control_socket = zmqctx.socket(zmq.DEALER)
@@ -440,8 +448,11 @@ class BridgeApp(App):
                 if command in self._command_handlers:
                     self._command_handlers[command](*args)
 
-    def _handle_hello(self):
-        send_command(self._control_socket, STATE_COMMAND)
+    def _handle_hello(self, position):
+        self._position = position
+        self._call_panel.set_player_position(position)
+        self._play_area_panel.set_player_position(position)
+        send_command(self._control_socket, STATE_COMMAND, position)
         send_command(self._control_socket, SCORE_COMMAND)
 
     def _handle_score(self, score_sheet):
@@ -475,7 +486,7 @@ class BridgeApp(App):
         self._info_panel.set_tricks_won(tricks_won)
 
     def _handle_update(self):
-        send_command(self._control_socket, STATE_COMMAND)
+        send_command(self._control_socket, STATE_COMMAND, self._position)
 
 
 if __name__ == '__main__':

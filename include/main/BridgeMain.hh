@@ -33,7 +33,10 @@
 #ifndef MAIN_BRIDGEMAIN_HH_
 #define MAIN_BRIDGEMAIN_HH_
 
+#include "bridge/Position.hh"
+
 #include <boost/core/noncopyable.hpp>
+#include <boost/range/any_range.hpp>
 #include <zmq.hpp>
 
 #include <deque>
@@ -53,6 +56,11 @@ namespace Main {
  */
 class BridgeMain : private boost::noncopyable {
 public:
+
+    /** \brief Parameter to BridgeMain()
+     */
+    using PositionRange = boost::any_range<
+        Position, boost::single_pass_traversal_tag>;
 
     /** \brief Handshake command for joining the game
      *
@@ -94,10 +102,13 @@ public:
      * \param context the ZeroMQ context for the game
      * \param controlEndpoint the endpoint for the control socket
      * \param eventEndpoint the endpoint for the event socket
+     * \param positionsControlled the positions controlled by the application
      */
     BridgeMain(
-        zmq::context_t& context, const std::string& controlEndpoint,
-        const std::string& eventEndpoint);
+        zmq::context_t& context,
+        const std::string& controlEndpoint,
+        const std::string& eventEndpoint,
+        PositionRange positionsControlled);
 
     ~BridgeMain();
 
