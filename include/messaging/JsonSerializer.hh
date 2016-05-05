@@ -63,13 +63,7 @@ nlohmann::json JsonConverter<T>::convertToJson(const T& t)
 template<typename T>
 T JsonConverter<T>::convertFromJson(const nlohmann::json& j)
 {
-    try {
-        return j;
-    } catch (const std::domain_error&) {
-        // We rely on json::operator T() throwing std::domain_error if
-        // j and T are incompatible
-        throw SerializationFailureException {};
-    }
+    return j;
 }
 
 /** \brief Convert object to JSON
@@ -131,7 +125,15 @@ struct JsonSerializer {
      */
     template<typename T> static T deserialize(const std::string& s)
     {
-        return fromJson<T>(nlohmann::json::parse(s));
+        try {
+            return fromJson<T>(nlohmann::json::parse(s));
+        } catch (const std::logic_error&) {
+            // The JSON library uses several derivates of std::logic_error to
+            // indicate errors in parsing or invalid access of the parsed
+            // objects. We assume all logic errors in this function are
+            // parsing errors.
+            throw SerializationFailureException {};
+        }
     }
 };
 
