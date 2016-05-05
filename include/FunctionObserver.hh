@@ -38,7 +38,7 @@ private:
 
 template<typename Function, typename... T>
 FunctionObserver<Function, T...>::FunctionObserver(Function function) :
-    function {function}
+    function(std::move(function))
 {
 }
 

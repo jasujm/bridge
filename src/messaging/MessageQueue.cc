@@ -98,7 +98,7 @@ private:
 
 MessageQueue::Impl::Impl(
     HandlerMap handlers, zmq::context_t& context, const std::string& endpoint) :
-    handlers {std::move(handlers)},
+    handlers(std::move(handlers)),
     socket {context, zmq::socket_type::router}
 {
     socket.bind(endpoint);

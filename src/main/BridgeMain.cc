@@ -54,7 +54,7 @@ using AllowedCards = std::vector<CardType>;
 // the cards need to be synchronized between peers.
 auto makeCardShuffler(SimpleCardManager& cardManager)
 {
-    auto shuffler = Bridge::makeObserver<CardManager::ShufflingState>(
+    auto shuffler = makeObserver<CardManager::ShufflingState>(
         [&cardManager](const auto state)
         {
             if (state == CardManager::ShufflingState::REQUESTED) {

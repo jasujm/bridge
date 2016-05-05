@@ -48,7 +48,7 @@ struct ReplySuccess {
      */
     template<typename... Args2>
     ReplySuccess(ReplySuccess<Args2...> other) :
-        arguments {std::move(other.arguments)}
+        arguments(std::move(other.arguments))
     {
     }
 
@@ -58,7 +58,7 @@ struct ReplySuccess {
      */
     template<typename... Args2>
     explicit ReplySuccess(std::tuple<Args2...> args) :
-        arguments {std::move(args)}
+        arguments(std::move(args))
     {
     }
 
@@ -200,8 +200,8 @@ template<typename Function, typename SerializationPolicy, typename... Args>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 FunctionMessageHandler(
     Function function, SerializationPolicy serializer) :
-    function {std::move(function)},
-    serializer {std::move(serializer)}
+    function(std::move(function)),
+    serializer(std::move(serializer))
 {
 }
 

@@ -128,7 +128,7 @@ public:
      * \param range the underlying range
      */
     explicit EnumerateRange(Range&& range) :
-        range {std::forward<Range>(range)}
+        range(std::forward<Range>(range))
     {
     }
 

@@ -42,8 +42,8 @@ public:
      * \throw std::invalid_argument unless all ranges have the same size
      */
     explicit ZipRange(Ranges&&... ranges) :
-        ranges {
-            internalCheckRangesHaveEqualSize(std::forward<Ranges>(ranges)...)}
+        ranges(
+            internalCheckRangesHaveEqualSize(std::forward<Ranges>(ranges)...))
     {
     }
 
