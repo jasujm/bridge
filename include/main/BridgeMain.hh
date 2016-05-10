@@ -18,12 +18,14 @@
  * The control socket supports the following commands:
  *   - bridgehlo
  *   - state
+ *   - deal
  *   - call
  *   - play
  *   - score
  *
  * The event socket publishes the following events:
  *   - call
+ *   - deal
  *   - play
  *   - score
  *
@@ -68,6 +70,15 @@ public:
      * reply to this command is success. Otherwise the reply is failure.
      */
     static const std::string HELLO_COMMAND;
+
+    /** \brief Command for dealing cards to peers
+     *
+     * The leader peer uses this command to deal cards to other peers after
+     * generating the shuffled deck. The command is successful if it comes
+     * from the leader and the peer is expecting cards. Otherwise it is
+     * failure.
+     */
+    static const std::string DEAL_COMMAND;
 
     /** \brief Command for requesting deal state
      *

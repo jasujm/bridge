@@ -38,6 +38,7 @@ STRAIN_MAP = {key: text for (key, text) in zip(STRAIN_TAGS, STRAINS)}
 SUIT_MAP = {key: text for (key, text) in zip(SUIT_TAGS, SUITS)}
 
 HELLO_COMMAND = b"bridgehlo"
+DEAL_COMMAND = b"deal"
 CALL_COMMAND = b"call"
 EMPTY_FRAME = b""
 PLAY_COMMAND = b"play"
@@ -406,6 +407,7 @@ class BridgeApp(App):
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
+            DEAL_COMMAND: self._handle_deal,
             STATE_COMMAND: self._handle_state,
             SCORE_COMMAND: self._handle_score,
             CALL_COMMAND: self._handle_update,
@@ -454,6 +456,9 @@ class BridgeApp(App):
         self._play_area_panel.set_player_position(position)
         send_command(self._control_socket, STATE_COMMAND, position)
         send_command(self._control_socket, SCORE_COMMAND)
+
+    def _handle_deal(self):
+        send_command(self._control_socket, STATE_COMMAND, position)
 
     def _handle_score(self, score_sheet):
         scores = [parse_score_entry(entry) for entry in score_sheet]

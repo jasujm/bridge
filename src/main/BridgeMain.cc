@@ -24,7 +24,6 @@
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "scoring/DuplicateScoreSheet.hh"
-#include "FunctionObserver.hh"
 #include "Observer.hh"
 
 #include <boost/iterator/indirect_iterator.hpp>
@@ -49,30 +48,8 @@ using Scoring::DuplicateScoreSheet;
 
 namespace {
 
-using AllowedCalls = std::vector<Call>;
-using AllowedCards = std::vector<CardType>;
-
-// TODO: This function is used to generate shuffled cards for
-// SimpleCardManager whenever shuffling of cards is requested. In the future
-// the cards need to be synchronized between peers.
-auto makeCardShuffler(SimpleCardManager& cardManager)
-{
-    auto shuffler = makeObserver<CardManager::ShufflingState>(
-        [&cardManager](const auto state)
-        {
-            if (state == CardManager::ShufflingState::REQUESTED) {
-                std::random_device rd;
-                std::default_random_engine re {rd()};
-                auto cards = std::vector<CardType>(
-                    cardTypeIterator(0),
-                    cardTypeIterator(N_CARDS));
-                std::shuffle(cards.begin(), cards.end(), re);
-                cardManager.shuffle(cards.begin(), cards.end());
-            }
-        });
-    cardManager.subscribe(shuffler);
-    return shuffler;
-}
+using CallVector = std::vector<Call>;
+using CardVector = std::vector<CardType>;
 
 template<typename PairIterator>
 auto secondIterator(PairIterator iter)
@@ -84,12 +61,15 @@ auto secondIterator(PairIterator iter)
 }
 
 const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
+const std::string BridgeMain::DEAL_COMMAND {"deal"};
 const std::string BridgeMain::STATE_COMMAND {"state"};
 const std::string BridgeMain::CALL_COMMAND {"call"};
 const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
 
-class BridgeMain::Impl : public Observer<BridgeEngine::DealEnded> {
+class BridgeMain::Impl :
+    public Observer<BridgeEngine::DealEnded>,
+    public Observer<CardManager::ShufflingState> {
 public:
 
     Impl(
@@ -101,6 +81,7 @@ public:
     void terminate();
 
     BridgeEngine& getEngine();
+    SimpleCardManager& getCardManager();
 
     template<typename PositionIterator>
     auto positionPlayerIterator(PositionIterator iter);
@@ -111,9 +92,11 @@ private:
     void publish(const std::string& command, const Args&... args);
 
     void handleNotify(const BridgeEngine::DealEnded&) override;
+    void handleNotify(const CardManager::ShufflingState& state) override;
 
     Reply<Position> hello(const std::string& indentity);
-    Reply<DealState, AllowedCalls, AllowedCards> state(
+    Reply<> deal(const std::string& identity, const CardVector& cards);
+    Reply<DealState, CallVector, CardVector> state(
         const std::string& identity, Position position);
     Reply<> call(
         const std::string& identity, Position position, const Call& call);
@@ -123,8 +106,6 @@ private:
 
     std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
-    std::shared_ptr<Observer<CardManager::ShufflingState>> cardShuffler {
-        makeCardShuffler(*cardManager)};
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
     std::map<Position, std::shared_ptr<BasicPlayer>> players {
@@ -139,6 +120,8 @@ private:
     Messaging::MessageQueue messageQueue;
     zmq::socket_t eventSocket;
     PeerClientControl peerClientControl;
+    const Player& leader {*players[Position::NORTH]};
+    bool expectingCards {false};
 };
 
 template<typename PositionIterator>
@@ -162,6 +145,10 @@ BridgeMain::Impl::Impl(
             {
                 HELLO_COMMAND,
                 makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
+            },
+            {
+                DEAL_COMMAND,
+                makeMessageHandler(*this, &Impl::deal, JsonSerializer {})
             },
             {
                 STATE_COMMAND,
@@ -205,6 +192,12 @@ BridgeEngine& BridgeMain::Impl::getEngine()
     return engine;
 }
 
+SimpleCardManager& BridgeMain::Impl::getCardManager()
+{
+    assert(cardManager);
+    return *cardManager;
+}
+
 template<typename... Args>
 void BridgeMain::Impl::publish(const std::string& command, const Args&... args)
 {
@@ -217,6 +210,26 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
     publish(SCORE_COMMAND, gameManager->getScoreSheet());
 }
 
+void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
+{
+    if (state == CardManager::ShufflingState::REQUESTED) {
+        if (peerClientControl.isSelfControlledPlayer(leader)) {
+            std::random_device rd;
+            std::default_random_engine re {rd()};
+            auto cards = CardVector(
+                cardTypeIterator(0),
+                cardTypeIterator(N_CARDS));
+            std::shuffle(cards.begin(), cards.end(), re);
+            assert(cardManager);
+            cardManager->shuffle(cards.begin(), cards.end());
+            publish(DEAL_COMMAND);
+            sendToPeers(DEAL_COMMAND, cards);
+        } else {
+            expectingCards = true;
+        }
+    }
+}
+
 Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 {
     if (const auto player = peerClientControl.addClient(identity)) {
@@ -225,7 +238,18 @@ Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
     return failure();
 }
 
-Reply<DealState, AllowedCalls, AllowedCards> BridgeMain::Impl::state(
+Reply<> BridgeMain::Impl::deal(
+    const std::string& identity, const CardVector& cards)
+{
+    if (expectingCards &&
+        peerClientControl.isAllowedToAct(identity, leader)) {
+        cardManager->shuffle(cards.begin(), cards.end());
+        publish(DEAL_COMMAND);
+    }
+    return failure();
+}
+
+Reply<DealState, CallVector, CardVector> BridgeMain::Impl::state(
     const std::string& identity, const Position position)
 {
     const auto& player = engine.getPlayer(position);
@@ -234,8 +258,8 @@ Reply<DealState, AllowedCalls, AllowedCards> BridgeMain::Impl::state(
     }
 
     const auto& deal_state = makeDealState(engine, player);
-    auto allowed_calls = AllowedCalls {};
-    auto allowed_cards = AllowedCards {};
+    auto allowed_calls = CallVector {};
+    auto allowed_cards = CardVector {};
     if (engine.getPlayerInTurn() == &player) {
         if (const auto bidding = engine.getBidding()) {
             getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
@@ -301,6 +325,7 @@ BridgeMain::BridgeMain(
 {
     auto& engine = impl->getEngine();
     engine.subscribe(impl);
+    impl->getCardManager().subscribe(impl);
     engine.initiate();
 }
 
