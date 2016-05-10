@@ -299,7 +299,9 @@ BridgeMain::BridgeMain(
         std::make_shared<Impl>(
             context, controlEndpoint, eventEndpoint, positions)}
 {
-    impl->getEngine().subscribe(impl);
+    auto& engine = impl->getEngine();
+    engine.subscribe(impl);
+    engine.initiate();
 }
 
 BridgeMain::~BridgeMain() = default;

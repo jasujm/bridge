@@ -56,6 +56,10 @@ public:
 
     /** \brief Create new bridge engine
      *
+     * The engine is not started until initialize() is called. The purpose of
+     * the two-stage initialization is to allow the client to subscribe to the
+     * desired notifications before the engine actually starts.
+     *
      * \tparam PlayerIterator an input iterator which must return a shared_ptr
      * to a player when dereferenced
      *
@@ -79,6 +83,12 @@ public:
      * BridgeEngine notifies its observers when a deal has ended.
      */
     void subscribe(std::weak_ptr<Observer<DealEnded>> observer);
+
+    /** \brief Start the game
+     *
+     * This method starts the actual state machine
+     */
+    void initiate();
 
     /** \brief Make call
      *

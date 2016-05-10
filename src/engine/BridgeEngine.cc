@@ -749,12 +749,6 @@ std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
         std::move(cardManager),
         std::move(gameManager),
         std::move(players));
-    impl->getCardManager().subscribe(impl);
-    impl->enqueueAndProcess(
-        [&impl = *impl]()
-        {
-            impl.initiate();
-        });
     return impl;
 }
 
@@ -764,6 +758,17 @@ void BridgeEngine::subscribe(std::weak_ptr<Observer<DealEnded>> observer)
 {
     assert(impl);
     impl->subscribe(std::move(observer));
+}
+
+void BridgeEngine::initiate()
+{
+    assert(impl);
+    impl->getCardManager().subscribe(impl);
+    impl->enqueueAndProcess(
+        [&impl = *impl]()
+        {
+            impl.initiate();
+        });
 }
 
 void BridgeEngine::call(const Player& player, const Call& call)

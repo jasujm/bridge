@@ -98,16 +98,15 @@ protected:
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
         EXPECT_CALL(*cardManager, handleRequestShuffle());
-        engine = std::make_unique<BridgeEngine>(
-            cardManager, gameManager, players.begin(), players.end());
-        Mock::VerifyAndClearExpectations(engine.get());
+        engine.initiate();
+        Mock::VerifyAndClearExpectations(cardManager.get());
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::REQUESTED);
     }
 
     void updateExpectedStateAfterPlay(const Player& player)
     {
-        const auto position = engine->getPosition(player);
+        const auto position = engine.getPosition(player);
         auto& cards = expectedState.cards->at(position);
         const auto new_position = clockwise(position);
         expectedState.positionInTurn = new_position;
@@ -117,14 +116,14 @@ protected:
 
     void playCard(const Player& player, std::size_t card)
     {
-        const auto& partner = engine->getPlayer(
-            partnerFor(engine->getPosition(player)));
-        const auto& hand = dereference(engine->getHand(player));
-        const auto& partner_hand = dereference(engine->getHand(partner));
-        engine->play(player, hand, card);
-        engine->play(partner, hand, card);
-        engine->play(player, partner_hand, card);
-        engine->play(partner, partner_hand, card);
+        const auto& partner = engine.getPlayer(
+            partnerFor(engine.getPosition(player)));
+        const auto& hand = dereference(engine.getHand(player));
+        const auto& partner_hand = dereference(engine.getHand(partner));
+        engine.play(player, hand, card);
+        engine.play(partner, hand, card);
+        engine.play(player, partner_hand, card);
+        engine.play(partner, partner_hand, card);
     }
 
     void assertDealState(boost::optional<Position> dummy = boost::none)
@@ -147,22 +146,22 @@ protected:
                 state.positionInTurn = partnerFor(*dummy);
             }
             EXPECT_EQ(
-                state, makeDealState(*engine, engine->getPlayer(position)));
+                state, makeDealState(engine, engine.getPlayer(position)));
         }
     }
 
     void assertHandsVisible(bool ownVisible, const Player* dummy = nullptr)
     {
         for (const auto position : POSITIONS) {
-            const auto& player = engine->getPlayer(position);
+            const auto& player = engine.getPlayer(position);
             auto hands = std::vector<std::reference_wrapper<const Hand>> {};
-            engine->getVisibleHands(player, std::back_inserter(hands));
+            engine.getVisibleHands(player, std::back_inserter(hands));
             EXPECT_TRUE(
                 !ownVisible ||
-                isInVisibleHands(hands.begin(), hands.end(), *engine, player));
+                isInVisibleHands(hands.begin(), hands.end(), engine, player));
             EXPECT_TRUE(
                 dummy == nullptr ||
-                isInVisibleHands(hands.begin(), hands.end(), *engine, *dummy));
+                isInVisibleHands(hands.begin(), hands.end(), engine, *dummy));
         }
     }
 
@@ -182,7 +181,8 @@ protected:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
-    std::unique_ptr<BridgeEngine> engine;
+    BridgeEngine engine {
+        cardManager, gameManager, players.begin(), players.end()};
     Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
     DealState expectedState;
 };
@@ -198,7 +198,7 @@ TEST_F(BridgeEngineTest, testInvalidConstruction)
 TEST_F(BridgeEngineTest, testPlayers)
 {
     for (const auto position : POSITIONS) {
-        EXPECT_EQ(position, engine->getPosition(engine->getPlayer(position)));
+        EXPECT_EQ(position, engine.getPosition(engine.getPlayer(position)));
     }
 }
 
@@ -230,7 +230,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.calls.emplace();
     for (const auto position : POSITIONS) {
         // TODO: Make this prettier
-        const auto hand = engine->getHand(engine->getPlayer(position));
+        const auto hand = engine.getHand(engine.getPlayer(position));
         ASSERT_TRUE(hand);
         auto card_types = std::vector<CardType> {};
         for (const auto& card : *hand) {
@@ -248,8 +248,8 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         assertDealState();
         assertHandsVisible(true);
         const auto& player = *players[e.first % players.size()];
-        const auto position = engine->getPosition(player);
-        engine->call(player, call);
+        const auto position = engine.getPosition(player);
+        engine.call(player, call);
         expectedState.calls->emplace_back(position, call);
         expectedState.positionInTurn.emplace(clockwise(position));
     }
@@ -268,7 +268,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         auto& player = *players[turn_i % players.size()];
         playCard(player, 0);
         updateExpectedStateAfterPlay(player);
-        assertHandsVisible(true, &engine->getPlayer(Position::WEST));
+        assertHandsVisible(true, &engine.getPlayer(Position::WEST));
     }
 
     expectedState.positionInTurn = Position::NORTH;
@@ -282,9 +282,9 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 &player == &players.back()) ? 1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             assertDealState(Position::WEST);
-            assertHandsVisible(true, &engine->getPlayer(Position::WEST));
+            assertHandsVisible(true, &engine.getPlayer(Position::WEST));
 
-            engine->subscribe(observer);
+            engine.subscribe(observer);
             playCard(*player, i);
             updateExpectedStateAfterPlay(*player);
         }
@@ -300,9 +300,9 @@ TEST_F(BridgeEngineTest, testPassOut)
 
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     for (const auto& player : players) {
-        engine->call(*player, Pass {});
+        engine.call(*player, Pass {});
     }
-    EXPECT_FALSE(engine->hasEnded());
+    EXPECT_FALSE(engine.hasEnded());
 }
 
 TEST_F(BridgeEngineTest, testEndGame)
@@ -313,11 +313,11 @@ TEST_F(BridgeEngineTest, testEndGame)
 
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
 
-    Mock::VerifyAndClearExpectations(engine.get());
+    Mock::VerifyAndClearExpectations(cardManager.get());
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(true));
 
     for (const auto& player : players) {
-        engine->call(*player, Pass {});
+        engine.call(*player, Pass {});
     }
-    EXPECT_TRUE(engine->hasEnded());
+    EXPECT_TRUE(engine.hasEnded());
 }
