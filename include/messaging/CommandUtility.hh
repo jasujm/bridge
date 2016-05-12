@@ -14,6 +14,7 @@
 #include "messaging/MessageUtility.hh"
 #include "messaging/SerializationUtility.hh"
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <type_traits>
@@ -27,17 +28,23 @@ namespace Messaging {
  * serializer. It then sends multipart message consisting of \p command and
  * all its serialized \p params using \p socket.
  *
- * \param socket socket used for sending the command
+ * \tparam SocketIterator An input iterator that, when dereferenced, returns a
+ * reference to zmq::socket_t object.
+ *
+ * \param socket firstSocket iterator to the first socket to send the command to
+ * \param socket lastSocket iterator one past the last socket to send the
+ * command to
  * \param serializer \sa \ref serializationpolicy
  * \param command the command sent as the first part of the message
  * \param params the parameters serialized and sent as the subsequent parts of
  * the message
  */
 template<
-    typename SerializationPolicy, typename CommandString,
-    typename... Params>
+    typename SocketIterator, typename SerializationPolicy,
+    typename CommandString, typename... Params>
 void sendCommand(
-    zmq::socket_t& socket,
+    SocketIterator firstSocket,
+    SocketIterator lastSocket,
     SerializationPolicy&& serializer,
     CommandString&& command,
     Params&&... params)
@@ -48,8 +55,13 @@ void sendCommand(
     serializeAll(
         params_.begin(), serializer,
         std::forward<Params>(params)...);
-    sendMessage(socket, command, true);
-    sendMessage(socket, params_.begin(), params_.end());
+    std::for_each(
+        firstSocket, lastSocket,
+        [&command, &params_](zmq::socket_t& socket)
+        {
+            sendMessage(socket, command, true);
+            sendMessage(socket, params_.begin(), params_.end());
+        });
 }
 
 /** \brief Send command throught ZeroMQ socket
@@ -57,16 +69,29 @@ void sendCommand(
  * \note This overload is for commands without parameters, so
  * SerializationPolicy is ignored.
  *
- * \param socket socket used for sending the command
+ * \tparam SocketIterator An input iterator that, when dereferenced, returns a
+ * reference to zmq::socket_t object.
+ *
+ * \param socket firstSocket iterator to the first socket to send the command to
+ * \param socket lastSocket iterator one past the last socket to send the
+ * command to
  * \param command the command sent
  */
-template<typename SerializationPolicy, typename CommandString>
+template<
+    typename SocketIterator, typename SerializationPolicy,
+    typename CommandString>
 void sendCommand(
-    zmq::socket_t& socket,
+    SocketIterator firstSocket,
+    SocketIterator lastSocket,
     SerializationPolicy&&,
     CommandString&& command)
 {
-    sendMessage(socket, command);
+    std::for_each(
+        firstSocket, lastSocket,
+        [&command](zmq::socket_t& socket)
+        {
+            sendMessage(socket, command);
+        });
 }
 
 }

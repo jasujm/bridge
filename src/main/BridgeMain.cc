@@ -50,6 +50,7 @@ namespace {
 
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
+using PositionVector = std::vector<Position>;
 
 template<typename PairIterator>
 auto secondIterator(PairIterator iter)
@@ -58,9 +59,17 @@ auto secondIterator(PairIterator iter)
         iter, [](auto&& pair) -> decltype(auto) { return pair.second; });
 }
 
+struct IgnoringOutputIterator {
+    IgnoringOutputIterator& operator++(int) { return *this; }
+    IgnoringOutputIterator& operator++() { return *this; }
+    IgnoringOutputIterator& operator*() { return *this; }
+    template<typename T> void operator=(const T&) {}
+};
+
 }
 
 const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
+const std::string BridgeMain::PEER_COMMAND {"bridgerp"};
 const std::string BridgeMain::DEAL_COMMAND {"deal"};
 const std::string BridgeMain::STATE_COMMAND {"state"};
 const std::string BridgeMain::CALL_COMMAND {"call"};
@@ -74,7 +83,8 @@ public:
 
     Impl(
         zmq::context_t& context, const std::string& controlEndpoint,
-        const std::string& eventEndpoint, PositionRange positions);
+        const std::string& eventEndpoint, PositionRange positions,
+        EndpointRange peerEndpoints);
 
     void run();
 
@@ -91,13 +101,21 @@ private:
     template<typename... Args>
     void publish(const std::string& command, const Args&... args);
 
+    template<typename... Args>
+    void sendToPeers(const std::string& command, const Args&... args);
+
+    template<typename... Args>
+    void sendToPeersIfSelfControlledPlayer(
+        const Player& player, const std::string& command, const Args&... args);
+
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
 
     Reply<Position> hello(const std::string& indentity);
-    Reply<> deal(const std::string& identity, const CardVector& cards);
+    Reply<> peer(const std::string& identity, const PositionVector& positions);
     Reply<DealState, CallVector, CardVector> state(
         const std::string& identity, Position position);
+    Reply<> deal(const std::string& identity, const CardVector& cards);
     Reply<> call(
         const std::string& identity, Position position, const Call& call);
     Reply<> play(
@@ -118,7 +136,8 @@ private:
         secondIterator(players.begin()),
         secondIterator(players.end())};
     Messaging::MessageQueue messageQueue;
-    zmq::socket_t eventSocket;
+    std::array<zmq::socket_t, 1> eventSocket;
+    std::vector<zmq::socket_t> peerSockets;
     PeerClientControl peerClientControl;
     const Player& leader {*players[Position::NORTH]};
     bool expectingCards {false};
@@ -139,12 +158,17 @@ auto BridgeMain::Impl::positionPlayerIterator(PositionIterator iter)
 
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& controlEndpoint,
-    const std::string& eventEndpoint, PositionRange positions) :
+    const std::string& eventEndpoint, PositionRange positions,
+    EndpointRange peerEndpoints) :
     messageQueue {
         {
             {
                 HELLO_COMMAND,
                 makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
+            },
+            {
+                PEER_COMMAND,
+                makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
             },
             {
                 DEAL_COMMAND,
@@ -168,13 +192,20 @@ BridgeMain::Impl::Impl(
             }
         },
     context, controlEndpoint},
-    eventSocket {context, zmq::socket_type::pub},
+    eventSocket {zmq::socket_t {context, zmq::socket_type::pub}},
+    peerSockets {},
     peerClientControl {
-        context,
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())}
 {
-    eventSocket.bind(eventEndpoint);
+    eventSocket[0].bind(eventEndpoint);
+    for (const auto& endpoint : peerEndpoints) {
+        peerSockets.emplace_back(context, zmq::socket_type::req);
+        peerSockets.back().connect(endpoint);
+    }
+    sendCommand(
+        peerSockets.begin(), peerSockets.end(), JsonSerializer {},
+        PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
 }
 
 void BridgeMain::Impl::run()
@@ -201,7 +232,38 @@ SimpleCardManager& BridgeMain::Impl::getCardManager()
 template<typename... Args>
 void BridgeMain::Impl::publish(const std::string& command, const Args&... args)
 {
-    sendCommand(eventSocket, JsonSerializer {}, command, args...);
+    sendCommand(
+        eventSocket.begin(), eventSocket.end(), JsonSerializer {},
+        command, args...);
+}
+
+template<typename... Args>
+void BridgeMain::Impl::sendToPeers(
+    const std::string& command, const Args&... args)
+{
+    if (!peerSockets.empty()) {
+        // TODO: When we are sending commands to peers, we always assume that
+        // there was previous command whose reply hasn't been received
+        // yet. This is true if all peers have replied according to the
+        // protocol. Otherwise we're blocked.
+        // The replies should be received asynchronously and checked for
+        // success.
+        for (auto& socket : peerSockets) {
+            Messaging::recvAll(IgnoringOutputIterator {}, socket);
+        }
+        sendCommand(
+            peerSockets.begin(), peerSockets.end(), JsonSerializer {},
+            command, args...);
+    }
+}
+
+template<typename... Args>
+void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
+    const Player& player, const std::string& command, const Args&... args)
+{
+    if (peerClientControl.isSelfControlledPlayer(player)) {
+        sendToPeers(command, args...);
+    }
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
@@ -238,13 +300,15 @@ Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
     return failure();
 }
 
-Reply<> BridgeMain::Impl::deal(
-    const std::string& identity, const CardVector& cards)
+Reply<> BridgeMain::Impl::peer(
+    const std::string& identity, const PositionVector& positions)
 {
-    if (expectingCards &&
-        peerClientControl.isAllowedToAct(identity, leader)) {
-        cardManager->shuffle(cards.begin(), cards.end());
-        publish(DEAL_COMMAND);
+    const auto success_ = peerClientControl.addPeer(
+        identity,
+        positionPlayerIterator(positions.begin()),
+        positionPlayerIterator(positions.end()));
+    if (success_) {
+        return success();
     }
     return failure();
 }
@@ -272,6 +336,17 @@ Reply<DealState, CallVector, CardVector> BridgeMain::Impl::state(
         deal_state, std::move(allowed_calls), std::move(allowed_cards));
 }
 
+Reply<> BridgeMain::Impl::deal(
+    const std::string& identity, const CardVector& cards)
+{
+    if (expectingCards &&
+        peerClientControl.isAllowedToAct(identity, leader)) {
+        cardManager->shuffle(cards.begin(), cards.end());
+        publish(DEAL_COMMAND);
+    }
+    return failure();
+}
+
 Reply<> BridgeMain::Impl::call(
     const std::string& identity, const Position position, const Call& call)
 {
@@ -284,8 +359,7 @@ Reply<> BridgeMain::Impl::call(
         engine.call(player, call);
     }
     publish(CALL_COMMAND);
-    peerClientControl.sendCommandIfSelfControlledPlayer(
-        player, CALL_COMMAND, position, call);
+    sendToPeersIfSelfControlledPlayer(player, CALL_COMMAND, position, call);
     return success();
 }
 
@@ -305,8 +379,7 @@ Reply<> BridgeMain::Impl::play(
         }
     }
     publish(PLAY_COMMAND);
-    peerClientControl.sendCommandIfSelfControlledPlayer(
-        player, PLAY_COMMAND, position, card);
+    sendToPeersIfSelfControlledPlayer(player, PLAY_COMMAND, position, card);
     return success();
 }
 
@@ -318,10 +391,11 @@ Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string&)
 
 BridgeMain::BridgeMain(
     zmq::context_t& context, const std::string& controlEndpoint,
-    const std::string& eventEndpoint, PositionRange positions) :
+    const std::string& eventEndpoint, PositionRange positions,
+    EndpointRange peerEndpoints) :
     impl {
         std::make_shared<Impl>(
-            context, controlEndpoint, eventEndpoint, positions)}
+            context, controlEndpoint, eventEndpoint, positions, peerEndpoints)}
 {
     auto& engine = impl->getEngine();
     engine.subscribe(impl);

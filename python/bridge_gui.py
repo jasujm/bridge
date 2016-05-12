@@ -2,6 +2,7 @@
 
 from collections import namedtuple
 import json
+import sys
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -398,12 +399,12 @@ class BridgeApp(App):
         # Socket
         zmqctx = zmq.Context.instance()
         self._control_socket = zmqctx.socket(zmq.DEALER)
-        self._control_socket.connect("tcp://localhost:5555")
+        self._control_socket.connect(sys.argv[1])
         self._event_socket = zmqctx.socket(zmq.SUB)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
-        self._event_socket.connect("tcp://localhost:5556")
+        self._event_socket.connect(sys.argv[2])
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
@@ -495,4 +496,7 @@ class BridgeApp(App):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        sys.exit(1)
+
     BridgeApp().run()

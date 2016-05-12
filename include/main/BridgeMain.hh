@@ -17,6 +17,7 @@
  *
  * The control socket supports the following commands:
  *   - bridgehlo
+ *   - bridgerp
  *   - state
  *   - deal
  *   - call
@@ -62,14 +63,26 @@ public:
     /** \brief Parameter to BridgeMain()
      */
     using PositionRange = boost::any_range<
-        Position, boost::single_pass_traversal_tag>;
+        Position, boost::forward_traversal_tag>;
 
-    /** \brief Handshake command for joining the game
+    /** \brief Parameter for BridgeMain()
+     */
+    using EndpointRange = boost::any_range<
+        std::string, boost::single_pass_traversal_tag>;
+
+    /** \brief Handshake command for joining the game as client
      *
      * If the client can join, it is added to the list of players and the
      * reply to this command is success. Otherwise the reply is failure.
      */
     static const std::string HELLO_COMMAND;
+
+    /** \brief Handshake command for joining the game as peer
+     *
+     * If the peer can join, it is added to the list of peers and the reply to
+     * this command is success. Otherwise the reply is failure.
+     */
+    static const std::string PEER_COMMAND;
 
     /** \brief Command for dealing cards to peers
      *
@@ -114,12 +127,14 @@ public:
      * \param controlEndpoint the endpoint for the control socket
      * \param eventEndpoint the endpoint for the event socket
      * \param positionsControlled the positions controlled by the application
+     * \param peerEndpoints the endpoints of the peers to connect to
      */
     BridgeMain(
         zmq::context_t& context,
         const std::string& controlEndpoint,
         const std::string& eventEndpoint,
-        PositionRange positionsControlled);
+        PositionRange positionsControlled,
+        EndpointRange peerEndpoints);
 
     ~BridgeMain();
 
