@@ -47,7 +47,7 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
         return typename MapType::value_type {
             t.template get<0>(), t.template get<1>().get()};
     };
-    const auto& z = zip(POSITIONS, values);
+    auto&& z = zip(POSITIONS, values);
     return MapType(
         boost::make_transform_iterator(z.begin(), func),
         boost::make_transform_iterator(z.end(),   func));

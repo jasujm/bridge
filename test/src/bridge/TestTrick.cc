@@ -29,7 +29,7 @@ class TrickTest : public testing::TestWithParam<std::size_t> {
 protected:
     virtual void SetUp()
     {
-        for (const auto e : enumerate(zip(cards, hands))) {
+        for (auto&& e : enumerate(zip(cards, hands))) {
             ON_CALL(trick, handleGetCard(e.first))
                 .WillByDefault(ReturnRef(e.second.get<0>()));
             ON_CALL(trick, handleGetHand(e.first))
@@ -272,7 +272,7 @@ TEST_P(TrickTest, testGetCardWhenTrickIsCompleted)
 
 TEST_F(TrickTest, testCardIterators)
 {
-    const auto z = zip(hands, cards);
+    auto&& z = zip(hands, cards);
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Trick::N_CARDS_IN_TRICK));
     EXPECT_TRUE(

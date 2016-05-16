@@ -52,10 +52,10 @@ public:
      * \return zip iterator to tuple containing the elements from the
      * beginning of the underlying ranges
      */
-    auto begin() const
+    auto begin()
     {
         return internalMakeZipIterator(
-            [](const auto& range)
+            [](auto& range)
             {
                 return std::begin(range);
             }, Is {});
@@ -66,10 +66,10 @@ public:
      * \return zip iterator to tuple containing the elements from the
      * end of the underlying ranges
      */
-    auto end() const
+    auto end()
     {
         return internalMakeZipIterator(
-            [](const auto& range)
+            [](auto& range)
             {
                 return std::end(range);
             }, Is {});
@@ -115,7 +115,7 @@ private:
  * \code{.cc}
  * std::vector<std::string> names { "one", "euler", "pi" };
  * double numbers[] { 1.0, 2.71, 3.14 };
- * for (const auto t : zip(names, numbers)) {
+ * for (auto&& t : zip(names, numbers)) {
  *     std::cout << t.get<0>() << ": " << t.get<1>() << std::endl;
  * }
  * \endcode

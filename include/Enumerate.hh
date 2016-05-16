@@ -136,7 +136,7 @@ public:
      *
      * \return enumerate iterator to the first element of the underlying range
      */
-    auto begin() const
+    auto begin()
     {
         return makeEnumerateIterator(std::begin(range));
     }
@@ -145,7 +145,7 @@ public:
      *
      * \return enumerate iterator to the last element of the underlying range
      */
-    auto end() const
+    auto end()
     {
         return makeEnumerateIterator(std::end(range));
     }
@@ -165,7 +165,7 @@ private:
  *
  * \code{.cc}
  * int array[] { 111, 222, 333 };
- * for (const auto e : enumerate(array)) {
+ * for (auto&& e : enumerate(array)) {
  *     std::cout << e.first << " " << e.second << std::endl;
  * }
  * \endcode
