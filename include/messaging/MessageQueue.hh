@@ -6,7 +6,6 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
-#include <boost/noncopyable.hpp>
 #include <boost/optional/optional.hpp>
 #include <zmq.hpp>
 
@@ -28,9 +27,11 @@ class MessageHandler;
 
 /** \brief Message queue for communicating between threads and processes
  *
- * Bridge application threads are built around exchanging information and
- * requests through messages. MessageQueue is responsible for receiving and
- * dispatching the messages to handlers.
+ * MessageQueue is an object receiving messages from sockets, dispatching the
+ * message to correct message handler and replying. The MessageQueue object
+ * does not own the sockets used to receive and send the messages. Rather
+ * MessageQueue is designed to be used with MessageLoop that handles the
+ * actual polling of the sockets.
  *
  * MessageQueue uses request–reply pattern. The messages sent to the message
  * queue are strings that represent commands. A recognized command
@@ -38,7 +39,7 @@ class MessageHandler;
  * that command to be executed. Based on the result of the handling either
  * success or failure is reported.
  */
-class MessageQueue : private boost::noncopyable {
+class MessageQueue {
 public:
 
     /** \brief Map from commands to message handlers
@@ -59,52 +60,41 @@ public:
     /** \brief Create message queue
      *
      * \param handlers mapping from commands to message handlers
-     * \param context the ZeroMQ context for the message queue
-     * \param endpoint the ZeroMQ endpoint the message queue binds to
      * \param terminateCommand If provided, command for requesting termination
      * of the message queue. If not provided, the message queue will have no
      * termination command.
      */
-    MessageQueue(
-        HandlerMap handlers, zmq::context_t& context,
-        const std::string& endpoint,
-        const boost::optional<std::string>& terminateCommand = boost::none);
+    explicit MessageQueue(
+        HandlerMap handlers,
+        boost::optional<std::string> terminateCommand = boost::none);
 
     ~MessageQueue();
 
-    /** \brief Start handling messages
+    /** \brief Receive and reply the next message
      *
-     * This function blocks until termination is requested using
-     * terminate(). For each message it will dispatch the command to the
-     * correct MessageHandler. If the handling is successful, a multipart
-     * message containing REPLY_SUCCESS as its first part and strings returned
-     * by the handler as subsecuent parts is sent. If the handling fails or no
-     * handler is registered for the message, a message containing
-     * REPLY_FAILURE is sent.
+     * When called, the method receives a message from \p socket, dispatch it
+     * to the correct handler and sends the reply through \p socket. The reply
+     * is either REPLY_SUCCESS or REPLY_FAILURE, as determined by the
+     * MessageHandler the message is dispatched to. If the MessageHandler has
+     * output, the output follows the initial REPLY_SUCCESS or REPLY_FAILURE
+     * frame in multipart message, each entry in its own frame. If handling
+     * the message fails or there is no handler, REPLY_FAILURE is sent to the
+     * socket.
      *
-     * This method is exception neutral with regards to all exceptions expect
-     * zmq::error_t indicating interrupt when receiving messages. If
-     * interrupted, the exception is caught and message handling terminated
-     * cleanly.
+     * \note The current implementation only works if \p socket is router
+     * type.
+     *
+     * \param socket the socket the message is received from and the reply is
+     * sent to
+     *
+     * \return true if the command was not termination, false otherwise
      */
-    void run();
-
-    /** \brief Request the message queue to terminate
-     *
-     * After this function is called (from kernel signal handler, message
-     * handler etc.), run() will return. If run() is called after this
-     * function, it will return immediately.
-     *
-     * \note It is safe to call this function from other threads or signal
-     * handlers. However, for inter‐thread use, termination by message is
-     * preferred.
-     */
-    void terminate();
+    bool operator()(zmq::socket_t& socket);
 
 private:
 
-    class Impl;
-    const std::unique_ptr<Impl> impl;
+    HandlerMap handlers;
+    boost::optional<std::string> terminateCommand;
 };
 
 }

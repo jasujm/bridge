@@ -10,7 +10,6 @@
 
 #include <map>
 #include <string>
-#include <thread>
 #include <utility>
 
 using namespace Bridge::Messaging;
@@ -32,30 +31,21 @@ const auto TERMINATE = "terminate"s;
 
 class MessageQueueTest : public testing::Test {
 protected:
-
     virtual void SetUp()
     {
-        socket.setsockopt(ZMQ_IDENTITY, IDENTITY.c_str(), IDENTITY.size());
-        socket.connect(ENDPOINT);
-    }
-
-    virtual void TearDown()
-    {
-        sendMessage(socket, TERMINATE);
-        ASSERT_EQ(
-            std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
-        ASSERT_EQ(std::make_pair(TERMINATE, false), recvMessage(socket));
-        messageThread.join();
+        backSocket.bind(ENDPOINT);
+        frontSocket.setsockopt(ZMQ_IDENTITY, IDENTITY.c_str(), IDENTITY.size());
+        frontSocket.connect(ENDPOINT);
     }
 
     zmq::context_t context;
+    zmq::socket_t frontSocket {context, zmq::socket_type::req};
+    zmq::socket_t backSocket {context, zmq::socket_type::router};
     std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
         MessageQueue::HandlerMap(handlers.begin(), handlers.end()),
-        context, ENDPOINT, TERMINATE};
-    std::thread messageThread {[this]() { messageQueue.run(); }};
-    zmq::socket_t socket {context, zmq::socket_type::req};
+        TERMINATE};
 };
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
@@ -66,13 +56,16 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     EXPECT_CALL(
         *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
         .WillOnce(Return(true));
-    sendMessage(socket, COMMAND, true);
-    sendMessage(socket, p1, true);
-    sendMessage(socket, p2);
+    sendMessage(frontSocket, COMMAND, true);
+    sendMessage(frontSocket, p1, true);
+    sendMessage(frontSocket, p2);
+
+    EXPECT_TRUE(messageQueue(backSocket));
 
     ASSERT_EQ(
-        std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
-    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(socket));
+        std::make_pair(MessageQueue::REPLY_SUCCESS, true),
+        recvMessage(frontSocket));
+    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
 }
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
@@ -83,23 +76,28 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     EXPECT_CALL(
         *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
         .WillOnce(Return(false));
-    sendMessage(socket, COMMAND, true);
-    sendMessage(socket, p1, true);
-    sendMessage(socket, p2);
+    sendMessage(frontSocket, COMMAND, true);
+    sendMessage(frontSocket, p1, true);
+    sendMessage(frontSocket, p2);
+
+    EXPECT_TRUE(messageQueue(backSocket));
 
     ASSERT_EQ(
-        std::make_pair(MessageQueue::REPLY_FAILURE, true), recvMessage(socket));
-    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(socket));
+        std::make_pair(MessageQueue::REPLY_FAILURE, true),
+        recvMessage(frontSocket));
+    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
-    sendMessage(socket, "invalid");
+    sendMessage(frontSocket, "invalid");
+
+    EXPECT_TRUE(messageQueue(backSocket));
 
     EXPECT_EQ(
         std::make_pair(MessageQueue::REPLY_FAILURE, false),
-        recvMessage(socket));
+        recvMessage(frontSocket));
 }
 
 TEST_F(MessageQueueTest, testReply)
@@ -112,11 +110,25 @@ TEST_F(MessageQueueTest, testReply)
             Invoke(
                 MockMessageHandler::writeToSink(
                     outputs.begin(), outputs.end())));
-    sendMessage(socket, COMMAND, false);
+    sendMessage(frontSocket, COMMAND, false);
+
+    EXPECT_TRUE(messageQueue(backSocket));
 
     EXPECT_EQ(
-        std::make_pair(MessageQueue::REPLY_SUCCESS, true), recvMessage(socket));
-    ASSERT_EQ(std::make_pair(COMMAND, true), recvMessage(socket));
-    EXPECT_EQ(std::make_pair(outputs.begin()[0], true), recvMessage(socket));
-    EXPECT_EQ(std::make_pair(outputs.begin()[1], false), recvMessage(socket));
+        std::make_pair(MessageQueue::REPLY_SUCCESS, true),
+        recvMessage(frontSocket));
+    ASSERT_EQ(std::make_pair(COMMAND, true), recvMessage(frontSocket));
+    EXPECT_EQ(
+        std::make_pair(outputs.begin()[0], true), recvMessage(frontSocket));
+    EXPECT_EQ(
+        std::make_pair(outputs.begin()[1], false), recvMessage(frontSocket));
+}
+
+TEST_F(MessageQueueTest, testTerminate)
+{
+    sendMessage(frontSocket, TERMINATE, false);
+    EXPECT_FALSE(messageQueue(backSocket));
+    EXPECT_EQ(
+        std::make_pair(MessageQueue::REPLY_SUCCESS, false),
+        recvMessage(frontSocket));
 }

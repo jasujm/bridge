@@ -21,6 +21,7 @@
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "scoring/DuplicateScoreSheet.hh"
@@ -135,7 +136,8 @@ private:
         cardManager, gameManager,
         secondIterator(players.begin()),
         secondIterator(players.end())};
-    Messaging::MessageQueue messageQueue;
+    Messaging::MessageLoop messageLoop;
+    zmq::socket_t controlSocket;
     std::array<zmq::socket_t, 1> eventSocket;
     std::vector<zmq::socket_t> peerSockets;
     PeerClientControl peerClientControl;
@@ -160,49 +162,53 @@ BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& controlEndpoint,
     const std::string& eventEndpoint, PositionRange positions,
     EndpointRange peerEndpoints) :
-    messageQueue {
-        {
-            {
-                HELLO_COMMAND,
-                makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
-            },
-            {
-                PEER_COMMAND,
-                makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
-            },
-            {
-                DEAL_COMMAND,
-                makeMessageHandler(*this, &Impl::deal, JsonSerializer {})
-            },
-            {
-                STATE_COMMAND,
-                makeMessageHandler(*this, &Impl::state, JsonSerializer {})
-            },
-            {
-                CALL_COMMAND,
-                makeMessageHandler(*this, &Impl::call, JsonSerializer {})
-            },
-            {
-                PLAY_COMMAND,
-                makeMessageHandler(*this, &Impl::play, JsonSerializer {})
-            },
-            {
-                SCORE_COMMAND,
-                makeMessageHandler(*this, &Impl::score, JsonSerializer {})
-            }
-        },
-    context, controlEndpoint},
+    controlSocket {context, zmq::socket_type::router},
     eventSocket {zmq::socket_t {context, zmq::socket_type::pub}},
     peerSockets {},
     peerClientControl {
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())}
 {
+    controlSocket.bind(controlEndpoint);
     eventSocket[0].bind(eventEndpoint);
     for (const auto& endpoint : peerEndpoints) {
         peerSockets.emplace_back(context, zmq::socket_type::req);
         peerSockets.back().connect(endpoint);
     }
+    messageLoop.addSocket(
+        controlSocket,
+        Messaging::MessageQueue {
+            {
+                {
+                    HELLO_COMMAND,
+                    makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
+                },
+                {
+                    PEER_COMMAND,
+                    makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
+                },
+                {
+                    DEAL_COMMAND,
+                    makeMessageHandler(*this, &Impl::deal, JsonSerializer {})
+                },
+                {
+                    STATE_COMMAND,
+                    makeMessageHandler(*this, &Impl::state, JsonSerializer {})
+                },
+                {
+                    CALL_COMMAND,
+                    makeMessageHandler(*this, &Impl::call, JsonSerializer {})
+                },
+                {
+                    PLAY_COMMAND,
+                    makeMessageHandler(*this, &Impl::play, JsonSerializer {})
+                },
+                {
+                    SCORE_COMMAND,
+                    makeMessageHandler(*this, &Impl::score, JsonSerializer {})
+                }
+            }
+        });
     sendCommand(
         peerSockets.begin(), peerSockets.end(), JsonSerializer {},
         PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
@@ -210,12 +216,12 @@ BridgeMain::Impl::Impl(
 
 void BridgeMain::Impl::run()
 {
-    messageQueue.run();
+    messageLoop.run();
 }
 
 void BridgeMain::Impl::terminate()
 {
-    messageQueue.terminate();
+    messageLoop.terminate();
 }
 
 BridgeEngine& BridgeMain::Impl::getEngine()

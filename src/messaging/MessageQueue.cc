@@ -4,10 +4,8 @@
 #include "messaging/MessageUtility.hh"
 #include "Utility.hh"
 
-#include <atomic>
 #include <cassert>
 #include <iterator>
-#include <tuple>
 #include <vector>
 
 namespace Bridge {
@@ -15,37 +13,10 @@ namespace Messaging {
 
 namespace {
 
-class TerminateMessageHandler : public MessageHandler {
-public:
-    TerminateMessageHandler(MessageQueue& queue) : queue {queue} {}
-    bool doHandle(const std::string&, ParameterRange, OutputSink) override
-    {
-        // TODO: We should check identity and accept termination only from the
-        // instance that controls this application
-        queue.terminate();
-        return true;
-    }
-
-private:
-    MessageQueue& queue;
-};
-
-MessageQueue::HandlerMap& addTerminateHandler(
-    MessageQueue::HandlerMap& handlerMap,
-    MessageQueue& queue,
-    const boost::optional<std::string>& terminateCommand)
-{
-    if (terminateCommand) {
-        handlerMap.emplace(
-            *terminateCommand,
-            std::make_shared<TerminateMessageHandler>(queue));
-    }
-    return handlerMap;
-}
+using StringVector = std::vector<std::string>;
 
 bool recvMessageHelper(
-    std::string& identity, std::vector<std::string>& message,
-    zmq::socket_t& socket)
+    std::string& identity, StringVector& message, zmq::socket_t& socket)
 {
     auto more = false;
     std::tie(identity, more) = recvMessage(socket);
@@ -61,7 +32,7 @@ bool recvMessageHelper(
 
 void sendReplyHelper(
     const std::string& identity, const bool success,
-    const std::vector<std::string>& output, zmq::socket_t& socket)
+    const StringVector& output, zmq::socket_t& socket)
 {
     sendMessage(socket, identity, true);
     sendMessage(socket, std::string {}, true);
@@ -77,104 +48,42 @@ void sendReplyHelper(
 const std::string MessageQueue::REPLY_SUCCESS {"success"};
 const std::string MessageQueue::REPLY_FAILURE {"failure"};
 
-class MessageQueue::Impl {
-public:
-    Impl(
-        HandlerMap handlers, zmq::context_t& context,
-        const std::string& endpoint);
-
-    void run();
-
-    void terminate();
-
-private:
-
-    void messageLoop();
-
-    HandlerMap handlers;
-    zmq::socket_t socket;
-    std::atomic<bool> go {true};
-};
-
-MessageQueue::Impl::Impl(
-    HandlerMap handlers, zmq::context_t& context, const std::string& endpoint) :
-    handlers(std::move(handlers)),
-    socket {context, zmq::socket_type::router}
-{
-    socket.bind(endpoint);
-}
-
-void MessageQueue::Impl::run()
-{
-    try {
-        messageLoop();
-    } catch (const zmq::error_t& e) {
-        // If receiving failed because of interrupt signal, terminate
-        if (e.num() == EINTR) {
-            terminate();
-        }
-        // Otherwise rethrow the exception
-        else {
-            throw;
-        }
-    }
-}
-
-void MessageQueue::Impl::terminate()
-{
-    go = false;
-}
-
-void MessageQueue::Impl::messageLoop()
-{
-    auto output = std::vector<std::string> {};
-    auto message = std::vector<std::string> {};
-    auto identity = std::string {};
-    while (go) {
-        if (recvMessageHelper(identity, message, socket)) {
-            assert(message.size() >= 2);
-            const auto command = message.at(1);
-            const auto entry = handlers.find(command);
-            if (entry != handlers.end()) {
-                auto& handler = dereference(entry->second);
-                assert(output.empty());
-                output.push_back(command);
-                const auto success = handler.handle(
-                    identity, std::next(message.begin(), 2), message.end(),
-                    std::back_inserter(output));
-                sendReplyHelper(identity, success, output, socket);
-                output.clear();
-                continue;
-            }
-        }
-        assert(output.empty());
-        sendReplyHelper(identity, false, output, socket);
-    }
-}
-
 MessageQueue::MessageQueue(
-    MessageQueue::HandlerMap handlers, zmq::context_t& context,
-    const std::string& endpoint,
-    const boost::optional<std::string>& terminateCommand) :
-    impl {
-        std::make_unique<Impl>(
-            std::move(addTerminateHandler(handlers, *this, terminateCommand)),
-            context, endpoint)}
+    MessageQueue::HandlerMap handlers,
+    boost::optional<std::string> terminateCommand) :
+    handlers {std::move(handlers)},
+    terminateCommand {std::move(terminateCommand)}
 {
 }
 
 MessageQueue::~MessageQueue() = default;
 
-void MessageQueue::run()
+bool MessageQueue::operator()(zmq::socket_t& socket)
 {
-    assert(impl);
-    impl->run();
-}
-
-void MessageQueue::terminate()
-{
-    assert(impl);
-    impl->terminate();
+    auto output = std::vector<std::string> {};
+    auto message = std::vector<std::string> {};
+    auto identity = std::string {};
+    if (recvMessageHelper(identity, message, socket)) {
+        assert(message.size() >= 2);
+        const auto command = message.at(1);
+        if (command == terminateCommand) {
+            sendReplyHelper(identity, true, StringVector {}, socket);
+            return false;
+        }
+        const auto entry = handlers.find(command);
+        if (entry != handlers.end()) {
+            auto& handler = dereference(entry->second);
+            assert(output.empty());
+            output.push_back(command);
+            const auto success = handler.handle(
+                identity, std::next(message.begin(), 2), message.end(),
+                std::back_inserter(output));
+            sendReplyHelper(identity, success, output, socket);
+            return true;
+        }
+    }
+    sendReplyHelper(identity, false, output, socket);
+    return true;
 }
 
 }
