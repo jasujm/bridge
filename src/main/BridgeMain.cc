@@ -67,6 +67,13 @@ struct IgnoringOutputIterator {
     template<typename T> void operator=(const T&) {}
 };
 
+bool checkReply(zmq::socket_t& socket)
+{
+    // TODO: Actually check reply from peer
+    Messaging::recvAll(IgnoringOutputIterator {}, socket);
+    return true;
+}
+
 }
 
 const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
@@ -170,11 +177,6 @@ BridgeMain::Impl::Impl(
         positionPlayerIterator(positions.end())}
 {
     controlSocket.bind(controlEndpoint);
-    eventSocket[0].bind(eventEndpoint);
-    for (const auto& endpoint : peerEndpoints) {
-        peerSockets.emplace_back(context, zmq::socket_type::req);
-        peerSockets.back().connect(endpoint);
-    }
     messageLoop.addSocket(
         controlSocket,
         Messaging::MessageQueue {
@@ -209,8 +211,14 @@ BridgeMain::Impl::Impl(
                 }
             }
         });
-    sendCommand(
-        peerSockets.begin(), peerSockets.end(), JsonSerializer {},
+    eventSocket[0].bind(eventEndpoint);
+    for (const auto& endpoint : peerEndpoints) {
+        peerSockets.emplace_back(context, zmq::socket_type::dealer);
+        auto& socket = peerSockets.back();
+        socket.connect(endpoint);
+        messageLoop.addSocket(socket, checkReply);
+    }
+    sendToPeers(
         PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
 }
 
@@ -248,15 +256,6 @@ void BridgeMain::Impl::sendToPeers(
     const std::string& command, const Args&... args)
 {
     if (!peerSockets.empty()) {
-        // TODO: When we are sending commands to peers, we always assume that
-        // there was previous command whose reply hasn't been received
-        // yet. This is true if all peers have replied according to the
-        // protocol. Otherwise we're blocked.
-        // The replies should be received asynchronously and checked for
-        // success.
-        for (auto& socket : peerSockets) {
-            Messaging::recvAll(IgnoringOutputIterator {}, socket);
-        }
         sendCommand(
             peerSockets.begin(), peerSockets.end(), JsonSerializer {},
             command, args...);
