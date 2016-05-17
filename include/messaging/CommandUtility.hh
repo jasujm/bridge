@@ -52,9 +52,8 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
  * \tparam SocketIterator An input iterator that, when dereferenced, returns a
  * reference to zmq::socket_t object.
  *
- * \param socket firstSocket iterator to the first socket to send the command to
- * \param socket lastSocket iterator one past the last socket to send the
- * command to
+ * \param firstSocket iterator to the first socket to send the command to
+ * \param lastSocket iterator one past the last socket to send the command to
  * \param serializer \sa \ref serializationpolicy
  * \param command the command sent as the first part of the message
  * \param params the parameters serialized and sent as the subsequent parts of
@@ -94,9 +93,8 @@ void sendCommand(
  * \tparam SocketIterator An input iterator that, when dereferenced, returns a
  * reference to zmq::socket_t object.
  *
- * \param socket firstSocket iterator to the first socket to send the command to
- * \param socket lastSocket iterator one past the last socket to send the
- * command to
+ * \param firstSocket iterator to the first socket to send the command to
+ * \param lastSocket iterator one past the last socket to send the command to
  * \param command the command sent
  */
 template<

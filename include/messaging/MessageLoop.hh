@@ -47,6 +47,8 @@ public:
      * message loop should continue and false if it should terminate.
      *
      * \param socket the socket to add to the loop
+     * \param callback The funciton called when socket is ready to receive
+     * message. The parameter to the callback is reference to \p socket.
      */
     void addSocket(zmq::socket_t& socket, Callback callback);
 
