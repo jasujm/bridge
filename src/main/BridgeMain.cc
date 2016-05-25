@@ -361,11 +361,14 @@ Reply<> BridgeMain::Impl::call(
     }
 
     if (peerClientControl.isAllowedToAct(identity, player)) {
-        engine.call(player, call);
+        if (engine.call(player, call)) {
+            publish(CALL_COMMAND);
+            sendToPeersIfSelfControlledPlayer(
+                player, CALL_COMMAND, position, call);
+            return success();
+        }
     }
-    publish(CALL_COMMAND);
-    sendToPeersIfSelfControlledPlayer(player, CALL_COMMAND, position, call);
-    return success();
+    return failure();
 }
 
 Reply<> BridgeMain::Impl::play(
@@ -379,13 +382,16 @@ Reply<> BridgeMain::Impl::play(
     if (peerClientControl.isAllowedToAct(identity, player)) {
         if (const auto hand = engine.getHandInTurn()) {
             if (const auto n_card = findFromHand(*hand, card)) {
-                engine.play(player, *hand, *n_card);
+                if (engine.play(player, *hand, *n_card)) {
+                    publish(PLAY_COMMAND);
+                    sendToPeersIfSelfControlledPlayer(
+                        player, PLAY_COMMAND, position, card);
+                    return success();
+                }
             }
         }
     }
-    publish(PLAY_COMMAND);
-    sendToPeersIfSelfControlledPlayer(player, PLAY_COMMAND, position, card);
-    return success();
+    return failure();
 }
 
 Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string&)
