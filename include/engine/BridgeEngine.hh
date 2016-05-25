@@ -92,35 +92,36 @@ public:
 
     /** \brief Make call
      *
-     * Announce that \p player wants to make \p call. This method does nothing
-     * if the call fails for any reason. If the method throws an exception,
-     * the state machine is in unspecified state.
+     * Make \p call by \p player. The method call succeeds if \p player has
+     * turn and \p call is allowed to be made by the player. Otherwise the
+     * call does nothing.
      *
      * \param player the player who wants to make the call
      * \param call the call to be made
      *
+     * \return true if the call is successful, false otherwise
+     *
      * \throw std::out_of_score if \p player is not in the game
      */
-    void call(const Player& player, const Call& call);
+    bool call(const Player& player, const Call& call);
 
     /** \brief Play card
      *
-     * Announce that \p player wants to play \p card. This method does nothing
-     * if the call fails for any reason. If the method throws an exception,
-     * the state machine is in unspecified state.
-     *
-     * The method call succeeds if the player has turn, plays the card from
-     * the correct hand and the card can be played to the current trick. The
-     * declarer plays from both his and dummy’s hand, i.e. has two turns per
-     * trick.
+     * Play \p card from \p hand controlled by \p player. The method call
+     * succeeds if the player has turn, plays the card from the correct hand
+     * and the card can be played to the current trick. The declarer plays
+     * from both his and dummy’s hand, i.e. has two turns per trick. Otherwise
+     * the call does nothing.
      *
      * \param player the player who wants to play the card
      * \param hand the hand from which the card is played
      * \param card the index referring to a card in the \p hand
      *
+     * \return true if the play is successful, false otherwise
+     *
      * \throw std::out_of_score if \p player or \p hand is not in the game
      */
-    void play(const Player& player, const Hand& hand, std::size_t card);
+    bool play(const Player& player, const Hand& hand, std::size_t card);
 
     /** \brief Determine if the game has ended
      *

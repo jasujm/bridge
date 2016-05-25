@@ -321,3 +321,37 @@ TEST_F(BridgeEngineTest, testEndGame)
     }
     EXPECT_TRUE(engine.hasEnded());
 }
+
+TEST_F(BridgeEngineTest, testSucessfulCall)
+{
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
+    ASSERT_TRUE(engine.call(*players.front(), Pass {}));
+}
+
+TEST_F(BridgeEngineTest, testFailedCall)
+{
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
+    ASSERT_FALSE(engine.call(*players.back(), Pass {}));
+}
+
+TEST_F(BridgeEngineTest, testSuccessfulPlay)
+{
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
+    engine.call(*players[0], Bid {1, Strain::CLUBS});
+    engine.call(*players[1], Pass {});
+    engine.call(*players[2], Pass {});
+    engine.call(*players[3], Pass {});
+    ASSERT_TRUE(
+        engine.play(*players[1], dereference(engine.getHandInTurn()), 0));
+}
+
+TEST_F(BridgeEngineTest, testFailedPlay)
+{
+    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
+    engine.call(*players[0], Bid {1, Strain::CLUBS});
+    engine.call(*players[1], Pass {});
+    engine.call(*players[2], Pass {});
+    engine.call(*players[3], Pass {});
+    ASSERT_FALSE(
+        engine.play(*players[2], dereference(engine.getHandInTurn()), 0));
+}

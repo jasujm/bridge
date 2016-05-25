@@ -61,13 +61,16 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
 
 class CallEvent : public sc::event<CallEvent> {
 public:
-    CallEvent(const Player& player, const Call& call) :
+    CallEvent(const Player& player, const Call& call, bool& ret) :
         player {player},
-        call {call}
+        call {call},
+        ret {ret}
     {
     }
+
     const Player& player;
     Call call;
+    bool& ret;
 };
 class GameEndedEvent : public sc::event<GameEndedEvent> {};
 class DealCompletedEvent : public sc::event<DealCompletedEvent> {
@@ -82,15 +85,19 @@ class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {};
 class NewTrickEvent : public sc::event<NewTrickEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
-    PlayCardEvent(const Player& player, const Hand& hand, std::size_t card) :
+    PlayCardEvent(
+        const Player& player, const Hand& hand, std::size_t card, bool& ret) :
         player {player},
         hand {hand},
-        card {card}
+        card {card},
+        ret {ret}
     {
     }
+
     const Player& player;
     const Hand& hand;
     std::size_t card;
+    bool& ret;
 };
 class RevealDummyEvent : public sc::event<RevealDummyEvent> {};
 class ShufflingStateEvent : public sc::event<ShufflingStateEvent> {
@@ -384,6 +391,7 @@ sc::result InBidding::react(const CallEvent& event)
     auto& bidding = context<InDeal>().getBidding();
     const auto bidder_position = outermost_context().getPosition(event.player);
     if (bidding.call(bidder_position, event.call)) {
+        event.ret = true;
         const auto has_contract = bidding.hasContract();
         if (has_contract) {
             return transit<Playing>();
@@ -532,6 +540,7 @@ sc::result PlayingTrick::react(const PlayCardEvent& event)
     if (auto hand = getHandInTurnFor(event.player, event.hand)) {
         const auto& card = hand->getCard(event.card);
         if (card && trick->play(*hand, *card)) {
+            event.ret = true;
             hand->markPlayed(event.card);
             if (trick->isCompleted()) {
                 context<Playing>().addTrick(std::move(trick));
@@ -771,25 +780,31 @@ void BridgeEngine::initiate()
         });
 }
 
-void BridgeEngine::call(const Player& player, const Call& call)
+bool BridgeEngine::call(const Player& player, const Call& call)
 {
     assert(impl);
+
+    auto ret = false;
     impl->enqueueAndProcess(
-        [&impl = *impl, &player, &call]()
+        [&impl = *impl, &player, &call, &ret]()
         {
-            impl.process_event(CallEvent {player, call});
+            impl.process_event(CallEvent {player, call, ret});
         });
+    return ret;
 }
 
-void BridgeEngine::play(
+bool BridgeEngine::play(
     const Player& player, const Hand& hand, std::size_t card)
 {
     assert(impl);
+
+    auto ret = false;
     impl->enqueueAndProcess(
-        [&impl = *impl, &player, &hand, card]()
+        [&impl = *impl, &player, &hand, card, &ret]()
         {
-            impl.process_event(PlayCardEvent {player, hand, card});
+            impl.process_event(PlayCardEvent {player, hand, card, ret});
         });
+    return ret;
 }
 
 bool BridgeEngine::hasEnded() const
