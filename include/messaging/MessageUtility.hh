@@ -57,6 +57,27 @@ void sendMessage(
     }
 }
 
+/** \brief Helper for sending empty frame for router and dealer socket
+ *
+ * Router and dealer sockets require that message is prepended with an empty
+ * frame. If \p socket is router or dealer, this function sendds the empty
+ * frame (the caller of the function can then send the rest of the
+ * parts). Otherwise this function does nothing.
+ *
+ * \note With router socket the empty frame must also be prepended by an
+ * identity frame. This function does not prepend the identity frame so when
+ * using router socket that must be done separately.
+ *
+ * \param socket the socket
+ */
+inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
+{
+    const auto type = socket.getsockopt<int>(ZMQ_TYPE);
+    if (type == ZMQ_ROUTER || type == ZMQ_DEALER) {
+        sendMessage(socket, std::string {}, true);
+    }
+}
+
 /** \brief Receive message sent through socket
  *
  * \tparam String the type of the string returned by the function
@@ -79,6 +100,13 @@ std::pair<String, bool> recvMessage(zmq::socket_t& socket)
 
 /** \brief Receive all parts of a multipart message
  *
+ * If \p socket is router or dealer, the first part is ignored (it is assumed
+ * to be empty frame). For router socket this is expected to be called after
+ * extracting the identity frame by other means.
+ *
+ * \todo The first part is currently just ignored. It could be verified that
+ * it is empty frame.
+ *
  * \tparam String the type of the string written to the output iterator
  *
  * \param out output iterator the messages are written to
@@ -88,6 +116,11 @@ template<typename String = std::string, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
 {
     auto more = true;
+    const auto type = socket.getsockopt<int>(ZMQ_TYPE);
+    if (type == ZMQ_ROUTER || type == ZMQ_DEALER) {
+        auto&& message = recvMessage<String>(socket);
+        more = message.second;
+    }
     while (more) {
         auto&& message = recvMessage<String>(socket);
         *out++ = std::move(message.first);

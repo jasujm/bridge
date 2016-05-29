@@ -49,14 +49,6 @@ public:
      */
     using HandlerMap = std::map<std::string, std::shared_ptr<MessageHandler>>;
 
-    /** \brief Message used as reply to indicate successful request
-     */
-    static const std::string REPLY_SUCCESS;
-
-    /** \brief Message used as reply to indicate failure to fulfill the request
-     */
-    static const std::string REPLY_FAILURE;
-
     /** \brief Create message queue
      *
      * \param handlers mapping from commands to message handlers

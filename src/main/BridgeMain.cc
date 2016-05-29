@@ -13,6 +13,7 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/MakeDealState.hh"
 #include "main/PeerClientControl.hh"
+#include "main/PeerCommandSender.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
@@ -58,20 +59,6 @@ auto secondIterator(PairIterator iter)
 {
     return boost::make_transform_iterator(
         iter, [](auto&& pair) -> decltype(auto) { return pair.second; });
-}
-
-struct IgnoringOutputIterator {
-    IgnoringOutputIterator& operator++(int) { return *this; }
-    IgnoringOutputIterator& operator++() { return *this; }
-    IgnoringOutputIterator& operator*() { return *this; }
-    template<typename T> void operator=(const T&) {}
-};
-
-bool checkReply(zmq::socket_t& socket)
-{
-    // TODO: Actually check reply from peer
-    Messaging::recvAll(IgnoringOutputIterator {}, socket);
-    return true;
 }
 
 }
@@ -147,6 +134,7 @@ private:
     zmq::socket_t controlSocket;
     std::array<zmq::socket_t, 1> eventSocket;
     std::vector<zmq::socket_t> peerSockets;
+    PeerCommandSender peerCommandSender;
     PeerClientControl peerClientControl;
     const Player& leader {*players[Position::NORTH]};
     bool expectingCards {false};
@@ -172,6 +160,7 @@ BridgeMain::Impl::Impl(
     controlSocket {context, zmq::socket_type::router},
     eventSocket {zmq::socket_t {context, zmq::socket_type::pub}},
     peerSockets {},
+    peerCommandSender {},
     peerClientControl {
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())}
@@ -216,7 +205,16 @@ BridgeMain::Impl::Impl(
         peerSockets.emplace_back(context, zmq::socket_type::dealer);
         auto& socket = peerSockets.back();
         socket.connect(endpoint);
-        messageLoop.addSocket(socket, checkReply);
+    }
+    for (auto& socket : peerSockets) {
+        peerCommandSender.addPeer(socket);
+        auto reply_handler = [&sender = this->peerCommandSender](
+            zmq::socket_t& socket)
+        {
+            sender.processReply(socket);
+            return true;
+        };
+        messageLoop.addSocket(socket, reply_handler);
     }
     sendToPeers(
         PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
@@ -256,9 +254,7 @@ void BridgeMain::Impl::sendToPeers(
     const std::string& command, const Args&... args)
 {
     if (!peerSockets.empty()) {
-        sendCommand(
-            peerSockets.begin(), peerSockets.end(), JsonSerializer {},
-            command, args...);
+        peerCommandSender.sendCommand(JsonSerializer {}, command, args...);
     }
 }
 
@@ -348,6 +344,7 @@ Reply<> BridgeMain::Impl::deal(
         peerClientControl.isAllowedToAct(identity, leader)) {
         cardManager->shuffle(cards.begin(), cards.end());
         publish(DEAL_COMMAND);
+        return success();
     }
     return failure();
 }

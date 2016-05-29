@@ -3,8 +3,8 @@
  * \brief Definition of Bridge::Main::PeerClientControl
  */
 
-#ifndef PEERCLIENTCONTROL_HH_
-#define PEERCLIENTCONTROL_HH_
+#ifndef MAIN_PEERCLIENTCONTROL_HH_
+#define MAIN_PEERCLIENTCONTROL_HH_
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/variant/variant.hpp>
@@ -148,4 +148,4 @@ bool PeerClientControl::addPeer(
 }
 }
 
-#endif // PEERCLIENTCONTROL_HH_
+#endif // MAIN_PEERCLIENTCONTROL_HH_

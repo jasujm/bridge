@@ -1,7 +1,7 @@
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
+#include "MockSerializationPolicy.hh"
 
-#include <boost/lexical_cast.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -12,6 +12,7 @@
 
 using Bridge::Messaging::MessageHandler;
 using Bridge::Messaging::Reply;
+using Bridge::Messaging::MockSerializationPolicy;
 using Bridge::Messaging::failure;
 using Bridge::Messaging::makeMessageHandler;
 using Bridge::Messaging::success;
@@ -72,24 +73,6 @@ public:
     MOCK_METHOD3(call2, Reply<>(std::string, int, std::string));
 };
 
-class TestPolicy {
-public:
-    template<typename T> std::string serialize(const T& t);
-    template<typename T> T deserialize(const std::string& s);
-};
-
-template<typename T>
-std::string TestPolicy::serialize(const T& t)
-{
-    return boost::lexical_cast<std::string>(t);
-}
-
-template<typename T>
-T TestPolicy::deserialize(const std::string& s)
-{
-    return boost::lexical_cast<T>(s);
-}
-
 class FailingPolicy {
 public:
     template<typename T> T deserialize(const std::string& s);
@@ -130,7 +113,7 @@ TEST_P(FunctionMessageHandlerTest, testNoParams)
         [this](const auto& identity)
         {
             return function.call0(identity);
-        }, TestPolicy {});
+        }, MockSerializationPolicy {});
     EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {}, success);
 }
@@ -142,7 +125,7 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, TestPolicy {});
+        }, MockSerializationPolicy {});
     EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {"param"}, success);
 }
@@ -154,7 +137,7 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         [this](const auto& identity, int param1, std::string param2)
         {
             return function.call2(identity, param1, param2);
-        }, TestPolicy {});
+        }, MockSerializationPolicy {});
     EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(makeReply(success)));
     testHelper(*handler, {"1", "param"}, success);
 }
@@ -176,19 +159,19 @@ TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
         [this](const auto& identity)
         {
             return function.call0(identity);
-        }, TestPolicy {});
+        }, MockSerializationPolicy {});
     testHelper(*handler, {"invalid"}, false);
 }
 
 TEST_F(FunctionMessageHandlerTest, testGetReply1)
 {
-    auto handler = makeMessageHandler(&reply1, TestPolicy {});
+    auto handler = makeMessageHandler(&reply1, MockSerializationPolicy {});
     testHelper(*handler, {}, true, {REPLY1});
 }
 
 TEST_F(FunctionMessageHandlerTest, testGetReply2)
 {
-    auto handler = makeMessageHandler(&reply2, TestPolicy {});
+    auto handler = makeMessageHandler(&reply2, MockSerializationPolicy {});
     testHelper(
         *handler, {}, true, {REPLY1, boost::lexical_cast<std::string>(REPLY2)});
 }

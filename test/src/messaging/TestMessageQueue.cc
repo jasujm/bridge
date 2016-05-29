@@ -2,6 +2,7 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/MessageUtility.hh"
+#include "messaging/Replies.hh"
 #include "MockMessageHandler.hh"
 
 #include <gmock/gmock.h>
@@ -63,7 +64,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     EXPECT_TRUE(messageQueue(backSocket));
 
     ASSERT_EQ(
-        std::make_pair(MessageQueue::REPLY_SUCCESS, true),
+        std::make_pair(REPLY_SUCCESS, true),
         recvMessage(frontSocket));
     ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
 }
@@ -83,7 +84,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     EXPECT_TRUE(messageQueue(backSocket));
 
     ASSERT_EQ(
-        std::make_pair(MessageQueue::REPLY_FAILURE, true),
+        std::make_pair(REPLY_FAILURE, true),
         recvMessage(frontSocket));
     ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
 }
@@ -96,7 +97,7 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
     EXPECT_TRUE(messageQueue(backSocket));
 
     EXPECT_EQ(
-        std::make_pair(MessageQueue::REPLY_FAILURE, false),
+        std::make_pair(REPLY_FAILURE, false),
         recvMessage(frontSocket));
 }
 
@@ -115,7 +116,7 @@ TEST_F(MessageQueueTest, testReply)
     EXPECT_TRUE(messageQueue(backSocket));
 
     EXPECT_EQ(
-        std::make_pair(MessageQueue::REPLY_SUCCESS, true),
+        std::make_pair(REPLY_SUCCESS, true),
         recvMessage(frontSocket));
     ASSERT_EQ(std::make_pair(COMMAND, true), recvMessage(frontSocket));
     EXPECT_EQ(
@@ -129,6 +130,6 @@ TEST_F(MessageQueueTest, testTerminate)
     sendMessage(frontSocket, TERMINATE, false);
     EXPECT_FALSE(messageQueue(backSocket));
     EXPECT_EQ(
-        std::make_pair(MessageQueue::REPLY_SUCCESS, false),
+        std::make_pair(REPLY_SUCCESS, false),
         recvMessage(frontSocket));
 }

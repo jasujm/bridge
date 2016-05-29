@@ -22,27 +22,6 @@
 namespace Bridge {
 namespace Messaging {
 
-/** \brief Helper for sending empty frame for router and dealer socket
- *
- * Router and dealer sockets require that message is prepended with an empty
- * frame. If \p socket is router or dealer, this function sendds the empty
- * frame (the caller of the function can then send the rest of the
- * parts). Otherwise this function does nothing.
- *
- * \note With router socket the empty frame must also be prepended by
- * identity. This function cannot be used to prepend the message with
- * identity.
- *
- * \param socket the socket
- */
-inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
-{
-    const auto type = socket.getsockopt<int>(ZMQ_TYPE);
-    if (type == ZMQ_ROUTER || type == ZMQ_DEALER) {
-        sendMessage(socket, std::string {}, true);
-    }
-}
-
 /** \brief Send command through ZeroMQ socket
  *
  * This function serializes all parameters of the command using \p
@@ -54,10 +33,12 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
  *
  * \param firstSocket iterator to the first socket to send the command to
  * \param lastSocket iterator one past the last socket to send the command to
- * \param serializer \sa \ref serializationpolicy
+ * \param serializer serialization policy for the command parameters
  * \param command the command sent as the first part of the message
  * \param params the parameters serialized and sent as the subsequent parts of
  * the message
+ *
+ * \sa \ref serializationpolicy
  */
 template<
     typename SocketIterator, typename SerializationPolicy,

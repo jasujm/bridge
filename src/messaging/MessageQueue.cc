@@ -2,6 +2,7 @@
 
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageUtility.hh"
+#include "messaging/Replies.hh"
 #include "Utility.hh"
 
 #include <cassert>
@@ -25,9 +26,7 @@ bool recvMessageHelper(
     }
     message.clear();
     recvAll(std::back_inserter(message), socket);
-    // There should be at least two more frames, the first one which is empty,
-    // and the second one which contains the command
-    return message.size() >= 2 && message.front().size() == 0;
+    return !message.empty();
 }
 
 void sendReplyHelper(
@@ -38,15 +37,12 @@ void sendReplyHelper(
     sendMessage(socket, std::string {}, true);
     sendMessage(
         socket,
-        success ? MessageQueue::REPLY_SUCCESS : MessageQueue::REPLY_FAILURE,
+        success ? REPLY_SUCCESS : REPLY_FAILURE,
         !output.empty());
     sendMessage(socket, output.begin(), output.end());
 }
 
 }
-
-const std::string MessageQueue::REPLY_SUCCESS {"success"};
-const std::string MessageQueue::REPLY_FAILURE {"failure"};
 
 MessageQueue::MessageQueue(
     MessageQueue::HandlerMap handlers,
@@ -64,8 +60,8 @@ bool MessageQueue::operator()(zmq::socket_t& socket)
     auto message = std::vector<std::string> {};
     auto identity = std::string {};
     if (recvMessageHelper(identity, message, socket)) {
-        assert(message.size() >= 2);
-        const auto command = message.at(1);
+        assert(!message.empty());
+        const auto command = message.front();
         if (command == terminateCommand) {
             sendReplyHelper(identity, true, StringVector {}, socket);
             return false;
@@ -76,7 +72,7 @@ bool MessageQueue::operator()(zmq::socket_t& socket)
             assert(output.empty());
             output.push_back(command);
             const auto success = handler.handle(
-                identity, std::next(message.begin(), 2), message.end(),
+                identity, std::next(message.begin()), message.end(),
                 std::back_inserter(output));
             sendReplyHelper(identity, success, output, socket);
             return true;
