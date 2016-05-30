@@ -133,7 +133,6 @@ stuff is up first, and the usability stuff comes after that.
 
 Short term goals:
 
-- Make networking robust
 - Make communicating dealt cards between the peers secure by using mental card
   game library, e.g. [LibTMCG](http://www.nongnu.org/libtmcg/)
 
@@ -141,6 +140,8 @@ Long term goals:
 
 - Actually usable GUI
 - Replace the cumbersome command line configurations with nicer mechanism
+- Peer discovery
+- Recovery from more serious failures (lost messages, crash)
 
 ## Copyright
 
