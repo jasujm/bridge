@@ -43,9 +43,6 @@ class GameManager;
  * The responsibility of BridgeEngine is to orchestrate a game according to
  * the contract bridge rules. Some of the input and output of the engine is
  * handled by delegating to managers.
- *
- * \todo Add reporting failures (plays out of turns, calls that are against
- * rules etc.) using error codes or some other mechanism.
  */
 class BridgeEngine : private boost::noncopyable {
 public:
