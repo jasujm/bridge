@@ -31,7 +31,6 @@
 #include <boost/iterator/indirect_iterator.hpp>
 #include <zmq.hpp>
 
-#include <array>
 #include <random>
 #include <utility>
 
@@ -133,7 +132,7 @@ private:
     PeerCommandSender peerCommandSender;
     PeerClientControl peerClientControl;
     zmq::socket_t controlSocket;
-    std::array<zmq::socket_t, 1> eventSocket;
+    zmq::socket_t eventSocket;
     Messaging::MessageLoop messageLoop;
     const Player& leader {*players[Position::NORTH]};
     bool expectingCards {false};
@@ -160,7 +159,7 @@ BridgeMain::Impl::Impl(
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())},
     controlSocket {context, zmq::socket_type::router},
-    eventSocket {zmq::socket_t {context, zmq::socket_type::pub}}
+    eventSocket {context, zmq::socket_type::pub}
 {
     controlSocket.bind(controlEndpoint);
     messageLoop.addSocket(
@@ -197,7 +196,7 @@ BridgeMain::Impl::Impl(
                 }
             }
         });
-    eventSocket[0].bind(eventEndpoint);
+    eventSocket.bind(eventEndpoint);
     for (const auto& endpoint : peerEndpoints) {
         auto socket = peerCommandSender.addPeer(context, endpoint);
         messageLoop.addSocket(
@@ -236,9 +235,7 @@ SimpleCardManager& BridgeMain::Impl::getCardManager()
 template<typename... Args>
 void BridgeMain::Impl::publish(const std::string& command, const Args&... args)
 {
-    sendCommand(
-        eventSocket.begin(), eventSocket.end(), JsonSerializer {},
-        command, args...);
+    sendCommand(eventSocket, JsonSerializer {}, command, args...);
 }
 
 template<typename... Args>
