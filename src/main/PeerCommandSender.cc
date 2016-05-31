@@ -4,6 +4,7 @@
 #include "messaging/Replies.hh"
 
 #include <algorithm>
+#include <stdexcept>
 #include <utility>
 
 namespace Bridge {
@@ -11,14 +12,30 @@ namespace Main {
 
 using namespace Messaging;
 
-void PeerCommandSender::addPeer(zmq::socket_t& peer)
+PeerCommandSender::Peer::Peer(
+    zmq::context_t& context, const std::string& endpoint) :
+    socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
+    success {false}
 {
-    peers.emplace(&peer, false);
+    socket->connect(endpoint);
+}
+
+std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
+    zmq::context_t& context, const std::string& endpoint)
+{
+    peers.emplace_back(context, endpoint);
+    return peers.back().socket;
 }
 
 void PeerCommandSender::processReply(zmq::socket_t& socket)
 {
-    auto& success = peers.at(&socket);
+    auto iter = std::find_if(
+        peers.begin(), peers.end(),
+        [&socket](const auto& peer) { return peer.socket.get() == &socket; });
+    if (iter == peers.end()) {
+        throw std::invalid_argument("Socket is not peer socket");
+    }
+    auto& success = iter->success;
 
     auto message = Message {};
     recvAll(std::back_inserter(message), socket);
@@ -34,7 +51,7 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
         if (
             std::all_of(
                 peers.begin(), peers.end(),
-                [](const auto& peer) { return peer.second; })) {
+                [](const auto& peer) { return peer.success; })) {
             messages.pop();
             if (!messages.empty()) {
                 internalSendMessageToAll();
@@ -56,9 +73,9 @@ void PeerCommandSender::internalSendMessage(zmq::socket_t& socket)
 void PeerCommandSender::internalSendMessageToAll()
 {
     for (auto& peer : peers) {
-        assert(peer.first);
-        internalSendMessage(*peer.first);
-        peer.second = false;
+        assert(peer.socket);
+        internalSendMessage(*peer.socket);
+        peer.success = false;
     }
 }
 

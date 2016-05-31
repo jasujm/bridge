@@ -130,12 +130,11 @@ private:
         cardManager, gameManager,
         secondIterator(players.begin()),
         secondIterator(players.end())};
-    Messaging::MessageLoop messageLoop;
-    zmq::socket_t controlSocket;
-    std::array<zmq::socket_t, 1> eventSocket;
-    std::vector<zmq::socket_t> peerSockets;
     PeerCommandSender peerCommandSender;
     PeerClientControl peerClientControl;
+    zmq::socket_t controlSocket;
+    std::array<zmq::socket_t, 1> eventSocket;
+    Messaging::MessageLoop messageLoop;
     const Player& leader {*players[Position::NORTH]};
     bool expectingCards {false};
 };
@@ -157,13 +156,11 @@ BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& controlEndpoint,
     const std::string& eventEndpoint, PositionRange positions,
     EndpointRange peerEndpoints) :
-    controlSocket {context, zmq::socket_type::router},
-    eventSocket {zmq::socket_t {context, zmq::socket_type::pub}},
-    peerSockets {},
-    peerCommandSender {},
     peerClientControl {
         positionPlayerIterator(positions.begin()),
-        positionPlayerIterator(positions.end())}
+        positionPlayerIterator(positions.end())},
+    controlSocket {context, zmq::socket_type::router},
+    eventSocket {zmq::socket_t {context, zmq::socket_type::pub}}
 {
     controlSocket.bind(controlEndpoint);
     messageLoop.addSocket(
@@ -202,19 +199,14 @@ BridgeMain::Impl::Impl(
         });
     eventSocket[0].bind(eventEndpoint);
     for (const auto& endpoint : peerEndpoints) {
-        peerSockets.emplace_back(context, zmq::socket_type::dealer);
-        auto& socket = peerSockets.back();
-        socket.connect(endpoint);
-    }
-    for (auto& socket : peerSockets) {
-        peerCommandSender.addPeer(socket);
-        auto reply_handler = [&sender = this->peerCommandSender](
-            zmq::socket_t& socket)
-        {
-            sender.processReply(socket);
-            return true;
-        };
-        messageLoop.addSocket(socket, reply_handler);
+        auto socket = peerCommandSender.addPeer(context, endpoint);
+        messageLoop.addSocket(
+            *socket,
+            [&sender = this->peerCommandSender](zmq::socket_t& socket)
+            {
+                sender.processReply(socket);
+                return true;
+            });
     }
     sendToPeers(
         PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
@@ -253,9 +245,7 @@ template<typename... Args>
 void BridgeMain::Impl::sendToPeers(
     const std::string& command, const Args&... args)
 {
-    if (!peerSockets.empty()) {
-        peerCommandSender.sendCommand(JsonSerializer {}, command, args...);
-    }
+    peerCommandSender.sendCommand(JsonSerializer {}, command, args...);
 }
 
 template<typename... Args>

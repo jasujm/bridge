@@ -8,6 +8,7 @@
 #include <zmq.hpp>
 
 #include <array>
+#include <stdexcept>
 #include <string>
 
 using Bridge::Main::PeerCommandSender;
@@ -31,8 +32,7 @@ protected:
         for (auto&& t : zip(endpoints, frontSockets, backSockets))
         {
             t.get<1>().bind(t.get<0>());
-            t.get<2>().connect(t.get<0>());
-            sender.addPeer(t.get<2>());
+            t.get<2>() = sender.addPeer(context, t.get<0>());
         }
     }
 
@@ -81,10 +81,7 @@ protected:
         {context, zmq::socket_type::dealer},
         {context, zmq::socket_type::dealer},
     }};
-    std::array<zmq::socket_t, N_SOCKETS> backSockets {{
-        {context, zmq::socket_type::dealer},
-        {context, zmq::socket_type::dealer},
-    }};
+    std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets;
     PeerCommandSender sender;
 };
 
@@ -100,7 +97,7 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
     checkReceive();
     sendMessage(
         frontSockets[0], FAILURE_MESSAGE.begin(), FAILURE_MESSAGE.end());
-    sender.processReply(backSockets[0]);
+    sender.processReply(*backSockets[0]);
     checkReceive(true, false);
 }
 
@@ -112,7 +109,14 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive(false, false);
     for (auto&& t : zip(frontSockets, backSockets)) {
         sendMessage(t.get<0>(), SUCCESS_MESSAGE.begin(), SUCCESS_MESSAGE.end());
-        sender.processReply(t.get<1>());
+        sender.processReply(*t.get<1>());
     }
     checkReceive(true, true, NEXT);
+}
+
+TEST_F(PeerCommandSenderTest, testProcessReplyFailsIfNotPeerSocket)
+{
+    EXPECT_THROW(
+        sender.processReply(frontSockets.front()),
+        std::invalid_argument);
 }
