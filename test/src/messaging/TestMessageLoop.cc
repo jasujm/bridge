@@ -45,7 +45,7 @@ protected:
                         EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
                         return false;
                     }));
-            t.get<2>().bind(t.get<0>());
+            t.get<2>()->bind(t.get<0>());
             t.get<1>().connect(t.get<0>());
             loop.addSocket(
                 t.get<2>(),
@@ -65,9 +65,9 @@ protected:
         {context, zmq::socket_type::dealer},
         {context, zmq::socket_type::dealer},
     }};
-    std::array<zmq::socket_t, N_SOCKETS> backSockets {{
-        {context, zmq::socket_type::dealer},
-        {context, zmq::socket_type::dealer},
+    std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets {{
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
     }};
     std::array<testing::StrictMock<MockCallback>, N_SOCKETS> callbacks;
     Bridge::Messaging::MessageLoop loop;
@@ -75,14 +75,14 @@ protected:
 
 TEST_F(MessageLoopTest, testSingleMessage)
 {
-    EXPECT_CALL(callbacks[0], call(Ref(backSockets[0])));
+    EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0])));
     sendMessage(frontSockets[0], DEFAULT_MSG);
     loop.run();
 }
 
 TEST_F(MessageLoopTest, testMultipleMessages)
 {
-    EXPECT_CALL(callbacks[0], call(Ref(backSockets[0])))
+    EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0])))
         .WillOnce(
             Invoke(
                 [this](auto& socket)
@@ -92,14 +92,14 @@ TEST_F(MessageLoopTest, testMultipleMessages)
                     sendMessage(frontSockets[1], DEFAULT_MSG);
                     return true;
                 }));
-    EXPECT_CALL(callbacks[1], call(Ref(backSockets[1])));
+    EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
     sendMessage(frontSockets[0], OTHER_MSG);
     loop.run();
 }
 
 TEST_F(MessageLoopTest, testTerminate)
 {
-    EXPECT_CALL(callbacks[0], call(Ref(backSockets[0])))
+    EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0])))
         .WillOnce(
             Invoke(
                 [this](auto& socket)
@@ -109,7 +109,7 @@ TEST_F(MessageLoopTest, testTerminate)
                     loop.terminate();
                     return true;
                 }));
-    EXPECT_CALL(callbacks[1], call(Ref(backSockets[1]))).Times(0);
+    EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1]))).Times(0);
     sendMessage(frontSockets[0], OTHER_MSG);
     loop.run();
 }

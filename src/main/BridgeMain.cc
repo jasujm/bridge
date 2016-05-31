@@ -131,11 +131,10 @@ private:
         secondIterator(players.end())};
     PeerCommandSender peerCommandSender;
     PeerClientControl peerClientControl;
-    zmq::socket_t controlSocket;
     zmq::socket_t eventSocket;
-    Messaging::MessageLoop messageLoop;
     const Player& leader {*players[Position::NORTH]};
     bool expectingCards {false};
+    Messaging::MessageLoop messageLoop;
 };
 
 template<typename PositionIterator>
@@ -158,12 +157,14 @@ BridgeMain::Impl::Impl(
     peerClientControl {
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())},
-    controlSocket {context, zmq::socket_type::router},
     eventSocket {context, zmq::socket_type::pub}
 {
-    controlSocket.bind(controlEndpoint);
+    eventSocket.bind(eventEndpoint);
+    auto controlSocket = std::make_shared<zmq::socket_t>(
+        context, zmq::socket_type::router);
+    controlSocket->bind(controlEndpoint);
     messageLoop.addSocket(
-        controlSocket,
+        std::move(controlSocket),
         Messaging::MessageQueue {
             {
                 {
@@ -196,11 +197,9 @@ BridgeMain::Impl::Impl(
                 }
             }
         });
-    eventSocket.bind(eventEndpoint);
     for (const auto& endpoint : peerEndpoints) {
-        auto socket = peerCommandSender.addPeer(context, endpoint);
         messageLoop.addSocket(
-            *socket,
+            peerCommandSender.addPeer(context, endpoint),
             [&sender = this->peerCommandSender](zmq::socket_t& socket)
             {
                 sender.processReply(socket);

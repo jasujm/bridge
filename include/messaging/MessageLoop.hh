@@ -46,11 +46,16 @@ public:
      * socket as its sole parameter. The callback should return true if the
      * message loop should continue and false if it should terminate.
      *
+     * \note The \p socket is accepted as shared pointer and stored for the
+     * whole lifetime of the loop. It is the responsibility of the client to
+     * ensure that \p callback also remains valid during the lifetime of the
+     * loop.
+     *
      * \param socket the socket to add to the loop
      * \param callback The funciton called when socket is ready to receive
      * message. The parameter to the callback is reference to \p socket.
      */
-    void addSocket(zmq::socket_t& socket, Callback callback);
+    void addSocket(std::shared_ptr<zmq::socket_t> socket, Callback callback);
 
     /** \brief Start polling messages
      *
