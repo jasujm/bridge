@@ -262,6 +262,12 @@
 #include <memory>
 
 namespace Bridge {
+
+/** \brief The main configuration and high level logic for the bridge backend
+ *
+ * The main class BridgeMain is responsible for configuring the application
+ * communicating with peers and clients using the \ref bridgeprotocol.
+ */
 namespace Main {
 
 /** \brief Configure and run the event loop for the Bridge backend
