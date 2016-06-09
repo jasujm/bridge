@@ -16,25 +16,40 @@ namespace {
 
 using StringVector = std::vector<std::string>;
 
+bool recvIdentityIfRouter(std::string& identity, zmq::socket_t& socket)
+{
+    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
+    bool more = true;
+    if (type == zmq::socket_type::router) {
+        std::tie(identity, more) = recvMessage(socket);
+    }
+    return more;
+}
+
 bool recvMessageHelper(
     std::string& identity, StringVector& message, zmq::socket_t& socket)
 {
-    auto more = false;
-    std::tie(identity, more) = recvMessage(socket);
-    if (!more) {
+    if (!recvIdentityIfRouter(identity, socket)) {
         return false;
     }
-    message.clear();
     recvAll(std::back_inserter(message), socket);
     return !message.empty();
+}
+
+bool sendIdentityIfRouter(const std::string& identity, zmq::socket_t& socket)
+{
+    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
+    if (type == zmq::socket_type::router) {
+        sendMessage(socket, identity, true);
+    }
 }
 
 void sendReplyHelper(
     const std::string& identity, const bool success,
     const StringVector& output, zmq::socket_t& socket)
 {
-    sendMessage(socket, identity, true);
-    sendMessage(socket, std::string {}, true);
+    sendIdentityIfRouter(identity, socket);
+    sendEmptyFrameIfNecessary(socket);
     sendMessage(
         socket,
         success ? REPLY_SUCCESS : REPLY_FAILURE,

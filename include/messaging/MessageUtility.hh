@@ -72,8 +72,8 @@ void sendMessage(
  */
 inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
 {
-    const auto type = socket.getsockopt<int>(ZMQ_TYPE);
-    if (type == ZMQ_ROUTER || type == ZMQ_DEALER) {
+    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
+    if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
         sendMessage(socket, std::string {}, true);
     }
 }
@@ -98,14 +98,34 @@ std::pair<String, bool> recvMessage(zmq::socket_t& socket)
     return {{msg.data<CharType>(), msg.size() / sizeof(CharType)}, more != 0};
 }
 
-/** \brief Receive all parts of a multipart message
+/** \brief Receive (and ignore) empty frame if necessary
  *
- * If \p socket is router or dealer, the first part is ignored (it is assumed
- * to be empty frame). For router socket this is expected to be called after
- * extracting the identity frame by other means.
+ * If \p socket type is router or dealer, one frame is received and
+ * ignore. Otherwise the call does nothing. This function can be used to
+ * skip the initial empty frame for dealer and route sockets that maintain
+ * compatibility with req and rep sockets.
+ *
+ * \param socket
  *
  * \todo The first part is currently just ignored. It could be verified that
  * it is empty frame.
+ */
+inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
+{
+    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
+    auto more = true;
+    if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
+        const auto message = recvMessage(socket);
+        more = message.second;
+    }
+    return more;
+}
+
+/** \brief Receive all parts of a multipart message
+ *
+ * If \p socket is router or dealer, the first part is ignored. For router
+ * socket this is expected to be called after extracting the identity frame by
+ * other means.
  *
  * \tparam String the type of the string written to the output iterator
  *
@@ -115,14 +135,9 @@ std::pair<String, bool> recvMessage(zmq::socket_t& socket)
 template<typename String = std::string, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
 {
-    auto more = true;
-    const auto type = socket.getsockopt<int>(ZMQ_TYPE);
-    if (type == ZMQ_ROUTER || type == ZMQ_DEALER) {
-        auto&& message = recvMessage<String>(socket);
-        more = message.second;
-    }
+    auto more = recvEmptyFrameIfNecessary(socket);
     while (more) {
-        auto&& message = recvMessage<String>(socket);
+        auto message = recvMessage<String>(socket);
         *out++ = std::move(message.first);
         more = message.second;
     }

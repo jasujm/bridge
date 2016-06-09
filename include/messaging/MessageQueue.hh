@@ -73,8 +73,8 @@ public:
      * the message fails or there is no handler, REPLY_FAILURE is sent to the
      * socket.
      *
-     * \note The current implementation only works if \p socket is router
-     * type.
+     * \note If \p socket is not router, the identity passed to the message
+     * handler is always an empty string.
      *
      * \param socket the socket the message is received from and the reply is
      * sent to

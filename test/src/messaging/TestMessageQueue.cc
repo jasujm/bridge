@@ -39,6 +39,12 @@ protected:
         frontSocket.connect(ENDPOINT);
     }
 
+    void assertReply(const std::string& reply)
+    {
+        ASSERT_EQ(std::make_pair(reply, true), recvMessage(frontSocket));
+        ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
+    }
+
     zmq::context_t context;
     zmq::socket_t frontSocket {context, zmq::socket_type::req};
     zmq::socket_t backSocket {context, zmq::socket_type::router};
@@ -62,11 +68,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     sendMessage(frontSocket, p2);
 
     EXPECT_TRUE(messageQueue(backSocket));
-
-    ASSERT_EQ(
-        std::make_pair(REPLY_SUCCESS, true),
-        recvMessage(frontSocket));
-    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
+    assertReply(REPLY_SUCCESS);
 }
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
@@ -82,11 +84,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     sendMessage(frontSocket, p2);
 
     EXPECT_TRUE(messageQueue(backSocket));
-
-    ASSERT_EQ(
-        std::make_pair(REPLY_FAILURE, true),
-        recvMessage(frontSocket));
-    ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
+    assertReply(REPLY_FAILURE);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
@@ -132,4 +130,20 @@ TEST_F(MessageQueueTest, testTerminate)
     EXPECT_EQ(
         std::make_pair(REPLY_SUCCESS, false),
         recvMessage(frontSocket));
+}
+
+TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
+{
+    backSocket.unbind(ENDPOINT);
+    frontSocket.disconnect(ENDPOINT);
+    zmq::socket_t repSocket {context, zmq::socket_type::rep};
+    repSocket.bind(ENDPOINT);
+    frontSocket.connect(ENDPOINT);
+
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IsEmpty(), IsEmpty(), _))
+        .WillOnce(Return(true));
+
+    sendMessage(frontSocket, COMMAND, false);
+    EXPECT_TRUE(messageQueue(repSocket));
+    assertReply(REPLY_SUCCESS);
 }
