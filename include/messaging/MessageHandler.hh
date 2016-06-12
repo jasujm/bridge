@@ -17,6 +17,12 @@ namespace Bridge {
 namespace Messaging {
 
 /** \brief Interface for handling messages
+ *
+ * In RPC protocol, MessageHandler acts as an interface between a driver
+ * (message queue etc.) that receives messages from and sends replies to a
+ * client or a peer. The driver passes identity of the sender and any
+ * arguments to the command to MessageHandler and excepts success status it
+ * can communicate back to the sender.
  */
 class MessageHandler {
 public:
