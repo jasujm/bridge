@@ -3,6 +3,9 @@
  * \brief Definition of standard replies to messages
  */
 
+#ifndef MESSAGING_REPLIES_HH_
+#define MESSAGING_REPLIES_HH_
+
 #include <iterator>
 #include <string>
 
@@ -52,3 +55,5 @@ bool isSuccessfulReply(
 
 }
 }
+
+#endif // MESSAGING_REPLIES_HH_
