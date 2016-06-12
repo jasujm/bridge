@@ -78,7 +78,6 @@ bool MessageQueue::operator()(zmq::socket_t& socket)
         assert(!message.empty());
         const auto command = message.front();
         if (command == terminateCommand) {
-            sendReplyHelper(identity, true, StringVector {}, socket);
             return false;
         }
         const auto entry = handlers.find(command);

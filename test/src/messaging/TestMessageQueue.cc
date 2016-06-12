@@ -127,9 +127,6 @@ TEST_F(MessageQueueTest, testTerminate)
 {
     sendMessage(frontSocket, TERMINATE, false);
     EXPECT_FALSE(messageQueue(backSocket));
-    EXPECT_EQ(
-        std::make_pair(REPLY_SUCCESS, false),
-        recvMessage(frontSocket));
 }
 
 TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
