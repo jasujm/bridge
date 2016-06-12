@@ -31,5 +31,5 @@ target_link_libraries(bridge bridge-main bridge-messaging bridge-engine
   bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES} Threads::Threads)
 
 add_executable(cardserver CardServer.cc)
-target_link_libraries(cardserver bridge-cardserver ${ZEROMQ_LIBRARIES}
-  Threads::Threads)
+target_link_libraries(cardserver bridge-cardserver bridge-messaging
+  ${ZEROMQ_LIBRARIES} Threads::Threads)
