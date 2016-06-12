@@ -106,9 +106,9 @@ zmq::socket_t TMCG::PeerStreamEntry::initSocket(
 }
 
 TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
+    peers(peers.size()),
     tmcg {SECURITY_PARAMETER, peers.size(), TMCG_W},
-    vtmf {},
-    peers(peers.size())
+    vtmf {}
 {
     // Phase 1: Connect to all peers
 

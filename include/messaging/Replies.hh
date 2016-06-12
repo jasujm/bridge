@@ -51,6 +51,7 @@ bool isSuccessfulReply(
         return false;
     }
     ++first;
+    return true;
 }
 
 }

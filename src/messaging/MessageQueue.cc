@@ -36,7 +36,7 @@ bool recvMessageHelper(
     return !message.empty();
 }
 
-bool sendIdentityIfRouter(const std::string& identity, zmq::socket_t& socket)
+void sendIdentityIfRouter(const std::string& identity, zmq::socket_t& socket)
 {
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     if (type == zmq::socket_type::router) {
