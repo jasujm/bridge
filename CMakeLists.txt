@@ -19,6 +19,7 @@ find_package(Threads REQUIRED)
 find_package(Boost REQUIRED)
 find_package(ZeroMQ REQUIRED)
 find_package(Json REQUIRED)
+find_package(LibTMCG)
 
 include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS})
@@ -30,6 +31,8 @@ add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-engine
   bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES} Threads::Threads)
 
-add_executable(cardserver CardServer.cc)
-target_link_libraries(cardserver bridge-cardserver bridge-messaging
-  ${ZEROMQ_LIBRARIES} Threads::Threads)
+if(LibTMCG_FOUND)
+  add_executable(cardserver CardServer.cc)
+  target_link_libraries(cardserver bridge-cardserver bridge-messaging
+    ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES} Threads::Threads)
+endif()
