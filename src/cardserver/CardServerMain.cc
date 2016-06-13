@@ -1,10 +1,12 @@
 #include "cardserver/CardServerMain.hh"
 
+#include "bridge/BridgeConstants.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageBuffer.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "Utility.hh"
 #include "Zip.hh"
 
 #include <boost/optional/optional.hpp>
@@ -44,6 +46,7 @@ using Messaging::Reply;
 using Messaging::success;
 
 const std::string CardServerMain::INIT_COMMAND {"init"};
+const std::string CardServerMain::SHUFFLE_COMMAND {"shuffle"};
 const std::string CardServerMain::TERMINATE_COMMAND {"terminate"};
 
 namespace {
@@ -64,7 +67,10 @@ void failUnless(const bool condition)
 
 class TMCG {
 public:
+
     TMCG(zmq::context_t& context, PeerVector&& peers);
+
+    bool shuffle();
 
 private:
 
@@ -72,37 +78,34 @@ private:
         PeerStreamEntry(
             zmq::context_t& context, PeerEntry&& entry, bool bind);
 
-        static zmq::socket_t initSocket(
-            zmq::context_t& context, const PeerEntry& entry, bool bind);
-
-        Messaging::MessageBuffer buffer;
-        std::iostream stream;
+        std::shared_ptr<zmq::socket_t> socket;
+        Messaging::MessageBuffer inbuffer;
+        Messaging::MessageBuffer outbuffer;
+        std::istream instream;
+        std::ostream outstream;
         std::string identity;
     };
 
     std::vector<boost::optional<PeerStreamEntry>> peers;
     SchindelhauerTMCG tmcg;
     boost::optional<BarnettSmartVTMF_dlog> vtmf;
+    TMCG_Stack<VTMF_Card> stack;
 };
 
 TMCG::PeerStreamEntry::PeerStreamEntry(
     zmq::context_t& context, PeerEntry&& entry, const bool bind) :
-    buffer {initSocket(context, entry, bind)},
-    stream {&buffer},
+    socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)},
+    inbuffer {socket},
+    outbuffer {socket},
+    instream(&inbuffer),
+    outstream(&outbuffer),
     identity {std::move(entry.first)}
 {
-}
-
-zmq::socket_t TMCG::PeerStreamEntry::initSocket(
-    zmq::context_t& context, const PeerEntry& entry, const bool bind)
-{
-    zmq::socket_t socket {context, zmq::socket_type::pair};
     if (bind) {
-        socket.bind(entry.second);
+        socket->bind(entry.second);
     } else {
-        socket.connect(entry.second);
+        socket->connect(entry.second);
     }
-    return socket;
 }
 
 TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
@@ -135,12 +138,12 @@ TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
             auto iter = std::next(this->peers.begin());
             iter != this->peers.end(); ++iter) {
             assert(*iter);
-            vtmf->PublishGroup((*iter)->stream);
+            vtmf->PublishGroup((*iter)->outstream);
         }
     } else {
         auto& peer = this->peers.front();
         assert(peer);
-        vtmf.emplace(peer->stream);
+        vtmf.emplace(peer->instream);
         failUnless(vtmf->CheckGroup());
     }
 
@@ -149,17 +152,59 @@ TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
     vtmf->KeyGenerationProtocol_GenerateKey();
     for (auto& peer : this->peers) {
         if (peer) {
-            vtmf->KeyGenerationProtocol_PublishKey(peer->stream);
+            vtmf->KeyGenerationProtocol_PublishKey(peer->outstream);
         }
     }
     for (auto& peer : this->peers) {
         if (peer) {
             const auto success =
-                vtmf->KeyGenerationProtocol_UpdateKey(peer->stream);
+                vtmf->KeyGenerationProtocol_UpdateKey(peer->instream);
             failUnless(success);
         }
     }
     vtmf->KeyGenerationProtocol_Finalize();
+}
+
+bool TMCG::shuffle()
+{
+    auto p_vtmf = vtmf.get_ptr();
+    assert(p_vtmf);
+
+    TMCG_Stack<VTMF_Card> stack;
+    for (const auto type : to(N_CARDS)) {
+        VTMF_Card c;
+        tmcg.TMCG_CreateOpenCard(c, p_vtmf, type);
+        stack.push(c);
+    }
+
+    for (auto&& peer : peers) {
+        TMCG_Stack<VTMF_Card> stack2;
+        if (peer) {
+            peer->instream >> stack2;
+            if (!peer->instream.good() ||
+                !tmcg.TMCG_VerifyStackEquality(
+                    stack, stack2, false, p_vtmf,
+                    peer->instream, peer->outstream)) {
+                return false;
+            }
+        } else {
+            TMCG_StackSecret<VTMF_CardSecret> secret;
+            tmcg.TMCG_CreateStackSecret(secret, false, stack.size(), p_vtmf);
+            tmcg.TMCG_MixStack(stack, stack2, secret, p_vtmf);
+            for (auto&& peer2 : peers) {
+                if (peer2) {
+                    peer2->outstream << stack2 << std::endl;
+                    tmcg.TMCG_ProveStackEquality(
+                        stack, stack2, secret, false, p_vtmf,
+                        peer2->instream, peer2->outstream);
+                }
+            }
+        }
+        std::swap(stack, stack2);
+    }
+
+    std::swap(this->stack, stack);
+    return true;
 }
 
 }
@@ -171,7 +216,8 @@ public:
 
 private:
 
-    Reply<> init(const std::string& identity, PeerVector&& peers);
+    Reply<> init(const std::string&, PeerVector&& peers);
+    Reply<> shuffle(const std::string&);
 
     zmq::context_t& context;
     zmq::socket_t controlSocket;
@@ -188,6 +234,10 @@ CardServerMain::Impl::Impl(
             {
                 INIT_COMMAND,
                 makeMessageHandler(*this, &Impl::init, JsonSerializer {})
+            },
+            {
+                SHUFFLE_COMMAND,
+                makeMessageHandler(*this, &Impl::shuffle, JsonSerializer {})
             },
         },
         TERMINATE_COMMAND
@@ -209,6 +259,16 @@ Reply<> CardServerMain::Impl::init(const std::string&, PeerVector&& peers)
             return success();
         } catch (TMCGInitFailure) {
             // failed
+        }
+    }
+    return failure();
+}
+
+Reply<> CardServerMain::Impl::shuffle(const std::string&)
+{
+    if (tmcg) {
+        if (tmcg->shuffle()) {
+            return success();
         }
     }
     return failure();

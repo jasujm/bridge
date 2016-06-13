@@ -13,6 +13,7 @@ CONTROL_KEY = "control"
 PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY))
 
 INIT_COMMAND = b'init'
+SHUFFLE_COMMAND = b'shuffle'
 TERMINATE_COMMAND = b'terminate'
 
 REPLY_SUCCESS = [b'success']
@@ -51,6 +52,16 @@ print("Receiving reply...")
     
 for socket in sockets:
     assert(socket.recv_multipart() == REPLY_SUCCESS + [INIT_COMMAND])
+
+print("Shuffling...")
+
+for socket in sockets:
+    socket.send(SHUFFLE_COMMAND)
+
+print("Receiving reply...")
+
+for socket in sockets:
+    assert(socket.recv_multipart() == REPLY_SUCCESS + [SHUFFLE_COMMAND])
 
 print("Terminate...")
 
