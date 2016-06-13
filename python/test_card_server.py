@@ -10,10 +10,15 @@ import zmq
 IDENTITY_KEY = "identity"
 ENDPOINT_KEY = "endpoint"
 CONTROL_KEY = "control"
+RANK_KEY = "rank"
+SUIT_KEY = "suit"
 PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY))
+Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
 
 INIT_COMMAND = b'init'
 SHUFFLE_COMMAND = b'shuffle'
+DRAW_COMMAND = b'draw'
+REVEAL_COMMAND = b'reveal'
 TERMINATE_COMMAND = b'terminate'
 
 REPLY_SUCCESS = [b'success']
@@ -28,6 +33,7 @@ ENDPOINTS = {}
 for p in itertools.combinations(PEERS, 2):
     ENDPOINTS[frozenset(p)] = "tcp://127.0.0.1:%d" % port
     port = port + 1
+CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 
 zmqctx = zmq.Context.instance()
 servers = [
@@ -40,7 +46,7 @@ for (socket, peer) in zip(sockets, PEERS):
     def get_entry(p1, p2):
         if p1 != p2:
             return {
-                IDENTITY_KEY: p1.identity,
+                IDENTITY_KEY: p2.identity,
                 ENDPOINT_KEY: ENDPOINTS[frozenset((p1, p2))]}
         return None
     entries = [get_entry(peer, peer2) for peer2 in PEERS]
@@ -62,6 +68,36 @@ print("Receiving reply...")
 
 for socket in sockets:
     assert(socket.recv_multipart() == REPLY_SUCCESS + [SHUFFLE_COMMAND])
+
+print("Revealing cards...")
+
+for (i, socket) in enumerate(sockets):
+    for j in range(len(sockets)):
+        if i == j:
+            socket.send(DRAW_COMMAND, flags=zmq.SNDMORE)
+            socket.send_json(CARD_RANGE[j])
+        else:
+            socket.send(REVEAL_COMMAND, flags=zmq.SNDMORE)
+            socket.send_json(PEERS[j].identity, flags=zmq.SNDMORE)
+            socket.send_json(CARD_RANGE[j])
+
+print("Receiving reply...")
+
+all_cards = set()
+for (i, socket) in enumerate(sockets):
+    for j in range(len(sockets)):
+        if i == j:
+            assert(socket.recv() == REPLY_SUCCESS[0])
+            assert(socket.recv(flags=zmq.NOBLOCK) == DRAW_COMMAND)
+            cards = socket.recv_json(flags=zmq.NOBLOCK)
+            assert(
+                all(
+                    (card is not None) == (k in CARD_RANGE[j])
+                    for (k, card) in enumerate(cards)))
+            all_cards |= set(Card(**cards[k]) for k in CARD_RANGE[j])
+        else:
+            assert(socket.recv_multipart() == REPLY_SUCCESS + [REVEAL_COMMAND])
+assert(len(all_cards) == 52)
 
 print("Terminate...")
 

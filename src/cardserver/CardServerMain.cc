@@ -1,6 +1,13 @@
+// LibTMCG code snippets are based on examples in The LibTMCG Reference Manual
+// Copyright Heiko Stamer 2015
+// (http://www.nongnu.org/libtmcg/libTMCG.html/index.html)
+
 #include "cardserver/CardServerMain.hh"
 
+#include "bridge/CardType.hh"
+#include "bridge/CardTypeIterator.hh"
 #include "bridge/BridgeConstants.hh"
+#include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageBuffer.hh"
 #include "messaging/MessageQueue.hh"
@@ -13,6 +20,8 @@
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -23,6 +32,8 @@ namespace Bridge {
 namespace CardServer {
 using PeerEntry = std::pair<std::string, std::string>;
 using PeerVector = std::vector<boost::optional<PeerEntry>>;
+using IndexVector = std::vector<std::size_t>;
+using CardVector = std::vector<boost::optional<CardType>>;
 }
 
 namespace Messaging {
@@ -47,6 +58,8 @@ using Messaging::success;
 
 const std::string CardServerMain::INIT_COMMAND {"init"};
 const std::string CardServerMain::SHUFFLE_COMMAND {"shuffle"};
+const std::string CardServerMain::DRAW_COMMAND {"draw"};
+const std::string CardServerMain::REVEAL_COMMAND {"reveal"};
 const std::string CardServerMain::TERMINATE_COMMAND {"terminate"};
 
 namespace {
@@ -71,6 +84,10 @@ public:
     TMCG(zmq::context_t& context, PeerVector&& peers);
 
     bool shuffle();
+    bool reveal(const std::string& identity, const IndexVector& ns);
+    bool draw(const IndexVector& ns);
+
+    const CardVector& getCards() const;
 
 private:
 
@@ -90,6 +107,7 @@ private:
     SchindelhauerTMCG tmcg;
     boost::optional<BarnettSmartVTMF_dlog> vtmf;
     TMCG_Stack<VTMF_Card> stack;
+    CardVector cards;
 };
 
 TMCG::PeerStreamEntry::PeerStreamEntry(
@@ -111,7 +129,9 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
 TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
     peers(peers.size()),
     tmcg {SECURITY_PARAMETER, peers.size(), TMCG_W},
-    vtmf {}
+    vtmf {},
+    stack {},
+    cards(N_CARDS)
 {
     // Phase 1: Connect to all peers
 
@@ -189,7 +209,7 @@ bool TMCG::shuffle()
             }
         } else {
             TMCG_StackSecret<VTMF_CardSecret> secret;
-            tmcg.TMCG_CreateStackSecret(secret, false, stack.size(), p_vtmf);
+            tmcg.TMCG_CreateStackSecret(secret, false, N_CARDS, p_vtmf);
             tmcg.TMCG_MixStack(stack, stack2, secret, p_vtmf);
             for (auto&& peer2 : peers) {
                 if (peer2) {
@@ -204,7 +224,68 @@ bool TMCG::shuffle()
     }
 
     std::swap(this->stack, stack);
+    std::fill(this->cards.begin(), this->cards.end(), boost::none);
     return true;
+}
+
+bool TMCG::reveal(const std::string& identity, const IndexVector& ns)
+{
+    auto p_vtmf = vtmf.get_ptr();
+    assert(p_vtmf);
+
+    const auto iter = std::find_if(
+        peers.begin(), peers.end(),
+        [&identity](const auto& peer)
+        {
+            return peer && peer->identity == identity;
+        });
+    if (iter != peers.end()) {
+        assert(*iter);
+        auto&& peer = **iter;
+        for (const auto n : ns) {
+            if (n >= N_CARDS) {
+                return false;
+            }
+            assert(n < stack.size());
+            tmcg.TMCG_ProveCardSecret(
+                stack[n], p_vtmf, peer.instream, peer.outstream);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool TMCG::draw(const IndexVector& ns)
+{
+    auto p_vtmf = vtmf.get_ptr();
+    assert(p_vtmf);
+
+    for (const auto n : ns) {
+        if (n >= N_CARDS) {
+            return false;
+        }
+        assert(n < stack.size());
+        auto& card = stack[n];
+        tmcg.TMCG_SelfCardSecret(card, p_vtmf);
+        for (auto&& peer : peers) {
+            if (peer) {
+                if (
+                    !tmcg.TMCG_VerifyCardSecret(
+                        card, p_vtmf, peer->instream, peer->outstream)) {
+                    return false;
+                }
+            }
+        }
+        assert(n < cards.size());
+        cards[n].emplace(
+            enumerateCardType(tmcg.TMCG_TypeOfCard(card, p_vtmf)));
+    }
+    return true;
+}
+
+const CardVector& TMCG::getCards() const
+{
+    return cards;
 }
 
 }
@@ -218,6 +299,9 @@ private:
 
     Reply<> init(const std::string&, PeerVector&& peers);
     Reply<> shuffle(const std::string&);
+    Reply<CardVector> draw(const std::string&, const IndexVector& ns);
+    Reply<> reveal(
+        const std::string&, const std::string& identity, const IndexVector& ns);
 
     zmq::context_t& context;
     zmq::socket_t controlSocket;
@@ -238,6 +322,14 @@ CardServerMain::Impl::Impl(
             {
                 SHUFFLE_COMMAND,
                 makeMessageHandler(*this, &Impl::shuffle, JsonSerializer {})
+            },
+            {
+                DRAW_COMMAND,
+                makeMessageHandler(*this, &Impl::draw, JsonSerializer {})
+            },
+            {
+                REVEAL_COMMAND,
+                makeMessageHandler(*this, &Impl::reveal, JsonSerializer {})
             },
         },
         TERMINATE_COMMAND
@@ -266,10 +358,26 @@ Reply<> CardServerMain::Impl::init(const std::string&, PeerVector&& peers)
 
 Reply<> CardServerMain::Impl::shuffle(const std::string&)
 {
-    if (tmcg) {
-        if (tmcg->shuffle()) {
-            return success();
-        }
+    if (tmcg && tmcg->shuffle()) {
+        return success();
+    }
+    return failure();
+}
+
+Reply<CardVector> CardServerMain::Impl::draw(
+    const std::string&, const IndexVector& ns)
+{
+    if (tmcg && tmcg->draw(ns)) {
+        return success(tmcg->getCards());
+    }
+    return failure();
+}
+
+Reply<> CardServerMain::Impl::reveal(
+    const std::string&, const std::string& identity, const IndexVector& ns)
+{
+    if (tmcg && tmcg->reveal(identity, ns)) {
+        return success();
     }
     return failure();
 }

@@ -47,6 +47,10 @@ public:
      */
     static const std::string SHUFFLE_COMMAND;
 
+    /** \brief Command for drawing a card
+     */
+    static const std::string DRAW_COMMAND;
+
     /** \brief Command for revealing cards to the peers
      */
     static const std::string REVEAL_COMMAND;
