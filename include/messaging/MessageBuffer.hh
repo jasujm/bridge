@@ -7,9 +7,11 @@
 #define MESSAGING_MESSAGEBUFFER_HH_
 
 #include "messaging/MessageUtility.hh"
+#include "Utility.hh"
 
 #include <zmq.hpp>
 
+#include <memory>
 #include <sstream>
 #include <tuple>
 #include <utility>
@@ -46,7 +48,7 @@ public:
      *
      * \param socket the socket used to synchronize contents
      */
-    BasicMessageBuffer(zmq::socket_t socket);
+    BasicMessageBuffer(std::shared_ptr<zmq::socket_t> socket);
 
 protected:
 
@@ -70,12 +72,12 @@ protected:
 
 private:
 
-    zmq::socket_t socket;
+    std::shared_ptr<zmq::socket_t> socket;
 };
 
 template<typename Char, class Traits, class Allocator>
 BasicMessageBuffer<Char, Traits, Allocator>::BasicMessageBuffer(
-    zmq::socket_t socket) :
+    std::shared_ptr<zmq::socket_t> socket) :
     socket {std::move(socket)}
 {
 }
@@ -85,7 +87,7 @@ int BasicMessageBuffer<Char, Traits, Allocator>::sync()
 {
     const auto& msg = this->str();
     if (!msg.empty()) {
-        sendMessage(this->socket, msg);
+        sendMessage(dereference(this->socket), msg);
         this->str({});
     }
     return 0;
@@ -105,7 +107,7 @@ underflow()
     auto msg = String {};
     auto more = false;
     while (msg.empty()) {
-        std::tie(msg, more) = recvMessage<String>(this->socket);
+        std::tie(msg, more) = recvMessage<String>(dereference(this->socket));
     }
     this->str(msg);
     return Traits::to_int_type(msg.front());

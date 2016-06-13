@@ -25,13 +25,15 @@ class MessageBufferTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        backSocket.bind(ENDPOINT);
-        frontSocket.connect(ENDPOINT);
+        backSocket->bind(ENDPOINT);
+        frontSocket->connect(ENDPOINT);
     }
 
     zmq::context_t context;
-    zmq::socket_t frontSocket {context, zmq::socket_type::pair};
-    zmq::socket_t backSocket {context, zmq::socket_type::pair};
+    std::shared_ptr<zmq::socket_t> frontSocket {
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)};
+    std::shared_ptr<zmq::socket_t> backSocket {
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)};
 };
 
 TEST_F(MessageBufferTest, testOutputMessage)
@@ -40,7 +42,7 @@ TEST_F(MessageBufferTest, testOutputMessage)
     std::ostream out {&buffer};
     out << MESSAGE << " " << NUMBER << std::endl;
 
-    const auto message = recvMessage(backSocket);
+    const auto message = recvMessage(*backSocket);
     EXPECT_EQ(std::make_pair(WHOLE_MESSAGE, false), message);
 }
 
@@ -51,14 +53,14 @@ TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
     out.flush();
 
     std::array<zmq::pollitem_t, 1> pollitems {{
-        {static_cast<void*>(backSocket), 0, ZMQ_POLLIN, 0},
+        {static_cast<void*>(*backSocket), 0, ZMQ_POLLIN, 0},
     }};
     EXPECT_EQ(0, zmq::poll(pollitems.data(), 1, 0));
 }
 
 TEST_F(MessageBufferTest, testInputMessage)
 {
-    sendMessage(frontSocket, WHOLE_MESSAGE);
+    sendMessage(*frontSocket, WHOLE_MESSAGE);
 
     MessageBuffer buffer {std::move(backSocket)};
     std::istream in {&buffer};
