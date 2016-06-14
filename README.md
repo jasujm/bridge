@@ -127,11 +127,11 @@ correspond to the cards that can be played to the current trick.
 
 ## Card server
 
-If LibTMCG is found in the system, cardserver is built in addition to the
-bridge application. In the future the card server will be responsible for
-executing the actual mental card game protocol but currently it can only
-initialize communication with other card servers. Small Python program can be
-used to test that this step is successful
+If [LibTMCG](http://www.nongnu.org/libtmcg/) is found in the system,
+cardserver is built in addition to the bridge application. When integrated
+with the bridge application, card server is responsible for executing the
+actual mental card game protocol. Small Python program can be used to test the
+card server intercation with peers.
 
     $ cd /the/build/directory
     $ python ../python/test_card_server.py
@@ -144,8 +144,7 @@ stuff is up first, and the usability stuff comes after that.
 
 Short term goals:
 
-- Make card server usable and make the bridge backend use it to establish
-  secured game
+- Make bridge application use card server for secure mental card game protocol
 
 Long term goals:
 
