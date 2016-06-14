@@ -60,6 +60,7 @@ const std::string CardServerMain::INIT_COMMAND {"init"};
 const std::string CardServerMain::SHUFFLE_COMMAND {"shuffle"};
 const std::string CardServerMain::DRAW_COMMAND {"draw"};
 const std::string CardServerMain::REVEAL_COMMAND {"reveal"};
+const std::string CardServerMain::REVEAL_ALL_COMMAND {"revealall"};
 const std::string CardServerMain::TERMINATE_COMMAND {"terminate"};
 
 namespace {
@@ -85,6 +86,7 @@ public:
 
     bool shuffle();
     bool reveal(const std::string& identity, const IndexVector& ns);
+    bool revealAll(const IndexVector& ns);
     bool draw(const IndexVector& ns);
 
     const CardVector& getCards() const;
@@ -102,6 +104,8 @@ private:
         std::ostream outstream;
         std::string identity;
     };
+
+    bool revealHelper(PeerStreamEntry& peer, const IndexVector& ns);
 
     std::vector<boost::optional<PeerStreamEntry>> peers;
     SchindelhauerTMCG tmcg;
@@ -241,18 +245,28 @@ bool TMCG::reveal(const std::string& identity, const IndexVector& ns)
         });
     if (iter != peers.end()) {
         assert(*iter);
-        auto&& peer = **iter;
-        for (const auto n : ns) {
-            if (n >= N_CARDS) {
-                return false;
-            }
-            assert(n < stack.size());
-            tmcg.TMCG_ProveCardSecret(
-                stack[n], p_vtmf, peer.instream, peer.outstream);
-        }
-        return true;
+        return revealHelper(**iter, ns);
     }
     return false;
+}
+
+bool TMCG::revealAll(const IndexVector& ns)
+{
+    auto p_vtmf = vtmf.get_ptr();
+    assert(p_vtmf);
+
+    for (auto&& peer : peers) {
+        auto success = true;
+        if (peer) {
+            success = revealHelper(*peer, ns);
+        } else {
+            success = draw(ns);
+        }
+        if (!success) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool TMCG::draw(const IndexVector& ns)
@@ -288,6 +302,22 @@ const CardVector& TMCG::getCards() const
     return cards;
 }
 
+bool TMCG::revealHelper(PeerStreamEntry& peer, const IndexVector& ns)
+{
+    auto p_vtmf = vtmf.get_ptr();
+    assert(p_vtmf);
+
+    for (const auto n : ns) {
+        if (n >= N_CARDS) {
+            return false;
+        }
+        assert(n < stack.size());
+        tmcg.TMCG_ProveCardSecret(
+            stack[n], p_vtmf, peer.instream, peer.outstream);
+    }
+    return true;
+}
+
 }
 
 class CardServerMain::Impl {
@@ -302,6 +332,7 @@ private:
     Reply<CardVector> draw(const std::string&, const IndexVector& ns);
     Reply<> reveal(
         const std::string&, const std::string& identity, const IndexVector& ns);
+    Reply<CardVector> revealAll(const std::string&, const IndexVector& ns);
 
     zmq::context_t& context;
     zmq::socket_t controlSocket;
@@ -330,6 +361,10 @@ CardServerMain::Impl::Impl(
             {
                 REVEAL_COMMAND,
                 makeMessageHandler(*this, &Impl::reveal, JsonSerializer {})
+            },
+            {
+                REVEAL_ALL_COMMAND,
+                makeMessageHandler(*this, &Impl::revealAll, JsonSerializer {})
             },
         },
         TERMINATE_COMMAND
@@ -378,6 +413,15 @@ Reply<> CardServerMain::Impl::reveal(
 {
     if (tmcg && tmcg->reveal(identity, ns)) {
         return success();
+    }
+    return failure();
+}
+
+Reply<CardVector> CardServerMain::Impl::revealAll(
+    const std::string&, const IndexVector& ns)
+{
+    if (tmcg && tmcg->revealAll(ns)) {
+        return success(tmcg->getCards());
     }
     return failure();
 }

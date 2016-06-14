@@ -19,6 +19,7 @@ INIT_COMMAND = b'init'
 SHUFFLE_COMMAND = b'shuffle'
 DRAW_COMMAND = b'draw'
 REVEAL_COMMAND = b'reveal'
+REVEAL_ALL_COMMAND = b'revealall'
 TERMINATE_COMMAND = b'terminate'
 
 REPLY_SUCCESS = [b'success']
@@ -69,7 +70,7 @@ print("Receiving reply...")
 for socket in sockets:
     assert(socket.recv_multipart() == REPLY_SUCCESS + [SHUFFLE_COMMAND])
 
-print("Revealing cards...")
+print("Drawing cards...")
 
 for (i, socket) in enumerate(sockets):
     for j in range(len(sockets)):
@@ -98,6 +99,24 @@ for (i, socket) in enumerate(sockets):
         else:
             assert(socket.recv_multipart() == REPLY_SUCCESS + [REVEAL_COMMAND])
 assert(len(all_cards) == 52)
+
+print("Revealing dummy...")
+
+for socket in sockets:
+    socket.send(REVEAL_ALL_COMMAND, flags=zmq.SNDMORE)
+    socket.send_json(CARD_RANGE[0])
+
+print("Receiving reply...")
+
+dummy_cards = None
+for socket in sockets:
+    assert(socket.recv() == REPLY_SUCCESS[0])
+    assert(socket.recv(flags=zmq.NOBLOCK) == REVEAL_ALL_COMMAND)
+    cards = socket.recv_json(flags=zmq.NOBLOCK)
+    cards = [Card(**cards[k]) for k in CARD_RANGE[0]]
+    if dummy_cards is None:
+        dummy_cards = cards
+    assert(cards == dummy_cards)
 
 print("Terminate...")
 

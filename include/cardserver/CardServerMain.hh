@@ -55,6 +55,10 @@ public:
      */
     static const std::string REVEAL_COMMAND;
 
+    /** \brief Command for revealing cards to all peers
+     */
+    static const std::string REVEAL_ALL_COMMAND;
+
     /** \brief Command for terminating the card server
      */
     static const std::string TERMINATE_COMMAND;
