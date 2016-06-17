@@ -23,6 +23,14 @@ class Hand;
 enum class Suit;
 
 /** \brief A trick in contract bridge
+ *
+ * A trick is a container of cards played from hands taking part in a bridge
+ * game. It enforces turns and bridge trick rules, and can be used to
+ * determine the winner of the trick once completed.
+ *
+ * \todo Currently card not belonging to the suit lead are accepted if the
+ * cards in the hand are unknown. This means that there is no rule control or
+ * other cheating detection between peers.
  */
 class Trick {
 public:

@@ -162,6 +162,35 @@ TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndIsOutOfSuit)
     EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
 }
 
+TEST_F(TrickTest, testPlayWhenHandHasTurnAndOutOfSuitIsIndeterminate)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+        .WillOnce(Return(boost::indeterminate));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.play(hands[1], cards[1]));
+}
+
+TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndOutOfSuitIsIndeterminate)
+{
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+        .WillOnce(Return(boost::indeterminate));
+
+    setCardTypes(
+        {Rank::TWO,   Suit::SPADES},
+        {Rank::THREE, Suit::CLUBS},
+        {Rank::ACE,   Suit::CLUBS},
+        {Rank::FOUR,  Suit::CLUBS});
+    EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
+}
+
 TEST_F(TrickTest, testPlayWhenHandHasTurnAndDoesNotFollowSuit)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));

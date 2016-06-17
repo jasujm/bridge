@@ -34,7 +34,7 @@ bool Trick::canPlay(const Hand& hand, const Card& card) const
         }
         const auto suit = dereference(card.getType()).suit;
         const auto first_suit = dereference(handleGetCard(0).getType()).suit;
-        return suit == first_suit || hand.isOutOfSuit(first_suit);
+        return suit == first_suit || !bool(!hand.isOutOfSuit(first_suit));
     }
     return false;
 }

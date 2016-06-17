@@ -21,6 +21,10 @@ namespace Bridge {
  *
  * BasicTrick keeps list of cards played to the trick and maintains turns
  * based on predetermined list of hands.
+ *
+ * \todo BasicTrick currently accepts card not belonging to the suit lead if
+ * the cards in the hand are unknown. This means that there is no rule control
+ * or other cheating detection between peers.
  */
 class BasicTrick : public Trick, private boost::noncopyable {
 public:
