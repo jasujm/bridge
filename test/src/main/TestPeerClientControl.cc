@@ -128,3 +128,15 @@ TEST_F(PeerClientControlTest, testPlayersNotBelongingToSelf)
     EXPECT_FALSE(peerClientControl.isSelfControlledPlayer(players[2]));
     EXPECT_FALSE(peerClientControl.isSelfControlledPlayer(players[3]));
 }
+
+TEST_F(PeerClientControlTest, testAllPlayersNotControlled)
+{
+    EXPECT_FALSE(peerClientControl.areAllPlayersControlled());
+}
+
+TEST_F(PeerClientControlTest, testAllPlayersControlled)
+{
+    addClients();
+    addPeer();
+    EXPECT_TRUE(peerClientControl.areAllPlayersControlled());
+}

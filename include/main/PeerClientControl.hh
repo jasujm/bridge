@@ -90,6 +90,13 @@ public:
      */
     bool isSelfControlledPlayer(const Player& player) const;
 
+    /** \brief Determine if all players are controlled by a peer or a player
+     *
+     * \return true if for each player there is a peer or a client that
+     * controls it, false otherwise
+     */
+    bool areAllPlayersControlled() const;
+
 private:
 
     using PlayerVector = std::vector<std::reference_wrapper<const Player>>;
@@ -107,6 +114,7 @@ private:
     using PeerClient = boost::variant<Peer, Client>;
 
     class IsAllowedToActVisitor;
+    class NumberOfPlayersControlledVisitor;
 
     template<typename PlayerIterator>
     static auto makePlayerVector(PlayerIterator first, PlayerIterator last);

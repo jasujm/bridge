@@ -34,6 +34,19 @@ private:
     const Player& player;
 };
 
+class PeerClientControl::NumberOfPlayersControlledVisitor
+{
+public:
+    std::size_t operator()(const Peer& peer) const
+    {
+        return peer.players.size();
+    }
+    std::size_t operator()(const Client&) const
+    {
+        return 1u;
+    }
+};
+
 const Player* PeerClientControl::addClient(std::string identity)
 {
     if (nClients >= nSelfPlayers)
@@ -67,6 +80,17 @@ bool PeerClientControl::isSelfControlledPlayer(const Player& player) const
     const auto first = allPlayers.begin();
     const auto last = std::next(first, nSelfPlayers);
     return std::find_if(first, last, compareAddress(player)) != last;
+}
+
+bool PeerClientControl::areAllPlayersControlled() const
+{
+    return allPlayers.size() == std::accumulate(
+        others.begin(), others.end(), 0u,
+        [](const auto sum, const auto& other)
+        {
+            return sum + boost::apply_visitor(
+                NumberOfPlayersControlledVisitor {}, other.second);
+        });
 }
 
 bool PeerClientControl::internalAddPeer(
