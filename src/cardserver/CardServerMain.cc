@@ -27,6 +27,12 @@
 #include <utility>
 #include <vector>
 
+template<typename CardType>
+void swap(TMCG_Stack<CardType>& stack1, TMCG_Stack<CardType>& stack2)
+{
+    stack1.stack.swap(stack2.stack);
+}
+
 namespace Bridge {
 
 namespace CardServer {
@@ -224,10 +230,10 @@ bool TMCG::shuffle()
                 }
             }
         }
-        std::swap(stack, stack2);
+        swap(stack, stack2);
     }
 
-    std::swap(this->stack, stack);
+    swap(this->stack, stack);
     std::fill(this->cards.begin(), this->cards.end(), boost::none);
     return true;
 }
