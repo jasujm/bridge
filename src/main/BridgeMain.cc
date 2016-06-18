@@ -3,17 +3,15 @@
 #include "bridge/AllowedCalls.hh"
 #include "bridge/AllowedCards.hh"
 #include "bridge/BasicPlayer.hh"
-#include "bridge/BridgeConstants.hh"
 #include "bridge/Call.hh"
-#include "bridge/CardTypeIterator.hh"
 #include "bridge/DealState.hh"
-#include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "engine/SimpleCardManager.hh"
 #include "engine/BridgeEngine.hh"
+#include "engine/CardManager.hh"
 #include "engine/MakeDealState.hh"
 #include "main/PeerClientControl.hh"
 #include "main/PeerCommandSender.hh"
+#include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
@@ -31,7 +29,6 @@
 #include <boost/iterator/indirect_iterator.hpp>
 #include <zmq.hpp>
 
-#include <random>
 #include <utility>
 
 namespace Bridge {
@@ -39,10 +36,10 @@ namespace Main {
 
 using Engine::BridgeEngine;
 using Engine::CardManager;
-using Engine::SimpleCardManager;
 using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
+using Messaging::MessageQueue;
 using Messaging::Reply;
 using Messaging::success;
 using Scoring::DuplicateScoreSheet;
@@ -85,7 +82,7 @@ public:
     void terminate();
 
     BridgeEngine& getEngine();
-    SimpleCardManager& getCardManager();
+    CardManager& getCardManager();
 
     template<typename PositionIterator>
     auto positionPlayerIterator(PositionIterator iter);
@@ -109,15 +106,12 @@ private:
     Reply<> peer(const std::string& identity, const PositionVector& positions);
     Reply<DealState, CallVector, CardVector> state(
         const std::string& identity, Position position);
-    Reply<> deal(const std::string& identity, const CardVector& cards);
     Reply<> call(
         const std::string& identity, Position position, const Call& call);
     Reply<> play(
         const std::string& identity, Position position, const CardType& card);
     Reply<DuplicateScoreSheet> score(const std::string& identity);
 
-    std::shared_ptr<Engine::SimpleCardManager> cardManager {
-        std::make_shared<Engine::SimpleCardManager>()};
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
     std::map<Position, std::shared_ptr<BasicPlayer>> players {
@@ -125,15 +119,30 @@ private:
         {Position::EAST, std::make_shared<BasicPlayer>()},
         {Position::SOUTH, std::make_shared<BasicPlayer>()},
         {Position::WEST, std::make_shared<BasicPlayer>()}};
+    PeerClientControl peerClientControl;
+    PeerCommandSender peerCommandSender;
+    SimpleCardProtocol cardProtocol {
+        [this](const auto identity)
+        {
+            const auto& leader = players.at(Position::NORTH);
+            assert(leader);
+            if (identity) {
+                return peerClientControl.isAllowedToAct(*identity, *leader);
+            }
+            return peerClientControl.isSelfControlledPlayer(*leader);
+        },
+        [this](const auto messages)
+        {
+            peerCommandSender.sendMessage(
+                PeerCommandSender::Message(
+                    messages.begin(), messages.end()));
+        }
+    };
     BridgeEngine engine {
-        cardManager, gameManager,
+        cardProtocol.getCardManager(), gameManager,
         secondIterator(players.begin()),
         secondIterator(players.end())};
-    PeerCommandSender peerCommandSender;
-    PeerClientControl peerClientControl;
     zmq::socket_t eventSocket;
-    const Player& leader {*players[Position::NORTH]};
-    bool expectingCards {false};
     Messaging::MessageLoop messageLoop;
 };
 
@@ -163,40 +172,37 @@ BridgeMain::Impl::Impl(
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->bind(controlEndpoint);
+    auto handlers = MessageQueue::HandlerMap {
+        {
+            HELLO_COMMAND,
+            makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
+        },
+        {
+            PEER_COMMAND,
+            makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
+        },
+        {
+            STATE_COMMAND,
+            makeMessageHandler(*this, &Impl::state, JsonSerializer {})
+        },
+        {
+            CALL_COMMAND,
+            makeMessageHandler(*this, &Impl::call, JsonSerializer {})
+        },
+        {
+            PLAY_COMMAND,
+            makeMessageHandler(*this, &Impl::play, JsonSerializer {})
+        },
+        {
+            SCORE_COMMAND,
+            makeMessageHandler(*this, &Impl::score, JsonSerializer {})
+        }
+    };
+    for (auto&& handler : cardProtocol.getMessageHandlers()) {
+        handlers.emplace(handler);
+    }
     messageLoop.addSocket(
-        std::move(controlSocket),
-        Messaging::MessageQueue {
-            {
-                {
-                    HELLO_COMMAND,
-                    makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
-                },
-                {
-                    PEER_COMMAND,
-                    makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
-                },
-                {
-                    DEAL_COMMAND,
-                    makeMessageHandler(*this, &Impl::deal, JsonSerializer {})
-                },
-                {
-                    STATE_COMMAND,
-                    makeMessageHandler(*this, &Impl::state, JsonSerializer {})
-                },
-                {
-                    CALL_COMMAND,
-                    makeMessageHandler(*this, &Impl::call, JsonSerializer {})
-                },
-                {
-                    PLAY_COMMAND,
-                    makeMessageHandler(*this, &Impl::play, JsonSerializer {})
-                },
-                {
-                    SCORE_COMMAND,
-                    makeMessageHandler(*this, &Impl::score, JsonSerializer {})
-                }
-            }
-        });
+        std::move(controlSocket), MessageQueue { std::move(handlers) });
     for (const auto& endpoint : peerEndpoints) {
         messageLoop.addSocket(
             peerCommandSender.addPeer(context, endpoint),
@@ -225,8 +231,9 @@ BridgeEngine& BridgeMain::Impl::getEngine()
     return engine;
 }
 
-SimpleCardManager& BridgeMain::Impl::getCardManager()
+CardManager& BridgeMain::Impl::getCardManager()
 {
+    const auto cardManager = cardProtocol.getCardManager();
     assert(cardManager);
     return *cardManager;
 }
@@ -261,21 +268,8 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 
 void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
 {
-    if (state == CardManager::ShufflingState::REQUESTED) {
-        if (peerClientControl.isSelfControlledPlayer(leader)) {
-            std::random_device rd;
-            std::default_random_engine re {rd()};
-            auto cards = CardVector(
-                cardTypeIterator(0),
-                cardTypeIterator(N_CARDS));
-            std::shuffle(cards.begin(), cards.end(), re);
-            assert(cardManager);
-            cardManager->shuffle(cards.begin(), cards.end());
-            publish(DEAL_COMMAND);
-            sendToPeers(DEAL_COMMAND, cards);
-        } else {
-            expectingCards = true;
-        }
+    if (state == CardManager::ShufflingState::COMPLETED) {
+        publish(DEAL_COMMAND);
     }
 }
 
@@ -323,18 +317,6 @@ Reply<DealState, CallVector, CardVector> BridgeMain::Impl::state(
         deal_state, std::move(allowed_calls), std::move(allowed_cards));
 }
 
-Reply<> BridgeMain::Impl::deal(
-    const std::string& identity, const CardVector& cards)
-{
-    if (expectingCards &&
-        peerClientControl.isAllowedToAct(identity, leader)) {
-        cardManager->shuffle(cards.begin(), cards.end());
-        publish(DEAL_COMMAND);
-        return success();
-    }
-    return failure();
-}
-
 Reply<> BridgeMain::Impl::call(
     const std::string& identity, const Position position, const Call& call)
 {
@@ -365,10 +347,14 @@ Reply<> BridgeMain::Impl::play(
     if (peerClientControl.isAllowedToAct(identity, player)) {
         if (const auto hand = engine.getHandInTurn()) {
             if (const auto n_card = findFromHand(*hand, card)) {
+                // FIXME: This is needed not to have play and deal out of
+                // order. More elegant solution would be the BridgeEngine to
+                // notify when card was played successfully and make handler
+                // of that notification send the command.
+                sendToPeersIfSelfControlledPlayer(
+                    player, PLAY_COMMAND, position, card);
                 if (engine.play(player, *hand, *n_card)) {
                     publish(PLAY_COMMAND);
-                    sendToPeersIfSelfControlledPlayer(
-                        player, PLAY_COMMAND, position, card);
                     return success();
                 }
             }
