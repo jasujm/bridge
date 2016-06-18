@@ -1,6 +1,6 @@
 /** \file
  *
- * Definition of Bridge::MainCardProtocol interface
+ * \brief Definition of Bridge::Main::CardProtocol interface
  */
 
 #ifndef MAIN_CARDPROTOCOL_HH_
