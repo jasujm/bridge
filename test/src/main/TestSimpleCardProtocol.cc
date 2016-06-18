@@ -4,19 +4,23 @@
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Hand.hh"
 #include "engine/CardManager.hh"
+#include "main/PeerCommandSender.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
+#include "messaging/MessageUtility.hh"
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <zmq.hpp>
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <string>
 
 using Bridge::cardTypeIterator;
@@ -29,6 +33,8 @@ using testing::NotNull;
 using testing::Pointee;
 using testing::Return;
 
+using namespace std::string_literals;
+
 using CardVector = std::vector<Bridge::CardType>;
 
 namespace {
@@ -36,8 +42,6 @@ namespace {
 class MockFunctions {
 public:
     MOCK_METHOD1(isLeader, bool(const std::string*));
-    MOCK_METHOD1(
-        messageSink, void(SimpleCardProtocol::MessageRange));
 };
 
 template<typename CardIterator>
@@ -70,33 +74,41 @@ MATCHER(IsShuffledDeck, "")
 
 class SimpleCardProtocolTest : public testing::Test {
 protected:
+    zmq::context_t context;
     testing::NiceMock<MockFunctions> functions;
+    std::shared_ptr<Bridge::Main::PeerCommandSender> peerCommandSender {
+        std::make_shared<Bridge::Main::PeerCommandSender>()};
     SimpleCardProtocol protocol {
         [this](const auto arg) { return functions.isLeader(arg); },
-        [this](const auto arg) { functions.messageSink(arg); }};
+        peerCommandSender};
 };
 
 TEST_F(SimpleCardProtocolTest, testLeader)
 {
     ON_CALL(functions, isLeader(IsNull())).WillByDefault(Return(true));
     ON_CALL(functions, isLeader(NotNull())).WillByDefault(Return(false));
-    EXPECT_CALL(
-        functions,
-        messageSink(
-            ElementsAre(
-                SimpleCardProtocol::DEAL_COMMAND,
-                IsShuffledDeck())));
+
+    const auto endpoint = "inproc://test"s;
+    zmq::socket_t backSocket {context, zmq::socket_type::dealer};
+    backSocket.bind(endpoint);
+    const auto frontSocket = peerCommandSender->addPeer(context, endpoint);
 
     const auto card_manager = protocol.getCardManager();
     ASSERT_TRUE(card_manager);
     card_manager->requestShuffle();
     assertCardManagerHasShuffledDeck(*card_manager);
-;
+
+    auto command = std::vector<std::string> {};
+    Bridge::Messaging::recvAll(std::back_inserter(command), backSocket);
+    EXPECT_THAT(
+        command,
+        ElementsAre(
+            SimpleCardProtocol::DEAL_COMMAND,
+            IsShuffledDeck()));
 }
 
 TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
-    using namespace std::string_literals;
     const auto leader = "leader"s;
     ON_CALL(functions, isLeader(Pointee(leader))).WillByDefault(Return(true));
     ON_CALL(functions, isLeader(IsNull())).WillByDefault(Return(false));

@@ -4,6 +4,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "engine/SimpleCardManager.hh"
+#include "main/PeerCommandSender.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
@@ -29,7 +30,9 @@ class SimpleCardProtocol::Impl :
     public Bridge::Observer<CardManager::ShufflingState> {
 public:
 
-    Impl(IsLeaderFunction isLeader, MessageSinkFunction messageSink);
+    Impl(
+        IsLeaderFunction isLeader,
+        std::shared_ptr<PeerCommandSender> peerCommandSender);
 
     Reply<> deal(const std::string& identity, const CardVector& cards);
 
@@ -49,13 +52,14 @@ private:
 
     bool expectingCards {false};
     const IsLeaderFunction isLeader;
-    const MessageSinkFunction messageSink;
+    const std::shared_ptr<PeerCommandSender> peerCommandSender;
 };
 
 SimpleCardProtocol::Impl::Impl(
-    IsLeaderFunction isLeader, MessageSinkFunction messageSink) :
+    IsLeaderFunction isLeader,
+    std::shared_ptr<PeerCommandSender> peerCommandSender) :
     isLeader {std::move(isLeader)},
-    messageSink {std::move(messageSink)}
+    peerCommandSender {std::move(peerCommandSender)}
 {
 }
 
@@ -83,11 +87,8 @@ void SimpleCardProtocol::Impl::handleNotify(
             std::shuffle(cards.begin(), cards.end(), re);
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
-            std::array<std::string, 2> messages {{
-               DEAL_COMMAND,
-               JsonSerializer::serialize(cards)
-            }};
-            messageSink(messages);
+            dereference(peerCommandSender).sendCommand(
+                JsonSerializer {}, DEAL_COMMAND, cards);
         } else {
             expectingCards = true;
         }
@@ -95,8 +96,11 @@ void SimpleCardProtocol::Impl::handleNotify(
 }
 
 SimpleCardProtocol::SimpleCardProtocol(
-    IsLeaderFunction isLeader, MessageSinkFunction messageSink) :
-    impl {std::make_shared<Impl>(std::move(isLeader), std::move(messageSink))}
+    IsLeaderFunction isLeader,
+    std::shared_ptr<PeerCommandSender> peerCommandSender) :
+    impl {
+        std::make_shared<Impl>(
+            std::move(isLeader), std::move(peerCommandSender))}
 {
     assert(impl->cardManager);
     impl->cardManager->subscribe(impl);

@@ -124,7 +124,8 @@ private:
         {Position::SOUTH, std::make_shared<BasicPlayer>()},
         {Position::WEST, std::make_shared<BasicPlayer>()}};
     PeerClientControl peerClientControl;
-    PeerCommandSender peerCommandSender;
+    std::shared_ptr<PeerCommandSender> peerCommandSender {
+        std::make_shared<PeerCommandSender>()};
     SimpleCardProtocol cardProtocol {
         [this](const auto identity)
         {
@@ -135,12 +136,7 @@ private:
             }
             return peerClientControl.isSelfControlledPlayer(*leader);
         },
-        [this](const auto messages)
-        {
-            peerCommandSender.sendMessage(
-                PeerCommandSender::Message(
-                    messages.begin(), messages.end()));
-        }
+        peerCommandSender
     };
     BridgeEngine engine {
         cardProtocol.getCardManager(), gameManager,
@@ -209,8 +205,8 @@ BridgeMain::Impl::Impl(
         std::move(controlSocket), MessageQueue { std::move(handlers) });
     for (const auto& endpoint : peerEndpoints) {
         messageLoop.addSocket(
-            peerCommandSender.addPeer(context, endpoint),
-            [&sender = this->peerCommandSender](zmq::socket_t& socket)
+            peerCommandSender->addPeer(context, endpoint),
+            [&sender = *this->peerCommandSender](zmq::socket_t& socket)
             {
                 sender.processReply(socket);
                 return true;
@@ -252,7 +248,8 @@ template<typename... Args>
 void BridgeMain::Impl::sendToPeers(
     const std::string& command, const Args&... args)
 {
-    peerCommandSender.sendCommand(JsonSerializer {}, command, args...);
+    assert(peerCommandSender);
+    peerCommandSender->sendCommand(JsonSerializer {}, command, args...);
 }
 
 template<typename... Args>

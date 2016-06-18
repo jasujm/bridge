@@ -85,13 +85,7 @@ protected:
     PeerCommandSender sender;
 };
 
-TEST_F(PeerCommandSenderTest, testSendMessageToAll)
-{
-    sender.sendMessage({ DEFAULT, ARG });
-    checkReceive();
-}
-
-TEST_F(PeerCommandSenderTest, testSendCommandToAll)
+TEST_F(PeerCommandSenderTest, testSendToAll)
 {
     sendCommand();
     checkReceive();
