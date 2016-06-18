@@ -402,13 +402,14 @@ class BridgeApp(App):
         self._control_socket.connect(sys.argv[1])
         self._event_socket = zmqctx.socket(zmq.SUB)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
         self._event_socket.connect(sys.argv[2])
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
-            DEAL_COMMAND: self._handle_deal,
+            DEAL_COMMAND: self._handle_update,
             STATE_COMMAND: self._handle_state,
             SCORE_COMMAND: self._handle_score,
             CALL_COMMAND: self._handle_update,
@@ -457,9 +458,6 @@ class BridgeApp(App):
         self._play_area_panel.set_player_position(position)
         send_command(self._control_socket, STATE_COMMAND, position)
         send_command(self._control_socket, SCORE_COMMAND)
-
-    def _handle_deal(self):
-        send_command(self._control_socket, STATE_COMMAND, position)
 
     def _handle_score(self, score_sheet):
         scores = [parse_score_entry(entry) for entry in score_sheet]
