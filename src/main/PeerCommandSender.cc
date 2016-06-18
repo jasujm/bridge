@@ -27,6 +27,13 @@ std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
     return peers.back().socket;
 }
 
+void PeerCommandSender::sendMessage(Message message)
+{
+    if (!peers.empty() && !message.empty()) {
+        internalAddMessage(std::move(message));
+    }
+}
+
 void PeerCommandSender::processReply(zmq::socket_t& socket)
 {
     auto iter = std::find_if(
@@ -67,7 +74,8 @@ void PeerCommandSender::internalSendMessage(zmq::socket_t& socket)
     assert(!messages.empty());
     const auto& message = messages.front();
     sendEmptyFrameIfNecessary(socket);
-    sendMessage(socket, message.begin(), message.end());
+    // Disambiguate function (there is also member function sendMessage)
+    Messaging::sendMessage(socket, message.begin(), message.end());
 }
 
 void PeerCommandSender::internalSendMessageToAll()

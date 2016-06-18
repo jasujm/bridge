@@ -34,6 +34,10 @@ namespace Main {
 class PeerCommandSender : private boost::noncopyable {
 public:
 
+    /** \brief Parameter to sendMessage()
+     */
+    using Message = std::vector<std::string>;
+
     /** \brief Create peer
      *
      * The method creates a new DEALER socket that is connected to \p
@@ -48,19 +52,32 @@ public:
     std::shared_ptr<zmq::socket_t> addPeer(
         zmq::context_t& context, const std::string& endpoint);
 
-    /** \brief Send command to all peers
+    /** \brief Send message to all peers
      *
-     * The command will be sent to all peers created earlier using addPeer().
+     * The message will be sent to all peers created earlier using addPeer().
      * If there is a previous command that all peers have not yet replied to,
      * the message is put to queue until successful replies have been received
      * from all peers to the previous messages.
+     *
+     * The first part of the message is expected to be a command to which the
+     * peers are expected to reply. The rest of the parts are the (already
+     * serialized) arguments of the message. sendCommand() is a conveniece
+     * function for messages with unserialized arguments.
+     *
+     * \tparam message the message to be sent to all peers
+     */
+    void sendMessage(Message message);
+
+    /** \brief Send command to all peers
+     *
+     * Convenience function for sending a command and its serialized arguments.
      *
      * \param serializer serialization policy for the command parameters
      * \param command the command sent as the first part of the message
      * \param params the parameters serialized and sent as the subsequent
      * parts of the message
      *
-     * \sa \ref serializationpolicy
+     * \sa sendMessage(), \ref serializationpolicy
      */
     template<
         typename SerializationPolicy, typename CommandString,
@@ -79,8 +96,6 @@ public:
     void processReply(zmq::socket_t& socket);
 
 private:
-
-    using Message = std::vector<std::string>;
 
     struct Peer {
         Peer(zmq::context_t& context, const std::string& endpoint);
