@@ -68,6 +68,7 @@ const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
 
 class BridgeMain::Impl :
+    public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::DealEnded>,
     public Observer<CardManager::ShufflingState> {
@@ -100,6 +101,7 @@ private:
     void sendToPeersIfSelfControlledPlayer(
         const Player& player, const std::string& command, const Args&... args);
 
+    void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
@@ -262,6 +264,14 @@ void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
     }
 }
 
+void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
+{
+    const auto position = engine.getPosition(event.player);
+    publish(CALL_COMMAND);
+    sendToPeersIfSelfControlledPlayer(
+        event.player, CALL_COMMAND, position, event.call);
+}
+
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
     const auto position = engine.getPosition(event.player);
@@ -337,9 +347,6 @@ Reply<> BridgeMain::Impl::call(
 
     if (peerClientControl.isAllowedToAct(identity, player)) {
         if (engine.call(player, call)) {
-            publish(CALL_COMMAND);
-            sendToPeersIfSelfControlledPlayer(
-                player, CALL_COMMAND, position, call);
             return success();
         }
     }
@@ -381,6 +388,7 @@ BridgeMain::BridgeMain(
             context, controlEndpoint, eventEndpoint, positions, peerEndpoints)}
 {
     auto& engine = impl->getEngine();
+    engine.subscribeToCallMade(impl);
     engine.subscribeToCardPlayed(impl);
     engine.subscribeToDealEnded(impl);
     impl->getCardManager().subscribe(impl);

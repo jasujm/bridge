@@ -49,6 +49,20 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
+    /** \brief Event for announcing that a call was mas
+     */
+    struct CallMade : private boost::equality_comparable<CallMade> {
+        /** \brief Create new card played event
+         *
+         * \param player see \ref player
+         * \param call see \ref call
+         */
+        CallMade(const Player& player, const Call& call);
+
+        const Player& player; ///< \brief The player that made the call
+        const Call call;      ///< \brief The call that was made
+    };
+
     /** \brief Event for announcing that a card was played
      */
     struct CardPlayed : private boost::equality_comparable<CardPlayed> {
@@ -92,6 +106,15 @@ public:
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
     ~BridgeEngine();
+
+    /** \brief Subscribe to notifications about call being made
+     *
+     * When a call is successfully made, the notification takes place after
+     * the call has been added to the bidding but before the playing phase (in
+     * case of completed bidding) or next deal (in case of passed out biddin)
+     * starts.
+     */
+    void subscribeToCallMade(std::weak_ptr<Observer<CallMade>> observer);
 
     /** \brief Subscribe to notifications about card being played
      *
@@ -313,6 +336,11 @@ OutputIterator BridgeEngine::getVisibleHands(
             return *hand;
         });
 }
+
+/** \brief Equality operator for call made events
+ */
+bool operator==(
+    const BridgeEngine::CallMade&, const BridgeEngine::CallMade&);
 
 /** \brief Equality operator for card played events
  */

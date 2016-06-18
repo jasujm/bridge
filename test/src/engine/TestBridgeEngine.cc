@@ -322,16 +322,26 @@ TEST_F(BridgeEngineTest, testEndGame)
     EXPECT_TRUE(engine.hasEnded());
 }
 
-TEST_F(BridgeEngineTest, testSucessfulCall)
+TEST_F(BridgeEngineTest, testSuccessfulCall)
 {
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    ASSERT_TRUE(engine.call(*players.front(), Pass {}));
+    auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
+    const auto& player = *players.front();
+    const auto call = Bid {1, Strain::CLUBS};
+    EXPECT_CALL(*observer, handleNotify(BridgeEngine::CallMade {player, call}));
+    engine.subscribeToCallMade(observer);
+    EXPECT_TRUE(engine.call(player, call));
 }
 
 TEST_F(BridgeEngineTest, testFailedCall)
 {
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    ASSERT_FALSE(engine.call(*players.back(), Pass {}));
+    auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
+    const auto& player = *players.back();
+    const auto call = Bid {1, Strain::CLUBS};
+    EXPECT_CALL(*observer, handleNotify(_)).Times(0);
+    engine.subscribeToCallMade(observer);
+    EXPECT_FALSE(engine.call(player, call));
 }
 
 TEST_F(BridgeEngineTest, testSuccessfulPlay)

@@ -131,6 +131,10 @@ public:
 
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
+    Observable<CallMade>& getCallMadeNotifier()
+    {
+        return callMadeNotifier;
+    }
     Observable<CardPlayed>& getCardPlayedNotifier()
     {
         return cardPlayedNotifier;
@@ -172,6 +176,7 @@ private:
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
     EventQueue events;
+    Observable<CallMade> callMadeNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
     Observable<DealEnded> dealEndedNotifier;
 };
@@ -401,6 +406,8 @@ sc::result InBidding::react(const CallEvent& event)
     const auto bidder_position = outermost_context().getPosition(event.player);
     if (bidding.call(bidder_position, event.call)) {
         event.ret = true;
+        outermost_context().getCallMadeNotifier().notifyAll(
+            { event.player, event.call });
         const auto has_contract = bidding.hasContract();
         if (has_contract) {
             return transit<Playing>();
@@ -774,6 +781,13 @@ std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
 
 BridgeEngine::~BridgeEngine() = default;
 
+void BridgeEngine::subscribeToCallMade(
+    std::weak_ptr<Observer<CallMade>> observer)
+{
+    assert(impl);
+    impl->getCallMadeNotifier().subscribe(std::move(observer));
+}
+
 void BridgeEngine::subscribeToCardPlayed(
     std::weak_ptr<Observer<CardPlayed>> observer)
 {
@@ -903,12 +917,26 @@ const Hand* BridgeEngine::getDummyHandIfVisible() const
     return impl->getDummyHandIfVisible();
 }
 
+BridgeEngine::CallMade::CallMade(
+    const Player& player, const Call& call) :
+    player {player},
+    call {call}
+{
+}
+
 BridgeEngine::CardPlayed::CardPlayed(
     const Player& player, const Hand& hand, const Card& card) :
     player {player},
     hand {hand},
     card {card}
 {
+}
+
+bool operator==(
+    const BridgeEngine::CallMade& lhs, const BridgeEngine::CallMade& rhs)
+{
+    return &lhs.player == &rhs.player &&
+        lhs.call == rhs.call;
 }
 
 bool operator==(
