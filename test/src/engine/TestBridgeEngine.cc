@@ -284,7 +284,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             assertDealState(Position::WEST);
             assertHandsVisible(true, &engine.getPlayer(Position::WEST));
 
-            engine.subscribe(observer);
+            engine.subscribeToDealEnded(observer);
             playCard(*player, i);
             updateExpectedStateAfterPlay(*player);
         }
@@ -341,8 +341,17 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
     engine.call(*players[1], Pass {});
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});
+
+    auto observer = std::make_shared<MockObserver<BridgeEngine::CardPlayed>>();
+    const auto& hand = dereference(engine.getHandInTurn());
+    EXPECT_CALL(
+        *observer,
+        handleNotify(
+            BridgeEngine::CardPlayed {
+                *players[1], hand, dereference(hand.getCard(0))}));
+    engine.subscribeToCardPlayed(observer);
     ASSERT_TRUE(
-        engine.play(*players[1], dereference(engine.getHandInTurn()), 0));
+        engine.play(*players[1], hand, 0));
 }
 
 TEST_F(BridgeEngineTest, testFailedPlay)
@@ -352,6 +361,9 @@ TEST_F(BridgeEngineTest, testFailedPlay)
     engine.call(*players[1], Pass {});
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});
+    auto observer = std::make_shared<MockObserver<BridgeEngine::CardPlayed>>();
+    EXPECT_CALL(*observer, handleNotify(_)).Times(0);
+    engine.subscribeToCardPlayed(observer);
     ASSERT_FALSE(
         engine.play(*players[2], dereference(engine.getHandInTurn()), 0));
 }

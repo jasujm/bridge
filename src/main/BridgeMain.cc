@@ -68,6 +68,7 @@ const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
 
 class BridgeMain::Impl :
+    public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::DealEnded>,
     public Observer<CardManager::ShufflingState> {
 public:
@@ -99,6 +100,7 @@ private:
     void sendToPeersIfSelfControlledPlayer(
         const Player& player, const std::string& command, const Args&... args);
 
+    void handleNotify(const BridgeEngine::CardPlayed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
 
@@ -260,6 +262,14 @@ void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
     }
 }
 
+void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
+{
+    const auto position = engine.getPosition(event.player);
+    publish(PLAY_COMMAND);
+    sendToPeersIfSelfControlledPlayer(
+        event.player, PLAY_COMMAND, position, event.card.getType().get());
+}
+
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
     assert(gameManager);
@@ -347,14 +357,7 @@ Reply<> BridgeMain::Impl::play(
     if (peerClientControl.isAllowedToAct(identity, player)) {
         if (const auto hand = engine.getHandInTurn()) {
             if (const auto n_card = findFromHand(*hand, card)) {
-                // FIXME: This is needed not to have play and deal out of
-                // order. More elegant solution would be the BridgeEngine to
-                // notify when card was played successfully and make handler
-                // of that notification send the command.
-                sendToPeersIfSelfControlledPlayer(
-                    player, PLAY_COMMAND, position, card);
                 if (engine.play(player, *hand, *n_card)) {
-                    publish(PLAY_COMMAND);
                     return success();
                 }
             }
@@ -378,7 +381,8 @@ BridgeMain::BridgeMain(
             context, controlEndpoint, eventEndpoint, positions, peerEndpoints)}
 {
     auto& engine = impl->getEngine();
-    engine.subscribe(impl);
+    engine.subscribeToCardPlayed(impl);
+    engine.subscribeToDealEnded(impl);
     impl->getCardManager().subscribe(impl);
     engine.initiate();
 }

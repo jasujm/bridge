@@ -118,8 +118,7 @@ class Shuffling;
 
 class BridgeEngine::Impl :
     public sc::state_machine<BridgeEngine::Impl, Shuffling>,
-    public Observer<CardManager::ShufflingState>,
-    public Observable<DealEnded> {
+    public Observer<CardManager::ShufflingState> {
 public:
     using EventQueue = std::queue<std::function<void()>>;
 
@@ -132,6 +131,14 @@ public:
 
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
+    Observable<CardPlayed>& getCardPlayedNotifier()
+    {
+        return cardPlayedNotifier;
+    }
+    Observable<DealEnded>& getDealEndedNotifier()
+    {
+        return dealEndedNotifier;
+    }
 
     boost::optional<Vulnerability> getVulnerability() const;
     const Player* getPlayerInTurn() const;
@@ -165,6 +172,8 @@ private:
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
     EventQueue events;
+    Observable<CardPlayed> cardPlayedNotifier;
+    Observable<DealEnded> dealEndedNotifier;
 };
 
 BridgeEngine::Impl::Impl(
@@ -294,7 +303,7 @@ void InDeal::exit()
 {
     // This must be in exit() instead of ~InDeal(). Context might be
     // destructed if we ended up here due to destruction of Impl.
-    outermost_context().notifyAll(BridgeEngine::DealEnded {});
+    outermost_context().getDealEndedNotifier().notifyAll({});
 }
 
 Bidding& InDeal::getBidding()
@@ -542,6 +551,8 @@ sc::result PlayingTrick::react(const PlayCardEvent& event)
         if (card && trick->play(*hand, *card)) {
             event.ret = true;
             hand->markPlayed(event.card);
+            outermost_context().getCardPlayedNotifier().notifyAll(
+                { event.player, event.hand, *card });
             if (trick->isCompleted()) {
                 context<Playing>().addTrick(std::move(trick));
             }
@@ -763,10 +774,18 @@ std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
 
 BridgeEngine::~BridgeEngine() = default;
 
-void BridgeEngine::subscribe(std::weak_ptr<Observer<DealEnded>> observer)
+void BridgeEngine::subscribeToCardPlayed(
+    std::weak_ptr<Observer<CardPlayed>> observer)
 {
     assert(impl);
-    impl->subscribe(std::move(observer));
+    impl->getCardPlayedNotifier().subscribe(std::move(observer));
+}
+
+void BridgeEngine::subscribeToDealEnded(
+    std::weak_ptr<Observer<DealEnded>> observer)
+{
+    assert(impl);
+    impl->getDealEndedNotifier().subscribe(std::move(observer));
 }
 
 void BridgeEngine::initiate()
@@ -882,6 +901,22 @@ const Hand* BridgeEngine::getDummyHandIfVisible() const
 {
     assert(impl);
     return impl->getDummyHandIfVisible();
+}
+
+BridgeEngine::CardPlayed::CardPlayed(
+    const Player& player, const Hand& hand, const Card& card) :
+    player {player},
+    hand {hand},
+    card {card}
+{
+}
+
+bool operator==(
+    const BridgeEngine::CardPlayed& lhs, const BridgeEngine::CardPlayed& rhs)
+{
+    return &lhs.player == &rhs.player &&
+        &lhs.hand == &rhs.hand &&
+        &lhs.card == &rhs.card;
 }
 
 }

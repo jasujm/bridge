@@ -10,6 +10,7 @@
 #include "Observer.hh"
 
 #include <boost/core/noncopyable.hpp>
+#include <boost/operators.hpp>
 #include <boost/optional/optional_fwd.hpp>
 
 #include <algorithm>
@@ -20,6 +21,7 @@
 
 namespace Bridge {
 
+class Card;
 class Bidding;
 class Hand;
 enum class Position;
@@ -47,7 +49,23 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
-    /** \brief Tag for announcing that deal has ended
+    /** \brief Event for announcing that a card was played
+     */
+    struct CardPlayed : private boost::equality_comparable<CardPlayed> {
+        /** \brief Create new card played event
+         *
+         * \param player see \ref player
+         * \param hand see \ref hand
+         * \param card see \ref card
+         */
+        CardPlayed(const Player& player, const Hand& hand, const Card& card);
+
+        const Player& player; ///< \brief The player that played the card
+        const Hand& hand;     ///< \brief The hand the card was played from
+        const Card& card;     ///< \brief The card played
+    };
+
+    /** \brief Event for announcing that deal has ended
      */
     struct DealEnded {};
 
@@ -75,15 +93,31 @@ public:
 
     ~BridgeEngine();
 
+    /** \brief Subscribe to notifications about card being played
+     *
+     * When a card is successfully played, the notification takes place after
+     * the card has been played from the hand but before the possible next
+     * trick is started or (in case of the opening lead) the cards of the
+     * dummy are revealed.
+     */
+    void subscribeToCardPlayed(std::weak_ptr<Observer<CardPlayed>> observer);
+
     /** \brief Subscribe to notifications about deal ending
      *
-     * BridgeEngine notifies its observers when a deal has ended.
+     * When a deal is ended, the notification takes place after the results of
+     * the old deal are visible but before shuffling the cards for the next
+     * deal has started.
      */
-    void subscribe(std::weak_ptr<Observer<DealEnded>> observer);
+    void subscribeToDealEnded(std::weak_ptr<Observer<DealEnded>> observer);
 
     /** \brief Start the game
      *
      * This method starts the actual state machine
+     *
+     * \note In order to not lose any notifications, notifications should be
+     * subscribed to before calling this method. Especially note that after
+     * starting the game, the first shuffling is immediately requested from
+     * the card manager.
      */
     void initiate();
 
@@ -279,6 +313,11 @@ OutputIterator BridgeEngine::getVisibleHands(
             return *hand;
         });
 }
+
+/** \brief Equality operator for card played events
+ */
+bool operator==(
+    const BridgeEngine::CardPlayed&, const BridgeEngine::CardPlayed&);
 
 }
 }
