@@ -3,8 +3,8 @@
  * \brief Definition of Bridge::CardServer::CardServerMain
  */
 
-#ifndef BRIDGE_CARDSERVERMAIN_HH_
-#define BRIDGE_CARDSERVERMAIN_HH_
+#ifndef CARDSERVER_CARDSERVERMAIN_HH_
+#define CARDSERVER_CARDSERVERMAIN_HH_
 
 #include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
@@ -89,4 +89,4 @@ private:
 }
 }
 
-#endif // BRIDGE_CARDSERVERMAIN_HH_
+#endif // CARDSERVER_CARDSERVERMAIN_HH_
