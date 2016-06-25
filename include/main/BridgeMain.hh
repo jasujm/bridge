@@ -273,9 +273,11 @@ namespace Main {
 /** \brief Configure and run the event loop for the Bridge backend
  *
  * When constructed, BridgeMain configures and sets up Bridge peer application
- * and sockets for communicating with clients and other peers. The backend
- * starts processing and publishing messages when run() is called. The
- * destructor closes sockets and cleans up the application.
+ * and sockets for communicating with clients and other peers. Two sockets are
+ * opened into consecutive ports: the control socket and the event socket.
+ *
+ * The backend starts processing and publishing messages when run() is
+ * called. The destructor closes sockets and cleans up the application.
  *
  * \sa \ref bridgeprotocol
  */
@@ -337,15 +339,16 @@ public:
     /** \brief Create Bridge backend
      *
      * \param context the ZeroMQ context for the game
-     * \param controlEndpoint the endpoint for the control socket
-     * \param eventEndpoint the endpoint for the event socket
+     * \param baseEndpoint the base endpoint for control and event sockets
      * \param positionsControlled the positions controlled by the application
-     * \param peerEndpoints the endpoints of the peers to connect to
+     * \param peerEndpoints the base endpoints of the peers
+     *
+     * \note The control socket is bound to \p baseEndpoint. The event socket
+     * is bound to the same interface but one larger port.
      */
     BridgeMain(
         zmq::context_t& context,
-        const std::string& controlEndpoint,
-        const std::string& eventEndpoint,
+        const std::string& baseEndpoint,
         PositionRange positionsControlled,
         EndpointRange peerEndpoints);
 

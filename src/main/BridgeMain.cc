@@ -17,6 +17,7 @@
 #include "messaging/CommandUtility.hh"
 #include "messaging/DealStateJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
+#include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
@@ -75,9 +76,8 @@ class BridgeMain::Impl :
 public:
 
     Impl(
-        zmq::context_t& context, const std::string& controlEndpoint,
-        const std::string& eventEndpoint, PositionRange positions,
-        EndpointRange peerEndpoints);
+        zmq::context_t& context, const std::string& baseEndpoint,
+        PositionRange positions, EndpointRange peerEndpoints);
 
     void run();
 
@@ -162,18 +162,18 @@ auto BridgeMain::Impl::positionPlayerIterator(PositionIterator iter)
 }
 
 BridgeMain::Impl::Impl(
-    zmq::context_t& context, const std::string& controlEndpoint,
-    const std::string& eventEndpoint, PositionRange positions,
-    EndpointRange peerEndpoints) :
+    zmq::context_t& context, const std::string& baseEndpoint,
+    PositionRange positions, EndpointRange peerEndpoints) :
     peerClientControl {
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end())},
     eventSocket {context, zmq::socket_type::pub}
 {
-    eventSocket.bind(eventEndpoint);
+    auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
-    controlSocket->bind(controlEndpoint);
+    controlSocket->bind(*endpointIterator++);
+    eventSocket.bind(*endpointIterator);
     auto handlers = MessageQueue::HandlerMap {
         {
             HELLO_COMMAND,
@@ -390,12 +390,11 @@ Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string&)
 }
 
 BridgeMain::BridgeMain(
-    zmq::context_t& context, const std::string& controlEndpoint,
-    const std::string& eventEndpoint, PositionRange positions,
-    EndpointRange peerEndpoints) :
+    zmq::context_t& context, const std::string& baseEndpoint,
+    PositionRange positions, EndpointRange peerEndpoints) :
     impl {
         std::make_shared<Impl>(
-            context, controlEndpoint, eventEndpoint, positions, peerEndpoints)}
+            context, baseEndpoint, positions, peerEndpoints)}
 {
     auto& engine = impl->getEngine();
     engine.subscribeToCallMade(impl);

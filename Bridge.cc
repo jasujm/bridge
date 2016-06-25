@@ -33,12 +33,11 @@ struct BridgeApp {
 public:
 
     BridgeApp(
-        std::string controlEndpoint,
-        std::string eventEndpoint,
+        std::string baseEndpoint,
         PositionVector positions,
         StringVector peers) :
         app {
-            zmqctx, std::move(controlEndpoint), std::move(eventEndpoint),
+            zmqctx, std::move(baseEndpoint),
             std::move(positions), std::move(peers)}
     {
         appObserver = &app;
@@ -77,15 +76,14 @@ T parseArgument(const char* arg)
 
 int main(int argc, char* argv[])
 {
-    if (argc != 5) {
+    if (argc != 4) {
         return EXIT_FAILURE;
     }
 
     BridgeApp app {
         argv[1],
-        argv[2],
-        parseArgument<PositionVector>(argv[3]),
-        parseArgument<StringVector>(argv[4])};
+        parseArgument<PositionVector>(argv[2]),
+        parseArgument<StringVector>(argv[3])};
     app.run();
     return EXIT_SUCCESS;
 }

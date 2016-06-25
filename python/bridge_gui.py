@@ -2,6 +2,7 @@
 
 from collections import namedtuple
 import json
+import re
 import sys
 
 from kivy.app import App
@@ -79,6 +80,16 @@ ScoreEntry = namedtuple("ScoreEntry", (PARTNERSHIP_KEY, SCORE_KEY))
 TrickEntry = namedtuple("TrickEntry", (POSITION_KEY, CARD_KEY))
 TricksWon = namedtuple("TricksWon", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
 Vulnerability = namedtuple("Vulnerability", (NORTH_SOUTH_TAG, EAST_WEST_TAG))
+
+ENDPOINT_REGEX = re.compile(r"tcp://(.+):(\d+)")
+
+def endpoints(base):
+    match = ENDPOINT_REGEX.match(base)
+    address = match.group(1)
+    port = int(match.group(2))
+    while True:
+        yield "tcp://%s:%d" % (address, port)
+        port += 1
 
 
 def send_command(socket, cmd, *parts):
@@ -398,14 +409,15 @@ class BridgeApp(App):
         self._position = None
         # Socket
         zmqctx = zmq.Context.instance()
+        endpoint_iterator = endpoints(sys.argv[1])
         self._control_socket = zmqctx.socket(zmq.DEALER)
-        self._control_socket.connect(sys.argv[1])
+        self._control_socket.connect(next(endpoint_iterator))
         self._event_socket = zmqctx.socket(zmq.SUB)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
-        self._event_socket.connect(sys.argv[2])
+        self._event_socket.connect(next(endpoint_iterator))
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
@@ -494,7 +506,7 @@ class BridgeApp(App):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         sys.exit(1)
 
     BridgeApp().run()
