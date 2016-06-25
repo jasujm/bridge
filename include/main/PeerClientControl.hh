@@ -9,6 +9,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <boost/variant/variant.hpp>
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <string>
@@ -28,7 +29,7 @@ public:
     /** \brief Create new peer client control object
      *
      * \tparam PlayerIterator An input iterator that, when dereferenced,
-     * returns a reference to Player object.
+     * returns a constant reference to Player object.
      *
      * \param first iterator to the first player controlled by the application
      * \param last iterator one past the last player controlled by the
@@ -90,12 +91,20 @@ public:
      */
     bool isSelfControlledPlayer(const Player& player) const;
 
-    /** \brief Determine if all players are controlled by a peer or a player
+    /** \brief Determine if all given players are controlled by a peer or self
      *
-     * \return true if for each player there is a peer or a client that
-     * controls it, false otherwise
+     * \tparam PlayerIterator A forward iterator that, when dereferenced,
+     * returns a constant reference to a Player object.
+     *
+     * \param first iterator to the first player
+     * \param last iterator one past the last player
+     *
+     * \return True if all players in the range are either self controlled of
+     * controlled by a peer. It is not necessary that the self controlled
+     * clients are already controlled by clients.
      */
-    bool areAllPlayersControlled() const;
+    template<typename PlayerIterator>
+    bool arePlayersControlled(PlayerIterator first, PlayerIterator last) const;
 
 private:
 
@@ -114,7 +123,6 @@ private:
     using PeerClient = boost::variant<Peer, Client>;
 
     class IsAllowedToActVisitor;
-    class NumberOfPlayersControlledVisitor;
 
     template<typename PlayerIterator>
     static auto makePlayerVector(PlayerIterator first, PlayerIterator last);
@@ -151,6 +159,19 @@ bool PeerClientControl::addPeer(
     std::string identity, PlayerIterator first, PlayerIterator last)
 {
     return internalAddPeer(std::move(identity), PlayerVector(first, last));
+}
+
+template<typename PlayerIterator>
+bool PeerClientControl::arePlayersControlled(
+    PlayerIterator first, PlayerIterator last) const
+{
+    return std::is_permutation(
+        first, last,
+        allPlayers.begin(), allPlayers.end(),
+        [](const Player& player1, const Player& player2)
+        {
+            return &player1 == &player2;
+        });
 }
 
 }

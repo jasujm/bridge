@@ -89,6 +89,8 @@ public:
     template<typename PositionIterator>
     auto positionPlayerIterator(PositionIterator iter);
 
+    void startIfReady();
+
 private:
 
     template<typename... Args>
@@ -226,6 +228,16 @@ void BridgeMain::Impl::terminate()
     messageLoop.terminate();
 }
 
+void BridgeMain::Impl::startIfReady()
+{
+    const auto ready = peerClientControl.arePlayersControlled(
+        boost::make_indirect_iterator(secondIterator(players.begin())),
+        boost::make_indirect_iterator(secondIterator(players.end())));
+    if (ready) {
+        engine.initiate();
+    }
+}
+
 BridgeEngine& BridgeMain::Impl::getEngine()
 {
     return engine;
@@ -306,6 +318,7 @@ Reply<> BridgeMain::Impl::peer(
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end()));
     if (success_) {
+        startIfReady();
         return success();
     }
     return failure();
@@ -389,7 +402,7 @@ BridgeMain::BridgeMain(
     engine.subscribeToCardPlayed(impl);
     engine.subscribeToDealEnded(impl);
     impl->getCardManager().subscribe(impl);
-    engine.initiate();
+    impl->startIfReady();
 }
 
 BridgeMain::~BridgeMain() = default;
