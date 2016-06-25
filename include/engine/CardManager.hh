@@ -61,6 +61,9 @@ public:
      * client of this class may have retrieved using getHand(). It is the
      * responsibility of the client to ensure that the lifetime of CardManager
      * exceeds the lifetime of the hands.
+     *
+     * Whether new shuffle request is initiated if the old one has not
+     * completed is unspecified.
      */
     void requestShuffle();
 
