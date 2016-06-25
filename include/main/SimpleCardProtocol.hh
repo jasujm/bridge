@@ -54,6 +54,8 @@ private:
 
     MessageHandlerRange handleGetMessageHandlers() override;
 
+    SocketRange handleGetSockets() override;
+
     std::shared_ptr<Engine::CardManager> handleGetCardManager() override;
 
     class Impl;

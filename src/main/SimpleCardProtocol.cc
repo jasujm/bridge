@@ -113,6 +113,11 @@ SimpleCardProtocol::handleGetMessageHandlers()
     return impl->messageHandlers;
 }
 
+SimpleCardProtocol::SocketRange SimpleCardProtocol::handleGetSockets()
+{
+    return {};
+}
+
 std::shared_ptr<CardManager> SimpleCardProtocol::handleGetCardManager()
 {
     assert(impl);

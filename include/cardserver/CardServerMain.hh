@@ -1,6 +1,10 @@
 /** \file
  *
  * \brief Definition of Bridge::CardServer::CardServerMain
+ *
+ * \page cardprotocol Card server protocol
+ *
+ * \todo Write protocol specification
  */
 
 #ifndef CARDSERVER_CARDSERVERMAIN_HH_
@@ -34,7 +38,7 @@ namespace CardServer {
  * CardServerMain reserves a thread by blocking when run() is called. It
  * communicates with other peers and the client by ZeroMQ messages.
  *
- * \todo Write protocol specification
+ * \sa \ref bridgeprotocol
  */
 class CardServerMain {
 public:

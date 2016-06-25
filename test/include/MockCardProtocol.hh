@@ -9,6 +9,7 @@ namespace Main {
 class MockCardProtocol : public CardProtocol {
 public:
     MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerRange());
+    MOCK_METHOD0(handleGetSockets, SocketRange());
     MOCK_METHOD0(handleGetCardManager, std::shared_ptr<Engine::CardManager>());
 };
 

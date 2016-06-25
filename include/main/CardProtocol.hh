@@ -6,9 +6,11 @@
 #ifndef MAIN_CARDPROTOCOL_HH_
 #define MAIN_CARDPROTOCOL_HH_
 
+#include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 
 #include <boost/range/any_range.hpp>
+#include <zmq.hpp>
 
 #include <memory>
 
@@ -34,6 +36,14 @@ public:
         Messaging::MessageQueue::HandlerMap::value_type,
         boost::single_pass_traversal_tag>;
 
+    /** \brief Return value of getSockets()
+     */
+    using SocketRange = boost::any_range<
+        std::pair<
+            std::shared_ptr<zmq::socket_t>,
+            Messaging::MessageLoop::Callback>,
+        boost::single_pass_traversal_tag>;
+
     virtual ~CardProtocol();
 
     /** \brief Get message handlers necessary for executing the protocol
@@ -42,6 +52,16 @@ public:
      * to a message queue handling messages from the peers.
      */
     MessageHandlerRange getMessageHandlers();
+
+    /** \brief Get additional sockets that need to be polled
+     *
+     * \return A range containing pairs of sockets and callbacks. These
+     * sockets need to be polled in message loop and incoming messages
+     * signalled by calling the callback.
+     *
+     * \sa Messaging::MessageLoop
+     */
+    SocketRange getSockets();
 
     /** \brief Get pointer to the card manager
      *
@@ -58,6 +78,12 @@ private:
      * \sa getMessageHandlers()
      */
     virtual MessageHandlerRange handleGetMessageHandlers() = 0;
+
+    /** \brief Handle for returning sockets required for the protocol
+     *
+     * \sa getSockets()
+     */
+    virtual SocketRange handleGetSockets() = 0;
 
     /** \brief Handler for returning the card manager of the protocol
      *

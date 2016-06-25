@@ -1,5 +1,6 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageUtility.hh"
+#include "MockMessageLoopCallback.hh"
 #include "Zip.hh"
 
 #include <gmock/gmock.h>
@@ -18,18 +19,10 @@ using testing::Return;
 using testing::Invoke;
 
 namespace {
-
 using namespace std::string_literals;
-
 constexpr auto N_SOCKETS = 2u;
 const auto DEFAULT_MSG = "default"s;
 const auto OTHER_MSG = "other"s;
-
-class MockCallback {
-public:
-    MOCK_METHOD1(call, bool(zmq::socket_t&));
-};
-
 }
 
 class MessageLoopTest : public testing::Test {
@@ -69,7 +62,9 @@ protected:
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
     }};
-    std::array<testing::StrictMock<MockCallback>, N_SOCKETS> callbacks;
+    std::array<
+        testing::StrictMock<Bridge::Messaging::MockMessageLoopCallback>,
+        N_SOCKETS> callbacks;
     Bridge::Messaging::MessageLoop loop;
 };
 

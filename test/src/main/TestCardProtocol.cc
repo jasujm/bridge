@@ -3,16 +3,20 @@
 #include "MockCardManager.hh"
 #include "MockCardProtocol.hh"
 #include "MockMessageHandler.hh"
+#include "MockMessageLoopCallback.hh"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 
+using testing::Ref;
 using testing::Return;
 
 class CardProtocolTest : public testing::Test {
 protected:
+    zmq::context_t context;
     Bridge::Main::MockCardProtocol protocol;
 };
 
@@ -29,6 +33,24 @@ TEST_F(CardProtocolTest, testGetMessageHandlers)
         std::equal(
             expected_handlers.begin(), expected_handlers.end(),
             actual_handlers.begin(), actual_handlers.end()));
+}
+
+TEST_F(CardProtocolTest, testGetSockets)
+{
+    const auto socket =
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair);
+    Bridge::Messaging::MockMessageLoopCallback callback;
+    EXPECT_CALL(callback, call(Ref(*socket))).WillOnce(Return(true));
+    std::array<Bridge::Main::CardProtocol::SocketRange::value_type, 1>
+    expected_sockets {{
+        { socket, [&callback](auto& socket) { return callback.call(socket); } }
+    }};
+    EXPECT_CALL(protocol, handleGetSockets())
+        .WillOnce(Return(expected_sockets));
+    const auto actual_sockets = protocol.getSockets();
+    ASSERT_EQ(1, std::distance(actual_sockets.begin(), actual_sockets.end()));
+    const auto pair = *actual_sockets.begin();
+    EXPECT_TRUE(pair.second(*pair.first));
 }
 
 TEST_F(CardProtocolTest, testGetCardManager)
