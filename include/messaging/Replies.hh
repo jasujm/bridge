@@ -50,7 +50,6 @@ bool isSuccessfulReply(
     if (first == last || *first != command) {
         return false;
     }
-    ++first;
     return true;
 }
 
