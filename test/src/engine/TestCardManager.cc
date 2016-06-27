@@ -3,6 +3,7 @@
 #include "MockCardManager.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
+#include "TestUtility.hh"
 
 #include <gtest/gtest.h>
 
@@ -16,7 +17,6 @@ using Bridge::to;
 using testing::_;
 using testing::ElementsAreArray;
 using testing::InvokeWithoutArgs;
-using testing::Property;
 using testing::Return;
 
 class CardManagerTest : public testing::Test {
@@ -41,13 +41,7 @@ TEST_F(CardManagerTest, testSubsrcibe)
 {
     auto observer = std::make_shared<
         Bridge::MockObserver<CardManager::ShufflingState>>();
-    EXPECT_CALL(
-        cardManager,
-        handleSubscribe(
-            Property(
-                &std::weak_ptr<
-                    Bridge::Observer<CardManager::ShufflingState>>::lock,
-                observer)));
+    EXPECT_CALL(cardManager, handleSubscribe(Bridge::WeaklyPointsTo(observer)));
     cardManager.subscribe(observer);
 }
 

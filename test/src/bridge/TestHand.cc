@@ -2,16 +2,19 @@
 #include "Enumerate.hh"
 #include "MockCard.hh"
 #include "MockHand.hh"
+#include "TestUtility.hh"
 #include "Utility.hh"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <array>
+#include <stdexcept>
 
 using Bridge::to;
 
 using testing::_;
+using testing::ElementsAreArray;
 using testing::Ref;
 using testing::Return;
 using testing::ReturnRef;
@@ -46,6 +49,30 @@ protected:
     testing::NiceMock<Bridge::MockHand> hand;
     std::array<testing::NiceMock<Bridge::MockCard>, N_CARDS> cards;
 };
+
+TEST_F(HandTest, testSubscribe)
+{
+    const auto observer = std::make_shared<
+        Bridge::MockCardRevealStateObserver>();
+    EXPECT_CALL(hand, handleSubscribe(Bridge::WeaklyPointsTo(observer)));
+    hand.subscribe(observer);
+}
+
+TEST_F(HandTest, testRequestRevealSuccess)
+{
+    const auto range = Bridge::to(N_CARDS);
+    EXPECT_CALL(hand, handleRequestReveal(ElementsAreArray(range)));
+    hand.requestReveal(range.begin(), range.end());
+}
+
+TEST_F(HandTest, testRequestRevealFailure)
+{
+    const auto range = Bridge::to(N_CARDS + 1);
+    EXPECT_CALL(hand, handleRequestReveal(_)).Times(0);
+    EXPECT_THROW(
+        hand.requestReveal(range.begin(), range.end()),
+        std::out_of_range);
+}
 
 TEST_P(HandTest, testMarkPlayed)
 {

@@ -6,7 +6,8 @@
 #ifndef HAND_HH_
 #define HAND_HH_
 
-#include "Card.hh"
+#include "bridge/Card.hh"
+#include "Observer.hh"
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/filter_iterator.hpp>
@@ -14,12 +15,16 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/range/any_range.hpp>
 
 #include <cstddef>
+#include <memory>
+#include <stdexcept>
 
 namespace Bridge {
 
 struct CardType;
+class Player;
 enum class Suit;
 
 /** \brief A bridge hand
@@ -28,7 +33,55 @@ class Hand
 {
 public:
 
+    /** \brief Card reveal state
+     */
+    enum class CardRevealState {
+        REQUESTED,  ///< Revealing card requested
+        COMPLETED,  ///< Revealing card completed
+    };
+
+    /** \brief Range of indices
+     */
+    using IndexRange = boost::any_range<
+        std::size_t, boost::forward_traversal_tag, std::size_t>;
+
+    /** \brief Observer of card reveal state
+     *
+     * \sa subscribe()
+     */
+    using CardRevealStateObserver = Observer<CardRevealState, IndexRange>;
+
     virtual ~Hand();
+
+    /** \brief Subscribe to notifications about card reveal state
+     *
+     * The subscriber receives notifications whenever card request is
+     * revealed. The first parameter of the notification is the state of the
+     * request (reveal requested or completed). The second parameter is the
+     * range of indices of the cards (to be) revealed.
+     */
+    void subscribe(std::weak_ptr<CardRevealStateObserver> observer);
+
+    /** \brief Request that cards in the hand are revealed
+     *
+     * When request is revealed, all observers are first notified about the
+     * new request. After completion of reveal is notified, it is guaranteed
+     * that the cards revealed are known to all players.
+     *
+     * Whether new reveal request is initiated if the old one has not
+     * completed is unspecified.
+     *
+     * \tparam IndexIterator A forward iterator that, when dereferenced,
+     * returns an integer.
+     *
+     * \param first iterator to the first index to be revealed
+     * \param last iterator the the last index to be revealed
+     *
+     * \throw std::out_of_range if n >= getNumberOfCards() for some n in the
+     * range given
+     */
+    template<typename IndexIterator>
+    void requestReveal(IndexIterator first, IndexIterator last);
 
     /** \brief Mark card as played.
      *
@@ -93,6 +146,18 @@ public:
 
 private:
 
+    /** \brief Handle for subscribing to reveal state events
+     *
+     * \sa subscribe()
+     */
+    virtual void handleSubscribe(
+        std::weak_ptr<CardRevealStateObserver> observer) = 0;
+
+    /** \brief Handle for revealing
+     *
+     */
+    virtual void handleRequestReveal(IndexRange ns) = 0;
+
     /** \brief Handle for marking a card as played
      *
      * It may be assumed that n < getNumberOfCards().
@@ -141,6 +206,19 @@ private:
      */
     virtual boost::logic::tribool handleIsOutOfSuit(Suit suit) const;
 };
+
+template<typename IndexIterator>
+void Hand::requestReveal(IndexIterator first, IndexIterator last)
+{
+    const auto n = getNumberOfCards();
+    const auto fail = std::any_of(
+        first, last, [n](const auto m) { return m >= n; });
+    if (fail) {
+        throw std::out_of_range {"Card index out of range"};
+    }
+    handleRequestReveal(IndexRange(first, last));
+}
+
 
 /** \brief Create iterator for iterating over cards in a hand
  *

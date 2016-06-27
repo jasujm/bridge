@@ -10,6 +10,7 @@
 
 #include <boost/core/noncopyable.hpp>
 
+#include <algorithm>
 #include <functional>
 #include <vector>
 
@@ -38,6 +39,31 @@ public:
     template<typename CardIterator>
     BasicHand(CardIterator first, CardIterator last);
 
+    /** \brief Reveal cards
+     *
+     * Notify the card reveal state observers that cards in given range are
+     * revealed. Unless all cards in the range are known, this method does
+     * nothing.
+     *
+     * \note The BasicHand object does not track requests. It is expected,
+     * though not required, that this method is called after calling
+     * requestReveal().
+     *
+     * \tparam IndexIterator A forward iterator that, when dereferenced,
+     * returns an integer.
+     *
+     * \param first iterator to the first index to be revealed
+     * \param last iterator the the last index to be revealed
+     *
+     * \return true if all cards in the range are known and the call causes
+     * the observers to be notified, false otherwise
+     *
+     * \throw std::out_of_range if n >= getNumberOfCards() for some n in the
+     * range given
+     */
+    template<typename IndexIterator>
+    bool reveal(IndexIterator first, IndexIterator last);
+
 private:
 
     struct CardEntry {
@@ -46,6 +72,11 @@ private:
 
         CardEntry(const Card& card);
     };
+
+    void handleSubscribe(
+        std::weak_ptr<CardRevealStateObserver> observer) override;
+
+    void handleRequestReveal(IndexRange ns) override;
 
     void handleMarkPlayed(std::size_t n) override;
 
@@ -56,12 +87,27 @@ private:
     std::size_t handleGetNumberOfCards() const override;
 
     std::vector<CardEntry> cards;
+    CardRevealStateObserver::ObservableType notifier;
 };
 
 template<typename CardIterator>
 BasicHand::BasicHand(CardIterator first, CardIterator last) :
     cards(first, last)
 {
+}
+
+template<typename IndexIterator>
+bool BasicHand::reveal(IndexIterator first, IndexIterator last)
+{
+    const auto notify = std::all_of(
+        first, last, [this](const auto n)
+        {
+            return cards.at(n).card.get().isKnown();
+        });
+    if (notify) {
+        notifier.notifyAll(CardRevealState::COMPLETED, IndexRange(first, last));
+    }
+    return notify;
 }
 
 }

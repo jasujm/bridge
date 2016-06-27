@@ -4,12 +4,19 @@
 #include "bridge/CardType.hh"
 #include "Utility.hh"
 
-#include <algorithm>
 #include <boost/logic/tribool.hpp>
+
+#include <algorithm>
+#include <utility>
 
 namespace Bridge {
 
 Hand::~Hand() = default;
+
+void Hand::subscribe(std::weak_ptr<CardRevealStateObserver> observer)
+{
+    handleSubscribe(std::move(observer));
+}
 
 void Hand::markPlayed(const std::size_t n)
 {

@@ -1,6 +1,7 @@
 #include "bridge/BasicHand.hh"
 
 #include <cassert>
+#include <utility>
 
 namespace Bridge {
 
@@ -8,6 +9,16 @@ BasicHand::CardEntry::CardEntry(const Card& card) :
     card {card},
     isPlayed {false}
 {
+}
+
+void BasicHand::handleSubscribe(std::weak_ptr<CardRevealStateObserver> observer)
+{
+    notifier.subscribe(std::move(observer));
+}
+
+void BasicHand::handleRequestReveal(IndexRange ns)
+{
+    notifier.notifyAll(CardRevealState::REQUESTED, ns);
 }
 
 void BasicHand::handleMarkPlayed(const std::size_t n)
