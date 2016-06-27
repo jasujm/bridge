@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+using testing::NiceMock;
+
 class ObserverTest : public testing::Test {
 protected:
     virtual void SetUp()
@@ -12,7 +14,7 @@ protected:
     }
 
     std::shared_ptr<Bridge::MockObserver<int>> observer {
-        std::make_shared<Bridge::MockObserver<int>>()};
+        std::make_shared<NiceMock<Bridge::MockObserver<int>>>()};
     std::shared_ptr<Bridge::MockObserver<int>> observer2 {
         std::make_shared<Bridge::MockObserver<int>>()};
     Bridge::Observable<int> observable;
