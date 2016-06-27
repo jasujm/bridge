@@ -18,6 +18,8 @@
 
 namespace Bridge {
 
+template<typename... T> class Observable;
+
 /** \brief Observer part of the observer pattern implementation
  *
  * This class is meant to be inherited by a class that wishes to receive
@@ -28,6 +30,10 @@ namespace Bridge {
 template<typename... T>
 class Observer {
 public:
+
+    /** \brief Type of observable the observer can be subscribed to
+     */
+    using ObservableType = Observable<T...>;
 
     virtual ~Observer() = default;
 
@@ -67,6 +73,10 @@ inline void Observer<T...>::notify(const T&... args)
 template<typename... T>
 class Observable {
 public:
+
+    /** \brief Type of observer that can be subscribed to the observable
+     */
+    using ObserverType = Observable<T...>;
 
     /** \brief Subscribe observer to this Observable
      *
