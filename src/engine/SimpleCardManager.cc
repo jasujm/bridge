@@ -1,6 +1,6 @@
 #include "engine/SimpleCardManager.hh"
 
-#include "bridge/BasicHand.hh"
+#include "bridge/HandBase.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/SimpleCard.hh"
 #include "Utility.hh"
@@ -20,6 +20,20 @@ namespace Bridge {
 namespace Engine {
 
 namespace {
+
+class HandImpl : public HandBase {
+public:
+    using HandBase::HandBase;
+    void handleRequestReveal(IndexRange ns) override;
+};
+
+void HandImpl::handleRequestReveal(IndexRange ns)
+{
+    // We can immediately notify about reveal completion because the cards are
+    // SimpleCard type whose type are always known.
+    notifyAll(CardRevealState::REQUESTED, ns);
+    notifyAll(CardRevealState::COMPLETED, ns);
+}
 
 using CardVector = std::vector<SimpleCard>;
 
@@ -156,7 +170,7 @@ std::unique_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)
 {
     assert(impl);
     const auto& cards = getCardsFrom(*impl);
-    return std::make_unique<BasicHand>(
+    return std::make_unique<HandImpl>(
         containerAccessIterator(ns.begin(), cards),
         containerAccessIterator(ns.end(), cards));
 }

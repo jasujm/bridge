@@ -4,6 +4,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Hand.hh"
+#include "MockHand.hh"
 #include "MockObserver.hh"
 #include "Utility.hh"
 
@@ -14,6 +15,8 @@
 #include <vector>
 
 using testing::_;
+using testing::ElementsAreArray;
+using testing::InSequence;
 using testing::InvokeWithoutArgs;
 
 using Bridge::N_CARDS;
@@ -110,6 +113,28 @@ TEST_F(SimpleCardManagerTest, testGetHand)
             {
                 return card_type == card.getType();
             }));
+}
+
+TEST_F(SimpleCardManagerTest, testRevealHand)
+{
+    using State = Bridge::Hand::CardRevealState;
+
+    cardManager.requestShuffle();
+    shuffleCards();
+    const auto range = Bridge::to(N_CARDS);
+    const auto hand = cardManager.getHand(range.begin(), range.end());
+    ASSERT_TRUE(hand);
+    const auto observer = std::make_shared<
+        Bridge::MockCardRevealStateObserver>();
+    {
+        InSequence sequence;
+        EXPECT_CALL(
+            *observer, handleNotify(State::REQUESTED, ElementsAreArray(range)));
+        EXPECT_CALL(
+            *observer, handleNotify(State::COMPLETED, ElementsAreArray(range)));
+    }
+    hand->subscribe(observer);
+    hand->requestReveal(range.begin(), range.end());
 }
 
 TEST_F(SimpleCardManagerTest, testRequestingShuffleWhenShuffleIsCompleted)
