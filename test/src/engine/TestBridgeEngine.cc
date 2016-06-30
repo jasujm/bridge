@@ -18,6 +18,7 @@
 #include "MockCard.hh"
 #include "MockCardManager.hh"
 #include "MockGameManager.hh"
+#include "MockHand.hh"
 #include "MockObserver.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
@@ -35,6 +36,8 @@
 #include <utility>
 
 using testing::_;
+using testing::AtLeast;
+using testing::ElementsAre;
 using testing::ElementsAreArray;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -63,11 +66,14 @@ class BridgeEngineTest : public testing::Test {
 private:
     auto cardsForFunctor(const Position position)
     {
-        return [&cards = cards, position]() {
+        return [this, position]() {
             auto ns = cardsFor(position);
-            return std::make_unique<BasicHand>(
+            auto hand = std::make_unique<BasicHand>(
                 containerAccessIterator(ns.begin(), cards),
                 containerAccessIterator(ns.end(), cards));
+            hand->subscribe(cardRevealStateObserver);
+            hands.emplace(ns.front(), *hand);
+            return hand;
         };
     }
 
@@ -102,6 +108,18 @@ protected:
         Mock::VerifyAndClearExpectations(cardManager.get());
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::REQUESTED);
+        ON_CALL(
+            *cardRevealStateObserver,
+            handleNotify(Hand::CardRevealState::REQUESTED, _))
+            .WillByDefault(
+                Invoke(
+                    [this](const auto, const auto range)
+                    {
+                        for (auto& hand : hands) {
+                            hand.second.get().reveal(
+                                range.begin(), range.end());
+                        }
+                    }));
     }
 
     void updateExpectedStateAfterPlay(const Player& player)
@@ -120,10 +138,22 @@ protected:
             partnerFor(engine.getPosition(player)));
         const auto& hand = dereference(engine.getHand(player));
         const auto& partner_hand = dereference(engine.getHand(partner));
+
+        EXPECT_CALL(
+            *cardRevealStateObserver,
+            handleNotify(
+                Hand::CardRevealState::REQUESTED,
+                ElementsAre(card))).Times(AtLeast(1));
+        EXPECT_CALL(
+            *cardRevealStateObserver,
+            handleNotify(
+                Hand::CardRevealState::COMPLETED,
+                ElementsAre(card))).Times(AtLeast(1));
         engine.play(player, hand, card);
         engine.play(partner, hand, card);
         engine.play(player, partner_hand, card);
         engine.play(partner, partner_hand, card);
+        Mock::VerifyAndClearExpectations(cardRevealStateObserver.get());
     }
 
     void assertDealState(boost::optional<Position> dummy = boost::none)
@@ -184,6 +214,10 @@ protected:
     BridgeEngine engine {
         cardManager, gameManager, players.begin(), players.end()};
     Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
+    std::map<std::size_t, std::reference_wrapper<BasicHand>> hands;
+    std::shared_ptr<NiceMock<MockCardRevealStateObserver>>
+    cardRevealStateObserver {
+        std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
     DealState expectedState;
 };
 
