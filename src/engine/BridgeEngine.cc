@@ -311,7 +311,7 @@ private:
         Args2&&... args);
 
     const std::unique_ptr<Bidding> bidding;
-    const std::vector<std::unique_ptr<Hand>> hands;
+    const std::vector<std::shared_ptr<Hand>> hands;
     const HandsMap handsMap;
 };
 
@@ -330,7 +330,7 @@ auto InDeal::internalMakeHands()
         const auto ns = cardsFor(position);
         return card_manager.getHand(ns.begin(), ns.end());
     };
-    return std::vector<std::unique_ptr<Hand>>(
+    return std::vector<std::shared_ptr<Hand>>(
         boost::make_transform_iterator(POSITIONS.begin(), func),
         boost::make_transform_iterator(POSITIONS.end(),   func));
 }

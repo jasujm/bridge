@@ -16,24 +16,21 @@ using Bridge::to;
 
 using testing::_;
 using testing::ElementsAreArray;
-using testing::InvokeWithoutArgs;
 using testing::Return;
 
 class CardManagerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        auto func = [this]() { return std::move(hand); };
         ON_CALL(cardManager, handleGetHand(_))
-            .WillByDefault(InvokeWithoutArgs(func));
+            .WillByDefault(Return(hand));
         ON_CALL(cardManager, handleIsShuffleCompleted())
             .WillByDefault(Return(true));
         ON_CALL(cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
     }
 
-    std::unique_ptr<MockHand> hand {std::make_unique<MockHand>()};
-    const MockHand& hand_ref {*hand};
+    std::shared_ptr<MockHand> hand {std::make_shared<MockHand>()};
     testing::StrictMock<Bridge::Engine::MockCardManager> cardManager;
 };
 
@@ -92,7 +89,7 @@ TEST_F(CardManagerTest, testGetHandWhenShuffleIsCompleted)
     EXPECT_CALL(cardManager, handleIsShuffleCompleted());
     EXPECT_CALL(cardManager, handleGetNumberOfCards());
     EXPECT_CALL(cardManager, handleGetHand(ElementsAreArray(ns)));
-    EXPECT_EQ(&hand_ref, cardManager.getHand(ns.begin(), ns.end()).get());
+    EXPECT_EQ(hand, cardManager.getHand(ns.begin(), ns.end()));
 }
 
 TEST_F(CardManagerTest, testGetHandOutOfRange)

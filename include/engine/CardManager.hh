@@ -81,7 +81,7 @@ public:
      * \throw std::out_of_range if any index is out of range
      */
     template<typename IndexIterator>
-    std::unique_ptr<Hand> getHand(IndexIterator first, IndexIterator last);
+    std::shared_ptr<Hand> getHand(IndexIterator first, IndexIterator last);
 
     /** \brief Determine if the deck is shuffled
      *
@@ -130,7 +130,7 @@ private:
      *
      * \sa getHand()
      */
-    virtual std::unique_ptr<Hand> handleGetHand(IndexRange ns) = 0;
+    virtual std::shared_ptr<Hand> handleGetHand(IndexRange ns) = 0;
 
     /** \brief Handle for determining if the shuffle is completed
      *
@@ -150,7 +150,7 @@ private:
 };
 
 template<typename IndexIterator>
-std::unique_ptr<Hand> CardManager::getHand(
+std::shared_ptr<Hand> CardManager::getHand(
     IndexIterator first, IndexIterator last)
 {
     if (const auto n_cards = getNumberOfCards()) {

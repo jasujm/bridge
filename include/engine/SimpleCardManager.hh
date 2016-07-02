@@ -75,7 +75,7 @@ private:
 
     void handleRequestShuffle() override;
 
-    std::unique_ptr<Hand> handleGetHand(IndexRange ns) override;
+    std::shared_ptr<Hand> handleGetHand(IndexRange ns) override;
 
     bool handleIsShuffleCompleted() const override;
 

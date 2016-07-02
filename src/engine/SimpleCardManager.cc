@@ -166,11 +166,11 @@ void SimpleCardManager::handleRequestShuffle()
     impl->process_event(RequestShuffleEvent {});
 }
 
-std::unique_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)
+std::shared_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)
 {
     assert(impl);
     const auto& cards = getCardsFrom(*impl);
-    return std::make_unique<HandImpl>(
+    return std::make_shared<HandImpl>(
         containerAccessIterator(ns.begin(), cards),
         containerAccessIterator(ns.end(), cards));
 }

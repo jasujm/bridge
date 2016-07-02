@@ -68,7 +68,7 @@ private:
     {
         return [this, position]() {
             auto ns = cardsFor(position);
-            auto hand = std::make_unique<BasicHand>(
+            auto hand = std::make_shared<BasicHand>(
                 containerAccessIterator(ns.begin(), cards),
                 containerAccessIterator(ns.end(), cards));
             hand->subscribe(cardRevealStateObserver);
