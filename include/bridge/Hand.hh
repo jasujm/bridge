@@ -265,6 +265,15 @@ inline auto Hand::end() const
 boost::optional<std::size_t> findFromHand(
     const Hand& hand, const CardType& cardType);
 
+/** \brief Convenience function for requesting reveal of all cards in the hand
+ *
+ * This function simply calls hand.requestReveal() with range containing all
+ * cards in the hand.
+ *
+ * \p hand the hand for which the request is revealed
+ */
+void requestRevealHand(Hand& hand);
+
 }
 
 #endif // HAND_HH_

@@ -74,6 +74,13 @@ TEST_F(HandTest, testRequestRevealFailure)
         std::out_of_range);
 }
 
+TEST_F(HandTest, testRequestRevealWholeHand)
+{
+    const auto range = Bridge::to(N_CARDS);
+    EXPECT_CALL(hand, handleRequestReveal(ElementsAreArray(range)));
+    requestRevealHand(hand);
+}
+
 TEST_P(HandTest, testMarkPlayed)
 {
     const auto n = GetParam();

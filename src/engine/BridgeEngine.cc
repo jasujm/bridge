@@ -121,6 +121,14 @@ public:
     Hand::CardRevealState state;
     std::size_t card;
 };
+class HandRevealEvent : public sc::event<HandRevealEvent> {
+public:
+    HandRevealEvent(Hand::CardRevealState state) :
+        state {state}
+    {
+    }
+    Hand::CardRevealState state;
+};
 class RevealDummyEvent : public sc::event<RevealDummyEvent> {};
 class ShufflingStateEvent : public sc::event<ShufflingStateEvent> {
 public:
@@ -160,6 +168,10 @@ public:
     Observable<CardPlayed>& getCardPlayedNotifier()
     {
         return cardPlayedNotifier;
+    }
+    Observable<DummyRevealed>& getDummyRevealedNotifier()
+    {
+        return dummyRevealedNotifier;
     }
     Observable<DealEnded>& getDealEndedNotifier()
     {
@@ -201,6 +213,7 @@ private:
     EventQueue events;
     Observable<CallMade> callMadeNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
+    Observable<DummyRevealed> dummyRevealedNotifier;
     Observable<DealEnded> dealEndedNotifier;
 };
 
@@ -221,12 +234,26 @@ auto BridgeEngine::Impl::makeCardRevealStateObserver()
         [this](const auto& state, const auto& ns)
         {
             const auto first = ns.begin();
-            if (std::distance(first, ns.end()) == 1) {
+            const auto last = ns.end();
+            const auto n_cards = std::distance(first, last);
+            if (n_cards == 1) {
                 this->enqueueAndProcess(
                     [this, state, n = *first]()
                     {
                         this->process_event(CardRevealEvent {state, n});
                     });
+            } else {
+                // All cards are included in the request
+                const auto range = to(N_CARDS_PER_PLAYER);
+                if (
+                    std::is_permutation(
+                        range.begin(), range.end(), first, last)) {
+                    this->enqueueAndProcess(
+                        [this, state]()
+                        {
+                            this->process_event(HandRevealEvent {state});
+                        });
+                }
             }
         });
 }
@@ -474,6 +501,8 @@ public:
     Position getLeaderPosition() const;
     Position getDeclarerPosition() const;
     Position getDummyPosition() const;
+    Hand& getDummyHand();
+    const Hand& getDummyHand() const;
     boost::optional<Suit> getTrump() const;
 
 private:
@@ -537,6 +566,18 @@ Position Playing::getDeclarerPosition() const
 Position Playing::getDummyPosition() const
 {
     return partnerFor(getDeclarerPosition());
+}
+
+Hand& Playing::getDummyHand()
+{
+    return context<InDeal>().getHand(getDummyPosition());
+}
+
+const Hand& Playing::getDummyHand() const
+{
+    // This const_cast is safe as we are not actually writing to any member
+    // variable in non-const version
+    return const_cast<Playing&>(*this).getDummyHand();
 }
 
 boost::optional<Suit> Playing::getTrump() const
@@ -714,27 +755,68 @@ sc::result RevealingCard::react(const CardRevealEvent& event)
 // DummyNotVisible
 ////////////////////////////////////////////////////////////////////////////////
 
-class DummyVisible;
+class RevealingDummy;
 
 class DummyNotVisible : public sc::simple_state<
     DummyNotVisible, Playing::orthogonal<1>> {
 public:
-    using reactions = sc::transition<RevealDummyEvent, DummyVisible>;
+    using reactions = sc::transition<RevealDummyEvent, RevealingDummy>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// DummyNotVisible
+// RevealingDummy
 ////////////////////////////////////////////////////////////////////////////////
 
-class DummyVisible : public sc::simple_state<
-    DummyVisible, Playing::orthogonal<1>> {
+
+class DummyVisible;
+
+class RevealingDummy : public sc::state<
+    RevealingDummy, Playing::orthogonal<1>> {
 public:
+    using reactions = sc::custom_reaction<HandRevealEvent>;
+    RevealingDummy(my_context ctx);
+    sc::result react(const HandRevealEvent&);
+
+private:
+    const std::shared_ptr<Hand::CardRevealStateObserver> observer;
+};
+
+RevealingDummy::RevealingDummy(my_context ctx) :
+    my_base {ctx},
+    observer {outermost_context().makeCardRevealStateObserver()}
+{
+    auto& hand = context<Playing>().getDummyHand();
+    hand.subscribe(observer);
+    requestRevealHand(hand);
+}
+
+sc::result RevealingDummy::react(const HandRevealEvent& event)
+{
+    if (event.state == Hand::CardRevealState::COMPLETED) {
+        return transit<DummyVisible>();
+    }
+    return discard_event();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DummyVisible
+////////////////////////////////////////////////////////////////////////////////
+
+class DummyVisible : public sc::state<DummyVisible, Playing::orthogonal<1>> {
+public:
+    DummyVisible(my_context ctx);
     const Hand& getDummyHand() const;
 };
 
+DummyVisible::DummyVisible(my_context ctx) :
+    my_base {ctx}
+{
+    outermost_context().getDummyRevealedNotifier().notifyAll({});
+}
+
 const Hand& DummyVisible::getDummyHand() const
 {
-    return context<InDeal>().getHand(context<Playing>().getDummyPosition());
+    return context<Playing>().getDummyHand();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -901,6 +983,13 @@ void BridgeEngine::subscribeToCardPlayed(
 {
     assert(impl);
     impl->getCardPlayedNotifier().subscribe(std::move(observer));
+}
+
+void BridgeEngine::subscribeToDummyRevealed(
+    std::weak_ptr<Observer<DummyRevealed>> observer)
+{
+    assert(impl);
+    impl->getDummyRevealedNotifier().subscribe(std::move(observer));
 }
 
 void BridgeEngine::subscribeToDealEnded(

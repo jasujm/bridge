@@ -84,4 +84,10 @@ boost::optional<std::size_t> findFromHand(
     return boost::none;
 }
 
+void requestRevealHand(Hand& hand)
+{
+    const auto range = to(hand.getNumberOfCards());
+    hand.requestReveal(range.begin(), range.end());
+}
+
 }

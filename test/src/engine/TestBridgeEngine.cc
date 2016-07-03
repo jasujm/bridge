@@ -132,7 +132,8 @@ protected:
         cards.erase(cards.begin());
     }
 
-    void playCard(const Player& player, std::size_t card)
+    void playCard(
+        const Player& player, std::size_t card, bool revealDummy = false)
     {
         const auto& partner = engine.getPlayer(
             partnerFor(engine.getPosition(player)));
@@ -149,6 +150,22 @@ protected:
             handleNotify(
                 Hand::CardRevealState::COMPLETED,
                 ElementsAre(card))).Times(AtLeast(1));
+
+        if (revealDummy) {
+            EXPECT_CALL(
+                *cardRevealStateObserver,
+                handleNotify(
+                    Hand::CardRevealState::REQUESTED,
+                    ElementsAreArray(to(N_CARDS_PER_PLAYER))))
+                .Times(AtLeast(1));
+            EXPECT_CALL(
+                *cardRevealStateObserver,
+                handleNotify(
+                    Hand::CardRevealState::COMPLETED,
+                    ElementsAreArray(to(N_CARDS_PER_PLAYER))))
+                .Times(AtLeast(1));
+        }
+
         engine.play(player, hand, card);
         engine.play(partner, hand, card);
         engine.play(player, partner_hand, card);
@@ -300,7 +317,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             i == 0 ? boost::none : boost::make_optional(Position::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
-        playCard(player, 0);
+        playCard(player, 0, i == 0);
         updateExpectedStateAfterPlay(player);
         assertHandsVisible(true, &engine.getPlayer(Position::WEST));
     }

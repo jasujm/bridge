@@ -79,6 +79,10 @@ public:
         const Card& card;     ///< \brief The card played
     };
 
+    /** \brief Event for announcing that dummy has been revealed
+     */
+    struct DummyRevealed {};
+
     /** \brief Event for announcing that deal has ended
      */
     struct DealEnded {};
@@ -124,6 +128,15 @@ public:
      * dummy are revealed.
      */
     void subscribeToCardPlayed(std::weak_ptr<Observer<CardPlayed>> observer);
+
+    /** \brief Subscribe to notifications about dummy being revealed
+     *
+     * When the opening lead is successfully played and dummy hand has been
+     * revealed, this notification takes place. In the notification handler
+     * and after that the dummy cards are visible.
+     */
+    void subscribeToDummyRevealed(
+        std::weak_ptr<Observer<DummyRevealed>> observer);
 
     /** \brief Subscribe to notifications about deal ending
      *
