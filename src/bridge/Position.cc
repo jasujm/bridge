@@ -2,10 +2,7 @@
 
 #include "IoUtility.hh"
 
-#include <boost/range/irange.hpp>
-
 #include <algorithm>
-#include <stdexcept>
 
 namespace Bridge {
 
@@ -23,15 +20,16 @@ const auto POSITION_STRING_PAIRS =
 const PositionToStringMap POSITION_TO_STRING_MAP(
     POSITION_STRING_PAIRS.begin(), POSITION_STRING_PAIRS.end());
 
-std::vector<std::size_t> cardsFor(const Position position)
+std::size_t positionOrder(const Position position)
 {
-    const auto n = static_cast<std::size_t>(position);
-    if (n >= N_POSITIONS) {
-        throw std::invalid_argument("Invalid position");
+    if (
+        std::find(
+            POSITIONS.begin(), POSITIONS.end(), position) == POSITIONS.end()) {
+        throw std::invalid_argument {"Invalid position"};
     }
-    const auto& range = boost::irange(
-        n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
-    return std::vector<std::size_t>(range.begin(), range.end());
+    const auto n = static_cast<std::size_t>(position);
+    assert(n < N_POSITIONS);
+    return n;
 }
 
 Position clockwise(const Position position, int steps)
@@ -41,9 +39,8 @@ Position clockwise(const Position position, int steps)
         steps = N_POSITIONS - negative_steps;
     }
 
-    const auto iter = std::find(POSITIONS.begin(), POSITIONS.end(), position);
-    const auto diff = iter - POSITIONS.begin();
-    return POSITIONS[(diff + steps) % N_POSITIONS];
+    const auto n = static_cast<int>(positionOrder(position));
+    return POSITIONS[(n + steps) % N_POSITIONS];
 }
 
 Position partnerFor(Position position)

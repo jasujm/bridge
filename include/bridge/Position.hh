@@ -9,12 +9,12 @@
 #include "bridge/BridgeConstants.hh"
 
 #include <boost/bimap/bimap.hpp>
+#include <boost/range/irange.hpp>
 
 #include <array>
 #include <cstddef>
 #include <iosfwd>
 #include <string>
-#include <vector>
 
 namespace Bridge {
 
@@ -53,6 +53,18 @@ using PositionToStringMap = boost::bimaps::bimap<Position, std::string>;
  */
 extern const PositionToStringMap POSITION_TO_STRING_MAP;
 
+/** \brief Return order of the position
+ *
+ * In bridge positions have defined playing order north, east, south,
+ * west. This function can be used to cast the position to its order in type
+ * safe manner.
+ *
+ * \return order of \p position (between 0—3)
+ *
+ * \throw std::invalid_argument if \p position is not valid
+ */
+std::size_t positionOrder(Position position);
+
 /** \brief Determine the indices of cards dealt to given position
  *
  * \param position the position
@@ -60,9 +72,13 @@ extern const PositionToStringMap POSITION_TO_STRING_MAP;
  * \return A set of 13 indices between 0–51, each disjoint from the set for
  * any other position.
  *
- * \throw std::invalid_argument if position is invalid
+ * \throw std::invalid_argument if \p position is invalid
  */
-std::vector<std::size_t> cardsFor(Position position);
+inline auto cardsFor(Position position)
+{
+    const auto n = positionOrder(position);
+    return boost::irange(n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
+}
 
 /** \brief Determine position clockwise from the given position
  *
@@ -78,6 +94,8 @@ std::vector<std::size_t> cardsFor(Position position);
  * \param steps the number of steps skipped
  *
  * \return the rotated position
+ *
+ * \throw std::invalid_argument if \p position is invalid
  */
 Position clockwise(Position position, int steps = 1);
 
@@ -86,6 +104,8 @@ Position clockwise(Position position, int steps = 1);
  * \param position the position
  *
  * \return the position sitting opposite of \p position
+ *
+ * \throw std::invalid_argument if \p position is invalid
  */
 Position partnerFor(Position position);
 

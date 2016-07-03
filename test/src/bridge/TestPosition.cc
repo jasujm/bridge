@@ -26,7 +26,7 @@ TEST_F(PositionTest, testInvalidPosition)
 
 TEST_F(PositionTest, testCardsForEachPositionAreUnique)
 {
-    auto all_cards = decltype(cardsFor(POSITIONS.front())) {};
+    auto all_cards = std::vector<std::size_t> {};
     for (const auto position : POSITIONS) {
         const auto cards = cardsFor(position);
         std::copy(cards.begin(), cards.end(), std::back_inserter(all_cards));
