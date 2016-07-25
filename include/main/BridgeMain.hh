@@ -235,7 +235,9 @@
  * \subsection bridgeprotocoleventplay play
  *
  * - \b Command: play
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *   1. \e position of the hand from which the card is played
+ *   2. \e card played, \ref jsoncardtype
  *
  * This event is published whenever a card is played.
  *

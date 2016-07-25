@@ -275,13 +275,18 @@ class TrickPanel(GridLayout):
                 self.add_widget(Label())
 
     def set_trick(self, trick):
+        if not trick:
+            return
         for label in self._cards.values():
             label.text = ""
         # TODO: Error handling
         for entry in trick:
-            rank = RANK_MAP[entry.card.rank]
-            suit = SUIT_MAP[entry.card.suit]
-            self._cards[entry.position].text = "%s%s" % (rank, suit)
+            self.set_card(entry.position, entry.card)
+
+    def set_card(self, position, card):
+        rank = RANK_MAP[card.rank]
+        suit = SUIT_MAP[card.suit]
+        self._cards[position].text = "%s%s" % (rank, suit)
 
 
 class InfoPanel(BoxLayout):
@@ -425,7 +430,7 @@ class BridgeApp(App):
             STATE_COMMAND: self._handle_state,
             SCORE_COMMAND: self._handle_score,
             CALL_COMMAND: self._handle_update,
-            PLAY_COMMAND: self._handle_update,
+            PLAY_COMMAND: self._handle_play,
         }
         self._poller = zmq.Poller()
         self._poller.register(self._event_socket, flags=zmq.POLLIN)
@@ -503,6 +508,11 @@ class BridgeApp(App):
 
     def _handle_update(self):
         send_command(self._control_socket, STATE_COMMAND, self._position)
+
+    def _handle_play(self, position=None, card=None):
+        if position and card:
+            self._trick_panel.set_card(position, Card(**card))
+        self._handle_update()
 
 
 if __name__ == '__main__':

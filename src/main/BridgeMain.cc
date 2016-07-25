@@ -283,10 +283,12 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
-    const auto position = engine.getPosition(event.player);
-    publish(PLAY_COMMAND);
+    const auto player_position = engine.getPosition(event.player);
+    const auto hand_position = engine.getPosition(event.hand);
+    const auto card_type = event.card.getType().get();
+    publish(PLAY_COMMAND, hand_position, card_type);
     sendToPeersIfSelfControlledPlayer(
-        event.player, PLAY_COMMAND, position, event.card.getType().get());
+        event.player, PLAY_COMMAND, player_position, card_type);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
