@@ -104,7 +104,7 @@ TEST_F(MessageQueueTest, testReply)
     const auto outputs = {"output1"s, "output2"s};
 
     EXPECT_CALL(
-        *handlers.at(COMMAND), doHandle(IDENTITY, IsEmpty(), _))
+        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(), _))
         .WillOnce(
             Invoke(
                 MockMessageHandler::writeToSink(
@@ -137,7 +137,7 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     repSocket.bind(ENDPOINT);
     frontSocket.connect(ENDPOINT);
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IsEmpty(), IsEmpty(), _))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IsEmpty(), ElementsAre(), _))
         .WillOnce(Return(true));
 
     sendMessage(frontSocket, COMMAND, false);

@@ -31,8 +31,8 @@ public:
 
     /** \brief Execute action of this handler
      *
-     * \tparam ParameterIterator Random access iterator for iterating the
-     * parameters (convertible to strings)
+     * \tparam ParameterIterator Input terator for iterating the parameters
+     * (convertible to strings)
      *
      * \param identity the identity of the sender of the message
      * \param first iterator to the first parameter
@@ -41,8 +41,6 @@ public:
      * is written to
      *
      * \return true if the message was handled successfully, false otherwise
-     *
-     * \todo Could the iterator category be weakened?
      */
     template<typename OutputIterator, typename ParameterIterator>
     bool handle(
@@ -54,7 +52,7 @@ protected:
     /** \brief Input parameter to doHandle()
      */
     using ParameterRange = boost::any_range<
-        std::string, boost::random_access_traversal_tag>;
+        std::string, boost::single_pass_traversal_tag>;
 
     /** \brief Output parameter to doHandle()
      */

@@ -177,16 +177,36 @@ private:
         OutputSink& sink;
     };
 
+    template<std::size_t N, typename... Args2>
+    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
+
+    using ParamTuple = std::tuple<boost::optional<std::decay_t<Args>>...>;
+    using ParamIterator = typename ParameterRange::iterator;
+
+    template<std::size_t N>
+    bool internalInitParam(
+        ParamIterator first, ParamIterator last, ParamTuple&, std::true_type);
+
+    template<std::size_t N>
+    bool internalInitParam(
+        ParamIterator first, ParamIterator last, ParamTuple& out,
+        std::false_type);
+
+    template<std::size_t N>
+    bool internalInitParamHelper(
+        ParamIterator first, ParamIterator last, ParamTuple& out);
+
     template<std::size_t... Ns>
     bool internalCallFunction(
         const std::string& identity, ParameterRange params, OutputSink& sink,
         std::index_sequence<Ns...>)
     {
-        auto&& params_ = deserializeAll<std::decay_t<Args>...>(
-            serializer, params[Ns]...);
-        if (params_) {
+        ParamTuple params_;
+        const auto success = internalInitParamHelper<0>(
+            params.begin(), params.end(), params_);
+        if (success) {
             auto&& result = function(
-                identity, std::move(std::get<Ns>(*params_))...);
+                identity, std::move(*std::get<Ns>(params_))...);
             return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
         }
         return false;
@@ -210,10 +230,6 @@ bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     const std::string& identity, MessageHandler::ParameterRange params,
     OutputSink sink)
 {
-    if (params.size() != sizeof...(Args)) {
-        return false;
-    }
-
     return internalCallFunction(
         identity, params, sink, std::index_sequence_for<Args...>());
 }
@@ -246,8 +262,7 @@ template<std::size_t N, typename... Args2>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::internalReplySuccess(const std::tuple<Args2...>& args) const
 {
-    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
-    return internalReplySuccessHelper<N>(args, IsLast());
+    return internalReplySuccessHelper<N>(args, IsLast<N, Args2...> {});
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
@@ -268,6 +283,47 @@ ReplyVisitor::internalReplySuccessHelper(
     sink(serializer.serialize(std::get<N>(args)));
     return internalReplySuccess<N+1>(args);
 }
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+internalInitParam(
+    ParamIterator first, ParamIterator last, ParamTuple&, std::true_type)
+{
+    return first == last;
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+internalInitParam(
+    ParamIterator first, ParamIterator last, ParamTuple& out,
+    std::false_type)
+{
+    if (first != last) {
+        using ParamType =
+            typename std::tuple_element<N, ParamTuple>::type::value_type;
+        try {
+            std::get<N>(out).emplace(
+                serializer.template deserialize<ParamType>(*first));
+        }
+        catch (const SerializationFailureException&) {
+            return false;
+        }
+        return internalInitParamHelper<N+1>(std::next(first), last, out);
+    }
+    return false;
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+internalInitParamHelper(
+    ParamIterator first, ParamIterator last, ParamTuple& out)
+{
+    return internalInitParam<N>(first, last, out, IsLast<N, Args...> {});
+}
+
 
 /** \brief Utility for wrapping function into message handler
  *
