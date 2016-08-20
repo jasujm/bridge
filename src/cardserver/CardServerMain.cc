@@ -62,19 +62,19 @@ using Messaging::makeMessageHandler;
 using Messaging::Reply;
 using Messaging::success;
 
-const std::string CardServerMain::INIT_COMMAND {"init"};
-const std::string CardServerMain::SHUFFLE_COMMAND {"shuffle"};
-const std::string CardServerMain::DRAW_COMMAND {"draw"};
-const std::string CardServerMain::REVEAL_COMMAND {"reveal"};
-const std::string CardServerMain::REVEAL_ALL_COMMAND {"revealall"};
-const std::string CardServerMain::TERMINATE_COMMAND {"terminate"};
-
 namespace {
 
 // TODO: The security parameter is intentionally low for making testing more
 // quick. It should be larger (preferrably adjustable).
 const auto SECURITY_PARAMETER = 8;
 const auto TMCG_W = 6; // 2^6 = 64, enough to hold all playing cards
+
+const auto INIT_COMMAND = std::string {"init"};
+const auto SHUFFLE_COMMAND = std::string {"shuffle"};
+const auto DRAW_COMMAND = std::string {"draw"};
+const auto REVEAL_COMMAND = std::string {"reveal"};
+const auto REVEAL_ALL_COMMAND = std::string {"revealall"};
+const auto TERMINATE_COMMAND = std::string {"terminate"};
 const auto CARDS_COMMAND = std::string {"cards"};
 const auto PEERS_COMMAND = std::string {"peers"};
 const auto ID_COMMAND = std::string {"id"};

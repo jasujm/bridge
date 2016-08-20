@@ -43,30 +43,6 @@ namespace CardServer {
 class CardServerMain {
 public:
 
-    /** \brief Command for initializing the card server
-     */
-    static const std::string INIT_COMMAND;
-
-    /** \brief Command for creating new shuffled deck with peers
-     */
-    static const std::string SHUFFLE_COMMAND;
-
-    /** \brief Command for drawing a card
-     */
-    static const std::string DRAW_COMMAND;
-
-    /** \brief Command for revealing cards to the peers
-     */
-    static const std::string REVEAL_COMMAND;
-
-    /** \brief Command for revealing cards to all peers
-     */
-    static const std::string REVEAL_ALL_COMMAND;
-
-    /** \brief Command for terminating the card server
-     */
-    static const std::string TERMINATE_COMMAND;
-
     /** \brief Create new card server
      *
      * \param context ZeroMQ context

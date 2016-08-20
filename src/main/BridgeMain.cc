@@ -52,6 +52,14 @@ using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using PositionVector = std::vector<Position>;
 
+const auto HELLO_COMMAND = std::string {"bridgehlo"};
+const auto PEER_COMMAND = std::string {"bridgerp"};
+const auto DEAL_COMMAND = std::string {"deal"};
+const auto STATE_COMMAND = std::string {"state"};
+const auto CALL_COMMAND = std::string {"call"};
+const auto PLAY_COMMAND = std::string {"play"};
+const auto SCORE_COMMAND = std::string {"score"};
+const auto DEAL_END_COMMAND = std::string {"dealend"};
 const auto POSITIONS_COMMAND = std::string {"positions"};
 const auto POSITION_COMMAND = std::string {"position"};
 const auto CARD_COMMAND = std::string {"card"};
@@ -64,15 +72,6 @@ auto secondIterator(PairIterator iter)
 }
 
 }
-
-const std::string BridgeMain::HELLO_COMMAND {"bridgehlo"};
-const std::string BridgeMain::PEER_COMMAND {"bridgerp"};
-const std::string BridgeMain::DEAL_COMMAND {"deal"};
-const std::string BridgeMain::STATE_COMMAND {"state"};
-const std::string BridgeMain::CALL_COMMAND {"call"};
-const std::string BridgeMain::PLAY_COMMAND {"play"};
-const std::string BridgeMain::SCORE_COMMAND {"score"};
-const std::string BridgeMain::DEAL_END_COMMAND {"dealend"};
 
 class BridgeMain::Impl :
     public Observer<BridgeEngine::CallMade>,

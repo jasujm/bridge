@@ -307,54 +307,6 @@ public:
     using EndpointRange = boost::any_range<
         std::string, boost::single_pass_traversal_tag>;
 
-    /** \brief Handshake command for joining the game as client
-     *
-     * \sa \ref bridgeprotocolcontrolbridgehlo
-     */
-    static const std::string HELLO_COMMAND;
-
-    /** \brief Handshake command for joining the game as peer
-     *
-     * \sa \ref bridgeprotocolcontrolbridgerp
-     */
-    static const std::string PEER_COMMAND;
-
-    /** \brief Command for dealing cards to peers
-     *
-     * \sa \ref bridgeprotocolcontroldeal
-     */
-    static const std::string DEAL_COMMAND;
-
-    /** \brief Command for requesting deal state
-     *
-     * \sa \ref bridgeprotocolcontrolstate
-     */
-    static const std::string STATE_COMMAND;
-
-    /** \brief Command for making a call during bidding
-     *
-     * \sa \ref bridgeprotocolcontrolcall
-     */
-    static const std::string CALL_COMMAND;
-
-    /** \brief Command for playing a card during playing phase
-     *
-     * \sa \ref bridgeprotocolcontrolplay
-     */
-    static const std::string PLAY_COMMAND;
-
-    /** \brief Command for requesting score sheet
-     *
-     * \sa \ref bridgeprotocolcontrolscore
-     */
-    static const std::string SCORE_COMMAND;
-
-    /** \brief Event for announcing that deal has ended
-     *
-     * \sa \ref bridgeprotocoleventdealend
-     */
-    static const std::string DEAL_END_COMMAND;
-
     /** \brief Create Bridge backend
      *
      * \param context the ZeroMQ context for the game
