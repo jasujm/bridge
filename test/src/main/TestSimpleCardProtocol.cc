@@ -104,6 +104,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
         command,
         ElementsAre(
             SimpleCardProtocol::DEAL_COMMAND,
+            std::string {"cards"},
             IsShuffledDeck()));
 }
 
@@ -124,8 +125,8 @@ TEST_F(SimpleCardProtocolTest, testNotLeader)
         handler_map.at(SimpleCardProtocol::DEAL_COMMAND));
     const auto card_vector = CardVector(
         cardTypeIterator(0), cardTypeIterator(N_CARDS));
-    std::array<std::string, 1> params {{
-        JsonSerializer::serialize(card_vector)
+    std::array<std::string, 2> params {{
+        "cards", JsonSerializer::serialize(card_vector)
     }};
     std::vector<std::string> output;
     EXPECT_TRUE(

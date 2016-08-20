@@ -6,7 +6,7 @@
 #ifndef MAIN_PEERCOMMANDSENDER_HH_
 #define MAIN_PEERCOMMANDSENDER_HH_
 
-#include "messaging/SerializationUtility.hh"
+#include "messaging/CommandUtility.hh"
 
 #include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
@@ -103,12 +103,12 @@ void PeerCommandSender::sendCommand(
     Params&&... params)
 {
     if (!peers.empty()) {
-        constexpr auto count = 1u + sizeof...(params);
+        constexpr auto count = 1u + 2 * sizeof...(params);
         auto message = Message(count);
-        message[0] = std::forward<CommandString>(command);
-        serializeAll(
-            std::next(message.begin()),
+        makeCommand(
+            message.begin(),
             std::forward<SerializationPolicy>(serializer),
+            std::forward<CommandString>(command),
             std::forward<Params>(params)...);
         internalAddMessage(std::move(message));
     }

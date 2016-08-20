@@ -30,6 +30,7 @@
 #include <boost/iterator/indirect_iterator.hpp>
 #include <zmq.hpp>
 
+#include <string>
 #include <utility>
 
 namespace Bridge {
@@ -51,6 +52,10 @@ using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using PositionVector = std::vector<Position>;
 
+const auto POSITIONS_COMMAND = std::string {"positions"};
+const auto POSITION_COMMAND = std::string {"position"};
+const auto CARD_COMMAND = std::string {"card"};
+
 template<typename PairIterator>
 auto secondIterator(PairIterator iter)
 {
@@ -67,6 +72,7 @@ const std::string BridgeMain::STATE_COMMAND {"state"};
 const std::string BridgeMain::CALL_COMMAND {"call"};
 const std::string BridgeMain::PLAY_COMMAND {"play"};
 const std::string BridgeMain::SCORE_COMMAND {"score"};
+const std::string BridgeMain::DEAL_END_COMMAND {"dealend"};
 
 class BridgeMain::Impl :
     public Observer<BridgeEngine::CallMade>,
@@ -94,14 +100,14 @@ public:
 private:
 
     template<typename... Args>
-    void publish(const std::string& command, const Args&... args);
+    void publish(const std::string& command, Args&&... args);
 
     template<typename... Args>
-    void sendToPeers(const std::string& command, const Args&... args);
+    void sendToPeers(const std::string& command, Args&&... args);
 
     template<typename... Args>
     void sendToPeersIfSelfControlledPlayer(
-        const Player& player, const std::string& command, const Args&... args);
+        const Player& player, const std::string& command, Args&&... args);
 
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
@@ -181,19 +187,25 @@ BridgeMain::Impl::Impl(
         },
         {
             PEER_COMMAND,
-            makeMessageHandler(*this, &Impl::peer, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::peer, JsonSerializer {}, POSITIONS_COMMAND)
         },
         {
             STATE_COMMAND,
-            makeMessageHandler(*this, &Impl::state, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::state, JsonSerializer {}, POSITION_COMMAND)
         },
         {
             CALL_COMMAND,
-            makeMessageHandler(*this, &Impl::call, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::call, JsonSerializer {},
+                POSITION_COMMAND, CALL_COMMAND)
         },
         {
             PLAY_COMMAND,
-            makeMessageHandler(*this, &Impl::play, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::play, JsonSerializer {},
+                POSITION_COMMAND, CARD_COMMAND)
         },
         {
             SCORE_COMMAND,
@@ -215,7 +227,10 @@ BridgeMain::Impl::Impl(
             });
     }
     sendToPeers(
-        PEER_COMMAND, PositionVector(positions.begin(), positions.end()));
+        PEER_COMMAND,
+        std::make_pair(
+            POSITIONS_COMMAND,
+            PositionVector(positions.begin(), positions.end())));
 }
 
 void BridgeMain::Impl::run()
@@ -251,25 +266,27 @@ CardManager& BridgeMain::Impl::getCardManager()
 }
 
 template<typename... Args>
-void BridgeMain::Impl::publish(const std::string& command, const Args&... args)
+void BridgeMain::Impl::publish(const std::string& command, Args&&... args)
 {
-    sendCommand(eventSocket, JsonSerializer {}, command, args...);
+    sendCommand(
+        eventSocket, JsonSerializer {}, command, std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void BridgeMain::Impl::sendToPeers(
-    const std::string& command, const Args&... args)
+    const std::string& command, Args&&... args)
 {
     assert(peerCommandSender);
-    peerCommandSender->sendCommand(JsonSerializer {}, command, args...);
+    peerCommandSender->sendCommand(
+        JsonSerializer {}, command, std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
-    const Player& player, const std::string& command, const Args&... args)
+    const Player& player, const std::string& command, Args&&... args)
 {
     if (peerClientControl.isSelfControlledPlayer(player)) {
-        sendToPeers(command, args...);
+        sendToPeers(command, std::forward<Args>(args)...);
     }
 }
 
@@ -278,7 +295,10 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
     const auto position = engine.getPosition(event.player);
     publish(CALL_COMMAND);
     sendToPeersIfSelfControlledPlayer(
-        event.player, CALL_COMMAND, position, event.call);
+        event.player,
+        CALL_COMMAND,
+        std::make_pair(POSITION_COMMAND, position),
+        std::make_pair(CALL_COMMAND, event.call));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
@@ -286,15 +306,23 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
     const auto player_position = engine.getPosition(event.player);
     const auto hand_position = engine.getPosition(event.hand);
     const auto card_type = event.card.getType().get();
-    publish(PLAY_COMMAND, hand_position, card_type);
+    publish(
+        PLAY_COMMAND,
+        std::make_pair(POSITION_COMMAND, std::cref(hand_position)),
+        std::make_pair(CARD_COMMAND, std::cref(card_type)));
     sendToPeersIfSelfControlledPlayer(
-        event.player, PLAY_COMMAND, player_position, card_type);
+        event.player,
+        PLAY_COMMAND,
+        std::make_pair(POSITION_COMMAND, std::cref(player_position)),
+        std::make_pair(CARD_COMMAND, std::cref(card_type)));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
     assert(gameManager);
-    publish(SCORE_COMMAND, gameManager->getScoreSheet());
+    publish(
+        DEAL_END_COMMAND,
+        std::make_pair(SCORE_COMMAND, gameManager->getScoreSheet()));
 }
 
 void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)

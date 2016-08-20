@@ -22,6 +22,7 @@ using namespace std::string_literals;
 constexpr auto N_SOCKETS = 2u;
 const auto DEFAULT = "default"s;
 const auto NEXT = "next"s;
+const auto KEY = "key"s;
 const auto ARG = "arg"s;
 }
 
@@ -38,13 +39,17 @@ protected:
 
     void sendCommand(const std::string& command = DEFAULT)
     {
-        sender.sendCommand(MockSerializationPolicy {}, command, ARG);
+        sender.sendCommand(
+            MockSerializationPolicy {},
+            command,
+            std::make_pair(KEY, ARG));
     }
 
     void checkMessage(zmq::socket_t& socket, const std::string& command)
     {
         ASSERT_EQ(std::make_pair(""s, true), recvMessage(socket));
-        EXPECT_EQ(std::make_pair(command, true), recvMessage(socket));
+        ASSERT_EQ(std::make_pair(command, true), recvMessage(socket));
+        ASSERT_EQ(std::make_pair(KEY, true), recvMessage(socket));
         EXPECT_EQ(std::make_pair(ARG, false), recvMessage(socket));
     }
 

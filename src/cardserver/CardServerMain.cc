@@ -75,6 +75,9 @@ namespace {
 // quick. It should be larger (preferrably adjustable).
 const auto SECURITY_PARAMETER = 8;
 const auto TMCG_W = 6; // 2^6 = 64, enough to hold all playing cards
+const auto CARDS_COMMAND = std::string {"cards"};
+const auto PEERS_COMMAND = std::string {"peers"};
+const auto ID_COMMAND = std::string {"id"};
 
 struct TMCGInitFailure {};
 
@@ -354,7 +357,8 @@ CardServerMain::Impl::Impl(
         {
             {
                 INIT_COMMAND,
-                makeMessageHandler(*this, &Impl::init, JsonSerializer {})
+                makeMessageHandler(
+                    *this, &Impl::init, JsonSerializer {}, PEERS_COMMAND)
             },
             {
                 SHUFFLE_COMMAND,
@@ -362,15 +366,19 @@ CardServerMain::Impl::Impl(
             },
             {
                 DRAW_COMMAND,
-                makeMessageHandler(*this, &Impl::draw, JsonSerializer {})
+                makeMessageHandler(
+                    *this, &Impl::draw, JsonSerializer {}, CARDS_COMMAND)
             },
             {
                 REVEAL_COMMAND,
-                makeMessageHandler(*this, &Impl::reveal, JsonSerializer {})
+                makeMessageHandler(
+                    *this, &Impl::reveal, JsonSerializer {},
+                    ID_COMMAND, CARDS_COMMAND)
             },
             {
                 REVEAL_ALL_COMMAND,
-                makeMessageHandler(*this, &Impl::revealAll, JsonSerializer {})
+                makeMessageHandler(
+                    *this, &Impl::revealAll, JsonSerializer {}, CARDS_COMMAND)
             },
         },
         TERMINATE_COMMAND

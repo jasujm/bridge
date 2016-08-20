@@ -47,6 +47,7 @@ PLAY_COMMAND = b"play"
 REPLY_SUCCESS = b"success"
 SCORE_COMMAND = b"score"
 STATE_COMMAND = b"state"
+DEAL_END_COMMAND = b"dealend"
 
 ALLOWED_CALLS_KEY = "allowedCalls"
 ALLOWED_CARDS_KEY = "allowedCards"
@@ -92,13 +93,14 @@ def endpoints(base):
         port += 1
 
 
-def send_command(socket, cmd, *parts):
+def send_command(socket, cmd, **parts):
     socket.send(EMPTY_FRAME, flags=zmq.SNDMORE)
     if parts:
         socket.send(cmd, flags=zmq.SNDMORE)
-        for part in parts[:-1]:
-            socket.send_json(part, flags=zmq.SNDMORE)
-        socket.send_json(parts[-1])
+        for count, part in enumerate(parts.items()):
+            socket.send_string(part[0], flags=zmq.SNDMORE)
+            flags = {"flags": zmq.SNDMORE} if count + 1 < len(parts) else {}
+            socket.send_json(part[1], **flags)
     else:
         socket.send(cmd)
 
@@ -172,7 +174,9 @@ class CallPanel(GridLayout):
         call = {TYPE_KEY: button.call.type}
         if button.call.bid:
             call[BID_KEY] = button.call.bid._asdict()
-        send_command(self._socket, CALL_COMMAND, self._player_position, call)
+        send_command(
+            self._socket, CALL_COMMAND,
+            position=self._player_position, call=call)
 
 
 class BiddingPanel(GridLayout):
@@ -256,7 +260,9 @@ class HandPanel(BoxLayout):
 
     def _make_play(self, button):
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
-        send_command(self._socket, PLAY_COMMAND, self._player_position, card)
+        send_command(
+            self._socket, PLAY_COMMAND,
+            position=self._player_position, card=card)
 
 
 class TrickPanel(GridLayout):
@@ -418,7 +424,7 @@ class BridgeApp(App):
         self._control_socket = zmqctx.socket(zmq.DEALER)
         self._control_socket.connect(next(endpoint_iterator))
         self._event_socket = zmqctx.socket(zmq.SUB)
-        self._event_socket.setsockopt(zmq.SUBSCRIBE, SCORE_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_END_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
@@ -428,6 +434,7 @@ class BridgeApp(App):
             HELLO_COMMAND: self._handle_hello,
             DEAL_COMMAND: self._handle_update,
             STATE_COMMAND: self._handle_state,
+            DEAL_END_COMMAND: self._handle_deal_end,
             SCORE_COMMAND: self._handle_score,
             CALL_COMMAND: self._handle_update,
             PLAY_COMMAND: self._handle_play,
@@ -464,21 +471,32 @@ class BridgeApp(App):
                 if socket == self._control_socket:
                     assert msg[:2] == [EMPTY_FRAME, REPLY_SUCCESS]
                     del msg[:2]
+                    args = (json.loads(arg.decode("utf-8")) for arg in msg[1:])
+                    kwargs = {}
+                else:
+                    args = []
+                    kwargs = {}
+                    for n in range(1, len(msg), 2):
+                        key = msg[n].decode("utf-8")
+                        value = json.loads(msg[n+1].decode("utf-8"))
+                        kwargs[key] = value
                 command = msg[0]
-                args = (json.loads(arg.decode("utf-8")) for arg in msg[1:])
                 if command in self._command_handlers:
-                    self._command_handlers[command](*args)
+                    self._command_handlers[command](*args, **kwargs)
 
     def _handle_hello(self, position):
         self._position = position
         self._call_panel.set_player_position(position)
         self._play_area_panel.set_player_position(position)
-        send_command(self._control_socket, STATE_COMMAND, position)
+        send_command(self._control_socket, STATE_COMMAND, position=position)
         send_command(self._control_socket, SCORE_COMMAND)
 
     def _handle_score(self, score_sheet):
         scores = [parse_score_entry(entry) for entry in score_sheet]
         self._score_sheet_panel.set_score_sheet(scores)
+
+    def _handle_deal_end(self, **kwargs):
+        self._handle_score(kwargs[SCORE_KEY])
 
     def _handle_state(self, state, allowed_calls, allowed_cards):
         position_in_turn = state.get(POSITION_IN_TURN_KEY)
@@ -507,10 +525,13 @@ class BridgeApp(App):
         self._info_panel.set_tricks_won(tricks_won)
 
     def _handle_update(self):
-        send_command(self._control_socket, STATE_COMMAND, self._position)
+        send_command(
+            self._control_socket, STATE_COMMAND, position=self._position)
 
-    def _handle_play(self, position=None, card=None):
-        if position and card:
+    def _handle_play(self, **kwargs):
+        if POSITION_KEY in kwargs and CARD_KEY in kwargs:
+            position = kwargs[POSITION_KEY]
+            card = kwargs[CARD_KEY]
             self._trick_panel.set_card(position, Card(**card))
         self._handle_update()
 

@@ -18,6 +18,12 @@
 namespace Bridge {
 namespace Main {
 
+namespace {
+
+const auto CARDS_COMMAND = std::string {"cards"};
+
+}
+
 using CardVector = std::vector<CardType>;
 
 using Engine::CardManager;
@@ -42,7 +48,8 @@ public:
     const std::array<MessageHandlerRange::value_type, 1> messageHandlers {{
         {
             DEAL_COMMAND,
-            Messaging::makeMessageHandler(*this, &Impl::deal, JsonSerializer {})
+            Messaging::makeMessageHandler(
+                *this, &Impl::deal, JsonSerializer {}, CARDS_COMMAND)
         },
     }};
 
@@ -88,7 +95,9 @@ void SimpleCardProtocol::Impl::handleNotify(
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
-                JsonSerializer {}, DEAL_COMMAND, cards);
+                JsonSerializer {},
+                DEAL_COMMAND,
+                std::make_pair(CARDS_COMMAND, cards));
         } else {
             expectingCards = true;
         }

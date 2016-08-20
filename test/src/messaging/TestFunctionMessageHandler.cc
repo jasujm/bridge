@@ -45,6 +45,8 @@ namespace {
 
 using namespace std::string_literals;
 const auto IDENTITY = "identity"s;
+const auto KEY1 = "key1"s;
+const auto KEY2 = "key2"s;
 const auto REPLY1 = "reply"s;
 const auto REPLY2 = 3;
 
@@ -125,9 +127,9 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {});
+        }, MockSerializationPolicy {}, KEY1);
     EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(makeReply(success)));
-    testHelper(*handler, {"param"}, success);
+    testHelper(*handler, {KEY1, "param"}, success);
 }
 
 TEST_P(FunctionMessageHandlerTest, testTwoParams)
@@ -137,9 +139,9 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         [this](const auto& identity, int param1, std::string param2)
         {
             return function.call2(identity, param1, param2);
-        }, MockSerializationPolicy {});
+        }, MockSerializationPolicy {}, KEY1, KEY2);
     EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(makeReply(success)));
-    testHelper(*handler, {"1", "param"}, success);
+    testHelper(*handler, {KEY1, "1", KEY2, "param"}, success);
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
@@ -148,19 +150,50 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, FailingPolicy {});
-    const auto params = std::vector<std::string> { "param" };
-    testHelper(*handler, {"param"}, false);
+        }, FailingPolicy {}, KEY1);
+    testHelper(*handler, {KEY1, "param"}, false);
 }
 
-TEST_F(FunctionMessageHandlerTest, testInvalidNumberOfParameters)
+TEST_F(FunctionMessageHandlerTest, testMissingParameters)
 {
-    auto handler = makeMessageHandler(
-        [this](const auto& identity)
+    auto handler = makeMessageHandler<std::string>(
+        [this](const auto& identity, std::string param)
         {
-            return function.call0(identity);
-        }, MockSerializationPolicy {});
+            return function.call1(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
+    testHelper(*handler, {}, false);
+}
+
+TEST_F(FunctionMessageHandlerTest, testExtraParameters)
+{
+    auto handler = makeMessageHandler<std::string>(
+        [this](const auto& identity, std::string param)
+        {
+            return function.call1(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
+    EXPECT_CALL(function, call1(IDENTITY, "param"))
+        .WillOnce(Return(makeReply(true)));
+    testHelper(*handler, {KEY1, "param", KEY2, "1"}, true);
+}
+
+TEST_F(FunctionMessageHandlerTest, testNoKey)
+{
+    auto handler = makeMessageHandler<std::string>(
+        [this](const auto& identity, std::string param)
+        {
+            return function.call1(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
     testHelper(*handler, {"invalid"}, false);
+}
+
+TEST_F(FunctionMessageHandlerTest, testInvalidKey)
+{
+    auto handler = makeMessageHandler<std::string>(
+        [this](const auto& identity, std::string param)
+        {
+            return function.call1(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
+    testHelper(*handler, {KEY2, "invalid"}, false);
 }
 
 TEST_F(FunctionMessageHandlerTest, testGetReply1)

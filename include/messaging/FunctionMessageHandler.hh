@@ -7,11 +7,13 @@
 #define MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 
 #include "messaging/MessageHandler.hh"
-#include "messaging/SerializationUtility.hh"
+#include "messaging/SerializationFailureException.hh"
 
+#include <boost/optional/optional.hpp>
 #include <boost/variant/variant.hpp>
 
-#include <iterator>
+#include <array>
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -123,6 +125,11 @@ inline auto failure()
  * }
  * \endcode
  *
+ * The string arguments are consumed in pairs consisting alternatively of keys
+ * and corresponding values. Values are serialized and passed to the function
+ * based on matching the keys to a predetermined list given as constructor
+ * argument when creating the handler.
+ *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
  * \tparam Args The types of the arguments used when calling the function
@@ -141,10 +148,26 @@ public:
      * \param function the function used to execute the action
      * \param serializer the SerializationPolicy object used to serialize and
      * deserialize strings
+     * \param keys the keys corresponding to the parameters
+     *
+     * \note The \p keys must appear in the parameter list of the constructor
+     * in the same order as the corresponding parameters appear in \p
+     * function.
      */
-    FunctionMessageHandler(Function function, SerializationPolicy serializer);
+    template<typename... Keys>
+    FunctionMessageHandler(
+        Function function, SerializationPolicy serializer, Keys... keys);
 
 private:
+
+    using ParamTuple = std::tuple<boost::optional<std::decay_t<Args>>...>;
+    using ParamIterator = typename ParameterRange::iterator;
+    using InitFunction =
+        bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
+    using InitFunctionMap = std::map<std::string, InitFunction>;
+
+    template<std::size_t N, typename... Args2>
+    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
 
     bool doHandle(
         const std::string& identity, ParameterRange params,
@@ -177,52 +200,80 @@ private:
         OutputSink& sink;
     };
 
-    template<std::size_t N, typename... Args2>
-    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
-
-    using ParamTuple = std::tuple<boost::optional<std::decay_t<Args>>...>;
-    using ParamIterator = typename ParameterRange::iterator;
+    template<typename... Keys, std::size_t... Ns>
+    auto makeInitFunctionMap(std::index_sequence<Ns...>, Keys&&... keys);
 
     template<std::size_t N>
-    bool internalInitParam(
-        ParamIterator first, ParamIterator last, ParamTuple&, std::true_type);
-
-    template<std::size_t N>
-    bool internalInitParam(
-        ParamIterator first, ParamIterator last, ParamTuple& out,
-        std::false_type);
-
-    template<std::size_t N>
-    bool internalInitParamHelper(
-        ParamIterator first, ParamIterator last, ParamTuple& out);
+    bool internalInitParam(const std::string&, ParamTuple& params);
 
     template<std::size_t... Ns>
     bool internalCallFunction(
         const std::string& identity, ParameterRange params, OutputSink& sink,
         std::index_sequence<Ns...>)
     {
+        auto first = params.begin();
+        const auto last = params.end();
         ParamTuple params_;
-        const auto success = internalInitParamHelper<0>(
-            params.begin(), params.end(), params_);
-        if (success) {
-            auto&& result = function(
-                identity, std::move(*std::get<Ns>(params_))...);
-            return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
+        while (first != last) {
+            const auto iter = initFunctions.find(*first++);
+            if (first == last) {
+                return false;
+            }
+            if (iter != initFunctions.end()) {
+                const auto memfn = iter->second;
+                const auto success = (this->*memfn)(*first, params_);
+                if (!success) {
+                    return false;
+                }
+            }
+            ++first;
         }
-        return false;
+        std::array<bool, sizeof...(Args)> all_initialized {{
+            bool(std::get<Ns>(params_))...}};
+        for (const auto initialized : all_initialized) {
+            if (!initialized) {
+                return false;
+            }
+        }
+        auto&& result = function(
+            identity, std::move(*std::get<Ns>(params_))...);
+        return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
     }
 
     Function function;
     SerializationPolicy serializer;
+    InitFunctionMap initFunctions;
 };
 
 template<typename Function, typename SerializationPolicy, typename... Args>
+template<typename... Keys, std::size_t... Ns>
+auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+makeInitFunctionMap(std::index_sequence<Ns...>, Keys&&... keys)
+{
+    return InitFunctionMap {
+        {
+            std::forward<Keys>(keys),
+            &FunctionMessageHandler::internalInitParam<Ns>
+        }...
+    };
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<typename... Keys>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 FunctionMessageHandler(
-    Function function, SerializationPolicy serializer) :
+    Function function, SerializationPolicy serializer,
+    Keys... keys) :
     function(std::move(function)),
-    serializer(std::move(serializer))
+    serializer(std::move(serializer)),
+    initFunctions {
+        makeInitFunctionMap(
+            std::index_sequence_for<Args...> {},
+            std::forward<Keys>(keys)...)}
 {
+    static_assert(
+        sizeof...(Args) == sizeof...(Keys),
+        "Number of keys must match the number of arguments");
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
@@ -287,43 +338,19 @@ ReplyVisitor::internalReplySuccessHelper(
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<std::size_t N>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-internalInitParam(
-    ParamIterator first, ParamIterator last, ParamTuple&, std::true_type)
+internalInitParam(const std::string& arg, ParamTuple& params)
 {
-    return first == last;
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-internalInitParam(
-    ParamIterator first, ParamIterator last, ParamTuple& out,
-    std::false_type)
-{
-    if (first != last) {
-        using ParamType =
-            typename std::tuple_element<N, ParamTuple>::type::value_type;
-        try {
-            std::get<N>(out).emplace(
-                serializer.template deserialize<ParamType>(*first));
-        }
-        catch (const SerializationFailureException&) {
-            return false;
-        }
-        return internalInitParamHelper<N+1>(std::next(first), last, out);
+    using ParamType =
+        typename std::tuple_element<N, ParamTuple>::type::value_type;
+    try {
+        std::get<N>(params).emplace(
+            serializer.template deserialize<ParamType>(arg));
+        return true;
     }
-    return false;
+    catch (const SerializationFailureException&) {
+        return false;
+    }
 }
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-internalInitParamHelper(
-    ParamIterator first, ParamIterator last, ParamTuple& out)
-{
-    return internalInitParam<N>(first, last, out, IsLast<N, Args...> {});
-}
-
 
 /** \brief Utility for wrapping function into message handler
  *
@@ -336,18 +363,23 @@ internalInitParamHelper(
  * \param function the function to be wrapped
  * \param serializer the serializer used for converting to/from argument and
  * return types of the function
+ * \param keys the keys corresponding to the parameters
  *
  * \return the constructed message handler
  *
  * \sa FunctionMessageHandler
  */
-template<typename... Args, typename Function, typename SerializationPolicy>
-auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
+template<
+    typename... Args, typename Function, typename SerializationPolicy,
+    typename... Keys>
+auto makeMessageHandler(
+    Function&& function, SerializationPolicy&& serializer, Keys&&... keys)
 {
     return std::make_unique<
         FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
         std::forward<Function>(function),
-        std::forward<SerializationPolicy>(serializer));
+        std::forward<SerializationPolicy>(serializer),
+        std::forward<Keys>(keys)...);
 }
 
 /** \brief Utility for wrapping member function call into message handler
@@ -358,6 +390,7 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
  * \param handler the handler object the method call is bound to \param memfn
  * pointer to the member function \param serializer the serializer used for
  * converting to/from argument and return types of the method call
+ * \param keys the keys corresponding to the parameters
  *
  * \return the constructed message handler
  *
@@ -365,10 +398,10 @@ auto makeMessageHandler(Function&& function, SerializationPolicy&& serializer)
  */
 template<
     typename Handler, typename Reply, typename String, typename... Args,
-    typename SerializationPolicy>
+    typename SerializationPolicy, typename... Keys>
 auto makeMessageHandler(
     Handler& handler, Reply (Handler::*memfn)(String, Args...),
-    SerializationPolicy&& serializer)
+    SerializationPolicy&& serializer, Keys&&... keys)
 {
     // Identity always comes as const std::string& from
     // FunctionMessageHandler::doHandle so no need to move/forward
@@ -380,7 +413,9 @@ auto makeMessageHandler(
             const std::string& identity, std::decay_t<Args>&&... args)
         {
             return (handler.*memfn)(identity, std::move(args)...);
-        }, std::forward<SerializationPolicy>(serializer));
+        },
+        std::forward<SerializationPolicy>(serializer),
+        std::forward<Keys>(keys)...);
 }
 
 }

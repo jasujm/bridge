@@ -13,25 +13,99 @@
 
 #include "messaging/MessageUtility.hh"
 #include "messaging/SerializationUtility.hh"
+#include "Utility.hh"
 
-#include <array>
-#include <string>
-#include <type_traits>
+#include <boost/function_output_iterator.hpp>
+
+#include <utility>
 
 namespace Bridge {
 namespace Messaging {
 
+/// \cond DOXYGEN_IGNORE
+// These are helpers for implementing makeCommand()
+
+namespace Impl {
+
+template<typename OutputIterator, typename SerializationPolicy>
+OutputIterator makeCommandHelper(OutputIterator out, SerializationPolicy&&)
+{
+    return out;
+}
+
+template<
+    typename OutputIterator, typename SerializationPolicy,
+    typename Head, typename... Rest>
+OutputIterator makeCommandHelper(
+    OutputIterator out, SerializationPolicy&& serializer,
+    Head&& head, Rest&&... rest)
+{
+    using std::get;
+    *out++ = get<0>(std::forward<Head>(head));
+    *out++ = serializer.serialize(get<1>(std::forward<Head>(head)));
+    return makeCommandHelper(
+        out,
+        std::forward<SerializationPolicy>(serializer),
+        std::forward<Rest>(rest)...);
+}
+
+}
+
+/// \endcond DOXYGEN_IGNORE
+
+/** \brief Build command from parameters
+ *
+ * Command is defined as command string followed by parameters consisting of
+ * key–value pairs. This is helper function for building such command
+ * sequences from the parameters. The parameters are serialized using \p
+ * serializer and output to \p out.
+ *
+ * For example, with \p serializer being a serializer that does lexical
+ * casting:
+ *
+ * \code{.cc}
+ * using namespace std::string_literals;
+ * auto parts = std::vector<std::string> {};
+ * makeCommand(
+ *     std::back_inserter(parts), serializer,
+ *     "command"s, std::make_pair("argument"s, 123));
+ * \endcode
+ *
+ * \p parts contains strings “command”, “argument” and “123”.
+ *
+ * \param out an output iterator the parts are written to
+ * \param serializer the serialization policy, see \ref serializationpolicy
+ * \param command the command sent as the first part of the message
+ * \param params the key–value pairs making the subsequent parts of the message
+ *
+ * \return \p out
+ */
+template<
+    typename SerializationPolicy, typename CommandString, typename... Params,
+    typename OutputIterator>
+OutputIterator makeCommand(
+    OutputIterator out,
+    SerializationPolicy&& serializer,
+    CommandString&& command,
+    Params&&... params)
+{
+    *out++ = command;
+    return Impl::makeCommandHelper(
+        std::move(out), std::forward<SerializationPolicy>(serializer),
+        std::forward<Params>(params)...);
+}
+
 /** \brief Send command through ZeroMQ socket
  *
- * This function serializes all parameters of the command using \p
- * serializer. It then sends multipart message consisting of \p command and
- * all its serialized \p params using \p socket.
+ * This is a convenience function for building a command and sending it
+ * through ZeroMQ socket. The mechanism is the same as in makeCommand() expect
+ * instead of outputting the parts to an iterator, they are sent through \p
+ * socket (prepended by empty frame if it is dealer or router).
  *
  * \param socket the socket to send the command to
- * \param serializer serialization policy for the command parameters
+ * \param serializer the serialization policy, see \ref serializationpolicy
  * \param command the command sent as the first part of the message
- * \param params the parameters serialized and sent as the subsequent parts of
- * the message
+ * \param params the key–value pairs making the subsequent parts of the message
  *
  * \sa \ref serializationpolicy
  */
@@ -43,33 +117,18 @@ void sendCommand(
     CommandString&& command,
     Params&&... params)
 {
-    using ParamString = std::common_type_t<
-        decltype(serializer.serialize(params))...>;
-    std::array<ParamString, sizeof...(params)> params_;
-    serializeAll(
-        params_.begin(), serializer,
+    auto count = 0u;
+    sendEmptyFrameIfNecessary(socket);
+    makeCommand(
+        boost::make_function_output_iterator(
+            [&socket, &count](const auto& str)
+            {
+                sendMessage(socket, str, count < 2 * sizeof...(params));
+                ++count;
+            }),
+        std::forward<SerializationPolicy>(serializer),
+        std::forward<CommandString>(command),
         std::forward<Params>(params)...);
-    sendEmptyFrameIfNecessary(socket);
-    sendMessage(socket, command, true);
-    sendMessage(socket, params_.begin(), params_.end());
-}
-
-/** \brief Send command throught ZeroMQ socket
- *
- * \note This overload is for commands without parameters, so
- * SerializationPolicy is ignored.
- *
- * \param socket the socket to send the command to
- * \param command the command sent
- */
-template<typename SerializationPolicy, typename CommandString>
-void sendCommand(
-    zmq::socket_t& socket,
-    SerializationPolicy&&,
-    CommandString&& command)
-{
-    sendEmptyFrameIfNecessary(socket);
-    sendMessage(socket, command);
 }
 
 }

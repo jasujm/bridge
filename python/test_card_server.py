@@ -21,6 +21,9 @@ DRAW_COMMAND = b'draw'
 REVEAL_COMMAND = b'reveal'
 REVEAL_ALL_COMMAND = b'revealall'
 TERMINATE_COMMAND = b'terminate'
+PEERS_COMMAND = b'peers'
+CARDS_COMMAND = b'cards'
+ID_COMMAND = b'id'
 
 REPLY_SUCCESS = [b'success']
 PEERS = [
@@ -53,6 +56,7 @@ for (socket, peer) in zip(sockets, PEERS):
     entries = [get_entry(peer, peer2) for peer2 in PEERS]
     socket.connect(peer.control)
     socket.send(INIT_COMMAND, flags=zmq.SNDMORE)
+    socket.send(PEERS_COMMAND, flags=zmq.SNDMORE)
     socket.send_json(entries)
 
 print("Receiving reply...")
@@ -76,10 +80,13 @@ for (i, socket) in enumerate(sockets):
     for j in range(len(sockets)):
         if i == j:
             socket.send(DRAW_COMMAND, flags=zmq.SNDMORE)
+            socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(CARD_RANGE[j])
         else:
             socket.send(REVEAL_COMMAND, flags=zmq.SNDMORE)
+            socket.send(ID_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(PEERS[j].identity, flags=zmq.SNDMORE)
+            socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(CARD_RANGE[j])
 
 print("Receiving reply...")
@@ -104,6 +111,7 @@ print("Revealing dummy...")
 
 for socket in sockets:
     socket.send(REVEAL_ALL_COMMAND, flags=zmq.SNDMORE)
+    socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
     socket.send_json(CARD_RANGE[0])
 
 print("Receiving reply...")

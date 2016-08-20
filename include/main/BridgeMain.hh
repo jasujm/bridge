@@ -44,9 +44,10 @@
  * \section bridgeprotocolcontrolmessage Control messages
  *
  * All ZMTP messages sent to the control socket of a peer MUST consist of an
- * empty frame, the command frame and command dependent number of argument
- * frames. The command part MUST be a string of ASCII lower case letters
- * a—z. The arguments MUST be JSON data structures encoded in UTF‐8.
+ * empty frame, the command frame and command dependent arguments consisting
+ * of alternating key and value frames. The command and argument key parts
+ * MUST be a string of ASCII lower case letters a—z. The argument values MUST
+ * be JSON data structures encoded in UTF‐8.
  *
  * \b Example. A valid command to play seven of diamonds from the south hand
  * would consist of the following four frames:
@@ -55,8 +56,13 @@
  * |---|--------------------------------|------------------------------|
  * | 1 |                                | Empty frame                  |
  * | 2 | play                           | No quotes (not JSON)         |
- * | 3 | "south"                        | Quotes required (valid JSON) |
- * | 4 | {"rank":"7","suit":"diamonds"} |                              |
+ * | 3 | position                       | Key for position argument    |
+ * | 4 | "south"                        | Quotes required (valid JSON) |
+ * | 5 | card                           | Key for card argument        |
+ * | 6 | {"rank":"7","suit":"diamonds"} |                              |
+ *
+ * Commands with extraneous arguments MUST be accepted. Unrecognized arguments
+ * SHOULD be ignored.
  *
  * In the following sections when describing the commands, the empty frame and
  * the serialization are ignored. Links to the pages describing the JSON
@@ -79,6 +85,9 @@
  * | 2 | success                        |                              |
  * | 3 | play                           |                              |
  *
+ * @todo Replies still have positional arguments and now key–value
+ * arguments. That should be changed.
+ *
  * The peer MUST reply to every command that has valid format, including the
  * number and representation of the arguments.
  *
@@ -95,13 +104,14 @@
  * structure of the commands sent to the control socket, except that they MUST
  * NOT be prepended by the empty frame.
  *
- * \b Example. A notification about score would consist of the following two
+ * \b Example. A notification about deal ending would consist of the following
  * frames:
  *
  * | N | Content                                    | Notes
- * |---|--------------------------------------------|---------
- * | 1 | score                                      | Not JSON
- * | 2 | [{"partnership":"northSouth","score":420}] | JSON
+ * |---|--------------------------------------------|-----------------------
+ * | 1 | dealend                                    | Event type
+ * | 2 | score                                      | Argument key
+ * | 3 | [{"partnership":"northSouth","score":420}] | Argument value (JSON)
  *
  * \section bridgeprotocolcontrolcommands Control commands
  *
@@ -109,7 +119,8 @@
  *
  * - \b Command: bridgehlo
  * - \b Parameters:
- *   1. \e array of \e positions, i.e. "north", "east", "south", "west"
+ *   - \e positions: an array consisting of positions
+       i.e. "north", "east", "south", "west"
  * - \b Reply: \e none
  *
  * Each peer MUST send the bridgehlo command to each other peer before sending
@@ -136,7 +147,7 @@
  *
  * - \b Command: state
  * - \b Parameters:
- *   1. \e position
+ *   - \e position
  * - \b Reply:
  *   1. \e state of the deal, see \ref jsondealstate
  *   2. \e array of allowed \e calls to make, if any, \ref jsoncall
@@ -157,7 +168,7 @@
  *
  * - \b Command: deal
  * - \b Parameters:
- *   1. \e array of \p cards, see \ref jsoncardtype
+ *   - cards: an array consisting of cards, see \ref jsoncardtype
  * - \b Reply: \e none
  *
  * The leader, i.e. the peer controlling the north position, MUST send this
@@ -174,8 +185,8 @@
  *
  * - \b Command: call
  * - \b Parameters:
- *   1. \e position
- *   2. \e call, \ref jsoncall
+ *   - \e position
+ *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
  *
  * Peers and clients use this command to announce that they want to make the
@@ -191,8 +202,8 @@
  *
  * - \b Command: play
  * - \b Parameters:
- *   1. \e position
- *   2. \e card, \ref jsoncardtype
+ *   - \e position
+ *   - \e card: see \ref jsoncardtype
  * - \b Reply: \e none
  *
  * Peers and clients use this command to announce that they want to play the
@@ -236,19 +247,19 @@
  *
  * - \b Command: play
  * - \b Parameters:
- *   1. \e position of the hand from which the card is played
- *   2. \e card played, \ref jsoncardtype
+ *   - \e position
+ *   - \e card: see \ref jsoncardtype
  *
  * This event is published whenever a card is played.
  *
- * \subsection bridgeprotocoleventscore score
+ * \subsection bridgeprotocoleventdealend dealend
  *
- * - \b Command: score
+ * - \b Command: dealend
  * - \b Parameters:
- *   1. \e scoresheet, see \ref jsonduplicatescoresheet
+ *   - \e score: see \ref jsonduplicatescoresheet
  *
- * This event is published whenever a deal ends is played. The parameter is
- * the scoresheet of the game so far.
+ * This event is published whenever a deal ends. The parameter is the
+ * scoresheet of the game so far.
  */
 
 #ifndef MAIN_BRIDGEMAIN_HH_
@@ -337,6 +348,12 @@ public:
      * \sa \ref bridgeprotocolcontrolscore
      */
     static const std::string SCORE_COMMAND;
+
+    /** \brief Event for announcing that deal has ended
+     *
+     * \sa \ref bridgeprotocoleventdealend
+     */
+    static const std::string DEAL_END_COMMAND;
 
     /** \brief Create Bridge backend
      *
