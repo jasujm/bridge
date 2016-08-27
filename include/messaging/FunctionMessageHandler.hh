@@ -160,7 +160,32 @@ public:
 
 private:
 
-    using ParamTuple = std::tuple<boost::optional<std::decay_t<Args>>...>;
+    bool doHandle(
+        const std::string& identity, ParameterRange params,
+        OutputSink sink) override;
+
+    template<typename T>
+    struct ParamTraitsImpl {
+        using WrappedType = boost::optional<T>;
+        using DeserializedType = T;
+        static void initialize(DeserializedType&& param, WrappedType& wrapper)
+        {
+            wrapper.emplace(std::move(param));
+        }
+        static bool isValid(const WrappedType& wrapper)
+        {
+            return bool(wrapper);
+        }
+        static decltype(auto) unwrap(WrappedType& wrapper)
+        {
+            return std::move(*wrapper);
+        }
+    };
+
+    template<typename T>
+    using ParamTraits = ParamTraitsImpl<std::decay_t<T>>;
+
+    using ParamTuple = std::tuple<typename ParamTraits<Args>::WrappedType...>;
     using ParamIterator = typename ParameterRange::iterator;
     using InitFunction =
         bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
@@ -168,10 +193,6 @@ private:
 
     template<std::size_t N, typename... Args2>
     using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
-
-    bool doHandle(
-        const std::string& identity, ParameterRange params,
-        OutputSink sink) override;
 
     class ReplyVisitor {
     public:
@@ -204,7 +225,7 @@ private:
     auto makeInitFunctionMap(std::index_sequence<Ns...>, Keys&&... keys);
 
     template<std::size_t N>
-    bool internalInitParam(const std::string&, ParamTuple& params);
+    bool internalInitParam(const std::string& arg, ParamTuple& params);
 
     template<std::size_t... Ns>
     bool internalCallFunction(
@@ -229,14 +250,15 @@ private:
             ++first;
         }
         std::array<bool, sizeof...(Args)> all_initialized {{
-            bool(std::get<Ns>(params_))...}};
+            ParamTraits<Args>::isValid(std::get<Ns>(params_))...}};
         for (const auto initialized : all_initialized) {
             if (!initialized) {
                 return false;
             }
         }
         auto&& result = function(
-            identity, std::move(*std::get<Ns>(params_))...);
+            identity,
+            ParamTraits<Args>::unwrap(std::get<Ns>(params_))...);
         return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
     }
 
@@ -340,11 +362,11 @@ template<std::size_t N>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 internalInitParam(const std::string& arg, ParamTuple& params)
 {
-    using ParamType =
-        typename std::tuple_element<N, ParamTuple>::type::value_type;
+    using ArgType = typename std::tuple_element<N, std::tuple<Args...>>::type;
+    using DeserializedType = typename ParamTraits<ArgType>::DeserializedType;
     try {
-        std::get<N>(params).emplace(
-            serializer.template deserialize<ParamType>(arg));
+        auto&& param = serializer.template deserialize<DeserializedType>(arg);
+        ParamTraits<ArgType>::initialize(std::move(param), std::get<N>(params));
         return true;
     }
     catch (const SerializationFailureException&) {
