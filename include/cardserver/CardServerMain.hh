@@ -54,8 +54,6 @@ public:
     ~CardServerMain();
 
     /** \brief Run the card server
-     *
-     * This method blocks until terminated using \ref TERMINATE_COMMAND.
      */
     void run();
 
