@@ -2,6 +2,8 @@
 #include "messaging/SerializationFailureException.hh"
 #include "MockSerializationPolicy.hh"
 
+#include <boost/optional/optional_io.hpp>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -73,6 +75,7 @@ public:
     MOCK_METHOD1(call0, Reply<>(std::string));
     MOCK_METHOD2(call1, Reply<>(std::string, std::string));
     MOCK_METHOD3(call2, Reply<>(std::string, int, std::string));
+    MOCK_METHOD2(call_opt, Reply<>(std::string, boost::optional<int>));
 };
 
 class FailingPolicy {
@@ -194,6 +197,30 @@ TEST_F(FunctionMessageHandlerTest, testInvalidKey)
             return function.call1(identity, param);
         }, MockSerializationPolicy {}, KEY1);
     testHelper(*handler, {KEY2, "invalid"}, false);
+}
+
+TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
+{
+    auto handler = makeMessageHandler<boost::optional<int>>(
+        [this](const auto& identity, boost::optional<int> param)
+        {
+            return function.call_opt(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
+    EXPECT_CALL(function, call_opt(IDENTITY, boost::make_optional(123)))
+        .WillOnce(Return(makeReply(true)));
+    testHelper(*handler, {KEY1, "123"}, true);
+}
+
+TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
+{
+    auto handler = makeMessageHandler<boost::optional<int>>(
+        [this](const auto& identity, boost::optional<int> param)
+        {
+            return function.call_opt(identity, param);
+        }, MockSerializationPolicy {}, KEY1);
+    EXPECT_CALL(function, call_opt(IDENTITY, boost::optional<int> {}))
+        .WillOnce(Return(makeReply(true)));
+    testHelper(*handler, {}, true);
 }
 
 TEST_F(FunctionMessageHandlerTest, testGetReply1)

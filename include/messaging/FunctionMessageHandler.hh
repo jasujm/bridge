@@ -130,6 +130,12 @@ inline auto failure()
  * based on matching the keys to a predetermined list given as constructor
  * argument when creating the handler.
  *
+ * FunctionMessageHandler supports optional arguments. If any of the \p Args
+ * decays into \c boost::optional<T> for some type \c T, the corresponding
+ * key–value pair is not required. If it is present, the optional contains
+ * value obtained by deserializing \c T (and not \c boost::optional<T>
+ * itself).
+ *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
  * \tparam Args The types of the arguments used when calling the function
@@ -165,13 +171,20 @@ private:
         OutputSink sink) override;
 
     template<typename T>
-    struct ParamTraitsImpl {
+    struct ParamTraitsImplBase {
         using WrappedType = boost::optional<T>;
         using DeserializedType = T;
         static void initialize(DeserializedType&& param, WrappedType& wrapper)
         {
             wrapper.emplace(std::move(param));
         }
+    };
+
+    template<typename T>
+    struct ParamTraitsImpl : public ParamTraitsImplBase<T> {
+        using Base = ParamTraitsImplBase<T>;
+        using WrappedType = typename Base::WrappedType;
+        using DeserializedType = typename Base::DeserializedType;
         static bool isValid(const WrappedType& wrapper)
         {
             return bool(wrapper);
@@ -179,6 +192,21 @@ private:
         static decltype(auto) unwrap(WrappedType& wrapper)
         {
             return std::move(*wrapper);
+        }
+    };
+
+    template<typename T>
+    struct ParamTraitsImpl<boost::optional<T>> : public ParamTraitsImplBase<T> {
+        using Base = ParamTraitsImplBase<T>;
+        using WrappedType = typename Base::WrappedType;
+        using DeserializedType = typename Base::DeserializedType;
+        static bool isValid(const WrappedType& wrapper)
+        {
+            return true;
+        }
+        static decltype(auto) unwrap(WrappedType& wrapper)
+        {
+            return std::move(wrapper);
         }
     };
 
