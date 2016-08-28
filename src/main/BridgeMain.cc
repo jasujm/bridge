@@ -113,14 +113,19 @@ private:
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
 
+    const Player* getPlayerFor(
+        const std::string& identity, const boost::optional<Position>& position);
+
     Reply<Position> hello(const std::string& indentity);
     Reply<> peer(const std::string& identity, const PositionVector& positions);
     Reply<DealState, CallVector, CardVector> state(
-        const std::string& identity, Position position);
+        const std::string& identity, const boost::optional<Position>& position);
     Reply<> call(
-        const std::string& identity, Position position, const Call& call);
+        const std::string& identity, const boost::optional<Position>& position,
+        const Call& call);
     Reply<> play(
-        const std::string& identity, Position position, const CardType& card);
+        const std::string& identity, const boost::optional<Position>& position,
+        const CardType& card);
     Reply<DuplicateScoreSheet> score(const std::string& identity);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
@@ -331,6 +336,19 @@ void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
     }
 }
 
+const Player* BridgeMain::Impl::getPlayerFor(
+    const std::string& identity, const boost::optional<Position>& position)
+{
+    if (position) {
+        const auto& player = engine.getPlayer(*position);
+        if (peerClientControl.isAllowedToAct(identity, player)) {
+            return &player;
+        }
+        return nullptr;
+    }
+    return peerClientControl.getPlayer(identity);
+}
+
 Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 {
     if (const auto player = peerClientControl.addClient(identity)) {
@@ -354,38 +372,32 @@ Reply<> BridgeMain::Impl::peer(
 }
 
 Reply<DealState, CallVector, CardVector> BridgeMain::Impl::state(
-    const std::string& identity, const Position position)
+    const std::string& identity, const boost::optional<Position>& position)
 {
-    const auto& player = engine.getPlayer(position);
-    if (!peerClientControl.isAllowedToAct(identity, player)) {
-        return failure();
-    }
-
-    const auto& deal_state = makeDealState(engine, player);
-    auto allowed_calls = CallVector {};
-    auto allowed_cards = CardVector {};
-    if (engine.getPlayerInTurn() == &player) {
-        if (const auto bidding = engine.getBidding()) {
-            getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
+    if (const auto player = getPlayerFor(identity, position)) {
+        const auto& deal_state = makeDealState(engine, *player);
+        auto allowed_calls = CallVector {};
+        auto allowed_cards = CardVector {};
+        if (engine.getPlayerInTurn() == player) {
+            if (const auto bidding = engine.getBidding()) {
+                getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
+            }
+            if (const auto trick = engine.getCurrentTrick()) {
+                getAllowedCards(*trick, std::back_inserter(allowed_cards));
+            }
         }
-        if (const auto trick = engine.getCurrentTrick()) {
-            getAllowedCards(*trick, std::back_inserter(allowed_cards));
-        }
+        return success(
+            deal_state, std::move(allowed_calls), std::move(allowed_cards));
     }
-    return success(
-        deal_state, std::move(allowed_calls), std::move(allowed_cards));
+    return failure();
 }
 
 Reply<> BridgeMain::Impl::call(
-    const std::string& identity, const Position position, const Call& call)
+    const std::string& identity, const boost::optional<Position>& position,
+    const Call& call)
 {
-    const auto& player = engine.getPlayer(position);
-    if (!peerClientControl.isAllowedToAct(identity, player)) {
-        return failure();
-    }
-
-    if (peerClientControl.isAllowedToAct(identity, player)) {
-        if (engine.call(player, call)) {
+    if (const auto player = getPlayerFor(identity, position)) {
+        if (engine.call(*player, call)) {
             return success();
         }
     }
@@ -393,17 +405,13 @@ Reply<> BridgeMain::Impl::call(
 }
 
 Reply<> BridgeMain::Impl::play(
-    const std::string& identity, const Position position, const CardType& card)
+    const std::string& identity, const boost::optional<Position>& position,
+    const CardType& card)
 {
-    const auto& player = engine.getPlayer(position);
-    if (!peerClientControl.isAllowedToAct(identity, player)) {
-        return failure();
-    }
-
-    if (peerClientControl.isAllowedToAct(identity, player)) {
+    if (const auto player = getPlayerFor(identity, position)) {
         if (const auto hand = engine.getHandInTurn()) {
             if (const auto n_card = findFromHand(*hand, card)) {
-                if (engine.play(player, *hand, *n_card)) {
+                if (engine.play(*player, *hand, *n_card)) {
                     return success();
                 }
             }

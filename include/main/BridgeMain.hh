@@ -147,7 +147,7 @@
  *
  * - \b Command: state
  * - \b Parameters:
- *   - \e position
+ *   - \e position (optional)
  * - \b Reply:
  *   1. \e state of the deal, see \ref jsondealstate
  *   2. \e array of allowed \e calls to make, if any, \ref jsoncall
@@ -163,6 +163,10 @@
  * If the deal is in the playing phase and the player in the position has
  * turn, the third reply parameter MUST be the set of cards allowed to be
  * played by the player.
+ *
+ * The position argument is optional. If omitted, the position of the unique
+ * player controlled by the client or the peer is implied. If the peer
+ * controls several players, the command MUST fail.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -185,7 +189,7 @@
  *
  * - \b Command: call
  * - \b Parameters:
- *   - \e position
+ *   - \e position (optional)
  *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
  *
@@ -198,11 +202,15 @@
  * client controls the player in the position, the player in the position has
  * turn and the call is legal.
  *
+ * The position argument is optional. If omitted, the position of the unique
+ * player controlled by the client or the peer is implied. If the peer
+ * controls several players, the command MUST fail.
+ *
  * \subsection bridgeprotocolcontrolplay play
  *
  * - \b Command: play
  * - \b Parameters:
- *   - \e position
+ *   - \e position (optional)
  *   - \e card: see \ref jsoncardtype
  * - \b Reply: \e none
  *
@@ -215,6 +223,10 @@
  * client controls the player in the position (or if position is the dummy,
  * controls the declarer), the player in the position has turn and it is legal
  * to play the card.
+ *
+ * The position argument is optional. If omitted, the position of the unique
+ * player controlled by the client or the peer is implied. If the peer
+ * controls several players, the command MUST fail.
  *
  * \subsection bridgeprotocolcontrolscore score
  *

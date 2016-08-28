@@ -145,7 +145,6 @@ class CallPanel(GridLayout):
     def __init__(self, socket, **kwargs):
         super(CallPanel, self).__init__(**kwargs)
         self.cols = 5
-        self._player_position = None
         self._socket = socket
         self._buttons = []
         for level in range(1, 8):
@@ -155,9 +154,6 @@ class CallPanel(GridLayout):
         self._add_button(PASS, Call(PASS_TAG, None))
         self._add_button(DOUBLE, Call(DBL_TAG, None))
         self._add_button(REDOUBLE, Call(RDBL_TAG, None))
-
-    def set_player_position(self, position):
-        self._player_position = position
 
     def set_allowed_calls(self, allowed_calls):
         for button in self._buttons:
@@ -175,8 +171,7 @@ class CallPanel(GridLayout):
         if button.call.bid:
             call[BID_KEY] = button.call.bid._asdict()
         send_command(
-            self._socket, CALL_COMMAND,
-            position=self._player_position, call=call)
+            self._socket, CALL_COMMAND, call=call)
 
 
 class BiddingPanel(GridLayout):
@@ -217,7 +212,6 @@ class HandPanel(BoxLayout):
         super(HandPanel, self).__init__(**kwargs)
         self._socket = socket
         self.orientation = "vertical"
-        self._player_position = None
         self._buttons = {}
         self._position_label = Label(text=POSITION_MAP[position])
         for suit_tag in SUIT_TAGS:
@@ -228,9 +222,6 @@ class HandPanel(BoxLayout):
                 button.bind(on_press=self._make_play)
                 self._buttons[(rank_tag, suit_tag)] = button
         self.set_hand([], [])
-
-    def set_player_position(self, position):
-        self._player_position = position
         
     def set_in_turn(self, in_turn):
         self._position_label.bold = in_turn
@@ -261,8 +252,7 @@ class HandPanel(BoxLayout):
     def _make_play(self, button):
         card = {RANK_KEY: button.card_rank, SUIT_KEY: button.card_suit}
         send_command(
-            self._socket, PLAY_COMMAND,
-            position=self._player_position, card=card)
+            self._socket, PLAY_COMMAND, card=card)
 
 
 class TrickPanel(GridLayout):
@@ -356,10 +346,6 @@ class PlayAreaPanel(GridLayout):
             else:
                 self.add_widget(Label())
 
-    def set_player_position(self, position):
-        for hand in self._hands.values():
-            hand.set_player_position(position)
-
     def set_position_in_turn(self, position):
         for (tag, hand) in self._hands.items():
             hand.set_in_turn(tag == position)
@@ -417,7 +403,6 @@ class ScoreSheetPanel(GridLayout):
 class BridgeApp(App):
 
     def build(self):
-        self._position = None
         # Socket
         zmqctx = zmq.Context.instance()
         endpoint_iterator = endpoints(sys.argv[1])
@@ -485,10 +470,7 @@ class BridgeApp(App):
                     self._command_handlers[command](*args, **kwargs)
 
     def _handle_hello(self, position):
-        self._position = position
-        self._call_panel.set_player_position(position)
-        self._play_area_panel.set_player_position(position)
-        send_command(self._control_socket, STATE_COMMAND, position=position)
+        send_command(self._control_socket, STATE_COMMAND)
         send_command(self._control_socket, SCORE_COMMAND)
 
     def _handle_score(self, score_sheet):
@@ -526,7 +508,7 @@ class BridgeApp(App):
 
     def _handle_update(self):
         send_command(
-            self._control_socket, STATE_COMMAND, position=self._position)
+            self._control_socket, STATE_COMMAND)
 
     def _handle_play(self, **kwargs):
         if POSITION_KEY in kwargs and CARD_KEY in kwargs:
