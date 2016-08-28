@@ -74,6 +74,16 @@ public:
     bool addPeer(
         std::string identity, PlayerIterator first, PlayerIterator last);
 
+    /** \brief Get the unique player controlled by peer or client
+     *
+     * \param identity the identifier of the client or the peer
+     *
+     * \return pointer to a player uniquely controlled by a peer or a client
+     * with \p identity. If \p identity is unrecognized or is a peer
+     * controlling multiple players, nullptr is returned.
+     */
+    const Player* getPlayer(const std::string& identity);
+
     /** \brief Determine if a given peer or client controls a player
      *
      * \param identity the identifier of the client or peer
@@ -122,6 +132,7 @@ private:
 
     using PeerClient = boost::variant<Peer, Client>;
 
+    class GetPlayerVisitor;
     class IsAllowedToActVisitor;
 
     template<typename PlayerIterator>

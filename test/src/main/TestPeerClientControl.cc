@@ -102,6 +102,31 @@ TEST_F(PeerClientControlTest, testTwoPeersCannotHaveSameIdentity)
             PEER1, std::next(players.begin(), 3), players.end()));
 }
 
+TEST_F(PeerClientControlTest, testGetPlayerUnrecognizedIdentity)
+{
+    EXPECT_FALSE(peerClientControl.getPlayer(CLIENT1));
+}
+
+TEST_F(PeerClientControlTest, testGetPlayerClient)
+{
+    addClients();
+    EXPECT_EQ(&players[0], peerClientControl.getPlayer(CLIENT1));
+    EXPECT_EQ(&players[1], peerClientControl.getPlayer(CLIENT2));
+}
+
+TEST_F(PeerClientControlTest, testGetPlayerPeerWithSinglePlayer)
+{
+    peerClientControl.addPeer(
+        PEER1, std::next(players.begin(), 3), players.end());
+    EXPECT_EQ(&players[3], peerClientControl.getPlayer(PEER1));
+}
+
+TEST_F(PeerClientControlTest, testGetPlayerPeerWithMultiplerPlayers)
+{
+    addPeer();
+    EXPECT_FALSE(peerClientControl.getPlayer(PEER1));
+}
+
 TEST_F(PeerClientControlTest, testPeerIsAllowedToActForPlayersItControls)
 {
     addPeer();

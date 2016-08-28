@@ -10,6 +10,37 @@
 namespace Bridge {
 namespace Main {
 
+namespace {
+
+template<typename Map, typename Key, typename Function>
+auto callIfFound(Map&& map, const Key& key, Function&& func)
+{
+    const auto entry = map.find(key);
+    if (entry != map.end()) {
+        return func(entry->second);
+    }
+    return decltype(func(entry->second)) {};
+}
+
+}
+
+class PeerClientControl::GetPlayerVisitor {
+public:
+    const Player* operator()(const Peer& peer) const
+    {
+        const auto& players = peer.players;
+        if (players.size() == 1) {
+            return &peer.players.front().get();
+        }
+        return nullptr;
+    }
+
+    const Player* operator()(const Client& client) const
+    {
+        return &client.player.get();
+    }
+};
+
 class PeerClientControl::IsAllowedToActVisitor {
 public:
     IsAllowedToActVisitor(const Player& player) :
@@ -52,15 +83,24 @@ const Player* PeerClientControl::addClient(std::string identity)
     return nullptr;
 }
 
+const Player* PeerClientControl::getPlayer(const std::string& identity)
+{
+    return callIfFound(
+        others, identity,
+        [](const auto& peer_client) {
+            return boost::apply_visitor(GetPlayerVisitor {}, peer_client);
+        });
+}
+
 bool PeerClientControl::isAllowedToAct(
     const std::string& identity, const Player& player) const
 {
-    const auto entry = others.find(identity);
-    if (entry != others.end()) {
-        return boost::apply_visitor(
-            IsAllowedToActVisitor {player}, entry->second);
-    }
-    return false;
+    return callIfFound(
+        others, identity,
+        [&player](const auto& peer_client) {
+            return boost::apply_visitor(
+                IsAllowedToActVisitor {player}, peer_client);
+        });
 }
 
 bool PeerClientControl::isSelfControlledPlayer(const Player& player) const
