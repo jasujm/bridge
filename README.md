@@ -52,23 +52,25 @@ To build and run unit tests for the backend
 
 Run the backend (server) located in the top level build directory
 
-    /the/build/directory/bridge endpoint positions peers
+    $ /the/build/directory/bridge --bind=endpoint --positions=positions \
+    >   --connect=peer‐endpoints
 
 The backend opens two sockets into two consequtive ports. The first one is
 used to receive commands from the frontend and peers. The second one is for
 publishing events to the clients.
 
-Arguments:
+Arguments to the options are:
 
-    endpoint   The endpoint for control socket. The endpoint for event socket
+    bind       The endpoint for control socket. The endpoint for event socket
                has the same interface but one greater port, i.e. if the
                endpoint for control socket is tcp://*:5555, the endpoint
                for event socket is tcp://*:5556.
     positions  JSON list containing positions the backend instance controls.
-               E.g. ["north"]
-    peers      JSON list containing ZMQ endpoints for the control sockects of
+               E.g. ["north"]. If omitted, all positions are controlled.
+    connect    JSON list containing ZMQ endpoints for the control sockects of
                the peers the backend connects to. E.g.
-               ["tcp://peer1.example.com:5555", "tcp://peer2.example.com:5555"]
+               ["tcp://peer1.example.com:5555", "tcp://peer2.example.com:5555"].
+               If omitted, the backend connects to no peers.
 
 When connecting peers to each other, no position can be controlled by two
 peers and each position must be controlled by some peer.
@@ -86,18 +88,17 @@ By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server
 model one backend controls all positions and all frontends connect to it.
 
-    $ /the/build/directory/bridge tcp://*:5555 \
-    > '["north","east","south","west"]' '[]'
+    $ /the/build/directory/bridge --bind=tcp://*:5555
     
     $ for n in {1..4}; do
-    > /the/source/directory/python/bridge_gui.py tcp://server.example.com:5555 &
+    >   /the/source/directory/python/bridge_gui.py tcp://example.com:5555 &
     > done
 
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ /the/build/directory/bridge tcp://*5555 \
-    > '["north"]' '["tcp://peer1.example.com:5555",…]' &
+    $ /the/build/directory/bridge --bind=tcp://*5555 --positions='["north"]' \
+    >   --connect='["tcp://peer1.example.com:5555",…]' &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
 
 One seat is assined to each frontend. Players and their cards are shown in the

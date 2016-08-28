@@ -7,10 +7,13 @@
 
 #include <zmq.hpp>
 
+#include <array>
 #include <atomic>
 #include <cassert>
 #include <cstdlib>
 #include <csignal>
+#include <getopt.h>
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,12 +36,13 @@ struct BridgeApp {
 public:
 
     BridgeApp(
+        zmq::context_t& zmqctx,
         std::string baseEndpoint,
         PositionVector positions,
-        StringVector peers) :
+        StringVector peerEndpoints) :
         app {
             zmqctx, std::move(baseEndpoint),
-            std::move(positions), std::move(peers)}
+            std::move(positions), std::move(peerEndpoints)}
     {
         appObserver = &app;
         // TODO: This is not strictly portable as setting signal handler in
@@ -61,7 +65,6 @@ public:
 
 private:
 
-    zmq::context_t zmqctx;
     Bridge::Main::BridgeMain app;
 };
 
@@ -72,18 +75,53 @@ T parseArgument(const char* arg)
     return serializer.deserialize<T>(arg);
 }
 
+BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
+{
+    using Bridge::POSITIONS;
+
+    auto baseEndpoint = std::string {};
+    auto positions = PositionVector(POSITIONS.begin(), POSITIONS.end());
+    auto peerEndpoints = StringVector {};
+
+    const auto short_opt = "b:p:c:";
+    std::array<struct option, 4> long_opt {{
+        { "bind", required_argument, 0, 'b' },
+        { "positions", required_argument, 0, 'p' },
+        { "connect", required_argument, 0, 'c' },
+        { nullptr, 0, 0, 0 },
+    }};
+    auto opt_index = 0;
+    while (true) {
+        auto c = getopt_long(
+            argc, argv, short_opt, long_opt.data(), &opt_index);
+        if (c == -1 || c == '?') {
+            break;
+        } else if (c == 'b') {
+            baseEndpoint = optarg;
+        } else if (c == 'p') {
+            positions = parseArgument<PositionVector>(optarg);
+        } else if (c == 'c') {
+            peerEndpoints = parseArgument<StringVector>(optarg);
+        } else {
+            abort();
+        }
+    }
+
+    if (baseEndpoint.empty()) {
+        std::cerr << argv[0] << ": --bind option required" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    return BridgeApp {
+        zmqctx, std::move(baseEndpoint), std::move(positions),
+        std::move(peerEndpoints)};
+}
+
 }
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
-        return EXIT_FAILURE;
-    }
-
-    BridgeApp app {
-        argv[1],
-        parseArgument<PositionVector>(argv[2]),
-        parseArgument<StringVector>(argv[3])};
-    app.run();
+    zmq::context_t zmqctx;
+    createApp(zmqctx, argc, argv).run();
     return EXIT_SUCCESS;
 }

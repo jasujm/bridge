@@ -279,7 +279,6 @@
 
 #include "bridge/Position.hh"
 
-#include <boost/core/noncopyable.hpp>
 #include <boost/range/any_range.hpp>
 #include <zmq.hpp>
 
@@ -306,7 +305,7 @@ namespace Main {
  *
  * \sa \ref bridgeprotocol
  */
-class BridgeMain : private boost::noncopyable {
+class BridgeMain {
 public:
 
     /** \brief Parameter to BridgeMain()
@@ -353,7 +352,7 @@ public:
 private:
 
     class Impl;
-    const std::shared_ptr<Impl> impl;
+    std::shared_ptr<Impl> impl;
 };
 
 }
