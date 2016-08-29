@@ -13,11 +13,12 @@ namespace Messaging {
 class MessageLoop::Impl {
 public:
     void addSocket(std::shared_ptr<zmq::socket_t> socket, Callback callback);
-    void run();
+    bool run();
     void terminate();
+    bool isTerminated();
 
 private:
-    std::atomic<bool> go {true};
+    std::atomic<bool> terminated {false};
     std::vector<zmq::pollitem_t> pollitems;
     std::vector<std::pair<Callback, std::shared_ptr<zmq::socket_t>>> callbacks;
 };
@@ -36,28 +37,33 @@ void MessageLoop::Impl::addSocket(
     }
 }
 
-void MessageLoop::Impl::run()
+bool MessageLoop::Impl::run()
 {
-    auto local_go = true;
-    while (local_go && go) {
-        for (auto& item : pollitems) {
-            item.revents = 0;
-        }
-        static_cast<void>(zmq::poll(pollitems));
-        for (auto&& t : zip(pollitems, callbacks)) {
-            const auto& item = t.get<0>();
-            auto& callback = t.get<1>();
-            if (item.revents & ZMQ_POLLIN) {
-                assert(callback.second);
-                local_go = local_go && callback.first(*callback.second);
+    for (auto& item : pollitems) {
+        item.revents = 0;
+    }
+    static_cast<void>(zmq::poll(pollitems));
+    for (auto&& t : zip(pollitems, callbacks)) {
+        const auto& item = t.get<0>();
+        auto& callback = t.get<1>();
+        if (item.revents & ZMQ_POLLIN) {
+            assert(callback.second);
+            if (!callback.first(*callback.second)) {
+                return false;
             }
         }
     }
+    return true;
 }
 
 void MessageLoop::Impl::terminate()
 {
-    go = false;
+    terminated = true;
+}
+
+bool MessageLoop::Impl::isTerminated()
+{
+    return terminated;
 }
 
 MessageLoop::MessageLoop() :
@@ -77,16 +83,16 @@ void MessageLoop::addSocket(
 void MessageLoop::run()
 {
     assert(impl);
-    try {
-        impl->run();
-    } catch (const zmq::error_t& e) {
-        // If receiving failed because of interrupt signal, terminate
-        if (e.num() == EINTR) {
-            impl->terminate();
-        }
-        // Otherwise rethrow the exception
-        else {
-            throw;
+    auto go = true;
+    while (go && !impl->isTerminated()) {
+        try {
+            go = impl->run();
+        } catch (const zmq::error_t& e) {
+            // If receiving failed because of interrupt signal, continue
+            // Otherwise rethrow
+            if (e.num() != EINTR) {
+                throw;
+            }
         }
     }
 }

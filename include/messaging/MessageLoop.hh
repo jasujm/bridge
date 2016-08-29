@@ -66,9 +66,9 @@ public:
      *
      * The method block until a callback return false.
      *
-     * The method catches zmq::error_t indicating interruption, which causes
-     * the method to terminate cleanly. All other exceptions are propagated as
-     * is.
+     * The method catches zmq::error_t indicating interruption, and interrupts
+     * it. All other exceptions are propagated as is. It is intended that an
+     * interruption handler wishing to terminate the program calls terminate().
      */
     void run();
 
