@@ -7,12 +7,13 @@
 
 #include <zmq.hpp>
 
+#include <getopt.h>
+#include <signal.h>
+
 #include <array>
 #include <atomic>
 #include <cassert>
 #include <cstdlib>
-#include <csignal>
-#include <getopt.h>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -32,6 +33,35 @@ extern "C" void signalHandler(int)
     app_observer->terminate();
 }
 
+void setSigactionOrDie(
+    const int signum, const struct sigaction* const action)
+{
+    if (sigaction(signum, action, nullptr)) {
+        std::cerr << "failed to set signal handler" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+void setSignalHandler(const int signum)
+{
+    struct sigaction action;
+    action.sa_handler = &signalHandler;
+    sigemptyset(&action.sa_mask);
+    sigaddset(&action.sa_mask, SIGTERM);
+    sigaddset(&action.sa_mask, SIGINT);
+    action.sa_flags = 0;
+    setSigactionOrDie(signum, &action);
+}
+
+void resetSignalHandler(const int signum)
+{
+    struct sigaction action;
+    action.sa_handler = SIG_DFL;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    setSigactionOrDie(signum, &action);
+}
+
 struct BridgeApp {
 public:
 
@@ -45,16 +75,14 @@ public:
             std::move(positions), std::move(peerEndpoints)}
     {
         appObserver = &app;
-        // TODO: This is not strictly portable as setting signal handler in
-        // multithreaded application is not defined by the C++ standard
-        std::signal(SIGINT, signalHandler);
-        std::signal(SIGTERM, signalHandler);
+        setSignalHandler(SIGINT);
+        setSignalHandler(SIGTERM);
     }
 
     ~BridgeApp()
     {
-        std::signal(SIGTERM, SIG_DFL);
-        std::signal(SIGINT, SIG_DFL);
+        resetSignalHandler(SIGTERM);
+        resetSignalHandler(SIGINT);
         appObserver = nullptr;
     }
 
