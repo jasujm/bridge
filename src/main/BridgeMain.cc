@@ -31,6 +31,7 @@
 #include <zmq.hpp>
 
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace Bridge {
@@ -192,24 +193,26 @@ BridgeMain::Impl::Impl(
         {
             PEER_COMMAND,
             makeMessageHandler(
-                *this, &Impl::peer, JsonSerializer {}, POSITIONS_COMMAND)
+                *this, &Impl::peer, JsonSerializer {},
+                std::make_tuple(POSITIONS_COMMAND))
         },
         {
             STATE_COMMAND,
             makeMessageHandler(
-                *this, &Impl::state, JsonSerializer {}, POSITION_COMMAND)
+                *this, &Impl::state, JsonSerializer {},
+                std::make_tuple(POSITION_COMMAND))
         },
         {
             CALL_COMMAND,
             makeMessageHandler(
                 *this, &Impl::call, JsonSerializer {},
-                POSITION_COMMAND, CALL_COMMAND)
+                std::make_tuple(POSITION_COMMAND, CALL_COMMAND))
         },
         {
             PLAY_COMMAND,
             makeMessageHandler(
                 *this, &Impl::play, JsonSerializer {},
-                POSITION_COMMAND, CARD_COMMAND)
+                std::make_tuple(POSITION_COMMAND, CARD_COMMAND))
         },
         {
             SCORE_COMMAND,

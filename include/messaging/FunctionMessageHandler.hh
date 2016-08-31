@@ -154,15 +154,14 @@ public:
      * \param function the function used to execute the action
      * \param serializer the SerializationPolicy object used to serialize and
      * deserialize strings
-     * \param keys the keys corresponding to the parameters
+     * \param keys tuple containing the keys corresponding to the parameters
      *
-     * \note The \p keys must appear in the parameter list of the constructor
-     * in the same order as the corresponding parameters appear in \p
-     * function.
+     * \note The \p keys must appear in the tuple in the same order as the
+     * corresponding parameters appear in \p function.
      */
-    template<typename... Keys>
+    template<typename Keys>
     FunctionMessageHandler(
-        Function function, SerializationPolicy serializer, Keys... keys);
+        Function function, SerializationPolicy serializer, Keys&& keys);
 
 private:
 
@@ -249,8 +248,8 @@ private:
         OutputSink& sink;
     };
 
-    template<typename... Keys, std::size_t... Ns>
-    auto makeInitFunctionMap(std::index_sequence<Ns...>, Keys&&... keys);
+    template<typename Keys, std::size_t... Ns>
+    auto makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>);
 
     template<std::size_t N>
     bool internalInitParam(const std::string& arg, ParamTuple& params);
@@ -296,33 +295,32 @@ private:
 };
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-template<typename... Keys, std::size_t... Ns>
+template<typename Keys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-makeInitFunctionMap(std::index_sequence<Ns...>, Keys&&... keys)
+makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>)
 {
     return InitFunctionMap {
         {
-            std::forward<Keys>(keys),
+            std::move(std::get<Ns>(keys)),
             &FunctionMessageHandler::internalInitParam<Ns>
         }...
     };
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-template<typename... Keys>
+template<typename Keys>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 FunctionMessageHandler(
-    Function function, SerializationPolicy serializer,
-    Keys... keys) :
+    Function function, SerializationPolicy serializer, Keys&& keys) :
     function(std::move(function)),
     serializer(std::move(serializer)),
     initFunctions {
         makeInitFunctionMap(
-            std::index_sequence_for<Args...> {},
-            std::forward<Keys>(keys)...)}
+            std::forward<Keys>(keys),
+            std::index_sequence_for<Args...> {})}
 {
     static_assert(
-        sizeof...(Args) == sizeof...(Keys),
+        sizeof...(Args) == std::tuple_size<std::decay_t<Keys>>::value,
         "Number of keys must match the number of arguments");
 }
 
@@ -413,7 +411,7 @@ internalInitParam(const std::string& arg, ParamTuple& params)
  * \param function the function to be wrapped
  * \param serializer the serializer used for converting to/from argument and
  * return types of the function
- * \param keys the keys corresponding to the parameters
+ * \param keys tuple containing the keys corresponding to the parameters
  *
  * \return the constructed message handler
  *
@@ -421,15 +419,15 @@ internalInitParam(const std::string& arg, ParamTuple& params)
  */
 template<
     typename... Args, typename Function, typename SerializationPolicy,
-    typename... Keys>
+    typename Keys = std::tuple<>>
 auto makeMessageHandler(
-    Function&& function, SerializationPolicy&& serializer, Keys&&... keys)
+    Function&& function, SerializationPolicy&& serializer, Keys&& keys = {})
 {
     return std::make_unique<
         FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
         std::forward<Function>(function),
         std::forward<SerializationPolicy>(serializer),
-        std::forward<Keys>(keys)...);
+        std::forward<Keys>(keys));
 }
 
 /** \brief Utility for wrapping member function call into message handler
@@ -440,7 +438,7 @@ auto makeMessageHandler(
  * \param handler the handler object the method call is bound to \param memfn
  * pointer to the member function \param serializer the serializer used for
  * converting to/from argument and return types of the method call
- * \param keys the keys corresponding to the parameters
+ * \param keys tuple containing the keys corresponding to the parameters
  *
  * \return the constructed message handler
  *
@@ -448,10 +446,10 @@ auto makeMessageHandler(
  */
 template<
     typename Handler, typename Reply, typename String, typename... Args,
-    typename SerializationPolicy, typename... Keys>
+    typename SerializationPolicy, typename Keys = std::tuple<>>
 auto makeMessageHandler(
     Handler& handler, Reply (Handler::*memfn)(String, Args...),
-    SerializationPolicy&& serializer, Keys&&... keys)
+    SerializationPolicy&& serializer, Keys&& keys = {})
 {
     // Identity always comes as const std::string& from
     // FunctionMessageHandler::doHandle so no need to move/forward
@@ -465,7 +463,7 @@ auto makeMessageHandler(
             return (handler.*memfn)(identity, std::move(args)...);
         },
         std::forward<SerializationPolicy>(serializer),
-        std::forward<Keys>(keys)...);
+        std::forward<Keys>(keys));
 }
 
 }

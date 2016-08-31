@@ -13,6 +13,7 @@
 #include <array>
 #include <random>
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace Bridge {
@@ -49,7 +50,8 @@ public:
         {
             DEAL_COMMAND,
             Messaging::makeMessageHandler(
-                *this, &Impl::deal, JsonSerializer {}, CARDS_COMMAND)
+                *this, &Impl::deal, JsonSerializer {},
+                std::make_tuple(CARDS_COMMAND))
         },
     }};
 

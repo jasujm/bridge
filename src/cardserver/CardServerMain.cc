@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -358,7 +359,8 @@ CardServerMain::Impl::Impl(
             {
                 INIT_COMMAND,
                 makeMessageHandler(
-                    *this, &Impl::init, JsonSerializer {}, PEERS_COMMAND)
+                    *this, &Impl::init, JsonSerializer {},
+                    std::make_tuple(PEERS_COMMAND))
             },
             {
                 SHUFFLE_COMMAND,
@@ -367,18 +369,20 @@ CardServerMain::Impl::Impl(
             {
                 DRAW_COMMAND,
                 makeMessageHandler(
-                    *this, &Impl::draw, JsonSerializer {}, CARDS_COMMAND)
+                    *this, &Impl::draw, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND))
             },
             {
                 REVEAL_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::reveal, JsonSerializer {},
-                    ID_COMMAND, CARDS_COMMAND)
+                    std::make_tuple(ID_COMMAND, CARDS_COMMAND))
             },
             {
                 REVEAL_ALL_COMMAND,
                 makeMessageHandler(
-                    *this, &Impl::revealAll, JsonSerializer {}, CARDS_COMMAND)
+                    *this, &Impl::revealAll, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND))
             },
         },
         TERMINATE_COMMAND
