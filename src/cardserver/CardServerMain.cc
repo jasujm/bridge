@@ -370,6 +370,7 @@ CardServerMain::Impl::Impl(
                 DRAW_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::draw, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND),
                     std::make_tuple(CARDS_COMMAND))
             },
             {
@@ -382,6 +383,7 @@ CardServerMain::Impl::Impl(
                 REVEAL_ALL_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::revealAll, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND),
                     std::make_tuple(CARDS_COMMAND))
             },
         },

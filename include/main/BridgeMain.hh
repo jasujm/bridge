@@ -69,24 +69,23 @@
  * representation of the parameters are presented instead.
  *
  * The reply to the command MUST consist of an empty frame, status frame,
- * frame identifying the command and command dependent number of argument
- * frames. The status MUST be either success or failure depending on the state
- * of the command. The identification frame MUST be the same as the command
- * frame of the message it replies to. The arguments MUST be JSON data
- * structures encoded in UTF‐8. A failed reply MUST NOT be accompanied by
- * parameters.
+ * frame identifying the command and command dependent number of alternating
+ * key and value frames for parameters accompanying the reply. The status MUST
+ * be either success or failure depending on the state of the command. The
+ * identification frame MUST be the same as the command frame of the message
+ * it replies to. The arguments MUST be JSON data structures encoded in
+ * UTF‐8. A failed reply MUST NOT be accompanied by parameters.
  *
- * \b Example. A successful reply to the play command consists of the
+ * \b Example. A successful reply to the bridgehlo command consists of the
  * following three frames:
  *
  * | N | Content                        | Notes                        |
  * |---|--------------------------------|------------------------------|
  * | 1 |                                | Empty frame                  |
  * | 2 | success                        |                              |
- * | 3 | play                           |                              |
- *
- * @todo Replies still have positional arguments and now key–value
- * arguments. That should be changed.
+ * | 3 | bridgehlo                      |                              |
+ * | 4 | position                       |                              |
+ * | 5 | "north"                        |                              |
  *
  * The peer MUST reply to every command that has valid format, including the
  * number and representation of the arguments.
@@ -115,15 +114,15 @@
  *
  * \section bridgeprotocolcontrolcommands Control commands
  *
- * \subsection bridgeprotocolcontrolbridgehlo bridgehlo
+ * \subsection bridgeprotocolcontrolbridgerp bridgerp
  *
- * - \b Command: bridgehlo
+ * - \b Command: bridgerp
  * - \b Parameters:
  *   - \e positions: an array consisting of positions
        i.e. "north", "east", "south", "west"
  * - \b Reply: \e none
  *
- * Each peer MUST send the bridgehlo command to each other peer before sending
+ * Each peer MUST send the bridgerp command to each other peer before sending
  * anything else. The command consists of the list of positions the peer
  * intends to control. A successful reply means that the peer is allowed to
  * control the positions it announces.
@@ -131,14 +130,14 @@
  * A peer MUST reply failure if the peer or any other peer it has accepted
  * already controls any of the positions.
  *
- * \subsection bridgeprotocolcontrolbridgerp bridgerp
+ * \subsection bridgeprotocolcontrolbridgehlo bridgehlo
  *
- * - \b Command: bridgerp
+ * - \b Command: bridgehlo
  * - \b Parameters: \e none
  * - \b Reply:
- *   1. \e position the client is allowed to act for
+ *   - \e position: the position client is allowed to act for
  *
- * Each client MUST send bridgerp to one of the peers before sending anything
+ * Each client MUST send bridgehlo to one of the peers before sending anything
  * else. A successful reply to the command consists of the position the peer
  * assigns to the client. The peer MUST assign one of the positions it
  * controls itself. It MUST assign different position to each client.
@@ -149,9 +148,10 @@
  * - \b Parameters:
  *   - \e position (optional)
  * - \b Reply:
- *   1. \e state of the deal, see \ref jsondealstate
- *   2. \e array of allowed \e calls to make, if any, \ref jsoncall
- *   3. \e array of allowed \e cards to play, if any, \ref jsoncardtype
+ *   - \e state: the state of the deal, see \ref jsondealstate
+ *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
+ *   - \e allowedCards: array of allowed \e cards to play, if any,
+ *     \ref jsoncardtype
  *
  * The first reply parameter of this command MUST be the deal state as is
  * known both to the player in the position and the peer itself.
@@ -233,7 +233,7 @@
  * - \b Command: score
  * - \b Parameters: \e none
  * - \b Reply:
- *   1. \e scoresheet, see \ref jsonduplicatescoresheet
+ *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * The reply to this command MUST be the current scoresheet of the game.
  *

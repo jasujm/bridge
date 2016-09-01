@@ -49,6 +49,8 @@ using namespace std::string_literals;
 const auto IDENTITY = "identity"s;
 const auto KEY1 = "key1"s;
 const auto KEY2 = "key2"s;
+const auto REPLY_KEY1 = "replykey1"s;
+const auto REPLY_KEY2 = "replykey2"s;
 const auto REPLY1 = "reply"s;
 const auto REPLY2 = 3;
 
@@ -225,15 +227,20 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
 
 TEST_F(FunctionMessageHandlerTest, testGetReply1)
 {
-    auto handler = makeMessageHandler(&reply1, MockSerializationPolicy {});
-    testHelper(*handler, {}, true, {REPLY1});
+    auto handler = makeMessageHandler(
+        &reply1, MockSerializationPolicy {},
+        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+    testHelper(*handler, {}, true, {REPLY_KEY1, REPLY1});
 }
 
 TEST_F(FunctionMessageHandlerTest, testGetReply2)
 {
-    auto handler = makeMessageHandler(&reply2, MockSerializationPolicy {});
+    auto handler = makeMessageHandler(
+        &reply2, MockSerializationPolicy {},
+        std::make_tuple(), std::make_tuple(REPLY_KEY1, REPLY_KEY2));
     testHelper(
-        *handler, {}, true, {REPLY1, boost::lexical_cast<std::string>(REPLY2)});
+        *handler, {}, true,
+        {REPLY_KEY1, REPLY1, REPLY_KEY2, boost::lexical_cast<std::string>(REPLY2)});
 }
 
 INSTANTIATE_TEST_CASE_P(

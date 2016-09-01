@@ -10,6 +10,7 @@ import zmq
 IDENTITY_KEY = "identity"
 ENDPOINT_KEY = "endpoint"
 CONTROL_KEY = "control"
+CARDS_KEY = "cards"
 RANK_KEY = "rank"
 SUIT_KEY = "suit"
 PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY))
@@ -97,6 +98,8 @@ for (i, socket) in enumerate(sockets):
         if i == j:
             assert(socket.recv() == REPLY_SUCCESS[0])
             assert(socket.recv(flags=zmq.NOBLOCK) == DRAW_COMMAND)
+            key = socket.recv_string(flags=zmq.NOBLOCK)
+            assert(key == CARDS_KEY)
             cards = socket.recv_json(flags=zmq.NOBLOCK)
             assert(
                 all(
@@ -120,6 +123,8 @@ dummy_cards = None
 for socket in sockets:
     assert(socket.recv() == REPLY_SUCCESS[0])
     assert(socket.recv(flags=zmq.NOBLOCK) == REVEAL_ALL_COMMAND)
+    key = socket.recv_string(flags=zmq.NOBLOCK)
+    assert(key == CARDS_KEY)
     cards = socket.recv_json(flags=zmq.NOBLOCK)
     cards = [Card(**cards[k]) for k in CARD_RANGE[0]]
     if dummy_cards is None:

@@ -72,7 +72,33 @@ struct ReplySuccess {
 /** \brief Reply to message handled by FunctionMessageHandler
  */
 template<typename... Args>
-using Reply = boost::variant<ReplyFailure, ReplySuccess<Args...>>;
+struct Reply {
+
+    /** \brief Tuple containing the types accompanying successful reply
+     */
+    using Types = std::tuple<Args...>;
+
+    /** \brief Create successful reply
+     *
+     * \param reply the reply
+     */
+    template<typename... Args2>
+    Reply(ReplySuccess<Args2...> reply) : reply {std::move(reply)}
+    {
+    }
+
+    /** \brief Create failed reply
+     *
+     * \param reply the reply
+     */
+    Reply(ReplyFailure reply) : reply {std::move(reply)}
+    {
+    }
+
+    /** \brief Variant containing the successful or failed reply
+     */
+    boost::variant<ReplyFailure, ReplySuccess<Args...>> reply;
+};
 
 /** \brief Convenience function for creating successful reply
  *
@@ -155,13 +181,20 @@ public:
      * \param serializer the SerializationPolicy object used to serialize and
      * deserialize strings
      * \param keys tuple containing the keys corresponding to the parameters
+     * \param replyKeys tuple containing the keys corresponding to the
+     * parameters of the reply
      *
      * \note The \p keys must appear in the tuple in the same order as the
-     * corresponding parameters appear in \p function.
+     * corresponding parameters appear in \p function. The \p replyKeys must
+     * appear in the tuple in the same order as the corresponding parameters
+     * appear in the return value of \p function. Compile time check is done
+     * to check that the size of the tuple corresponds to the number of
+     * parameters in each case.
      */
-    template<typename Keys>
+    template<typename Keys, typename ReplyKeys>
     FunctionMessageHandler(
-        Function function, SerializationPolicy serializer, Keys&& keys);
+        Function function, SerializationPolicy serializer,
+        Keys&& keys, ReplyKeys&& replyKeys);
 
 private:
 
@@ -217,14 +250,20 @@ private:
     using InitFunction =
         bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
     using InitFunctionMap = std::map<std::string, InitFunction>;
-
+    using ResultType = typename std::result_of_t<
+        Function(std::string, typename ParamTraits<Args>::DeserializedType...)>;
+    static constexpr auto REPLY_SIZE =
+        std::tuple_size<typename ResultType::Types>::value;
+    using ReplyKeysArray = std::array<std::string, REPLY_SIZE>;
     template<std::size_t N, typename... Args2>
     using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
 
     class ReplyVisitor {
     public:
 
-        ReplyVisitor(SerializationPolicy& serializer, OutputSink& sink);
+        ReplyVisitor(
+            SerializationPolicy& serializer, OutputSink& sink,
+            ReplyKeysArray& replyKeys);
 
         bool operator()(ReplyFailure) const;
 
@@ -246,10 +285,14 @@ private:
 
         SerializationPolicy& serializer;
         OutputSink& sink;
+        ReplyKeysArray& replyKeys;
     };
 
     template<typename Keys, std::size_t... Ns>
     auto makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>);
+
+    template<typename ReplyKeys, std::size_t... Ns>
+    auto makeReplyKeys(ReplyKeys keys, std::index_sequence<Ns...>);
 
     template<std::size_t N>
     bool internalInitParam(const std::string& arg, ParamTuple& params);
@@ -286,13 +329,25 @@ private:
         auto&& result = function(
             identity,
             ParamTraits<Args>::unwrap(std::get<Ns>(params_))...);
-        return boost::apply_visitor(ReplyVisitor(serializer, sink), result);
+        return boost::apply_visitor(
+            ReplyVisitor {serializer, sink, replyKeys}, result.reply);
     }
 
     Function function;
     SerializationPolicy serializer;
     InitFunctionMap initFunctions;
+    ReplyKeysArray replyKeys;
 };
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<typename ReplyKeys, std::size_t... Ns>
+auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+makeReplyKeys(ReplyKeys replyKeys, std::index_sequence<Ns...>)
+{
+    return ReplyKeysArray {{
+        std::move(std::get<Ns>(replyKeys))...
+    }};
+}
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<typename Keys, std::size_t... Ns>
@@ -308,20 +363,28 @@ makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>)
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-template<typename Keys>
+template<typename Keys, typename ReplyKeys>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 FunctionMessageHandler(
-    Function function, SerializationPolicy serializer, Keys&& keys) :
+    Function function, SerializationPolicy serializer, Keys&& keys,
+    ReplyKeys&& replyKeys) :
     function(std::move(function)),
     serializer(std::move(serializer)),
     initFunctions {
         makeInitFunctionMap(
             std::forward<Keys>(keys),
-            std::index_sequence_for<Args...> {})}
+            std::index_sequence_for<Args...> {})},
+    replyKeys {
+        makeReplyKeys(
+            std::forward<ReplyKeys>(replyKeys),
+            std::make_index_sequence<REPLY_SIZE> {})}
 {
     static_assert(
         sizeof...(Args) == std::tuple_size<std::decay_t<Keys>>::value,
         "Number of keys must match the number of arguments");
+    static_assert(
+        REPLY_SIZE == std::tuple_size<std::decay_t<ReplyKeys>>::value,
+        "Number of reply keys must match the number of arguments in the reply");
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
@@ -335,9 +398,12 @@ bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::ReplyVisitor(SerializationPolicy& serializer, OutputSink& sink) :
+ReplyVisitor::ReplyVisitor(
+    SerializationPolicy& serializer, OutputSink& sink,
+    ReplyKeysArray& replyKeys) :
     serializer {serializer},
-    sink {sink}
+    sink {sink},
+    replyKeys {replyKeys}
 {
 }
 
@@ -379,6 +445,7 @@ bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::internalReplySuccessHelper(
     const std::tuple<Args2...>& args, std::false_type) const
 {
+    sink(replyKeys.at(N));
     sink(serializer.serialize(std::get<N>(args)));
     return internalReplySuccess<N+1>(args);
 }
@@ -412,6 +479,8 @@ internalInitParam(const std::string& arg, ParamTuple& params)
  * \param serializer the serializer used for converting to/from argument and
  * return types of the function
  * \param keys tuple containing the keys corresponding to the parameters
+ * \param replyKeys tuple containing the keys corresponding to the parameters
+ * of the reply
  *
  * \return the constructed message handler
  *
@@ -419,15 +488,17 @@ internalInitParam(const std::string& arg, ParamTuple& params)
  */
 template<
     typename... Args, typename Function, typename SerializationPolicy,
-    typename Keys = std::tuple<>>
+    typename Keys = std::tuple<>, typename ReplyKeys = std::tuple<>>
 auto makeMessageHandler(
-    Function&& function, SerializationPolicy&& serializer, Keys&& keys = {})
+    Function&& function, SerializationPolicy&& serializer, Keys&& keys = {},
+    ReplyKeys&& replyKeys = {})
 {
     return std::make_unique<
         FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
         std::forward<Function>(function),
         std::forward<SerializationPolicy>(serializer),
-        std::forward<Keys>(keys));
+        std::forward<Keys>(keys),
+        std::forward<ReplyKeys>(replyKeys));
 }
 
 /** \brief Utility for wrapping member function call into message handler
@@ -439,6 +510,8 @@ auto makeMessageHandler(
  * pointer to the member function \param serializer the serializer used for
  * converting to/from argument and return types of the method call
  * \param keys tuple containing the keys corresponding to the parameters
+ * \param replyKeys tuple containing the keys corresponding to the parameters
+ * of the reply
  *
  * \return the constructed message handler
  *
@@ -446,10 +519,12 @@ auto makeMessageHandler(
  */
 template<
     typename Handler, typename Reply, typename String, typename... Args,
-    typename SerializationPolicy, typename Keys = std::tuple<>>
+    typename SerializationPolicy, typename Keys = std::tuple<>,
+    typename ReplyKeys = std::tuple<>>
 auto makeMessageHandler(
     Handler& handler, Reply (Handler::*memfn)(String, Args...),
-    SerializationPolicy&& serializer, Keys&& keys = {})
+    SerializationPolicy&& serializer, Keys&& keys = {},
+    ReplyKeys&& replyKeys = {})
 {
     // Identity always comes as const std::string& from
     // FunctionMessageHandler::doHandle so no need to move/forward
@@ -463,7 +538,8 @@ auto makeMessageHandler(
             return (handler.*memfn)(identity, std::move(args)...);
         },
         std::forward<SerializationPolicy>(serializer),
-        std::forward<Keys>(keys));
+        std::forward<Keys>(keys),
+        std::forward<ReplyKeys>(replyKeys));
 }
 
 }

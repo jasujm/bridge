@@ -57,6 +57,8 @@ const auto HELLO_COMMAND = std::string {"bridgehlo"};
 const auto PEER_COMMAND = std::string {"bridgerp"};
 const auto DEAL_COMMAND = std::string {"deal"};
 const auto STATE_COMMAND = std::string {"state"};
+const auto ALLOWED_CALLS_COMMAND = std::string {"allowedCalls"};
+const auto ALLOWED_CARDS_COMMAND = std::string {"allowedCards"};
 const auto CALL_COMMAND = std::string {"call"};
 const auto PLAY_COMMAND = std::string {"play"};
 const auto SCORE_COMMAND = std::string {"score"};
@@ -188,7 +190,10 @@ BridgeMain::Impl::Impl(
     auto handlers = MessageQueue::HandlerMap {
         {
             HELLO_COMMAND,
-            makeMessageHandler(*this, &Impl::hello, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::hello, JsonSerializer {},
+                std::make_tuple(),
+                std::make_tuple(POSITION_COMMAND))
         },
         {
             PEER_COMMAND,
@@ -200,7 +205,10 @@ BridgeMain::Impl::Impl(
             STATE_COMMAND,
             makeMessageHandler(
                 *this, &Impl::state, JsonSerializer {},
-                std::make_tuple(POSITION_COMMAND))
+                std::make_tuple(POSITION_COMMAND),
+                std::make_tuple(
+                    STATE_COMMAND, ALLOWED_CALLS_COMMAND,
+                    ALLOWED_CARDS_COMMAND))
         },
         {
             CALL_COMMAND,
@@ -216,7 +224,9 @@ BridgeMain::Impl::Impl(
         },
         {
             SCORE_COMMAND,
-            makeMessageHandler(*this, &Impl::score, JsonSerializer {})
+            makeMessageHandler(
+                *this, &Impl::score, JsonSerializer {},
+                std::make_tuple(), std::make_tuple(SCORE_COMMAND))
         }
     };
     for (auto&& handler : cardProtocol.getMessageHandlers()) {

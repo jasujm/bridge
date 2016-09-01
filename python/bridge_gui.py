@@ -49,6 +49,7 @@ SCORE_COMMAND = b"score"
 STATE_COMMAND = b"state"
 DEAL_END_COMMAND = b"dealend"
 
+STATE_KEY = "state"
 ALLOWED_CALLS_KEY = "allowedCalls"
 ALLOWED_CARDS_KEY = "allowedCards"
 BID_KEY = "bid"
@@ -419,7 +420,7 @@ class BridgeApp(App):
             HELLO_COMMAND: self._handle_hello,
             DEAL_COMMAND: self._handle_update,
             STATE_COMMAND: self._handle_state,
-            DEAL_END_COMMAND: self._handle_deal_end,
+            DEAL_END_COMMAND: self._handle_score,
             SCORE_COMMAND: self._handle_score,
             CALL_COMMAND: self._handle_update,
             PLAY_COMMAND: self._handle_play,
@@ -456,31 +457,27 @@ class BridgeApp(App):
                 if socket == self._control_socket:
                     assert msg[:2] == [EMPTY_FRAME, REPLY_SUCCESS]
                     del msg[:2]
-                    args = (json.loads(arg.decode("utf-8")) for arg in msg[1:])
-                    kwargs = {}
-                else:
-                    args = []
-                    kwargs = {}
-                    for n in range(1, len(msg), 2):
-                        key = msg[n].decode("utf-8")
-                        value = json.loads(msg[n+1].decode("utf-8"))
-                        kwargs[key] = value
+                kwargs = {}
+                for n in range(1, len(msg), 2):
+                    key = msg[n].decode("utf-8")
+                    value = json.loads(msg[n+1].decode("utf-8"))
+                    kwargs[key] = value
                 command = msg[0]
                 if command in self._command_handlers:
-                    self._command_handlers[command](*args, **kwargs)
+                    self._command_handlers[command](**kwargs)
 
     def _handle_hello(self, position):
         send_command(self._control_socket, STATE_COMMAND)
         send_command(self._control_socket, SCORE_COMMAND)
 
-    def _handle_score(self, score_sheet):
-        scores = [parse_score_entry(entry) for entry in score_sheet]
+    def _handle_score(self, **kwargs):
+        scores = [parse_score_entry(entry) for entry in kwargs[SCORE_KEY]]
         self._score_sheet_panel.set_score_sheet(scores)
 
-    def _handle_deal_end(self, **kwargs):
-        self._handle_score(kwargs[SCORE_KEY])
-
-    def _handle_state(self, state, allowed_calls, allowed_cards):
+    def _handle_state(self, **kwargs):
+        state = kwargs[STATE_KEY]
+        allowed_calls = kwargs[ALLOWED_CALLS_KEY]
+        allowed_cards = kwargs[ALLOWED_CARDS_KEY]
         position_in_turn = state.get(POSITION_IN_TURN_KEY)
         self._play_area_panel.set_position_in_turn(position_in_turn)
         allowed_calls = {parse_call(call) for call in allowed_calls}
