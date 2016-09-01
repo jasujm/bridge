@@ -72,6 +72,16 @@ Reply<std::string, int> reply2(const std::string&)
     return success(REPLY1, REPLY2);
 }
 
+Reply<boost::optional<std::string>> replyOptional(const std::string&)
+{
+    return success(REPLY1);
+}
+
+Reply<boost::optional<std::string>> replyNone(const std::string&)
+{
+    return success(boost::none);
+}
+
 class MockFunction {
 public:
     MOCK_METHOD1(call0, Reply<>(std::string));
@@ -241,6 +251,22 @@ TEST_F(FunctionMessageHandlerTest, testGetReply2)
     testHelper(
         *handler, {}, true,
         {REPLY_KEY1, REPLY1, REPLY_KEY2, boost::lexical_cast<std::string>(REPLY2)});
+}
+
+TEST_F(FunctionMessageHandlerTest, testGetReplyOptional)
+{
+    auto handler = makeMessageHandler(
+        &replyOptional, MockSerializationPolicy {},
+        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+    testHelper(*handler, {}, true, {REPLY_KEY1, REPLY1});
+}
+
+TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
+{
+    auto handler = makeMessageHandler(
+        &replyNone, MockSerializationPolicy {},
+        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+    testHelper(*handler, {}, true, {});
 }
 
 INSTANTIATE_TEST_CASE_P(

@@ -225,6 +225,14 @@ private:
         {
             return std::move(*wrapper);
         }
+        static bool shouldSerialize(const DeserializedType&)
+        {
+            return true;
+        }
+        static const T& getSerializable(const T& value)
+        {
+            return value;
+        }
     };
 
     template<typename T>
@@ -239,6 +247,15 @@ private:
         static decltype(auto) unwrap(WrappedType& wrapper)
         {
             return std::move(wrapper);
+        }
+        static bool shouldSerialize(const boost::optional<T>& value)
+        {
+            return bool(value);
+        }
+        static const T& getSerializable(const boost::optional<T>& value)
+        {
+            assert(value);
+            return *value;
         }
     };
 
@@ -445,8 +462,12 @@ bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::internalReplySuccessHelper(
     const std::tuple<Args2...>& args, std::false_type) const
 {
-    sink(replyKeys.at(N));
-    sink(serializer.serialize(std::get<N>(args)));
+    using ArgType = typename std::tuple_element<N, std::tuple<Args2...>>::type;
+    const auto& arg = std::get<N>(args);
+    if (ParamTraits<ArgType>::shouldSerialize(arg)) {
+        sink(std::get<N>(replyKeys));
+        sink(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg)));
+    }
     return internalReplySuccess<N+1>(args);
 }
 
