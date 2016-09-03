@@ -268,6 +268,13 @@
  *
  * This event is published whenever a card is played.
  *
+ * \subsection bridgeprotocoleventdummy dummy
+ *
+ * - \b Command: dummy
+ * - \b Parameters: \e none
+ *
+ * This event is published whenever the hand of the dummy is revealed.
+ *
  * \subsection bridgeprotocoleventdealend dealend
  *
  * - \b Command: dealend

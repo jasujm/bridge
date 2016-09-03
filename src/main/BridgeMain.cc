@@ -65,6 +65,7 @@ const auto ALLOWED_CARDS_COMMAND = std::string {"allowedCards"};
 const auto SCORE_COMMAND = std::string {"score"};
 const auto CALL_COMMAND = std::string {"call"};
 const auto PLAY_COMMAND = std::string {"play"};
+const auto DUMMY_COMMAND = std::string {"dummy"};
 const auto DEAL_END_COMMAND = std::string {"dealend"};
 const auto POSITIONS_COMMAND = std::string {"positions"};
 const auto POSITION_COMMAND = std::string {"position"};
@@ -82,6 +83,7 @@ auto secondIterator(PairIterator iter)
 class BridgeMain::Impl :
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::CardPlayed>,
+    public Observer<BridgeEngine::DummyRevealed>,
     public Observer<BridgeEngine::DealEnded>,
     public Observer<CardManager::ShufflingState> {
 public:
@@ -116,6 +118,7 @@ private:
 
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
+    void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
 
@@ -335,6 +338,11 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
         PLAY_COMMAND,
         std::make_pair(POSITION_COMMAND, player_position),
         std::make_pair(CARD_COMMAND, std::cref(card_type)));
+}
+
+void BridgeMain::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
+{
+    publish(DUMMY_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
