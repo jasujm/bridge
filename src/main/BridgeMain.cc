@@ -310,11 +310,15 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
     const auto position = engine.getPosition(event.player);
     publish(CALL_COMMAND);
+    publish(
+        CALL_COMMAND,
+        std::make_pair(POSITION_COMMAND, position),
+        std::make_pair(CALL_COMMAND, std::cref(event.call)));
     sendToPeersIfSelfControlledPlayer(
         event.player,
         CALL_COMMAND,
         std::make_pair(POSITION_COMMAND, position),
-        std::make_pair(CALL_COMMAND, event.call));
+        std::make_pair(CALL_COMMAND, std::cref(event.call)));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
@@ -324,12 +328,12 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
     const auto card_type = event.card.getType().get();
     publish(
         PLAY_COMMAND,
-        std::make_pair(POSITION_COMMAND, std::cref(hand_position)),
+        std::make_pair(POSITION_COMMAND, hand_position),
         std::make_pair(CARD_COMMAND, std::cref(card_type)));
     sendToPeersIfSelfControlledPlayer(
         event.player,
         PLAY_COMMAND,
-        std::make_pair(POSITION_COMMAND, std::cref(player_position)),
+        std::make_pair(POSITION_COMMAND, player_position),
         std::make_pair(CARD_COMMAND, std::cref(card_type)));
 }
 

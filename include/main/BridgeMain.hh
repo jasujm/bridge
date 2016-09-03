@@ -253,7 +253,9 @@
  * \subsection bridgeprotocoleventcall call
  *
  * - \b Command: call
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *   - \e position: the position of the player to make the call
+ *   - \e call: see \ref jsoncall
  *
  * This event is published whenever a call is made.
  *
@@ -261,7 +263,7 @@
  *
  * - \b Command: play
  * - \b Parameters:
- *   - \e position
+ *   - \e position: the position of the hand the card is played from
  *   - \e card: see \ref jsoncardtype
  *
  * This event is published whenever a card is played.
