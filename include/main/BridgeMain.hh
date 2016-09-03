@@ -103,14 +103,16 @@
  * structure of the commands sent to the control socket, except that they MUST
  * NOT be prepended by the empty frame.
  *
- * \b Example. A notification about deal ending would consist of the following
- * frames:
+ * \b Example. A notification about card being played would consist of the
+ * following frames:
  *
  * | N | Content                                    | Notes
  * |---|--------------------------------------------|-----------------------
- * | 1 | dealend                                    | Event type
- * | 2 | score                                      | Argument key
- * | 3 | [{"partnership":"northSouth","score":420}] | Argument value (JSON)
+ * | 1 | play                                       | Event type
+ * | 2 | position                                   | Argument key
+ * | 3 | "north"                                    | Argument value (JSON)
+ * | 4 | card                                       | Argument key
+ * | 5 | {"rank":"ace","suit":"spades"}             | Argument value (JSON)
  *
  * \section bridgeprotocolcontrolcommands Control commands
  *
@@ -142,31 +144,40 @@
  * assigns to the client. The peer MUST assign one of the positions it
  * controls itself. It MUST assign different position to each client.
  *
- * \subsection bridgeprotocolcontrolstate state
+ * \subsection bridgeprotocolcontrolget get
  *
- * - \b Command: state
+ * - \b Command: get
  * - \b Parameters:
  *   - \e position (optional)
+ *   - \e keys: list of keys for the values to be rettrieved
  * - \b Reply:
  *   - \e state: the state of the deal, see \ref jsondealstate
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
+ *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
- * The first reply parameter of this command MUST be the deal state as is
- * known both to the player in the position and the peer itself.
- *
- * If the deal is in the bidding phase and the player in the position has
- * turn, the second reply parameter MUST be the set of calls allowed to be
- * made by the player.
- *
- * If the deal is in the playing phase and the player in the position has
- * turn, the third reply parameter MUST be the set of cards allowed to be
- * played by the player.
+ * Get commands returns one or multiple values corresponding to the keys
+ * specified. The keys parameter is a list of keys to be retrieved. The reply
+ * MUST contain the values corresponding to the keys. Keys that are not
+ * recognized MUST be igrored.
  *
  * The position argument is optional. If omitted, the position of the unique
  * player controlled by the client or the peer is implied. If the peer
  * controls several players, the command MUST fail.
+ *
+ * The state is the deal state as is known both to the player in the position
+ * and the peer itself.
+ *
+ * If the deal is in the bidding phase and the player in the position has
+ * turn, the allowedCalls key is the set of calls allowed to be made by the
+ * player.
+ *
+ * If the deal is in the playing phase and the player in the position has
+ * turn, the allowedCards is the set of cards allowed to be played by the
+ * player.
+ *
+ * The score is the current scoresheet of the game.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -228,15 +239,6 @@
  * player controlled by the client or the peer is implied. If the peer
  * controls several players, the command MUST fail.
  *
- * \subsection bridgeprotocolcontrolscore score
- *
- * - \b Command: score
- * - \b Parameters: \e none
- * - \b Reply:
- *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
- *
- * The reply to this command MUST be the current scoresheet of the game.
- *
  * \section bridgeprotocoleventcommands Event commands
  *
  * The peer SHOULD publish the following events through the event socket:
@@ -267,11 +269,9 @@
  * \subsection bridgeprotocoleventdealend dealend
  *
  * - \b Command: dealend
- * - \b Parameters:
- *   - \e score: see \ref jsonduplicatescoresheet
+ * - \b Parameters: \e none
  *
- * This event is published whenever a deal ends. The parameter is the
- * scoresheet of the game so far.
+ * This event is published whenever a deal ends.
  */
 
 #ifndef MAIN_BRIDGEMAIN_HH_

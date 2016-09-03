@@ -45,8 +45,7 @@ CALL_COMMAND = b"call"
 EMPTY_FRAME = b""
 PLAY_COMMAND = b"play"
 REPLY_SUCCESS = b"success"
-SCORE_COMMAND = b"score"
-STATE_COMMAND = b"state"
+GET_COMMAND = b"get"
 DEAL_END_COMMAND = b"dealend"
 
 STATE_KEY = "state"
@@ -72,6 +71,9 @@ SUIT_KEY = "suit"
 TRICKS_WON_KEY = "tricksWon"
 TYPE_KEY = "type"
 VULNERABILITY_KEY = "vulnerability"
+
+STATE_KEYS = [STATE_KEY, ALLOWED_CALLS_KEY, ALLOWED_CARDS_KEY]
+SCORE_KEYS = [SCORE_KEY]
 
 Bid = namedtuple("Bid", (LEVEL_KEY, STRAIN_KEY))
 Call = namedtuple("Call", (TYPE_KEY, BID_KEY))
@@ -419,9 +421,8 @@ class BridgeApp(App):
         self._command_handlers = {
             HELLO_COMMAND: self._handle_hello,
             DEAL_COMMAND: self._handle_update,
-            STATE_COMMAND: self._handle_state,
-            DEAL_END_COMMAND: self._handle_score,
-            SCORE_COMMAND: self._handle_score,
+            GET_COMMAND: self._handle_get,
+            DEAL_END_COMMAND: self._handle_deal_end,
             CALL_COMMAND: self._handle_update,
             PLAY_COMMAND: self._handle_play,
         }
@@ -466,51 +467,55 @@ class BridgeApp(App):
                 if command in self._command_handlers:
                     self._command_handlers[command](**kwargs)
 
-    def _handle_hello(self, position):
-        send_command(self._control_socket, STATE_COMMAND)
-        send_command(self._control_socket, SCORE_COMMAND)
-
-    def _handle_score(self, **kwargs):
-        scores = [parse_score_entry(entry) for entry in kwargs[SCORE_KEY]]
-        self._score_sheet_panel.set_score_sheet(scores)
-
-    def _handle_state(self, **kwargs):
-        state = kwargs[STATE_KEY]
-        allowed_calls = kwargs[ALLOWED_CALLS_KEY]
-        allowed_cards = kwargs[ALLOWED_CARDS_KEY]
-        position_in_turn = state.get(POSITION_IN_TURN_KEY)
-        self._play_area_panel.set_position_in_turn(position_in_turn)
-        allowed_calls = {parse_call(call) for call in allowed_calls}
-        self._call_panel.set_allowed_calls(allowed_calls)
-        vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
-                         VULNERABILITY_KEY in state else None)
-        self._play_area_panel.set_vulnerability(vulnerability)
-        cards = {position: parse_cards(hand) for (position, hand) in
-                 state.get(CARDS_KEY, {}).items()}
-        allowed_cards = set(parse_cards(allowed_cards))
-        self._play_area_panel.set_cards(cards, allowed_cards)
-        calls = [parse_call_entry(obj) for obj in state.get(CALLS_KEY, [])]
-        self._bidding_panel.set_calls(calls)
-        declarer = state.get(DECLARER_KEY)
-        self._info_panel.set_declarer(declarer)
-        contract = (parse_contract(state[CONTRACT_KEY]) if
-                    CONTRACT_KEY in state else None)
-        self._info_panel.set_contract(contract)
-        trick = ([parse_trick_entry(obj) for obj in
-                  state.get(CURRENT_TRICK_KEY, [])])
-        self._trick_panel.set_trick(trick)
-        tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
-                      TRICKS_WON_KEY in state else None)
-        self._info_panel.set_tricks_won(tricks_won)
-
-    def _handle_update(self):
+    def _handle_hello(self, **kwargs):
         send_command(
-            self._control_socket, STATE_COMMAND)
+            self._control_socket, GET_COMMAND, keys=STATE_KEYS+SCORE_KEYS)
 
-    def _handle_play(self, **kwargs):
-        if POSITION_KEY in kwargs and CARD_KEY in kwargs:
-            position = kwargs[POSITION_KEY]
-            card = kwargs[CARD_KEY]
+    def _handle_get(self, state=None, allowedCalls=None, allowedCards=None,
+                    scores=None, **kwargs):
+        if state:
+            position_in_turn = state.get(POSITION_IN_TURN_KEY)
+            self._play_area_panel.set_position_in_turn(position_in_turn)
+            vulnerability = (Vulnerability(**state[VULNERABILITY_KEY]) if
+                             VULNERABILITY_KEY in state else None)
+            self._play_area_panel.set_vulnerability(vulnerability)
+            cards = {position: parse_cards(hand) for (position, hand) in
+                     state.get(CARDS_KEY, {}).items()}
+            calls = [parse_call_entry(obj) for obj in state.get(CALLS_KEY, [])]
+            self._bidding_panel.set_calls(calls)
+            declarer = state.get(DECLARER_KEY)
+            self._info_panel.set_declarer(declarer)
+            contract = (parse_contract(state[CONTRACT_KEY]) if
+                        CONTRACT_KEY in state else None)
+            self._info_panel.set_contract(contract)
+            trick = ([parse_trick_entry(obj) for obj in
+                      state.get(CURRENT_TRICK_KEY, [])])
+            self._trick_panel.set_trick(trick)
+            tricks_won = (TricksWon(**state[TRICKS_WON_KEY]) if
+                          TRICKS_WON_KEY in state else None)
+            self._info_panel.set_tricks_won(tricks_won)
+
+        if allowedCalls is not None:
+            allowedCalls = {parse_call(call) for call in allowedCalls}
+            self._call_panel.set_allowed_calls(allowedCalls)
+
+        if allowedCards is not None:
+            allowedCards = set(parse_cards(allowedCards))
+            self._play_area_panel.set_cards(cards, allowedCards)
+
+        if scores is not None:
+            scores = [parse_score_entry(entry) for entry in scores]
+            self._score_sheet_panel.set_score_sheet(scores)
+
+    def _handle_deal_end(self, **kwargs):
+        send_command(self._control_socket, GET_COMMAND, keys=SCORE_KEYS)
+
+    def _handle_update(self, **kwargs):
+        send_command(
+            self._control_socket, GET_COMMAND, keys=STATE_KEYS)
+
+    def _handle_play(self, position=None, card=None, **kwargs):
+        if position and card:
             self._trick_panel.set_card(position, Card(**card))
         self._handle_update()
 

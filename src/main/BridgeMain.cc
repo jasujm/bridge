@@ -52,16 +52,19 @@ namespace {
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using PositionVector = std::vector<Position>;
+using StringVector = std::vector<std::string>;
 
 const auto HELLO_COMMAND = std::string {"bridgehlo"};
 const auto PEER_COMMAND = std::string {"bridgerp"};
 const auto DEAL_COMMAND = std::string {"deal"};
+const auto GET_COMMAND = std::string {"get"};
+const auto KEYS_COMMAND = std::string {"keys"};
 const auto STATE_COMMAND = std::string {"state"};
 const auto ALLOWED_CALLS_COMMAND = std::string {"allowedCalls"};
 const auto ALLOWED_CARDS_COMMAND = std::string {"allowedCards"};
+const auto SCORE_COMMAND = std::string {"score"};
 const auto CALL_COMMAND = std::string {"call"};
 const auto PLAY_COMMAND = std::string {"play"};
-const auto SCORE_COMMAND = std::string {"score"};
 const auto DEAL_END_COMMAND = std::string {"dealend"};
 const auto POSITIONS_COMMAND = std::string {"positions"};
 const auto POSITION_COMMAND = std::string {"position"};
@@ -121,15 +124,17 @@ private:
 
     Reply<Position> hello(const std::string& indentity);
     Reply<> peer(const std::string& identity, const PositionVector& positions);
-    Reply<DealState, CallVector, CardVector> state(
-        const std::string& identity, const boost::optional<Position>& position);
+    Reply<
+        boost::optional<DealState>, boost::optional<CallVector>,
+        boost::optional<CardVector>, boost::optional<DuplicateScoreSheet>> get(
+        const std::string& identity, const boost::optional<Position>& position,
+        const StringVector& keys);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
     Reply<> play(
         const std::string& identity, const boost::optional<Position>& position,
         const CardType& card);
-    Reply<DuplicateScoreSheet> score(const std::string& identity);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
@@ -202,13 +207,13 @@ BridgeMain::Impl::Impl(
                 std::make_tuple(POSITIONS_COMMAND))
         },
         {
-            STATE_COMMAND,
+            GET_COMMAND,
             makeMessageHandler(
-                *this, &Impl::state, JsonSerializer {},
-                std::make_tuple(POSITION_COMMAND),
+                *this, &Impl::get, JsonSerializer {},
+                std::make_tuple(POSITION_COMMAND, KEYS_COMMAND),
                 std::make_tuple(
                     STATE_COMMAND, ALLOWED_CALLS_COMMAND,
-                    ALLOWED_CARDS_COMMAND))
+                    ALLOWED_CARDS_COMMAND, SCORE_COMMAND))
         },
         {
             CALL_COMMAND,
@@ -221,12 +226,6 @@ BridgeMain::Impl::Impl(
             makeMessageHandler(
                 *this, &Impl::play, JsonSerializer {},
                 std::make_tuple(POSITION_COMMAND, CARD_COMMAND))
-        },
-        {
-            SCORE_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::score, JsonSerializer {},
-                std::make_tuple(), std::make_tuple(SCORE_COMMAND))
         }
     };
     for (auto&& handler : cardProtocol.getMessageHandlers()) {
@@ -336,10 +335,7 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
-    assert(gameManager);
-    publish(
-        DEAL_END_COMMAND,
-        std::make_pair(SCORE_COMMAND, gameManager->getScoreSheet()));
+    publish(DEAL_END_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
@@ -384,25 +380,48 @@ Reply<> BridgeMain::Impl::peer(
     return failure();
 }
 
-Reply<DealState, CallVector, CardVector> BridgeMain::Impl::state(
-    const std::string& identity, const boost::optional<Position>& position)
+Reply<
+    boost::optional<DealState>, boost::optional<CallVector>,
+    boost::optional<CardVector>, boost::optional<DuplicateScoreSheet>>
+BridgeMain::Impl::get(
+    const std::string& identity, const boost::optional<Position>& position,
+    const StringVector& keys)
 {
-    if (const auto player = getPlayerFor(identity, position)) {
-        const auto& deal_state = makeDealState(engine, *player);
-        auto allowed_calls = CallVector {};
-        auto allowed_cards = CardVector {};
-        if (engine.getPlayerInTurn() == player) {
-            if (const auto bidding = engine.getBidding()) {
-                getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
-            }
-            if (const auto trick = engine.getCurrentTrick()) {
-                getAllowedCards(*trick, std::back_inserter(allowed_cards));
-            }
-        }
-        return success(
-            deal_state, std::move(allowed_calls), std::move(allowed_cards));
+    const auto player = getPlayerFor(identity, position);
+    if (!player) {
+        return failure();
     }
-    return failure();
+    auto deal_state = boost::optional<DealState> {};
+    auto allowed_calls = boost::optional<CallVector> {};
+    auto allowed_cards = boost::optional<CardVector> {};
+    auto score_sheet = boost::optional<DuplicateScoreSheet> {};
+    const auto player_has_turn = (engine.getPlayerInTurn() == player);
+    for (auto&& key : keys) {
+        if (key == STATE_COMMAND) {
+            deal_state = makeDealState(engine, *player);
+        } else if (key == ALLOWED_CALLS_COMMAND) {
+            allowed_calls.emplace();
+            if (player_has_turn) {
+                if (const auto bidding = engine.getBidding()) {
+                    getAllowedCalls(
+                        *bidding, std::back_inserter(*allowed_calls));
+                }
+            }
+        } else if (key == ALLOWED_CARDS_COMMAND) {
+            allowed_cards.emplace();
+            if (player_has_turn) {
+                if (const auto trick = engine.getCurrentTrick()) {
+                    getAllowedCards(*trick, std::back_inserter(*allowed_cards));
+                }
+            }
+        } else if (key == SCORE_COMMAND) {
+            assert(gameManager);
+            score_sheet = gameManager->getScoreSheet();
+        }
+    }
+    return success(
+        std::move(deal_state), std::move(allowed_calls),
+        std::move(allowed_cards), std::move(score_sheet));
 }
 
 Reply<> BridgeMain::Impl::call(
@@ -431,12 +450,6 @@ Reply<> BridgeMain::Impl::play(
         }
     }
     return failure();
-}
-
-Reply<DuplicateScoreSheet> BridgeMain::Impl::score(const std::string&)
-{
-    assert(gameManager);
-    return success(gameManager->getScoreSheet());
 }
 
 BridgeMain::BridgeMain(
