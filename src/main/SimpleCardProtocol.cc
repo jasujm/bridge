@@ -3,13 +3,18 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
+#include "bridge/Position.hh"
 #include "engine/SimpleCardManager.hh"
 #include "main/PeerCommandSender.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PositionJsonSerializer.hh"
 
+#include <boost/optional/optional.hpp>
+
+#include <algorithm>
 #include <array>
 #include <random>
 #include <string>
@@ -21,6 +26,9 @@ namespace Main {
 
 namespace {
 
+const auto PEER_COMMAND = std::string {"bridgerp"};
+const auto POSITIONS_COMMAND = std::string {"positions"};
+const auto DEAL_COMMAND = std::string {"deal"};
 const auto CARDS_COMMAND = std::string {"cards"};
 
 }
@@ -28,25 +36,29 @@ const auto CARDS_COMMAND = std::string {"cards"};
 using CardVector = std::vector<CardType>;
 
 using Engine::CardManager;
+using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::Reply;
-
-const std::string SimpleCardProtocol::DEAL_COMMAND {"deal"};
+using Messaging::success;
 
 class SimpleCardProtocol::Impl :
     public Bridge::Observer<CardManager::ShufflingState> {
 public:
 
-    Impl(
-        IsLeaderFunction isLeader,
-        std::shared_ptr<PeerCommandSender> peerCommandSender);
+    Impl(std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-    Reply<> deal(const std::string& identity, const CardVector& cards);
+    void setAcceptor(std::weak_ptr<PeerAcceptor> acceptor);
 
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
 
-    const std::array<MessageHandlerRange::value_type, 1> messageHandlers {{
+    const std::array<MessageHandlerRange::value_type, 2> messageHandlers {{
+        {
+            PEER_COMMAND,
+            makeMessageHandler(
+                *this, &Impl::peer, JsonSerializer {},
+                std::make_tuple(POSITIONS_COMMAND))
+        },
         {
             DEAL_COMMAND,
             Messaging::makeMessageHandler(
@@ -59,35 +71,31 @@ private:
 
     void handleNotify(const CardManager::ShufflingState& state) override;
 
+    Reply<> peer(const std::string& identity, const PositionVector& positions);
+    Reply<> deal(const std::string& identity, const CardVector& cards);
+
     bool expectingCards {false};
-    const IsLeaderFunction isLeader;
+    boost::optional<std::string> leaderIdentity;
+    std::weak_ptr<PeerAcceptor> peerAcceptor;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
 };
 
 SimpleCardProtocol::Impl::Impl(
-    IsLeaderFunction isLeader,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
-    isLeader {std::move(isLeader)},
     peerCommandSender {std::move(peerCommandSender)}
 {
 }
 
-Reply<> SimpleCardProtocol::Impl::deal(
-    const std::string& identity, const CardVector& cards)
+void SimpleCardProtocol::Impl::setAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
 {
-    if (expectingCards && isLeader(&identity)) {
-        cardManager->shuffle(cards.begin(), cards.end());
-        expectingCards = false;
-        return Messaging::success();
-    }
-    return Messaging::failure();
+    peerAcceptor = std::move(acceptor);
 }
 
 void SimpleCardProtocol::Impl::handleNotify(
     const CardManager::ShufflingState& state)
 {
     if (state == CardManager::ShufflingState::REQUESTED) {
-        if (isLeader(nullptr)) {
+        if (!leaderIdentity) {
             std::random_device rd;
             std::default_random_engine re {rd()};
             auto cards = CardVector(
@@ -106,15 +114,46 @@ void SimpleCardProtocol::Impl::handleNotify(
     }
 }
 
+Reply<> SimpleCardProtocol::Impl::peer(
+    const std::string& identity, const PositionVector& positions)
+{
+    const auto acceptor = std::shared_ptr<PeerAcceptor>(peerAcceptor);
+    const auto accept_state = acceptor->acceptPeer(identity, positions);
+    if (accept_state != PeerAcceptState::REJECTED) {
+        if (std::find(
+                positions.begin(), positions.end(), Position::NORTH) !=
+            positions.end()) {
+            leaderIdentity = identity;
+        }
+        return success();
+    }
+    return failure();
+}
+
+Reply<> SimpleCardProtocol::Impl::deal(
+    const std::string& identity, const CardVector& cards)
+{
+    if (expectingCards && leaderIdentity == identity) {
+        cardManager->shuffle(cards.begin(), cards.end());
+        expectingCards = false;
+        return success();
+    }
+    return failure();
+}
+
 SimpleCardProtocol::SimpleCardProtocol(
-    IsLeaderFunction isLeader,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
     impl {
-        std::make_shared<Impl>(
-            std::move(isLeader), std::move(peerCommandSender))}
+        std::make_shared<Impl>(std::move(peerCommandSender))}
 {
     assert(impl->cardManager);
     impl->cardManager->subscribe(impl);
+}
+
+void SimpleCardProtocol::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
+{
+    assert(impl);
+    impl->setAcceptor(std::move(acceptor));
 }
 
 SimpleCardProtocol::MessageHandlerRange

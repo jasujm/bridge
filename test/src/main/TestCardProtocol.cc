@@ -4,12 +4,15 @@
 #include "MockCardProtocol.hh"
 #include "MockMessageHandler.hh"
 #include "MockMessageLoopCallback.hh"
+#include "TestUtility.hh"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <array>
 #include <iterator>
+
+using Bridge::Main::CardProtocol;
 
 using testing::Ref;
 using testing::Return;
@@ -20,9 +23,16 @@ protected:
     Bridge::Main::MockCardProtocol protocol;
 };
 
+TEST_F(CardProtocolTest, testSetAcceptor)
+{
+    const auto acceptor = std::make_shared<Bridge::Main::MockPeerAcceptor>();
+    EXPECT_CALL(protocol, handleSetAcceptor(Bridge::WeaklyPointsTo(acceptor)));
+    protocol.setAcceptor(acceptor);
+}
+
 TEST_F(CardProtocolTest, testGetMessageHandlers)
 {
-    std::array<Bridge::Main::CardProtocol::MessageHandlerRange::value_type, 1>
+    std::array<CardProtocol::MessageHandlerRange::value_type, 1>
     expected_handlers {{
         { "command", std::make_shared<Bridge::Messaging::MockMessageHandler>() }
     }};
@@ -41,7 +51,7 @@ TEST_F(CardProtocolTest, testGetSockets)
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair);
     Bridge::Messaging::MockMessageLoopCallback callback;
     EXPECT_CALL(callback, call(Ref(*socket))).WillOnce(Return(true));
-    std::array<Bridge::Main::CardProtocol::SocketRange::value_type, 1>
+    std::array<CardProtocol::SocketRange::value_type, 1>
     expected_sockets {{
         { socket, [&callback](auto& socket) { return callback.call(socket); } }
     }};

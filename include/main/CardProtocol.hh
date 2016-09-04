@@ -13,8 +13,12 @@
 #include <zmq.hpp>
 
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace Bridge {
+
+enum class Position;
 
 namespace Engine {
 class CardManager;
@@ -25,12 +29,57 @@ namespace Main {
 /** \brief Interface for card protocol
  *
  * The purpose of CardProtocol interface is to abstract away the details of
- * card exchange protocol between peers.
+ * card exchange protocol between peers. It provides necessary message
+ * handlers and additional sockets for performing the necessary actions of the
+ * protocol.
+ *
+ * Any implementation needs to at least provide message handler for the peers
+ * to initiate the connection.
  */
 class CardProtocol {
 public:
 
-    /** \brief Return value of getHandlers()
+    /** \brief Vector containing positions
+     */
+    using PositionVector = std::vector<Position>;
+
+    /** \brief Enumeration describing if a peer was accepted by PeerAcceptor
+     */
+    enum class PeerAcceptState {
+        /** \brief Announce that the peer was rejected
+         */
+        REJECTED,
+
+        /** \brief Announce that the peer was accepted
+         */
+        ACCEPTED,
+
+        /** \brief Announce that the peer was accepted and all positions are
+         * controlled
+         */
+        ALL_ACCEPTED
+    };
+
+    /** \brief Interface for a class accepting peers
+     */
+    class PeerAcceptor {
+    public:
+
+        virtual ~PeerAcceptor();
+
+        /** \brief Accept peer
+         *
+         * \param identity the identity of the peer joining
+         * \param positions the positions the peer wants to controls
+         *
+         * \return PeerAcceptState value indicating whether or not the peer
+         * was accepted
+         */
+        virtual PeerAcceptState acceptPeer(
+            const std::string& identity, const PositionVector& positions) = 0;
+    };
+
+    /** \brief Return value of getMessageHandlers()
      */
     using MessageHandlerRange = boost::any_range<
         Messaging::MessageQueue::HandlerMap::value_type,
@@ -46,9 +95,21 @@ public:
 
     virtual ~CardProtocol();
 
+    /** \brief Set peer acceptor
+     *
+     * Each implementation should at least provide a message handler for
+     * letting peers join. Accepting peer is delegated to PeerAcceptor object
+     * which has responsibility of accepting or rejecting the peer.
+     */
+    void setAcceptor(std::weak_ptr<PeerAcceptor> acceptor);
+
     /** \brief Get message handlers necessary for executing the protocol
      *
-     * \return A range of command‐message handler pairs that should be added
+     * \note The implementation should at least implement a message handler
+     * for letting peers join the game. Client of this class can register peer
+     * acceptor using setAcceptor().
+     *
+     * \return A range of command–message handler pairs that should be added
      * to a message queue handling messages from the peers.
      */
     MessageHandlerRange getMessageHandlers();
@@ -71,6 +132,12 @@ public:
     std::shared_ptr<Engine::CardManager> getCardManager();
 
 private:
+
+    /** \brief Handle setting peer acceptor
+     *
+     * \sa setAcceptor()
+     */
+    virtual void handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor) = 0;
 
     /** \brief Handle for returning the message handlers required for the
      * protocol

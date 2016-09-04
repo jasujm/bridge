@@ -1,16 +1,17 @@
-#include "main/SimpleCardProtocol.hh"
-
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Hand.hh"
+#include "bridge/Position.hh"
 #include "engine/CardManager.hh"
 #include "main/PeerCommandSender.hh"
+#include "main/SimpleCardProtocol.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
-#include "messaging/MessageUtility.hh"
+#include "MockCardProtocol.hh"
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -24,13 +25,17 @@
 #include <string>
 
 using Bridge::cardTypeIterator;
+using Bridge::dereference;
 using Bridge::N_CARDS;
+using Bridge::Main::CardProtocol;
+using Bridge::Main::MockPeerAcceptor;
+using Bridge::Main::PeerCommandSender;
 using Bridge::Main::SimpleCardProtocol;
 using Bridge::Messaging::JsonSerializer;
+using Bridge::Position;
+
 using testing::ElementsAre;
-using testing::IsNull;
-using testing::NotNull;
-using testing::Pointee;
+using testing::IsEmpty;
 using testing::Return;
 
 using namespace std::string_literals;
@@ -38,11 +43,6 @@ using namespace std::string_literals;
 using CardVector = std::vector<Bridge::CardType>;
 
 namespace {
-
-class MockFunctions {
-public:
-    MOCK_METHOD1(isLeader, bool(const std::string*));
-};
 
 template<typename CardIterator>
 bool isShuffledDeck(CardIterator first, CardIterator last)
@@ -70,68 +70,116 @@ MATCHER(IsShuffledDeck, "")
     return isShuffledDeck(cards.begin(), cards.end());
 }
 
+const auto ENDPOINT = "inproc://test"s;
+const auto LEADER = "leader"s;
+const auto PEER = "peer"s;
+const auto PEER_COMMAND = "bridgerp"s;
+const auto POSITIONS_COMMAND = "positions"s;
+const auto DEAL_COMMAND = "deal"s;
+const auto CARDS_COMMAND = "cards"s;
+
 }
 
 class SimpleCardProtocolTest : public testing::Test {
 protected:
+    virtual void SetUp()
+    {
+        backSocket.bind(ENDPOINT);
+        frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
+        protocol.setAcceptor(peerAcceptor);
+        for (auto&& handler : protocol.getMessageHandlers()) {
+            messageHandlers.emplace(handler);
+        }
+    }
+
+    bool peerCommand(
+        const std::string& identity,
+        const CardProtocol::PositionVector& positions)
+    {
+        const auto args = {
+            POSITIONS_COMMAND, JsonSerializer::serialize(positions)};
+        auto reply = std::vector<std::string> {};
+        const auto success =
+            dereference(messageHandlers.at(PEER_COMMAND)).handle(
+                identity, args.begin(), args.end(), std::back_inserter(reply));
+        EXPECT_TRUE(reply.empty());
+        return success;
+    }
+
+    bool dealCommand(const std::string& identity)
+    {
+        const auto args = {
+            CARDS_COMMAND,
+            JsonSerializer::serialize(
+                CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
+        auto reply = std::vector<std::string> {};
+        const auto success =
+            dereference(messageHandlers.at(DEAL_COMMAND)).handle(
+                identity, args.begin(), args.end(), std::back_inserter(reply));
+        EXPECT_TRUE(reply.empty());
+        return success;
+    }
+
     zmq::context_t context;
-    testing::NiceMock<MockFunctions> functions;
-    std::shared_ptr<Bridge::Main::PeerCommandSender> peerCommandSender {
-        std::make_shared<Bridge::Main::PeerCommandSender>()};
-    SimpleCardProtocol protocol {
-        [this](const auto arg) { return functions.isLeader(arg); },
-        peerCommandSender};
+    zmq::socket_t backSocket {context, zmq::socket_type::dealer};
+    std::shared_ptr<zmq::socket_t> frontSocket;
+    std::shared_ptr<PeerCommandSender> peerCommandSender {
+        std::make_shared<PeerCommandSender>()};
+    SimpleCardProtocol protocol {peerCommandSender};
+    std::shared_ptr<MockPeerAcceptor> peerAcceptor {
+        std::make_shared<MockPeerAcceptor>()};
+    Bridge::Messaging::MessageQueue::HandlerMap messageHandlers;
 };
+
+TEST_F(SimpleCardProtocolTest, testRejectPeer)
+{
+    EXPECT_CALL(*peerAcceptor, acceptPeer(PEER, IsEmpty()))
+        .WillOnce(Return(CardProtocol::PeerAcceptState::REJECTED));
+    EXPECT_FALSE(peerCommand(PEER, {}));
+}
 
 TEST_F(SimpleCardProtocolTest, testLeader)
 {
-    ON_CALL(functions, isLeader(IsNull())).WillByDefault(Return(true));
-    ON_CALL(functions, isLeader(NotNull())).WillByDefault(Return(false));
-
-    const auto endpoint = "inproc://test"s;
-    zmq::socket_t backSocket {context, zmq::socket_type::dealer};
-    backSocket.bind(endpoint);
-    const auto frontSocket = peerCommandSender->addPeer(context, endpoint);
+    EXPECT_CALL(
+        *peerAcceptor,
+        acceptPeer(PEER, ElementsAre(Position::SOUTH, Position::WEST)))
+        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
+    EXPECT_TRUE(peerCommand(PEER, {Position::SOUTH, Position::WEST}));
 
     const auto card_manager = protocol.getCardManager();
     ASSERT_TRUE(card_manager);
     card_manager->requestShuffle();
+
+    EXPECT_FALSE(dealCommand(PEER));
+
     assertCardManagerHasShuffledDeck(*card_manager);
 
     auto command = std::vector<std::string> {};
     Bridge::Messaging::recvAll(std::back_inserter(command), backSocket);
     EXPECT_THAT(
-        command,
-        ElementsAre(
-            SimpleCardProtocol::DEAL_COMMAND,
-            std::string {"cards"},
-            IsShuffledDeck()));
+        command, ElementsAre(DEAL_COMMAND, CARDS_COMMAND, IsShuffledDeck()));
 }
 
 TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
-    const auto leader = "leader"s;
-    ON_CALL(functions, isLeader(Pointee(leader))).WillByDefault(Return(true));
-    ON_CALL(functions, isLeader(IsNull())).WillByDefault(Return(false));
+    EXPECT_CALL(
+        *peerAcceptor,
+        acceptPeer(LEADER, ElementsAre(Position::NORTH, Position::EAST)))
+        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
+    EXPECT_CALL(
+        *peerAcceptor,
+        acceptPeer(PEER, ElementsAre(Position::SOUTH)))
+        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
+
+    EXPECT_TRUE(peerCommand(LEADER, {Position::NORTH, Position::EAST}));
+    EXPECT_TRUE(peerCommand(PEER, {Position::SOUTH}));
 
     const auto card_manager = protocol.getCardManager();
     ASSERT_TRUE(card_manager);
     card_manager->requestShuffle();
 
-    const auto message_handlers = protocol.getMessageHandlers();
-    const auto handler_map = Bridge::Messaging::MessageQueue::HandlerMap(
-        message_handlers.begin(), message_handlers.end());
-    auto& handler = Bridge::dereference(
-        handler_map.at(SimpleCardProtocol::DEAL_COMMAND));
-    const auto card_vector = CardVector(
-        cardTypeIterator(0), cardTypeIterator(N_CARDS));
-    std::array<std::string, 2> params {{
-        "cards", JsonSerializer::serialize(card_vector)
-    }};
-    std::vector<std::string> output;
-    EXPECT_TRUE(
-        handler.handle(
-            leader, params.begin(), params.end(), std::back_inserter(output)));
-    EXPECT_TRUE(output.empty());
+    EXPECT_FALSE(dealCommand(PEER));
+    EXPECT_TRUE(dealCommand(LEADER));
+
     assertCardManagerHasShuffledDeck(*card_manager);
 }
