@@ -474,6 +474,7 @@ BridgeMain::BridgeMain(
     auto& engine = impl->getEngine();
     engine.subscribeToCallMade(impl);
     engine.subscribeToCardPlayed(impl);
+    engine.subscribeToDummyRevealed(impl);
     engine.subscribeToDealEnded(impl);
     impl->getCardManager().subscribe(impl);
     impl->startIfReady();
