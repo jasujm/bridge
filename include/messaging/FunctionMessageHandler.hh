@@ -34,7 +34,7 @@ struct ReplyFailure {};
  * A successful reply may contain an arbitrary number of arguments passed to
  * the sender of the message.
  *
- * \tparam Args the types of the arguments of the reply
+ * \tparam Args the types of the arguments accompanied with the reply
  *
  * \sa Reply
  */
@@ -74,7 +74,7 @@ struct ReplySuccess {
 template<typename... Args>
 struct Reply {
 
-    /** \brief Tuple containing the types accompanying successful reply
+    /** \brief Tuple consisting of the types accompanying the successful reply
      */
     using Types = std::tuple<Args...>;
 
@@ -95,7 +95,7 @@ struct Reply {
     {
     }
 
-    /** \brief Variant containing the successful or failed reply
+    /** \brief Variant containing the successful or the failed reply
      */
     boost::variant<ReplyFailure, ReplySuccess<Args...>> reply;
 };
@@ -104,7 +104,7 @@ struct Reply {
  *
  * \param args Arguments of the reply
  *
- * \return Successful reply with the given arguments
+ * \return Successful reply accompanied by the given arguments
  */
 template<typename... Args>
 auto success(Args&&... args)
@@ -125,16 +125,17 @@ inline auto failure()
 /** \brief Class that adapts a function into MessageHandler interface
  *
  * FunctionMessageHandler wraps any function into MessageHandler interface. It
- * is responsible for forwarding the string arguments of the handler to the
- * function in type safe manner, as well as outputting the return value of the
- * function back to the caller. The deserialization of function parameters is
- * controlled by serialization policy.
+ * is responsible for deserializing the arguments consisting of key–value
+ * pairs and forwarding the arguments of the handler to the function in type
+ * safe manner, as well as outputting the return value of the function back to
+ * the caller. The deserialization of function parameters is controlled by
+ * serialization policy.
  *
  * The function that handles the message must return an object of type \ref
  * Reply. Depending on the type of the reply (ReplySuccess or ReplyFailure)
  * the message handler returns true or false to the caller. In case of
  * successful reply, any arguments of ReplySuccess are serialized and written
- * to the output iterator provided by the caller.
+ * as key–value pairs to the output iterator provided by the caller.
  *
  * The following is an example of message handler function in hypothetical
  * cloud service that checks credentials of a client and returns list of files
@@ -151,16 +152,12 @@ inline auto failure()
  * }
  * \endcode
  *
- * The string arguments are consumed in pairs consisting alternatively of keys
- * and corresponding values. Values are serialized and passed to the function
- * based on matching the keys to a predetermined list given as constructor
- * argument when creating the handler.
- *
  * FunctionMessageHandler supports optional arguments. If any of the \p Args
  * decays into \c boost::optional<T> for some type \c T, the corresponding
  * key–value pair is not required. If it is present, the optional contains
  * value obtained by deserializing \c T (and not \c boost::optional<T>
- * itself).
+ * itself). Similarly any empty optional argument in the reply is not present
+ * in the reply.
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
@@ -180,16 +177,16 @@ public:
      * \param function the function used to execute the action
      * \param serializer the SerializationPolicy object used to serialize and
      * deserialize strings
-     * \param keys tuple containing the keys corresponding to the parameters
-     * \param replyKeys tuple containing the keys corresponding to the
-     * parameters of the reply
+     * \param keys tuple containing the keys of the parameters
+     * \param replyKeys tuple containing the keys of the parameters of the
+     * reply
      *
      * \note The \p keys must appear in the tuple in the same order as the
-     * corresponding parameters appear in \p function. The \p replyKeys must
-     * appear in the tuple in the same order as the corresponding parameters
-     * appear in the return value of \p function. Compile time check is done
-     * to check that the size of the tuple corresponds to the number of
-     * parameters in each case.
+     * corresponding parameters appear in the \p function signature. The \p
+     * replyKeys must appear in the tuple in the same order as the
+     * corresponding parameters appear in the Reply object returned by the \p
+     * function. Compile time check is done to check that the size of the
+     * tuple corresponds to the number of parameters in each case.
      */
     template<typename Keys, typename ReplyKeys>
     FunctionMessageHandler(
