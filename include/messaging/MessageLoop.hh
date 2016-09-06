@@ -26,9 +26,15 @@ public:
 
     /** \brief Callback for handling receiving message from the socket
      *
-     * \sa addSocket(), run()
+     * \sa addSocket()
      */
-    using Callback = std::function<bool(zmq::socket_t&)>;
+    using SocketCallback = std::function<bool(zmq::socket_t&)>;
+
+    /** \brief Callback that can be registered to be called by the message loop
+     *
+     * \sa callOnce()
+     */
+    using SimpleCallback = std::function<void()>;
 
     /** \brief Create new message loop
      *
@@ -52,10 +58,22 @@ public:
      * loop.
      *
      * \param socket the socket to add to the loop
-     * \param callback The funciton called when socket is ready to receive
+     * \param callback The function called when socket is ready to receive
      * message. The parameter to the callback is reference to \p socket.
      */
-    void addSocket(std::shared_ptr<zmq::socket_t> socket, Callback callback);
+    void addSocket(
+        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
+
+    /** \brief Enqueue a simple callback
+     *
+     * The callbacks in the queue are called in the registration order after
+     * the socket handler or another callback returns. Callbacks are dequeued
+     * once called. This method can be used to ensure that an action is taken
+     * once the previous handler has completely finished.
+     *
+     * \param callback the callback
+     */
+    void callOnce(SimpleCallback callback);
 
     /** \brief Start polling messages
      *

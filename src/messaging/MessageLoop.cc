@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <queue>
 #include <vector>
 #include <utility>
 
@@ -12,7 +13,9 @@ namespace Messaging {
 
 class MessageLoop::Impl {
 public:
-    void addSocket(std::shared_ptr<zmq::socket_t> socket, Callback callback);
+    void addSocket(
+        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
+    void addSimpleCallback(SimpleCallback callback);
     bool run();
     void terminate();
     bool isTerminated();
@@ -20,11 +23,13 @@ public:
 private:
     std::atomic<bool> terminated {false};
     std::vector<zmq::pollitem_t> pollitems;
-    std::vector<std::pair<Callback, std::shared_ptr<zmq::socket_t>>> callbacks;
+    std::vector<
+        std::pair<SocketCallback, std::shared_ptr<zmq::socket_t>>> callbacks;
+    std::queue<SimpleCallback> simpleCallbacks;
 };
 
 void MessageLoop::Impl::addSocket(
-    std::shared_ptr<zmq::socket_t> socket, Callback callback)
+    std::shared_ptr<zmq::socket_t> socket, SocketCallback callback)
 {
     pollitems.emplace_back(
         zmq::pollitem_t {
@@ -35,6 +40,11 @@ void MessageLoop::Impl::addSocket(
         pollitems.pop_back();
         throw;
     }
+}
+
+void MessageLoop::Impl::addSimpleCallback(SimpleCallback callback)
+{
+    simpleCallbacks.emplace(std::move(callback));
 }
 
 bool MessageLoop::Impl::run()
@@ -48,7 +58,12 @@ bool MessageLoop::Impl::run()
         auto& callback = t.get<1>();
         if (item.revents & ZMQ_POLLIN) {
             assert(callback.second);
-            if (!callback.first(*callback.second)) {
+            const auto success = callback.first(*callback.second);
+            while (!simpleCallbacks.empty()) {
+                simpleCallbacks.front()();
+                simpleCallbacks.pop();
+            }
+            if (!success) {
                 return false;
             }
         }
@@ -74,10 +89,16 @@ MessageLoop::MessageLoop() :
 MessageLoop::~MessageLoop() = default;
 
 void MessageLoop::addSocket(
-    std::shared_ptr<zmq::socket_t> socket, Callback callback)
+    std::shared_ptr<zmq::socket_t> socket, SocketCallback callback)
 {
     assert(impl);
     impl->addSocket(std::move(socket), std::move(callback));
+}
+
+void MessageLoop::callOnce(SimpleCallback callback)
+{
+    assert(impl);
+    impl->addSimpleCallback(std::move(callback));
 }
 
 void MessageLoop::run()

@@ -41,7 +41,7 @@ public:
     using SocketRange = boost::any_range<
         std::pair<
             std::shared_ptr<zmq::socket_t>,
-            Messaging::MessageLoop::Callback>,
+            Messaging::MessageLoop::SocketCallback>,
         boost::single_pass_traversal_tag>;
 
     virtual ~CardProtocol();

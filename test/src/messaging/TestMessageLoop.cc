@@ -108,3 +108,24 @@ TEST_F(MessageLoopTest, testTerminate)
     sendMessage(frontSockets[0], OTHER_MSG);
     loop.run();
 }
+
+TEST_F(MessageLoopTest, testCallOnce)
+{
+    EXPECT_CALL(callbacks[0], callSimple());
+    EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0])))
+        .WillOnce(
+            Invoke(
+                [this](auto& socket)
+                {
+                    loop.callOnce(
+                        [this, &socket]()
+                        {
+                            const auto msg = recvMessage(socket);
+                            EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
+                            callbacks[0].callSimple();
+                        });
+                    return false;
+                }));
+    sendMessage(frontSockets[0], DEFAULT_MSG);
+    loop.run();
+}
