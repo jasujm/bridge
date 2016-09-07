@@ -52,10 +52,11 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
     throw SerializationFailureException {};
 }
 
-/** \brief Access element in JSON object
+/** \brief Perform checked access to an elememnt in JSON object
  *
  * This function is used to return an element from JSON object and convert it
- * to the desired type. It uses fromJson() to do the conversion.
+ * to the desired type. It uses fromJson() to do the conversion. Exception is
+ * thrown if the key does not exist in the object.
  *
  * \tparam T the type the JSON element is converted to
  *
@@ -100,14 +101,15 @@ void optionalPut(
 /** \brief Access optional element in JSON object
  *
  * This function is used to return an optional element from JSON object and
- * convert it to the desired type.
+ * convert it to the desired type. If the key does not exist in the object,
+ * empty optional is returned.
  *
  * \tparam T the type the JSON element is converted to
  *
  * \param j the json object
  * \param key the key of the element
  *
- * \return The accessed object converted to \p T, or none if \p key does’t
+ * \return The accessed object converted to \p T, or none if \p key doesn’t
  * exist in the object
  */
 template<typename T>
@@ -116,9 +118,56 @@ boost::optional<T> optionalGet(
 {
     const auto iter = j.find(key);
     if (iter != j.end()) {
-        return fromJson<T>(*iter);
+        return fromJson<boost::optional<T>>(*iter);
     }
     return boost::none;
+}
+
+/// \cond DOXYGEN_IGNORE
+// These are helpers for implementing get()
+
+namespace Impl {
+
+template<typename T>
+struct JsonGetter {
+    static T get(
+        const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
+    {
+        return checkedGet<T>(j, key);
+    }
+};
+
+template<typename T>
+struct JsonGetter<boost::optional<T>> {
+    static boost::optional<T> get(
+        const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
+    {
+        return optionalGet<T>(j, key);
+    }
+};
+
+}
+
+/// \endcond DOXYGEN_IGNORE
+
+/** \brief Access element in JSON object
+ *
+ * This function is used to access an element from JSON object and converting
+ * it to the desired type. This function delegates the conversion to either
+ * checkedGet<T>() or optionalGet<T>() depending on whether or not \p T is
+ * a specialization of boost::optional or not.
+ *
+ * \tparam T the type the JSON element is converted to
+ *
+ * \param j the JSOn object
+ * \param key the key of the element_type*
+ *
+ * \return The accessed object converted to \p T
+ */
+template<typename T>
+T get(const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
+{
+    return Impl::JsonGetter<T>::get(j, key);
 }
 
 /** \brief Convert pair to JSON object
@@ -164,10 +213,7 @@ std::pair<T1, T2> jsonToPair(
     const nlohmann::json& j, const nlohmann::json::object_t::key_type& key1,
     const nlohmann::json::object_t::key_type& key2)
 {
-    return {
-        checkedGet<T1>(j, key1),
-        checkedGet<T2>(j, key2)
-    };
+    return { get<T1>(j, key1), get<T2>(j, key2) };
 }
 
 /** \brief JSON converter for optional types
