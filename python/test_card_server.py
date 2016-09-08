@@ -13,7 +13,7 @@ CONTROL_KEY = "control"
 CARDS_KEY = "cards"
 RANK_KEY = "rank"
 SUIT_KEY = "suit"
-PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY))
+PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY, ENDPOINT_KEY))
 Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
 
 INIT_COMMAND = b'init'
@@ -22,41 +22,41 @@ DRAW_COMMAND = b'draw'
 REVEAL_COMMAND = b'reveal'
 REVEAL_ALL_COMMAND = b'revealall'
 TERMINATE_COMMAND = b'terminate'
+ORDER_COMMAND = b'order'
 PEERS_COMMAND = b'peers'
 CARDS_COMMAND = b'cards'
 ID_COMMAND = b'id'
 
+def get_endpoint(port):
+    return "tcp://127.0.0.1:%d" % port
+
 REPLY_SUCCESS = [b'success']
 PEERS = [
-    PeerEntry("peer1", "tcp://127.0.0.1:5501"),
-    PeerEntry("peer2", "tcp://127.0.0.1:5502"),
-    PeerEntry("peer3", "tcp://127.0.0.1:5503"),
-    PeerEntry("peer4", "tcp://127.0.0.1:5504")]
+    PeerEntry("peer1", 5501, 5510),
+    PeerEntry("peer2", 5502, 5520),
+    PeerEntry("peer3", 5503, 5530),
+    PeerEntry("peer4", 5504, 5540)]
 
-port = 5601
-ENDPOINTS = {}
-for p in itertools.combinations(PEERS, 2):
-    ENDPOINTS[frozenset(p)] = "tcp://127.0.0.1:%d" % port
-    port = port + 1
 CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 
 zmqctx = zmq.Context.instance()
 servers = [
-    subprocess.Popen(["./cardserver", peer.control]) for peer in PEERS]
+    subprocess.Popen(
+        ["./cardserver", get_endpoint(peer.control),
+         get_endpoint(peer.endpoint)]) for peer in PEERS]
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
 
 print("Init...")
 
-for (socket, peer) in zip(sockets, PEERS):
-    def get_entry(p1, p2):
-        if p1 != p2:
-            return {
-                IDENTITY_KEY: p2.identity,
-                ENDPOINT_KEY: ENDPOINTS[frozenset((p1, p2))]}
-        return None
-    entries = [get_entry(peer, peer2) for peer2 in PEERS]
-    socket.connect(peer.control)
+for (n, (socket, peer)) in enumerate(zip(sockets, PEERS)):
+    entries = [
+        {IDENTITY_KEY: other.identity,
+         ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None} for
+        (m, other) in enumerate(PEERS) if n != m]
+    socket.connect(get_endpoint(peer.control))
     socket.send(INIT_COMMAND, flags=zmq.SNDMORE)
+    socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)
+    socket.send_json(n, flags=zmq.SNDMORE)
     socket.send(PEERS_COMMAND, flags=zmq.SNDMORE)
     socket.send_json(entries)
 

@@ -47,9 +47,11 @@ public:
      *
      * \param context ZeroMQ context
      * \param controlEndpoint the endpoint for the client to connect to
+     * \param basePeerEndpoint the base endpoint the first peer connects to
      */
     CardServerMain(
-        zmq::context_t& context, const std::string& controlEndpoint);
+        zmq::context_t& context, const std::string& controlEndpoint,
+        const std::string& basePeerEndpoint);
 
     ~CardServerMain();
 

@@ -8,13 +8,14 @@
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/BridgeConstants.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageBuffer.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "Enumerate.hh"
 #include "Utility.hh"
-#include "Zip.hh"
 
 #include <boost/optional/optional.hpp>
 #include <libTMCG.hh>
@@ -37,8 +38,8 @@ void swap(TMCG_Stack<CardType>& stack1, TMCG_Stack<CardType>& stack2)
 namespace Bridge {
 
 namespace CardServer {
-using PeerEntry = std::pair<std::string, std::string>;
-using PeerVector = std::vector<boost::optional<PeerEntry>>;
+using PeerEntry = std::pair<std::string, boost::optional<std::string>>;
+using PeerVector = std::vector<PeerEntry>;
 using IndexVector = std::vector<std::size_t>;
 using CardVector = std::vector<boost::optional<CardType>>;
 }
@@ -49,7 +50,7 @@ namespace Messaging {
 template<>
 struct JsonConverter<CardServer::PeerEntry> {
     static CardServer::PeerEntry convertFromJson(const nlohmann::json& j) {
-        return jsonToPair<std::string, std::string>(
+        return jsonToPair<std::string, boost::optional<std::string>>(
             j, "identity", "endpoint");
     }
 };
@@ -57,6 +58,7 @@ struct JsonConverter<CardServer::PeerEntry> {
 
 namespace CardServer {
 
+using Messaging::EndpointIterator;
 using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
@@ -77,6 +79,7 @@ const auto REVEAL_COMMAND = std::string {"reveal"};
 const auto REVEAL_ALL_COMMAND = std::string {"revealall"};
 const auto TERMINATE_COMMAND = std::string {"terminate"};
 const auto CARDS_COMMAND = std::string {"cards"};
+const auto ORDER_COMMAND = std::string {"order"};
 const auto PEERS_COMMAND = std::string {"peers"};
 const auto ID_COMMAND = std::string {"id"};
 
@@ -92,7 +95,9 @@ void failUnless(const bool condition)
 class TMCG {
 public:
 
-    TMCG(zmq::context_t& context, PeerVector&& peers);
+    TMCG(
+        zmq::context_t& context, int order, PeerVector&& peers,
+        EndpointIterator peerEndpointIterator);
 
     bool shuffle();
     bool reveal(const std::string& identity, const IndexVector& ns);
@@ -105,7 +110,8 @@ private:
 
     struct PeerStreamEntry {
         PeerStreamEntry(
-            zmq::context_t& context, PeerEntry&& entry, bool bind);
+            zmq::context_t& context, PeerEntry&& entry,
+            const EndpointIterator& peerEndpointIterator, int order);
 
         std::shared_ptr<zmq::socket_t> socket;
         Messaging::MessageBuffer inbuffer;
@@ -125,7 +131,8 @@ private:
 };
 
 TMCG::PeerStreamEntry::PeerStreamEntry(
-    zmq::context_t& context, PeerEntry&& entry, const bool bind) :
+    zmq::context_t& context, PeerEntry&& entry,
+    const EndpointIterator& peerEndpointIterator, const int order) :
     socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)},
     inbuffer {socket},
     outbuffer {socket},
@@ -133,15 +140,18 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     outstream(&outbuffer),
     identity {std::move(entry.first)}
 {
-    if (bind) {
-        socket->bind(entry.second);
+    if (entry.second) {
+        auto endpointIterator = EndpointIterator {*entry.second};
+        socket->connect(*(endpointIterator += order));
     } else {
-        socket->connect(entry.second);
+        socket->bind(*peerEndpointIterator);
     }
 }
 
-TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
-    peers(peers.size()),
+TMCG::TMCG(
+    zmq::context_t& context, const int order, PeerVector&& peers,
+    EndpointIterator peerEndpointIterator) :
+    peers(peers.size() + 1),
     tmcg {SECURITY_PARAMETER, peers.size(), TMCG_W},
     vtmf {},
     stack {},
@@ -149,23 +159,21 @@ TMCG::TMCG(zmq::context_t& context, PeerVector&& peers) :
 {
     // Phase 1: Connect to all peers
 
-    auto self_seen = false;
-    for (auto&& t : zip(peers, this->peers)) {
-        auto&& peer = t.get<0>();
-        auto&& this_peer = t.get<1>();
-        if (peer) {
-            this_peer.emplace(context, std::move(*peer), !self_seen);
-        } else {
-            failUnless(!self_seen);
-            self_seen = true;
-        }
+    failUnless(!peers.empty());
+    failUnless(0 <= order && static_cast<std::size_t>(order) <= peers.size());
+    for (auto&& e : enumerate(peers)) {
+        const auto peer_index = e.first + (order <= e.first);
+        const auto adjusted_order = order - (order > e.first);
+        auto&& peer = e.second;
+        assert(static_cast<std::size_t>(peer_index) < this->peers.size());
+        this->peers[peer_index].emplace(
+            context, std::move(peer), peerEndpointIterator, adjusted_order);
+        ++peerEndpointIterator;
     }
-    failUnless(self_seen);
-    failUnless(!this->peers.empty());
 
     // Phase 2: Generate group
 
-    if (!peers.front()) { // The first player is the leader
+    if (order == 0) {
         vtmf.emplace();
         failUnless(vtmf->CheckGroup());
         for (
@@ -332,12 +340,14 @@ bool TMCG::revealHelper(PeerStreamEntry& peer, const IndexVector& ns)
 
 class CardServerMain::Impl {
 public:
-    Impl(zmq::context_t& context, const std::string& controlEndpoint);
+    Impl(
+        zmq::context_t& context, const std::string& controlEndpoint,
+        const std::string& basePeerEndpoint);
     void run();
 
 private:
 
-    Reply<> init(const std::string&, PeerVector&& peers);
+    Reply<> init(const std::string&, int order, PeerVector&& peers);
     Reply<> shuffle(const std::string&);
     Reply<CardVector> draw(const std::string&, const IndexVector& ns);
     Reply<> reveal(
@@ -346,21 +356,24 @@ private:
 
     zmq::context_t& context;
     zmq::socket_t controlSocket;
+    const EndpointIterator peerEndpointIterator;
     Messaging::MessageQueue messageQueue;
     boost::optional<TMCG> tmcg;
 };
 
 CardServerMain::Impl::Impl(
-    zmq::context_t& context, const std::string& controlEndpoint) :
+    zmq::context_t& context, const std::string& controlEndpoint,
+    const std::string& basePeerEndpoint) :
     context {context},
     controlSocket {context, zmq::socket_type::pair},
+    peerEndpointIterator {basePeerEndpoint},
     messageQueue {
         {
             {
                 INIT_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::init, JsonSerializer {},
-                    std::make_tuple(PEERS_COMMAND))
+                    std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
             },
             {
                 SHUFFLE_COMMAND,
@@ -398,11 +411,13 @@ void CardServerMain::Impl::run()
     while (messageQueue(controlSocket));
 }
 
-Reply<> CardServerMain::Impl::init(const std::string&, PeerVector&& peers)
+Reply<> CardServerMain::Impl::init(
+    const std::string&, const int order, PeerVector&& peers)
 {
     if (!tmcg) {
         try {
-            tmcg.emplace(context, std::move(peers));
+            tmcg.emplace(
+                context, order, std::move(peers), peerEndpointIterator);
             return success();
         } catch (TMCGInitFailure) {
             // failed
@@ -447,8 +462,9 @@ Reply<CardVector> CardServerMain::Impl::revealAll(
 }
 
 CardServerMain::CardServerMain(
-    zmq::context_t& context, const std::string& controlEndpoint) :
-    impl {std::make_unique<Impl>(context, controlEndpoint)}
+    zmq::context_t& context, const std::string& controlEndpoint,
+    const std::string& basePeerEndpoint) :
+    impl {std::make_unique<Impl>(context, controlEndpoint, basePeerEndpoint)}
 {
 }
 
