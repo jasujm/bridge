@@ -237,7 +237,7 @@ private:
         using Base = ParamTraitsImplBase<T>;
         using WrappedType = typename Base::WrappedType;
         using DeserializedType = typename Base::DeserializedType;
-        static bool isValid(const WrappedType& wrapper)
+        static bool isValid(const WrappedType&)
         {
             return true;
         }
@@ -358,6 +358,7 @@ template<typename ReplyKeys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 makeReplyKeys(ReplyKeys replyKeys, std::index_sequence<Ns...>)
 {
+    static_cast<void>(replyKeys);  // Suppress compiler warning if keys is empty
     return ReplyKeysArray {{
         std::move(std::get<Ns>(replyKeys))...
     }};
@@ -368,6 +369,7 @@ template<typename Keys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>)
 {
+    static_cast<void>(keys);  // Suppress compiler warning if keys is empty
     return InitFunctionMap {
         {
             std::move(std::get<Ns>(keys)),
