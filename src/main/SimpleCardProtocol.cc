@@ -156,7 +156,7 @@ void SimpleCardProtocol::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
     impl->setAcceptor(std::move(acceptor));
 }
 
-SimpleCardProtocol::MessageHandlerRange
+CardProtocol::MessageHandlerRange
 SimpleCardProtocol::handleGetMessageHandlers()
 {
     assert(impl);

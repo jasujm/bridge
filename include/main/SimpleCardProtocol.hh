@@ -3,10 +3,12 @@
  * \brief Definition of Bridge::Main::SimpleCardProtocol
  */
 
+#ifndef MAIN_SIMPLECARDPROTOCOL_HH_
+#define MAIN_SIMPLECARDPROTOCOL_HH_
+
 #include "main/CardProtocol.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/range/any_range.hpp>
 
 #include <memory>
 
@@ -48,3 +50,5 @@ private:
 
 }
 }
+
+#endif // MAIN_SIMPLECARDPROTOCOL_HH_
