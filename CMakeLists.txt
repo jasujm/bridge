@@ -33,6 +33,7 @@ target_link_libraries(bridge bridge-main bridge-messaging bridge-engine
 
 if(LibTMCG_FOUND)
   add_executable(cardserver CardServer.cc)
-  target_link_libraries(cardserver bridge-cardserver bridge-messaging
-    bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES} Threads::Threads)
+  target_link_libraries(cardserver bridge-csmain bridge-messaging
+    bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
+    Threads::Threads)
 endif()

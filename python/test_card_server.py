@@ -7,7 +7,7 @@ import json
 
 import zmq
 
-IDENTITY_KEY = "identity"
+IDENTITY_KEY = "id"
 ENDPOINT_KEY = "endpoint"
 CONTROL_KEY = "control"
 CARDS_KEY = "cards"
@@ -25,7 +25,7 @@ TERMINATE_COMMAND = b'terminate'
 ORDER_COMMAND = b'order'
 PEERS_COMMAND = b'peers'
 CARDS_COMMAND = b'cards'
-ID_COMMAND = b'id'
+IDENTITY_COMMAND = b'id'
 
 def get_endpoint(port):
     return "tcp://127.0.0.1:%d" % port
@@ -50,7 +50,7 @@ print("Init...")
 
 for (n, (socket, peer)) in enumerate(zip(sockets, PEERS)):
     entries = [
-        {IDENTITY_KEY: other.identity,
+        {IDENTITY_KEY: other.id,
          ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None} for
         (m, other) in enumerate(PEERS) if n != m]
     socket.connect(get_endpoint(peer.control))
@@ -85,8 +85,8 @@ for (i, socket) in enumerate(sockets):
             socket.send_json(CARD_RANGE[j])
         else:
             socket.send(REVEAL_COMMAND, flags=zmq.SNDMORE)
-            socket.send(ID_COMMAND, flags=zmq.SNDMORE)
-            socket.send_json(PEERS[j].identity, flags=zmq.SNDMORE)
+            socket.send(IDENTITY_COMMAND, flags=zmq.SNDMORE)
+            socket.send_json(PEERS[j].id, flags=zmq.SNDMORE)
             socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(CARD_RANGE[j])
 

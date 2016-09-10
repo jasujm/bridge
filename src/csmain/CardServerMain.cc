@@ -2,11 +2,12 @@
 // Copyright Heiko Stamer 2015
 // (http://www.nongnu.org/libtmcg/libTMCG.html/index.html)
 
-#include "cardserver/CardServerMain.hh"
+#include "csmain/CardServerMain.hh"
 
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/BridgeConstants.hh"
+#include "cardserver/PeerEntry.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
@@ -14,6 +15,7 @@
 #include "messaging/MessageQueue.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PeerEntryJsonSerializer.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
 
@@ -38,22 +40,9 @@ void swap(TMCG_Stack<CardType>& stack1, TMCG_Stack<CardType>& stack2)
 namespace Bridge {
 
 namespace CardServer {
-using PeerEntry = std::pair<std::string, boost::optional<std::string>>;
 using PeerVector = std::vector<PeerEntry>;
 using IndexVector = std::vector<std::size_t>;
 using CardVector = std::vector<boost::optional<CardType>>;
-}
-
-namespace Messaging {
-// TODO: Move this to a common place when both serialization and
-// deserialization are needed
-template<>
-struct JsonConverter<CardServer::PeerEntry> {
-    static CardServer::PeerEntry convertFromJson(const nlohmann::json& j) {
-        return jsonToPair<std::string, boost::optional<std::string>>(
-            j, "identity", "endpoint");
-    }
-};
 }
 
 namespace CardServer {
@@ -138,10 +127,10 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     outbuffer {socket},
     instream(&inbuffer),
     outstream(&outbuffer),
-    identity {std::move(entry.first)}
+    identity {std::move(entry.identity)}
 {
-    if (entry.second) {
-        auto endpointIterator = EndpointIterator {*entry.second};
+    if (entry.endpoint) {
+        auto endpointIterator = EndpointIterator {*entry.endpoint};
         socket->connect(*(endpointIterator += order));
     } else {
         socket->bind(*peerEndpointIterator);

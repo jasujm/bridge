@@ -6,6 +6,7 @@
 #include "bridge/Partnership.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
+#include "cardserver/PeerEntry.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -14,6 +15,7 @@
 #include "messaging/DealStateJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
+#include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
@@ -29,11 +31,15 @@ using namespace Bridge::Scoring;
 
 using nlohmann::json;
 
+using namespace std::string_literals;
+
 namespace {
 const auto BID = Bid {4, Strain::HEARTS};
 const auto CONTRACT = Contract {BID, Doubling::DOUBLED};
 const auto VULNERABILITY = Vulnerability {true, false};
 const auto TRICKS_WON = TricksWon {5, 6};
+const auto PEER_IDENTITY = "peer"s;
+const auto PEER_ENDPOINT = "inproc://test"s;
 }
 
 class JsonSerializerTest : public testing::Test {
@@ -535,19 +541,71 @@ TEST_F(JsonSerializerTest, testDuplicateScoreSheetScoreInvalid)
     testFailedDeserializationHelper<DuplicateScoreSheet>(j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScoreSheetNonpositiveScore)
+TEST_F(JsonSerializerTest, testPeerEntry)
 {
     const auto j = json {
         {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                toJson(Partnership::NORTH_SOUTH)
-            },
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                0
-            }
+            IDENTITY_KEY,
+            PEER_IDENTITY
+        },
+        {
+            ENDPOINT_KEY,
+            PEER_ENDPOINT
         }
     };
-    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
+    const auto peerEntry = CardServer::PeerEntry {PEER_IDENTITY, PEER_ENDPOINT};
+    testHelper(peerEntry, j);
+}
+
+TEST_F(JsonSerializerTest, testPeerEntryIdentityMissing)
+{
+    const auto j = json {
+        {
+            ENDPOINT_KEY,
+            PEER_ENDPOINT
+        }
+    };
+    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
+}
+
+TEST_F(JsonSerializerTest, testPeerEntryIdentityInvalid)
+{
+    const auto j = json {
+        {
+            IDENTITY_KEY,
+            nullptr
+        },
+        {
+            ENDPOINT_KEY,
+            PEER_ENDPOINT
+        }
+    };
+    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
+}
+
+TEST_F(JsonSerializerTest, testPeerEntryEndpointMissing)
+{
+    const auto j = json {
+        {
+            IDENTITY_KEY,
+            PEER_IDENTITY
+        },
+    };
+    const auto peerEntry = CardServer::PeerEntry {PEER_IDENTITY};
+    testHelper(peerEntry, j);
+}
+
+TEST_F(JsonSerializerTest, testPeerEntryEndpointInvalid)
+{
+    const auto j = json {
+        {
+            IDENTITY_KEY,
+            PEER_IDENTITY
+        },
+        {
+            ENDPOINT_KEY,
+            123
+        }
+    };
+    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
 }

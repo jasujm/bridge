@@ -1,4 +1,4 @@
-#include "cardserver/CardServerMain.hh"
+#include "csmain/CardServerMain.hh"
 
 #include <libTMCG.hh>
 #include <zmq.hpp>
