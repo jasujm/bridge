@@ -58,12 +58,12 @@ bool MessageLoop::Impl::run()
         auto& callback = t.get<1>();
         if (item.revents & ZMQ_POLLIN) {
             assert(callback.second);
-            const auto success = callback.first(*callback.second);
+            const auto go = callback.first(*callback.second);
             while (!simpleCallbacks.empty()) {
                 simpleCallbacks.front()();
                 simpleCallbacks.pop();
             }
-            if (!success) {
+            if (!go) {
                 return false;
             }
         }
