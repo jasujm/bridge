@@ -231,11 +231,11 @@ BridgeMain::Impl::Impl(
                 return true;
             });
     }
+    const auto position_vector = CardProtocol::PositionVector(
+        positions.begin(), positions.end());
     sendToPeers(
         PEER_COMMAND,
-        std::make_pair(
-            POSITIONS_COMMAND,
-            CardProtocol::PositionVector(positions.begin(), positions.end())));
+        std::tie(POSITIONS_COMMAND, position_vector));
 }
 
 void BridgeMain::Impl::run()
@@ -303,13 +303,13 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
     publish(CALL_COMMAND);
     publish(
         CALL_COMMAND,
-        std::make_pair(POSITION_COMMAND, position),
-        std::make_pair(CALL_COMMAND, std::cref(event.call)));
+        std::tie(POSITION_COMMAND, position),
+        std::tie(CALL_COMMAND, event.call));
     sendToPeersIfSelfControlledPlayer(
         event.player,
         CALL_COMMAND,
-        std::make_pair(POSITION_COMMAND, position),
-        std::make_pair(CALL_COMMAND, std::cref(event.call)));
+        std::tie(POSITION_COMMAND, position),
+        std::tie(CALL_COMMAND, event.call));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
@@ -319,13 +319,13 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
     const auto card_type = event.card.getType().get();
     publish(
         PLAY_COMMAND,
-        std::make_pair(POSITION_COMMAND, hand_position),
-        std::make_pair(CARD_COMMAND, std::cref(card_type)));
+        std::tie(POSITION_COMMAND, hand_position),
+        std::tie(CARD_COMMAND, card_type));
     sendToPeersIfSelfControlledPlayer(
         event.player,
         PLAY_COMMAND,
-        std::make_pair(POSITION_COMMAND, player_position),
-        std::make_pair(CARD_COMMAND, std::cref(card_type)));
+        std::tie(POSITION_COMMAND, player_position),
+        std::tie(CARD_COMMAND, card_type));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DummyRevealed&)

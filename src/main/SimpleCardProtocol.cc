@@ -107,7 +107,7 @@ void SimpleCardProtocol::Impl::handleNotify(
             dereference(peerCommandSender).sendCommand(
                 JsonSerializer {},
                 DEAL_COMMAND,
-                std::make_pair(CARDS_COMMAND, cards));
+                std::tie(CARDS_COMMAND, cards));
         } else {
             expectingCards = true;
         }
