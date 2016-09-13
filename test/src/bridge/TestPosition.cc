@@ -1,4 +1,5 @@
 #include "bridge/BridgeConstants.hh"
+#include "bridge/CardsForPosition.hh"
 #include "bridge/Position.hh"
 
 #include <algorithm>

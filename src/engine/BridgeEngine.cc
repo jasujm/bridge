@@ -2,6 +2,7 @@
 
 #include "bridge/BasicBidding.hh"
 #include "bridge/BasicTrick.hh"
+#include "bridge/CardsForPosition.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"

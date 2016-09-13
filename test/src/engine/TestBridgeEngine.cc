@@ -4,6 +4,7 @@
 #include "bridge/BidIterator.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Call.hh"
+#include "bridge/CardsForPosition.hh"
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"

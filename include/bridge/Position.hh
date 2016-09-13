@@ -12,7 +12,6 @@
 #include <boost/range/irange.hpp>
 
 #include <array>
-#include <cstddef>
 #include <iosfwd>
 #include <string>
 
@@ -64,21 +63,6 @@ extern const PositionToStringMap POSITION_TO_STRING_MAP;
  * \throw std::invalid_argument if \p position is not valid
  */
 std::size_t positionOrder(Position position);
-
-/** \brief Determine the indices of cards dealt to given position
- *
- * \param position the position
- *
- * \return A set of 13 indices between 0–51, each disjoint from the set for
- * any other position.
- *
- * \throw std::invalid_argument if \p position is invalid
- */
-inline auto cardsFor(Position position)
-{
-    const auto n = positionOrder(position);
-    return boost::irange(n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
-}
 
 /** \brief Determine position clockwise from the given position
  *
