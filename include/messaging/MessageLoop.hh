@@ -54,8 +54,8 @@ public:
      *
      * \note The \p socket is accepted as shared pointer and stored for the
      * whole lifetime of the loop. It is the responsibility of the client to
-     * ensure that \p callback also remains valid during the lifetime of the
-     * loop.
+     * ensure that the lifetime of any object captured by reference by \p
+     * callback exceeds the lifetime of the MessageLoop.
      *
      * \param socket the socket to add to the loop
      * \param callback The function called when socket is ready to receive
@@ -70,6 +70,10 @@ public:
      * the socket handler or another callback returns. Callbacks are dequeued
      * once called. This method can be used to ensure that an action is taken
      * once the previous handler has completely finished.
+     *
+     * If \p callback captures objects by reference, it is the responsibility
+     * of the client to ensure that the lifetime of any object captured by \p
+     * callback exceeds the lifetime of the MessageLoop.
      *
      * \param callback the callback
      */
