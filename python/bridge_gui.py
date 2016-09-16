@@ -46,6 +46,7 @@ EMPTY_FRAME = b""
 PLAY_COMMAND = b"play"
 REPLY_SUCCESS = b"success"
 GET_COMMAND = b"get"
+DUMMY_COMMAND = b"dummy"
 DEAL_END_COMMAND = b"dealend"
 
 STATE_KEY = "state"
@@ -416,6 +417,7 @@ class BridgeApp(App):
         self._event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, DUMMY_COMMAND)
         self._event_socket.connect(next(endpoint_iterator))
         send_command(self._control_socket, HELLO_COMMAND)
         self._command_handlers = {
@@ -425,6 +427,7 @@ class BridgeApp(App):
             DEAL_END_COMMAND: self._handle_deal_end,
             CALL_COMMAND: self._handle_update,
             PLAY_COMMAND: self._handle_play,
+            DUMMY_COMMAND: self._handle_update,
         }
         self._poller = zmq.Poller()
         self._poller.register(self._event_socket, flags=zmq.POLLIN)

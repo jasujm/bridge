@@ -293,6 +293,7 @@
 
 #include <deque>
 #include <memory>
+#include <string>
 
 namespace Bridge {
 
@@ -333,6 +334,16 @@ public:
      * \param baseEndpoint the base endpoint for control and event sockets
      * \param positionsControlled the positions controlled by the application
      * \param peerEndpoints the base endpoints of the peers
+     * \param cardServerControlEndpoint the control endpoint of a card server
+     * the application connects
+     * \param cardServerBasePeerEndpoint the base endpoint used by the peers
+     * to establish the peer connection
+     *
+     * \note If both \p cardServerControlEndpoint and \p
+     * cardServerBasePeerEndpoint are nonempty, card server is used for card
+     * exchange between the peers. The given parameters are used to connect
+     * the server and the peers. If either one is empty, the card server
+     * endpoints are ignored and the simple cleartext protocol is used instead.
      *
      * \note The control socket is bound to \p baseEndpoint. The event socket
      * is bound to the same interface but one larger port.
@@ -341,7 +352,9 @@ public:
         zmq::context_t& context,
         const std::string& baseEndpoint,
         PositionRange positionsControlled,
-        EndpointRange peerEndpoints);
+        EndpointRange peerEndpoints,
+        const std::string& cardServerControlEndpoint,
+        const std::string& cardServerBasePeerEndpoint);
 
     ~BridgeMain();
 

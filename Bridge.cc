@@ -69,10 +69,13 @@ public:
         zmq::context_t& zmqctx,
         std::string baseEndpoint,
         PositionVector positions,
-        StringVector peerEndpoints) :
+        StringVector peerEndpoints,
+        const std::string& cardServerControlEndpoint,
+        const std::string& cardServerBasePeerEndpoint) :
         app {
             zmqctx, std::move(baseEndpoint),
-            std::move(positions), std::move(peerEndpoints)}
+            std::move(positions), std::move(peerEndpoints),
+            cardServerControlEndpoint, cardServerBasePeerEndpoint}
     {
         appObserver = &app;
         setSignalHandler(SIGINT);
@@ -110,12 +113,16 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     auto baseEndpoint = std::string {};
     auto positions = PositionVector(POSITIONS.begin(), POSITIONS.end());
     auto peerEndpoints = StringVector {};
+    auto cardServerControlEndpoint = std::string {};
+    auto cardServerBasePeerEndpoint = std::string {};
 
-    const auto short_opt = "b:p:c:";
-    std::array<struct option, 4> long_opt {{
+    const auto short_opt = "b:p:c:t:q:";
+    std::array<struct option, 6> long_opt {{
         { "bind", required_argument, 0, 'b' },
         { "positions", required_argument, 0, 'p' },
         { "connect", required_argument, 0, 'c' },
+        { "cs-cntl", required_argument, 0, 't' },
+        { "cs-peer", required_argument, 0, 'q' },
         { nullptr, 0, 0, 0 },
     }};
     auto opt_index = 0;
@@ -130,8 +137,12 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
             positions = parseArgument<PositionVector>(optarg);
         } else if (c == 'c') {
             peerEndpoints = parseArgument<StringVector>(optarg);
+        } else if (c == 't') {
+            cardServerControlEndpoint = optarg;
+        } else if (c == 'q') {
+            cardServerBasePeerEndpoint = optarg;
         } else {
-            abort();
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -142,7 +153,8 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
     return BridgeApp {
         zmqctx, std::move(baseEndpoint), std::move(positions),
-        std::move(peerEndpoints)};
+        std::move(peerEndpoints), cardServerControlEndpoint,
+        cardServerBasePeerEndpoint};
 }
 
 }

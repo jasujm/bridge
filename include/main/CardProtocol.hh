@@ -100,6 +100,11 @@ public:
      * Each implementation should at least provide a message handler for
      * letting peers join. Accepting peer is delegated to PeerAcceptor object
      * which has responsibility of accepting or rejecting the peer.
+     *
+     * \note Each CardProtocol implementation may assume that the application
+     * does not control any position that any accepted peer controls. It can
+     * be assumed that any position not controlled by any peer when all peers
+     * are accepted is controlled by the application itself.
      */
     void setAcceptor(std::weak_ptr<PeerAcceptor> acceptor);
 
@@ -125,6 +130,12 @@ public:
     SocketRange getSockets();
 
     /** \brief Get pointer to the card manager
+     *
+     * \note The card protocol may require that all peers are accepted before
+     * proceeding to the first shuffle request. The protocol implementation is
+     * required to ensure that once the shuffle request is completed, at least
+     * the cards owned by the players controlled by the application itself are
+     * known.
      *
      * \return A valid pointer to a card manager that can be used to access
      * the cards.
