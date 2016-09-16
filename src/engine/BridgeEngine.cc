@@ -159,6 +159,7 @@ public:
         std::vector<std::shared_ptr<Player>> players);
 
     void enqueueAndProcess(const EventQueue::value_type event);
+    void lockHand(std::shared_ptr<Hand> hand);
 
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
@@ -212,6 +213,7 @@ private:
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
     EventQueue events;
+    std::shared_ptr<Hand> lockedHand;
     Observable<CallMade> callMadeNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
     Observable<DummyRevealed> dummyRevealedNotifier;
@@ -316,6 +318,8 @@ public:
 
     sc::result react(const DealCompletedEvent&);
     sc::result react(const DealPassedOutEvent&);
+
+    void lockHand(const Hand& hand);
 
     Bidding& getBidding();
     const Bidding& getBidding() const;
@@ -442,6 +446,15 @@ sc::result InDeal::react(const DealCompletedEvent& event)
 sc::result InDeal::react(const DealPassedOutEvent&)
 {
     return internalCallAndTransit(&GameManager::addPassedOut);
+}
+
+void InDeal::lockHand(const Hand& hand)
+{
+    const auto iter = std::find_if(
+        hands.begin(), hands.end(),
+        [&hand](const auto& hand_ptr) { return hand_ptr.get() == &hand; });
+    assert(iter != hands.end());
+    outermost_context().lockHand(std::move(*iter));
 }
 
 template<typename... Args1, typename... Args2>
@@ -683,7 +696,9 @@ Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
     if (&player == &getPlayerInTurn() && &hand == &getHandInTurn()) {
         auto& in_deal = context<InDeal>();
         const auto position = in_deal.getPosition(hand);
-        return &in_deal.getHand(position);
+        auto& hand = in_deal.getHand(position);
+        in_deal.lockHand(hand);
+        return &hand;
     }
     return nullptr;
 }
@@ -935,6 +950,11 @@ void BridgeEngine::Impl::enqueueAndProcess(
     if (events.size() == 1) { // if queue was empty
         processQueue();
     }
+}
+
+void BridgeEngine::Impl::lockHand(std::shared_ptr<Hand> hand)
+{
+    lockedHand.swap(hand);
 }
 
 void BridgeEngine::Impl::processQueue()
