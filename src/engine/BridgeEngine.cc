@@ -654,6 +654,7 @@ void PlayingTrick::playNext(Hand& hand, std::size_t card)
 
 void PlayingTrick::play()
 {
+    assert(playInfo);
     assert(trick);
     const auto& player_in_turn = getPlayerInTurn();
     const auto& card = dereference(playInfo->hand.getCard(playInfo->card));
