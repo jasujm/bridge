@@ -57,10 +57,10 @@ public:
      * can be queried with isShuffleCompleted(). The CardManager notifies its
      * observers when the shuffling is completed.
      *
-     * A call to requestShuffle invalidates any references to Card objects the
-     * client of this class may have retrieved using getHand(). It is the
-     * responsibility of the client to ensure that the lifetime of CardManager
-     * exceeds the lifetime of the hands.
+     * A call to requestShuffle() may invalidate any references to Card
+     * objects the client of this class may have retrieved using getHand(). It
+     * is the responsibility of the client to ensure that the lifetime of
+     * CardManager exceeds the lifetime of the hands.
      *
      * Whether new shuffle request is initiated if the old one has not
      * completed is unspecified.
@@ -68,6 +68,11 @@ public:
     void requestShuffle();
 
     /** \brief Retrieve hand with the selected cards
+     *
+     * The references to the card objects remain valid until requestShuffle()
+     * is called. The hand object itself returned by this method remains valid
+     * until the card manager itself is destructed. Invoking any method on the
+     * hand after the card manager is destructed is undefined.
      *
      * \tparam IndexIterator an input iterator which must return index when
      * dereferenced
