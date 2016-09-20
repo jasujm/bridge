@@ -1,10 +1,6 @@
 /** \file
  *
  * \brief Definition of Bridge::CardServer::CardServerMain
- *
- * \page cardprotocol Card server protocol
- *
- * \todo Write protocol specification
  */
 
 #ifndef CARDSERVER_CARDSERVERMAIN_HH_

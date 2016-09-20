@@ -7,6 +7,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/BridgeConstants.hh"
+#include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
@@ -61,16 +62,7 @@ namespace {
 const auto SECURITY_PARAMETER = 8;
 const auto TMCG_W = 6; // 2^6 = 64, enough to hold all playing cards
 
-const auto INIT_COMMAND = std::string {"init"};
-const auto SHUFFLE_COMMAND = std::string {"shuffle"};
-const auto DRAW_COMMAND = std::string {"draw"};
-const auto REVEAL_COMMAND = std::string {"reveal"};
-const auto REVEAL_ALL_COMMAND = std::string {"revealall"};
 const auto TERMINATE_COMMAND = std::string {"terminate"};
-const auto CARDS_COMMAND = std::string {"cards"};
-const auto ORDER_COMMAND = std::string {"order"};
-const auto PEERS_COMMAND = std::string {"peers"};
-const auto ID_COMMAND = std::string {"id"};
 
 struct TMCGInitFailure {};
 
