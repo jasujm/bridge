@@ -62,8 +62,6 @@ namespace {
 const auto SECURITY_PARAMETER = 8;
 const auto TMCG_W = 6; // 2^6 = 64, enough to hold all playing cards
 
-const auto TERMINATE_COMMAND = std::string {"terminate"};
-
 struct TMCGInitFailure {};
 
 void failUnless(const bool condition)
@@ -380,8 +378,7 @@ CardServerMain::Impl::Impl(
                     std::make_tuple(CARDS_COMMAND),
                     std::make_tuple(CARDS_COMMAND))
             },
-        },
-        TERMINATE_COMMAND
+        }
     }
 {
     controlSocket.bind(controlEndpoint);

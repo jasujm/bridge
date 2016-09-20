@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+import atexit
 import itertools
+import signal
 import subprocess
 import json
 
@@ -30,6 +32,12 @@ IDENTITY_COMMAND = b'id'
 def get_endpoint(port):
     return "tcp://127.0.0.1:%d" % port
 
+def cleanup(servers):
+    print("Cleanup...")
+    for server in servers:
+        server.terminate()
+        server.wait()
+
 REPLY_SUCCESS = [b'success']
 PEERS = [
     PeerEntry("peer1", 5501, 5510),
@@ -45,6 +53,8 @@ servers = [
         ["./cardserver", get_endpoint(peer.control),
          get_endpoint(peer.endpoint)]) for peer in PEERS]
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
+
+atexit.register(cleanup, servers);
 
 print("Init...")
 
@@ -130,16 +140,8 @@ for socket in sockets:
     if dummy_cards is None:
         dummy_cards = cards
     assert(cards == dummy_cards)
-
-print("Terminate...")
-
-for socket in sockets:
-    socket.send(TERMINATE_COMMAND)
-
-print("Cleanup...")
     
-for (server, socket) in zip(servers, sockets):
-    server.wait()
+for socket in sockets:
     socket.close()
 
 zmqctx.destroy()
