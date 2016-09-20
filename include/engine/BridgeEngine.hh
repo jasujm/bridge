@@ -163,6 +163,9 @@ public:
      * turn and \p call is allowed to be made by the player. Otherwise the
      * call does nothing.
      *
+     * \warning This function is not reentrant and may not be called from any
+     * of the observers.
+     *
      * \param player the player who wants to make the call
      * \param call the call to be made
      *
@@ -179,6 +182,9 @@ public:
      * and the card can be played to the current trick. The declarer plays
      * from both his and dummy’s hand, i.e. has two turns per trick. Otherwise
      * the call does nothing.
+     *
+     * \warning This function is not reentrant and may not be called from any
+     * of the observers.
      *
      * \param player the player who wants to play the card
      * \param hand the hand from which the card is played

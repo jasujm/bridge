@@ -12,6 +12,7 @@
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
 #include "FunctionObserver.hh"
+#include "FunctionQueue.hh"
 #include "Utility.hh"
 #include "Zip.hh"
 
@@ -27,8 +28,6 @@
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
-#include <functional>
-#include <queue>
 
 namespace sc = boost::statechart;
 
@@ -151,14 +150,11 @@ class BridgeEngine::Impl :
     public sc::state_machine<BridgeEngine::Impl, Shuffling>,
     public Observer<CardManager::ShufflingState> {
 public:
-    using EventQueue = std::queue<std::function<void()>>;
-
     Impl(
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
 
-    void enqueueAndProcess(const EventQueue::value_type event);
     void lockHand(std::shared_ptr<Hand> hand);
 
     CardManager& getCardManager() { return dereference(cardManager); }
@@ -194,6 +190,8 @@ public:
     const Hand* getDummyHandIfVisible() const;
     auto makeCardRevealStateObserver();
 
+    FunctionQueue functionQueue;
+
 private:
 
     template<typename T>
@@ -204,15 +202,12 @@ private:
         R (State::*const memfn)(Args1...) const,
         Args2&&... args) const;
 
-    void processQueue();
-
     void handleNotify(const CardManager::ShufflingState&) override;
 
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
-    EventQueue events;
     std::shared_ptr<Hand> lockedHand;
     Observable<CallMade> callMadeNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
@@ -240,7 +235,7 @@ auto BridgeEngine::Impl::makeCardRevealStateObserver()
             const auto last = ns.end();
             const auto n_cards = std::distance(first, last);
             if (n_cards == 1) {
-                this->enqueueAndProcess(
+                functionQueue(
                     [this, state, n = *first]()
                     {
                         this->process_event(CardRevealEvent {state, n});
@@ -251,7 +246,7 @@ auto BridgeEngine::Impl::makeCardRevealStateObserver()
                 if (
                     std::is_permutation(
                         range.begin(), range.end(), first, last)) {
-                    this->enqueueAndProcess(
+                    functionQueue(
                         [this, state]()
                         {
                             this->process_event(HandRevealEvent {state});
@@ -944,31 +939,14 @@ const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
     return internalCallIfInState(&DummyVisible::getDummyHand);
 }
 
-void BridgeEngine::Impl::enqueueAndProcess(
-    const BridgeEngine::Impl::EventQueue::value_type event)
-{
-    events.emplace(std::move(event));
-    if (events.size() == 1) { // if queue was empty
-        processQueue();
-    }
-}
-
 void BridgeEngine::Impl::lockHand(std::shared_ptr<Hand> hand)
 {
     lockedHand.swap(hand);
 }
 
-void BridgeEngine::Impl::processQueue()
-{
-    while (!events.empty()) {
-        (events.front())();
-        events.pop();
-    }
-}
-
 void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
 {
-    enqueueAndProcess(
+    functionQueue(
         [this, state]()
         {
             process_event(ShufflingStateEvent {state});
@@ -1025,7 +1003,7 @@ void BridgeEngine::initiate()
 {
     assert(impl);
     impl->getCardManager().subscribe(impl);
-    impl->enqueueAndProcess(
+    impl->functionQueue(
         [&impl = *impl]()
         {
             impl.initiate();
@@ -1035,9 +1013,8 @@ void BridgeEngine::initiate()
 bool BridgeEngine::call(const Player& player, const Call& call)
 {
     assert(impl);
-
     auto ret = false;
-    impl->enqueueAndProcess(
+    impl->functionQueue(
         [&impl = *impl, &player, &call, &ret]()
         {
             impl.process_event(CallEvent {player, call, ret});
@@ -1049,9 +1026,8 @@ bool BridgeEngine::play(
     const Player& player, const Hand& hand, std::size_t card)
 {
     assert(impl);
-
     auto ret = false;
-    impl->enqueueAndProcess(
+    impl->functionQueue(
         [&impl = *impl, &player, &hand, card, &ret]()
         {
             impl.process_event(PlayCardEvent {player, hand, card, ret});
