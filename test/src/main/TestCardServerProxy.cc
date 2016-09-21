@@ -6,6 +6,7 @@
 #include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
 #include "engine/CardManager.hh"
+#include "main/Commands.hh"
 #include "main/CardServerProxy.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
@@ -54,9 +55,6 @@ using CardRevealState = Hand::CardRevealState;
 
 namespace {
 
-const auto CARD_SERVER_COMMAND = "cardserver"s;
-const auto PEER_COMMAND = "bridgerp"s;
-const auto POSITIONS_COMMAND = "positions"s;
 const auto CARD_SERVER_ENDPOINT = "inproc://card-server"s;
 const auto CARD_SERVER_ENDPOINT2 = "inproc://card-server-2"s;
 const auto CONTROL_ENDPOINT = "inproc://control"s;
@@ -193,21 +191,23 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     EXPECT_FALSE(manager->isShuffleCompleted());
     assertMessage(SHUFFLE_COMMAND);
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER2), CARDS_COMMAND,
+        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER2),
+        CardServer::CARDS_COMMAND,
         IsSerialized(cardsFor(PEER2_POSITIONS.begin(), PEER2_POSITIONS.end())));
     const auto self_card_ns =
         cardsFor(SELF_POSITIONS.begin(), SELF_POSITIONS.end());
-    assertMessage(DRAW_COMMAND, CARDS_COMMAND, IsSerialized(self_card_ns));
+    assertMessage(
+        DRAW_COMMAND, CardServer::CARDS_COMMAND, IsSerialized(self_card_ns));
     const auto peer_card_ns =
         cardsFor(PEER_POSITIONS.begin(), PEER_POSITIONS.end());
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER), CARDS_COMMAND,
-        IsSerialized(peer_card_ns));
+        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER),
+        CardServer::CARDS_COMMAND, IsSerialized(peer_card_ns));
 
     revealCards(self_card_ns.begin(), self_card_ns.end());
     reply(SHUFFLE_COMMAND);
     reply(REVEAL_COMMAND);
-    reply(DRAW_COMMAND, std::make_pair(CARDS_COMMAND, allCards));
+    reply(DRAW_COMMAND, std::make_pair(CardServer::CARDS_COMMAND, allCards));
     {
         const auto observer = std::make_shared<ShufflingStateObserver>();
         EXPECT_CALL(*observer, handleNotify(ShufflingState::COMPLETED))
@@ -256,7 +256,8 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         peer_hand->requestReveal(reveal_ns.begin(), reveal_ns.end());
     }
     assertMessage(
-        REVEAL_ALL_COMMAND, CARDS_COMMAND, IsSerialized(reveal_card_ns));
+        REVEAL_ALL_COMMAND, CardServer::CARDS_COMMAND,
+        IsSerialized(reveal_card_ns));
     revealCards(reveal_card_ns.begin(), reveal_card_ns.end());
     {
         const auto observer =
@@ -266,7 +267,9 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
             handleNotify(
                 CardRevealState::COMPLETED, ElementsAreArray(reveal_ns)));
         peer_hand->subscribe(observer);
-        reply(REVEAL_ALL_COMMAND, std::make_pair(CARDS_COMMAND, allCards));
+        reply(
+            REVEAL_ALL_COMMAND,
+            std::make_pair(CardServer::CARDS_COMMAND, allCards));
     }
     EXPECT_TRUE(
         std::equal(

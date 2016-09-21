@@ -3,6 +3,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Position.hh"
 #include "engine/CardManager.hh"
+#include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
@@ -24,15 +25,9 @@
 #include <memory>
 #include <string>
 
-using Bridge::cardTypeIterator;
-using Bridge::dereference;
-using Bridge::N_CARDS;
-using Bridge::Main::CardProtocol;
-using Bridge::Main::MockPeerAcceptor;
-using Bridge::Main::PeerCommandSender;
-using Bridge::Main::SimpleCardProtocol;
-using Bridge::Messaging::JsonSerializer;
-using Bridge::Position;
+using namespace Bridge;
+using namespace Bridge::Main;
+using namespace Bridge::Messaging;
 
 using testing::ElementsAre;
 using testing::IsEmpty;
@@ -40,7 +35,7 @@ using testing::Return;
 
 using namespace std::string_literals;
 
-using CardVector = std::vector<Bridge::CardType>;
+using CardVector = std::vector<CardType>;
 
 namespace {
 
@@ -52,9 +47,9 @@ bool isShuffledDeck(CardIterator first, CardIterator last)
         first, last);
 }
 
-void assertCardManagerHasShuffledDeck(Bridge::Engine::CardManager& cardManager)
+void assertCardManagerHasShuffledDeck(Engine::CardManager& cardManager)
 {
-    const auto range = Bridge::to(N_CARDS);
+    const auto range = to(N_CARDS);
     const auto hand = cardManager.getHand(range.begin(), range.end());
     ASSERT_TRUE(hand);
     auto get_type_func = [](const auto& card) { return card.getType(); };
@@ -73,10 +68,6 @@ MATCHER(IsShuffledDeck, "")
 const auto ENDPOINT = "inproc://test"s;
 const auto LEADER = "leader"s;
 const auto PEER = "peer"s;
-const auto PEER_COMMAND = "bridgerp"s;
-const auto POSITIONS_COMMAND = "positions"s;
-const auto DEAL_COMMAND = "deal"s;
-const auto CARDS_COMMAND = "cards"s;
 
 }
 
@@ -128,7 +119,7 @@ protected:
     SimpleCardProtocol protocol {peerCommandSender};
     std::shared_ptr<MockPeerAcceptor> peerAcceptor {
         std::make_shared<MockPeerAcceptor>()};
-    Bridge::Messaging::MessageQueue::HandlerMap messageHandlers;
+    MessageQueue::HandlerMap messageHandlers;
 };
 
 TEST_F(SimpleCardProtocolTest, testRejectPeer)
@@ -155,7 +146,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
     assertCardManagerHasShuffledDeck(*card_manager);
 
     auto command = std::vector<std::string> {};
-    Bridge::Messaging::recvAll(std::back_inserter(command), backSocket);
+    recvAll(std::back_inserter(command), backSocket);
     EXPECT_THAT(
         command, ElementsAre(DEAL_COMMAND, CARDS_COMMAND, IsShuffledDeck()));
 }

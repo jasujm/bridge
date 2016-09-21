@@ -10,6 +10,7 @@
 #include "engine/CardManager.hh"
 #include "engine/MakeDealState.hh"
 #include "main/CardServerProxy.hh"
+#include "main/Commands.hh"
 #include "main/PeerClientControl.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
@@ -53,25 +54,6 @@ namespace {
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using StringVector = std::vector<std::string>;
-
-const auto HELLO_COMMAND = std::string {"bridgehlo"};
-const auto PEER_COMMAND = std::string {"bridgerp"};
-const auto DEAL_COMMAND = std::string {"deal"};
-const auto GET_COMMAND = std::string {"get"};
-const auto KEYS_COMMAND = std::string {"keys"};
-const auto STATE_COMMAND = std::string {"state"};
-const auto ALLOWED_CALLS_COMMAND = std::string {"allowedCalls"};
-const auto ALLOWED_CARDS_COMMAND = std::string {"allowedCards"};
-const auto SCORE_COMMAND = std::string {"score"};
-const auto CALL_COMMAND = std::string {"call"};
-const auto PLAY_COMMAND = std::string {"play"};
-const auto DUMMY_COMMAND = std::string {"dummy"};
-const auto DEAL_END_COMMAND = std::string {"dealend"};
-const auto POSITIONS_COMMAND = std::string {"positions"};
-const auto POSITION_COMMAND = std::string {"position"};
-const auto CARD_COMMAND = std::string {"card"};
-const auto INDEX_COMMAND = std::string {"index"};
-const auto CARD_SERVER_COMMAND = std::string {"cardserver"};
 
 template<typename PairIterator>
 auto secondIterator(PairIterator iter)

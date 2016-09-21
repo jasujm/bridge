@@ -5,6 +5,7 @@
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Position.hh"
 #include "engine/SimpleCardManager.hh"
+#include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/FunctionMessageHandler.hh"
@@ -23,15 +24,6 @@
 
 namespace Bridge {
 namespace Main {
-
-namespace {
-
-const auto PEER_COMMAND = std::string {"bridgerp"};
-const auto POSITIONS_COMMAND = std::string {"positions"};
-const auto DEAL_COMMAND = std::string {"deal"};
-const auto CARDS_COMMAND = std::string {"cards"};
-
-}
 
 using CardVector = std::vector<CardType>;
 

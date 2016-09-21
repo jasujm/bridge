@@ -7,6 +7,7 @@
 #include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
 #include "engine/CardManager.hh"
+#include "main/Commands.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
 #include "messaging/FunctionMessageHandler.hh"
@@ -55,10 +56,6 @@ using CardVector = std::vector<RevealableCard>;
 using IndexVector = std::vector<std::size_t>;
 
 namespace {
-
-const auto PEER_COMMAND = std::string {"bridgerp"};
-const auto POSITIONS_COMMAND = std::string {"positions"};
-const auto CARD_SERVER_COMMAND = std::string {"cardserver"};
 
 class ProxyHand;
 
