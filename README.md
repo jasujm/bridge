@@ -1,21 +1,17 @@
 # Bridge
 
 [Contract bridge](https://en.wikipedia.org/wiki/Contract_bridge) is a
-well-known trick-taking card game where two partnerships compete each other.
+well‐known trick‐taking card game where two partnerships compete each other.
 
 The goal of this project is to produce a lightweight peer‐to‐peer computer
 bridge application for social games.
 
 ## Features
 
-Currently you can only do few things with the application
-
-- One or several backend peer applications can be started and connected to
-  each other (no peer discovery yet)
-- The protocol between the peers is as of now cleartext, so no peeking the
-  network traffic to figure out what cards the other peers are dealt :innocent:
-- Frontend client applications can be connected to backends
-- After that you are ready to play bridge with duplicate scoring
+- GUI for playing social bridge games
+- Multiple models of networking: client‐server and peer‐to‐peer
+- Cards can be echanged between peers by secure protocol preventing cheating
+- Duplicate scoring (but no support for duplicate deals)
 
 ## Installing
 
@@ -27,10 +23,11 @@ actual game logic and communicates with the frontend and other peers using TCP
 sockets.
 
 The backend uses many features from C++14 — deliberately as one of the goals
-of this project was to learn C++14 — so you need modern-ish compiler. The
-project depends on [ZeroMQ](http://zeromq.org/) for interprocess
-communication, [json](https://github.com/nlohmann/json) to serialize and
-deserialize messages and [Boost](http://www.boost.org/) for various things.
+of this project was to learn C++14 — so you need modern‐ish compiler. The
+project depends on [ZeroMQ](http://zeromq.org/) for messaging,
+[json](https://github.com/nlohmann/json) to serialize and deserialize messages
+and [Boost](http://www.boost.org/) for various things. Optionally
+[LibTMCG](http://www.nongnu.org/libtmcg/) is used for secure card exchange.
 
 [Googletest](https://github.com/google/googletest) is used to build unit
 tests. As recommended by the maintainers of the project, instead of relying on
@@ -38,7 +35,7 @@ any version of googletest found on the local computer, it is downloaded when
 required.
 
 The GUI depends on [Kivy](https://kivy.org/) as GUI toolkit and
-[PyZQM](https://github.com/zeromq/pyzmq) for communication.
+[PyZQM](https://github.com/zeromq/pyzmq) for messaging.
 
 To build and run unit tests for the backend
 
@@ -53,7 +50,8 @@ To build and run unit tests for the backend
 Run the backend (server) located in the top level build directory
 
     $ /the/build/directory/bridge --bind=endpoint --positions=positions \
-    >   --connect=peer‐endpoints
+    >   --connect=peer‐endpoints --cs-bind=cardserver‐control‐endpoint  \
+    >   --cs-peer=cardserver‐base‐peer‐endpoint
 
 The backend opens two sockets into two consequtive ports. The first one is
 used to receive commands from the frontend and peers. The second one is for
@@ -71,18 +69,23 @@ Arguments to the options are:
                the peers the backend connects to. E.g.
                ["tcp://peer1.example.com:5555", "tcp://peer2.example.com:5555"].
                If omitted, the backend connects to no peers.
+    cs-cntl    Card server control endpoint.
+    cs-peer    Base endpoint for peer card servers.
 
 When connecting peers to each other, no position can be controlled by two
 peers and each position must be controlled by some peer.
+
+If the last two parameters are present, card server is used for secure card
+exchange between the peers. Otherwise plaintext simple card exchange protocol
+is used, so no peeking the network traffic :innocent:
 
 Run the four frontend (client) instances
 
     python /the/source/directory/python/bridge_gui.py endpoint
 
-where control and event refer to the control and event endpoints of the
-backend the client is connected to. Exactly one frontend needs to be
-controlled for each position the backend controls. The backend automatically
-assigns positions in order the frontends connect.
+where endpoint is the control endpoint of the backend application. Exactly one
+frontend must connect for each position the backend controls. The backend
+automatically assigns positions in order the frontends connect.
 
 By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server
@@ -97,15 +100,14 @@ model one backend controls all positions and all frontends connect to it.
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ /the/build/directory/bridge --bind=tcp://*5555 --positions='["north"]' \
+    $ /the/build/directory/bridge --bind=tcp://*:5555 --positions='["north"]' \
     >   --connect='["tcp://peer1.example.com:5555",…]' &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
 
-One seat is assined to each frontend. Players and their cards are shown in the
-middle of the screen. The player whose position is bolded has turn to call
-(during auction) or play a card to the trick (during playing). Only the cards
-of the player in turn and (during the playing phase) the dummy are shown at
-any time.
+Players and their cards are shown in the middle of the screen. The player
+whose position is bolded has turn to call (during auction) or play a card to
+the trick (during playing). Only the cards of the player in turn and (during
+the playing phase) the dummy are shown at any time.
 
 Note! The application does not yet correctly handle peers and clients leaving
 and rejoining the game. If connection is lost, the player is never reassigned.
@@ -138,18 +140,28 @@ card server intercation with peers.
     $ cd /the/build/directory
     $ python ../python/test_card_server.py
 
+In order to use card server with bridge application, each peer must supply
+cs-cntl and cs-peer arguments when starting the backend application. The card
+server is started with the same arguments. The control endpoint does needs to
+be visible only to the backend. The peer endpoints must be accessible to the
+peers.
+
+    $ /the/build/directory/bridge --bind=tcp://*:5555 --positions='["north"]' \
+    >   --connect='["tcp://peer1.example.com:5555",…]'                        \
+    >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
+    $ /the/build/directory/cardserver tcp://127.0.0.1:5560 tcp://*:5565 &
+    $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
+
+One port is reserved for each peer. In the example above that means ports
+5565–5567 assuming three peers.
+
 ## TODO
 
-Obviously the application isn’t complete yet. Because this is hobby project
-and I’m interested in implementing a peer protocol, the interesting networking
+Obviously the application is never complete. Because this is hobby project and
+I’m interested in implementing a peer protocol, the interesting networking
 stuff is up first, and the usability stuff comes after that.
 
-Short term goals:
-
-- Make bridge application use card server for secure mental card game protocol
-
-Long term goals:
-
+- More user friendly configuring and installation
 - Actually usable GUI
 - Replace the cumbersome command line configurations with nicer mechanism
 - Peer discovery
