@@ -50,7 +50,7 @@ To build and run unit tests for the backend
 Run the backend (server) located in the top level build directory
 
     $ /the/build/directory/bridge --bind=endpoint --positions=positions \
-    >   --connect=peer‐endpoints --cs-bind=cardserver‐control‐endpoint  \
+    >   --connect=peer‐endpoints --cs-cntl=cardserver‐control‐endpoint  \
     >   --cs-peer=cardserver‐base‐peer‐endpoint
 
 The backend opens two sockets into two consequtive ports. The first one is
