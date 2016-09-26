@@ -70,11 +70,13 @@ private:
     boost::optional<std::string> leaderIdentity;
     std::weak_ptr<PeerAcceptor> peerAcceptor;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
+    std::default_random_engine randomEngine;
 };
 
 SimpleCardProtocol::Impl::Impl(
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
-    peerCommandSender {std::move(peerCommandSender)}
+    peerCommandSender {std::move(peerCommandSender)},
+    randomEngine {std::random_device()()}
 {
 }
 
@@ -88,12 +90,10 @@ void SimpleCardProtocol::Impl::handleNotify(
 {
     if (state == CardManager::ShufflingState::REQUESTED) {
         if (!leaderIdentity) {
-            std::random_device rd;
-            std::default_random_engine re {rd()};
             auto cards = CardVector(
                 cardTypeIterator(0),
                 cardTypeIterator(N_CARDS));
-            std::shuffle(cards.begin(), cards.end(), re);
+            std::shuffle(cards.begin(), cards.end(), randomEngine);
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
