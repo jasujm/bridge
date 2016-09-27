@@ -69,7 +69,7 @@ private:
     boost::optional<std::string> leaderIdentity;
     std::weak_ptr<PeerAcceptor> peerAcceptor;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
-    std::default_random_engine randomEngine;
+    std::mt19937 randomEngine;
 };
 
 SimpleCardProtocol::Impl::Impl(
