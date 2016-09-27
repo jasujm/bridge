@@ -8,6 +8,8 @@
 
 #include "bridge/Position.hh"
 
+#include <boost/range/irange.hpp>
+
 #include <algorithm>
 #include <iterator>
 #include <cstddef>

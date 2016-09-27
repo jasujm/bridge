@@ -9,7 +9,6 @@
 #include "bridge/BridgeConstants.hh"
 
 #include <boost/bimap/bimap.hpp>
-#include <boost/range/irange.hpp>
 
 #include <array>
 #include <iosfwd>
