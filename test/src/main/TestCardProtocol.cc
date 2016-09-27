@@ -9,7 +9,6 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <array>
 #include <iterator>
 
 using Bridge::Main::CardProtocol;
@@ -32,8 +31,7 @@ TEST_F(CardProtocolTest, testSetAcceptor)
 
 TEST_F(CardProtocolTest, testGetMessageHandlers)
 {
-    std::array<CardProtocol::MessageHandlerRange::value_type, 1>
-    expected_handlers {{
+    CardProtocol::MessageHandlerVector expected_handlers {{
         { "command", std::make_shared<Bridge::Messaging::MockMessageHandler>() }
     }};
     EXPECT_CALL(protocol, handleGetMessageHandlers())
@@ -51,8 +49,7 @@ TEST_F(CardProtocolTest, testGetSockets)
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair);
     Bridge::Messaging::MockMessageLoopCallback callback;
     EXPECT_CALL(callback, call(Ref(*socket))).WillOnce(Return(true));
-    std::array<CardProtocol::SocketRange::value_type, 1>
-    expected_sockets {{
+    CardProtocol::SocketVector expected_sockets {{
         { socket, [&callback](auto& socket) { return callback.call(socket); } }
     }};
     EXPECT_CALL(protocol, handleGetSockets())

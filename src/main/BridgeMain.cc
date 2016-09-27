@@ -75,7 +75,7 @@ public:
 
     Impl(
         zmq::context_t& context, const std::string& baseEndpoint,
-        PositionRange positions, EndpointRange peerEndpoints,
+        const PositionVector& positions, const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
@@ -179,7 +179,7 @@ std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
 
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& baseEndpoint,
-    PositionRange positions, EndpointRange peerEndpoints,
+    const PositionVector& positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     peerClientControl {
@@ -246,11 +246,9 @@ BridgeMain::Impl::Impl(
     for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
-    const auto position_vector = CardProtocol::PositionVector(
-        positions.begin(), positions.end());
     sendToPeers(
         PEER_COMMAND,
-        std::tie(POSITIONS_COMMAND, position_vector),
+        std::tie(POSITIONS_COMMAND, positions),
         std::tie(CARD_SERVER_COMMAND, cardServerBasePeerEndpoint));
 }
 
@@ -484,13 +482,14 @@ Reply<> BridgeMain::Impl::play(
 
 BridgeMain::BridgeMain(
     zmq::context_t& context, const std::string& baseEndpoint,
-    PositionRange positions, EndpointRange peerEndpoints,
+    const PositionVector& positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     impl {
         std::make_shared<Impl>(
-            context, baseEndpoint, positions, peerEndpoints,
-            cardServerControlEndpoint, cardServerBasePeerEndpoint)}
+            context, baseEndpoint, std::move(positions),
+            std::move(peerEndpoints), cardServerControlEndpoint,
+            cardServerBasePeerEndpoint)}
 {
     auto& card_protocol = impl->getCardProtocol();
     card_protocol.setAcceptor(impl);

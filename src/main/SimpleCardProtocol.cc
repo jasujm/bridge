@@ -16,7 +16,6 @@
 #include <boost/optional/optional.hpp>
 
 #include <algorithm>
-#include <array>
 #include <random>
 #include <string>
 #include <tuple>
@@ -44,7 +43,7 @@ public:
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
 
-    const std::array<MessageHandlerRange::value_type, 2> messageHandlers {{
+    const std::vector<MessageHandlerVector::value_type> messageHandlers {{
         {
             PEER_COMMAND,
             makeMessageHandler(
@@ -148,14 +147,14 @@ void SimpleCardProtocol::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
     impl->setAcceptor(std::move(acceptor));
 }
 
-CardProtocol::MessageHandlerRange
+CardProtocol::MessageHandlerVector
 SimpleCardProtocol::handleGetMessageHandlers()
 {
     assert(impl);
     return impl->messageHandlers;
 }
 
-SimpleCardProtocol::SocketRange SimpleCardProtocol::handleGetSockets()
+SimpleCardProtocol::SocketVector SimpleCardProtocol::handleGetSockets()
 {
     return {};
 }

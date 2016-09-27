@@ -196,7 +196,7 @@ public:
 private:
 
     bool doHandle(
-        const std::string& identity, ParameterRange params,
+        const std::string& identity, const ParameterVector& params,
         OutputSink sink) override;
 
     template<typename T>
@@ -260,7 +260,6 @@ private:
     using ParamTraits = ParamTraitsImpl<std::decay_t<T>>;
 
     using ParamTuple = std::tuple<typename ParamTraits<Args>::WrappedType...>;
-    using ParamIterator = typename ParameterRange::iterator;
     using InitFunction =
         bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
     using InitFunctionMap = std::map<std::string, InitFunction>;
@@ -313,8 +312,8 @@ private:
 
     template<std::size_t... Ns>
     bool internalCallFunction(
-        const std::string& identity, ParameterRange params, OutputSink& sink,
-        std::index_sequence<Ns...>)
+        const std::string& identity, const ParameterVector& params,
+        OutputSink& sink, std::index_sequence<Ns...>)
     {
         auto first = params.begin();
         const auto last = params.end();
@@ -405,7 +404,7 @@ FunctionMessageHandler(
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    const std::string& identity, MessageHandler::ParameterRange params,
+    const std::string& identity, const ParameterVector& params,
     OutputSink sink)
 {
     return internalCallFunction(

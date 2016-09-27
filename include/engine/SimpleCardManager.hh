@@ -8,10 +8,10 @@
 
 #include "engine/CardManager.hh"
 
-#include <boost/range/any_range.hpp>
 #include <boost/core/noncopyable.hpp>
 
 #include <memory>
+#include <vector>
 
 namespace Bridge {
 
@@ -67,21 +67,20 @@ public:
 
 private:
 
-    using CardTypeRange = boost::any_range<
-        CardType, boost::single_pass_traversal_tag>;
+    using CardTypeVector = std::vector<CardType>;
 
     void handleSubscribe(
         std::weak_ptr<Observer<ShufflingState>> observer) override;
 
     void handleRequestShuffle() override;
 
-    std::shared_ptr<Hand> handleGetHand(IndexRange ns) override;
+    std::shared_ptr<Hand> handleGetHand(const IndexVector& ns) override;
 
     bool handleIsShuffleCompleted() const override;
 
     std::size_t handleGetNumberOfCards() const override;
 
-    void internalShuffle(CardTypeRange cards);
+    void internalShuffle(const CardTypeVector& cards);
 
     const std::unique_ptr<Impl> impl;
 };
@@ -89,7 +88,7 @@ private:
 template<typename CardTypeIterator>
 void SimpleCardManager::shuffle(CardTypeIterator first, CardTypeIterator last)
 {
-    internalShuffle(CardTypeRange(first, last));
+    internalShuffle(CardTypeVector(first, last));
 }
 
 }

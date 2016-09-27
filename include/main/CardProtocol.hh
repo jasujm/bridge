@@ -9,7 +9,6 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 
-#include <boost/range/any_range.hpp>
 #include <zmq.hpp>
 
 #include <memory>
@@ -81,17 +80,15 @@ public:
 
     /** \brief Return value of getMessageHandlers()
      */
-    using MessageHandlerRange = boost::any_range<
-        Messaging::MessageQueue::HandlerMap::value_type,
-        boost::single_pass_traversal_tag>;
+    using MessageHandlerVector = std::vector<
+        Messaging::MessageQueue::HandlerMap::value_type>;
 
     /** \brief Return value of getSockets()
      */
-    using SocketRange = boost::any_range<
+    using SocketVector = std::vector<
         std::pair<
             std::shared_ptr<zmq::socket_t>,
-            Messaging::MessageLoop::SocketCallback>,
-        boost::single_pass_traversal_tag>;
+            Messaging::MessageLoop::SocketCallback>>;
 
     virtual ~CardProtocol();
 
@@ -114,20 +111,20 @@ public:
      * for letting peers join the game. Client of this class can register peer
      * acceptor using setAcceptor().
      *
-     * \return A range of command–message handler pairs that should be added
+     * \return A vector of command–message handler pairs that should be added
      * to a message queue handling messages from the peers.
      */
-    MessageHandlerRange getMessageHandlers();
+    MessageHandlerVector getMessageHandlers();
 
     /** \brief Get additional sockets that need to be polled
      *
-     * \return A range containing pairs of sockets and callbacks. These
+     * \return A vector containing pairs of sockets and callbacks. These
      * sockets need to be polled in message loop and incoming messages
      * signalled by calling the callback.
      *
      * \sa Messaging::MessageLoop
      */
-    SocketRange getSockets();
+    SocketVector getSockets();
 
     /** \brief Get pointer to the card manager
      *
@@ -155,13 +152,13 @@ private:
      *
      * \sa getMessageHandlers()
      */
-    virtual MessageHandlerRange handleGetMessageHandlers() = 0;
+    virtual MessageHandlerVector handleGetMessageHandlers() = 0;
 
     /** \brief Handle for returning sockets required for the protocol
      *
      * \sa getSockets()
      */
-    virtual SocketRange handleGetSockets() = 0;
+    virtual SocketVector handleGetSockets() = 0;
 
     /** \brief Handler for returning the card manager of the protocol
      *

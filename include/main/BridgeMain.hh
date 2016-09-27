@@ -8,12 +8,12 @@
 
 #include "bridge/Position.hh"
 
-#include <boost/range/any_range.hpp>
 #include <zmq.hpp>
 
 #include <deque>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Bridge {
 
@@ -40,13 +40,11 @@ public:
 
     /** \brief Parameter to BridgeMain()
      */
-    using PositionRange = boost::any_range<
-        Position, boost::forward_traversal_tag>;
+    using PositionVector = std::vector<Position>;
 
     /** \brief Parameter for BridgeMain()
      */
-    using EndpointRange = boost::any_range<
-        std::string, boost::single_pass_traversal_tag>;
+    using EndpointVector = std::vector<std::string>;
 
     /** \brief Create Bridge backend
      *
@@ -71,8 +69,8 @@ public:
     BridgeMain(
         zmq::context_t& context,
         const std::string& baseEndpoint,
-        PositionRange positionsControlled,
-        EndpointRange peerEndpoints,
+        const PositionVector& positionsControlled,
+        const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 

@@ -16,15 +16,12 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
-#include <utility>
-#include <vector>
 
 namespace {
 
-using PositionVector = std::vector<Bridge::Position>;
-using StringVector = std::vector<std::string>;
+using Bridge::Main::BridgeMain;
 
-std::atomic<Bridge::Main::BridgeMain*> appObserver {nullptr};
+std::atomic<BridgeMain*> appObserver {nullptr};
 
 extern "C" void signalHandler(int)
 {
@@ -67,14 +64,13 @@ public:
 
     BridgeApp(
         zmq::context_t& zmqctx,
-        std::string baseEndpoint,
-        PositionVector positions,
-        StringVector peerEndpoints,
+        const std::string& baseEndpoint,
+        const BridgeMain::PositionVector& positions,
+        const BridgeMain::EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint) :
         app {
-            zmqctx, std::move(baseEndpoint),
-            std::move(positions), std::move(peerEndpoints),
+            zmqctx, baseEndpoint, positions, peerEndpoints,
             cardServerControlEndpoint, cardServerBasePeerEndpoint}
     {
         appObserver = &app;
@@ -96,7 +92,7 @@ public:
 
 private:
 
-    Bridge::Main::BridgeMain app;
+    BridgeMain app;
 };
 
 template<typename T>
@@ -111,8 +107,9 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     using Bridge::POSITIONS;
 
     auto baseEndpoint = std::string {};
-    auto positions = PositionVector(POSITIONS.begin(), POSITIONS.end());
-    auto peerEndpoints = StringVector {};
+    auto positions = BridgeMain::PositionVector(
+        POSITIONS.begin(), POSITIONS.end());
+    auto peerEndpoints = BridgeMain::EndpointVector {};
     auto cardServerControlEndpoint = std::string {};
     auto cardServerBasePeerEndpoint = std::string {};
 
@@ -134,9 +131,9 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         } else if (c == 'b') {
             baseEndpoint = optarg;
         } else if (c == 'p') {
-            positions = parseArgument<PositionVector>(optarg);
+            positions = parseArgument<BridgeMain::PositionVector>(optarg);
         } else if (c == 'c') {
-            peerEndpoints = parseArgument<StringVector>(optarg);
+            peerEndpoints = parseArgument<BridgeMain::EndpointVector>(optarg);
         } else if (c == 't') {
             cardServerControlEndpoint = optarg;
         } else if (c == 'q') {
@@ -152,9 +149,8 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     }
 
     return BridgeApp {
-        zmqctx, std::move(baseEndpoint), std::move(positions),
-        std::move(peerEndpoints), cardServerControlEndpoint,
-        cardServerBasePeerEndpoint};
+        zmqctx, baseEndpoint, positions, peerEndpoints,
+        cardServerControlEndpoint, cardServerBasePeerEndpoint};
 }
 
 }

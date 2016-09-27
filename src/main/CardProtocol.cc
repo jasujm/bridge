@@ -14,12 +14,12 @@ void CardProtocol::setAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
     handleSetAcceptor(std::move(acceptor));
 }
 
-CardProtocol::MessageHandlerRange CardProtocol::getMessageHandlers()
+CardProtocol::MessageHandlerVector CardProtocol::getMessageHandlers()
 {
     return handleGetMessageHandlers();
 }
 
-CardProtocol::SocketRange CardProtocol::getSockets()
+CardProtocol::SocketVector CardProtocol::getSockets()
 {
     return handleGetSockets();
 }

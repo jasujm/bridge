@@ -11,8 +11,6 @@
 #include <vector>
 #include <utility>
 
-#include <boost/range/any_range.hpp>
-
 namespace Bridge {
 namespace Messaging {
 
@@ -51,8 +49,7 @@ protected:
 
     /** \brief Input parameter to doHandle()
      */
-    using ParameterRange = boost::any_range<
-        std::string, boost::single_pass_traversal_tag>;
+    using ParameterVector = std::vector<std::string>;
 
     /** \brief Output parameter to doHandle()
      */
@@ -63,7 +60,7 @@ private:
     /** \brief Handle action of this handler
      *
      * \param identity the identity of the sender of the message
-     * \param params range containing the parameters passed to handle()
+     * \param params vector containing the parameters passed to handle()
      * \param sink sink that can be invoked to write to the output passed to
      * handle()
      *
@@ -72,7 +69,7 @@ private:
      * \sa handle()
      */
     virtual bool doHandle(
-        const std::string& identity, ParameterRange params,
+        const std::string& identity, const ParameterVector& params,
         OutputSink sink) = 0;
 };
 
@@ -82,7 +79,7 @@ bool MessageHandler::handle(
     ParameterIterator first, ParameterIterator last, OutputIterator out)
 {
     return doHandle(
-        identity, ParameterRange(first, last), [&out](std::string output)
+        identity, ParameterVector(first, last), [&out](std::string output)
         {
             *out++ = std::move(output);
         });

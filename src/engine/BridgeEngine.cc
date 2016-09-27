@@ -228,7 +228,7 @@ BridgeEngine::Impl::Impl(
 
 auto BridgeEngine::Impl::makeCardRevealStateObserver()
 {
-    return makeObserver<Hand::CardRevealState, Hand::IndexRange>(
+    return makeObserver<Hand::CardRevealState, Hand::IndexVector>(
         [this](const auto& state, const auto& ns)
         {
             const auto first = ns.begin();

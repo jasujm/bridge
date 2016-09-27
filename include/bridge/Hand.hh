@@ -15,11 +15,11 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 #include <boost/optional/optional.hpp>
-#include <boost/range/any_range.hpp>
 
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 namespace Bridge {
 
@@ -40,16 +40,15 @@ public:
         COMPLETED,  ///< Revealing card completed
     };
 
-    /** \brief Range of indices
+    /** \brief Vector of indices
      */
-    using IndexRange = boost::any_range<
-        std::size_t, boost::forward_traversal_tag, std::size_t>;
+    using IndexVector = std::vector<std::size_t>;
 
     /** \brief Observer of card reveal state
      *
      * \sa subscribe()
      */
-    using CardRevealStateObserver = Observer<CardRevealState, IndexRange>;
+    using CardRevealStateObserver = Observer<CardRevealState, IndexVector>;
 
     virtual ~Hand();
 
@@ -153,10 +152,13 @@ private:
     virtual void handleSubscribe(
         std::weak_ptr<CardRevealStateObserver> observer) = 0;
 
-    /** \brief Handle for revealing
+    /** \brief Handle for requesting reveal of cards
      *
+     * It may be assumed that n < getNumberOfCards() for each n in the range
+     *
+     * \sa requestReveal()
      */
-    virtual void handleRequestReveal(IndexRange ns) = 0;
+    virtual void handleRequestReveal(const IndexVector& ns) = 0;
 
     /** \brief Handle for marking a card as played
      *
@@ -216,7 +218,7 @@ void Hand::requestReveal(IndexIterator first, IndexIterator last)
     if (fail) {
         throw std::out_of_range {"Card index out of range"};
     }
-    handleRequestReveal(IndexRange(first, last));
+    handleRequestReveal(IndexVector(first, last));
 }
 
 

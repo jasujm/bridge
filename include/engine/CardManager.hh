@@ -10,11 +10,11 @@
 #include "Utility.hh"
 
 #include <boost/optional/optional.hpp>
-#include <boost/range/any_range.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <vector>
 
 namespace Bridge {
 
@@ -106,10 +106,9 @@ public:
 
 protected:
 
-    /** Forward traversable range of indices
+    /** \brief Vector of indices
      */
-    using IndexRange = boost::any_range<
-        std::size_t, boost::forward_traversal_tag, std::size_t>;
+    using IndexVector = std::vector<std::size_t>;
 
 private:
 
@@ -135,7 +134,7 @@ private:
      *
      * \sa getHand()
      */
-    virtual std::shared_ptr<Hand> handleGetHand(IndexRange ns) = 0;
+    virtual std::shared_ptr<Hand> handleGetHand(const IndexVector& ns) = 0;
 
     /** \brief Handle for determining if the shuffle is completed
      *
@@ -164,7 +163,7 @@ std::shared_ptr<Hand> CardManager::getHand(
             [n_cards = *n_cards](const auto n) {
                 checkIndex(n, n_cards);
             });
-        return handleGetHand(IndexRange(first, last));
+        return handleGetHand(IndexVector(first, last));
     }
     return nullptr;
 }

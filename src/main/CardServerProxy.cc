@@ -29,7 +29,6 @@
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <iterator>
 #include <tuple>
@@ -133,12 +132,12 @@ struct PeerPosition {
 class ProxyHand :
     public HandBase, public std::enable_shared_from_this<ProxyHand> {
 public:
-    ProxyHand(std::shared_ptr<Impl> impl, IndexRange cardNs);
+    ProxyHand(std::shared_ptr<Impl> impl, IndexVector cardNs);
 
     using HandBase::notifyAll;
 
 private:
-    void handleRequestReveal(IndexRange ns) override;
+    void handleRequestReveal(const IndexVector& ns) override;
 
     const std::weak_ptr<Impl> impl;
     const IndexVector cardNs;
@@ -186,8 +185,8 @@ public:
     bool revealCards(CardIterator first, CardIterator last);
 
     auto getAcceptor() const;
-    const auto& getMessageHandlers() const;
-    const auto& getSockets() const;
+    auto getMessageHandlers() const;
+    auto getSockets() const;
     auto getNumberOfPeers() const;
 
     template<typename IndexIterator>
@@ -204,13 +203,13 @@ private:
     void handleSubscribe(
         std::weak_ptr<Observer<ShufflingState>> observer) override;
     void handleRequestShuffle() override;
-    std::shared_ptr<Hand> handleGetHand(IndexRange ns) override;
+    std::shared_ptr<Hand> handleGetHand(const IndexVector& ns) override;
     bool handleIsShuffleCompleted() const override;
     std::size_t handleGetNumberOfCards() const override;
 
     void internalHandleCardServerMessage(zmq::socket_t& socket);
 
-    const std::array<MessageHandlerRange::value_type, 1> messageHandlers {{
+    const MessageHandlerVector messageHandlers {{
          {
              PEER_COMMAND,
              makeMessageHandler(
@@ -218,7 +217,7 @@ private:
                  std::make_tuple(POSITIONS_COMMAND, CARD_SERVER_COMMAND))
         },
     }};
-    const std::array<SocketRange::value_type, 1> sockets;
+    const SocketVector sockets;
     zmq::socket_t& controlSocket;
     std::weak_ptr<PeerAcceptor> peerAcceptor;
     std::vector<PeerPosition> peerPositions;
@@ -322,12 +321,12 @@ auto Impl::getAcceptor() const
     return std::shared_ptr<PeerAcceptor> {peerAcceptor};
 }
 
-const auto& Impl::getMessageHandlers() const
+auto Impl::getMessageHandlers() const
 {
     return messageHandlers;
 }
 
-const auto& Impl::getSockets() const
+auto Impl::getSockets() const
 {
     return sockets;
 }
@@ -372,7 +371,7 @@ void Impl::handleRequestShuffle()
     functionQueue([this]() { process_event(RequestShuffleEvent {}); });
 }
 
-std::shared_ptr<Hand> Impl::handleGetHand(IndexRange ns)
+std::shared_ptr<Hand> Impl::handleGetHand(const IndexVector& ns)
 {
     return std::make_shared<ProxyHand>(shared_from_this(), std::move(ns));
 }
@@ -416,27 +415,26 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
 
 namespace {
 
-ProxyHand::ProxyHand(std::shared_ptr<Impl> impl, IndexRange cardNs) :
+ProxyHand::ProxyHand(std::shared_ptr<Impl> impl, IndexVector cardNs) :
     HandBase(
         impl->cardIterator(cardNs.begin()),
         impl->cardIterator(cardNs.end())),
     impl {std::move(impl)},
-    cardNs(cardNs.begin(), cardNs.end())
+    cardNs {std::move(cardNs)}
 {
 }
 
-void ProxyHand::handleRequestReveal(IndexRange ns)
+void ProxyHand::handleRequestReveal(const IndexVector& ns)
 {
     // ns = indices of the cards in the hand to be revealed
     // cardNs = corresponding indices in the card server when considering what
     //          cards have been assigned to this hand
-    auto ns_ = IndexVector(ns.begin(), ns.end());
     auto cardNs = IndexVector(
-        containerAccessIterator(ns_.begin(), this->cardNs),
-        containerAccessIterator(ns_.end(),   this->cardNs));
+        containerAccessIterator(ns.begin(), this->cardNs),
+        containerAccessIterator(ns.end(),   this->cardNs));
     if (const auto impl_ = impl.lock()) {
         impl_->functionQueue(
-            [this, ns = std::move(ns_), cardNs = std::move(cardNs)]() mutable
+            [this, ns = ns, cardNs = std::move(cardNs)]() mutable
             {
                 if (const auto impl_ = impl.lock()) {
                     impl_->process_event(
@@ -685,14 +683,14 @@ void CardServerProxy::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
     impl->setAcceptor(std::move(acceptor));
 }
 
-CardProtocol::MessageHandlerRange
+CardProtocol::MessageHandlerVector
 CardServerProxy::handleGetMessageHandlers()
 {
     assert(impl);
     return impl->getMessageHandlers();
 }
 
-CardServerProxy::SocketRange CardServerProxy::handleGetSockets()
+CardServerProxy::SocketVector CardServerProxy::handleGetSockets()
 {
     assert(impl);
     return impl->getSockets();

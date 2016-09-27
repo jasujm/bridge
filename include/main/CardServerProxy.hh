@@ -52,9 +52,9 @@ private:
 
     void handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor) override;
 
-    MessageHandlerRange handleGetMessageHandlers() override;
+    MessageHandlerVector handleGetMessageHandlers() override;
 
-    SocketRange handleGetSockets() override;
+    SocketVector handleGetSockets() override;
 
     std::shared_ptr<Engine::CardManager> handleGetCardManager() override;
 

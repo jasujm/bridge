@@ -7,12 +7,10 @@
 #define CARDSFORPOSITION_HH_
 
 #include "bridge/Position.hh"
+#include "Utility.hh"
 
-#include <boost/range/irange.hpp>
-
-#include <algorithm>
-#include <iterator>
 #include <cstddef>
+#include <vector>
 
 namespace Bridge {
 
@@ -20,7 +18,7 @@ namespace Bridge {
  *
  * \param position the position
  *
- * \return Range containing the 13 indices owned by the given position. The
+ * \return Vector containing the 13 indices owned by the given position. The
  * indices are the following:
  *   - North owns cards 0–12
  *   - East owns cards 13–25
@@ -29,10 +27,12 @@ namespace Bridge {
  *
  * \throw std::invalid_argument if \p position is invalid
  */
-inline auto cardsFor(Position position)
+inline std::vector<std::size_t> cardsFor(Position position)
 {
     const auto n = positionOrder(position);
-    return boost::irange(n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
+    const auto range = from_to(
+        n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
+    return std::vector<std::size_t>(range.begin(), range.end());
 }
 
 /** \brief Determine the indices of cards dealt to a range of positions
@@ -49,15 +49,18 @@ inline auto cardsFor(Position position)
  * \throw std::invalid_argument if any position in the range is invalid
  */
 template<typename PositionIterator>
-auto cardsFor(PositionIterator first, PositionIterator last)
+inline std::vector<std::size_t> cardsFor(
+    PositionIterator first, PositionIterator last)
 {
-    auto ret = std::vector<std::size_t> {};
-    for (; first != last; ++first) {
-        const auto ns = cardsFor(*first);
-        ret.reserve(ret.size() + ns.size());
-        std::copy(ns.begin(), ns.end(), std::back_inserter(ret));
+    if (first != last) {
+        auto ret = cardsFor(*first++);
+        while (first != last) {
+            const auto ns = cardsFor(*first++);
+            ret.insert(ret.end(), ns.begin(), ns.end());
+        }
+        return ret;
     }
-    return ret;
+    return {};
 }
 
 }

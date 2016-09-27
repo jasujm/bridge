@@ -24,10 +24,10 @@ namespace {
 class HandImpl : public HandBase {
 public:
     using HandBase::HandBase;
-    void handleRequestReveal(IndexRange ns) override;
+    void handleRequestReveal(const IndexVector& ns) override;
 };
 
-void HandImpl::handleRequestReveal(IndexRange ns)
+void HandImpl::handleRequestReveal(const IndexVector& ns)
 {
     // We can immediately notify about reveal completion because the cards are
     // SimpleCard type whose type are always known.
@@ -58,7 +58,7 @@ class SimpleCardManager::Impl :
         public sc::state_machine<Impl, Idle>,
         protected Observable<ShufflingState>  {
 public:
-    using CardTypeRange = SimpleCardManager::CardTypeRange;
+    using CardTypeVector = SimpleCardManager::CardTypeVector;
     using Observable<ShufflingState>::subscribe;
     void notifyStateChange(const NotifyStateEvent&);
 };
@@ -72,16 +72,16 @@ void SimpleCardManager::Impl::notifyStateChange(
 namespace {
 
 using Impl = SimpleCardManager::Impl;
-using CardTypeRange = Impl::CardTypeRange;
+using CardTypeVector = Impl::CardTypeVector;
 
-// This is event is defined here to be able to refer to CardTypeRange
+// This is event is defined here to be able to refer to CardTypeVector
 class ShuffleEvent : public sc::event<ShuffleEvent> {
 public:
-    ShuffleEvent(CardTypeRange cards) :
+    ShuffleEvent(const CardTypeVector& cards) :
         cards {cards}
     {
     }
-    CardTypeRange cards;
+    const CardTypeVector& cards;
 };
 
 class Idle : public sc::simple_state<Idle, Impl> {
@@ -166,7 +166,7 @@ void SimpleCardManager::handleRequestShuffle()
     impl->process_event(RequestShuffleEvent {});
 }
 
-std::shared_ptr<Hand> SimpleCardManager::handleGetHand(const IndexRange ns)
+std::shared_ptr<Hand> SimpleCardManager::handleGetHand(const IndexVector& ns)
 {
     assert(impl);
     const auto& cards = getCardsFrom(*impl);
@@ -187,10 +187,10 @@ bool SimpleCardManager::handleIsShuffleCompleted() const
     return impl->state_cast<const ShuffleCompleted*>();
 }
 
-void SimpleCardManager::internalShuffle(CardTypeRange cards)
+void SimpleCardManager::internalShuffle(const CardTypeVector& cards)
 {
     assert(impl);
-    impl->process_event(ShuffleEvent {std::move(cards)});
+    impl->process_event(ShuffleEvent {cards});
 }
 
 }

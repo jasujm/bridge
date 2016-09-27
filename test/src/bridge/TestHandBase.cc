@@ -8,10 +8,11 @@
 
 #include <array>
 
+using Bridge::Hand;
 using Bridge::HandBase;
 using Bridge::N_CARDS_PER_PLAYER;
 
-using testing::ElementsAreArray;
+using testing::ElementsAre;
 using testing::Return;
 using testing::Values;
 
@@ -21,7 +22,7 @@ class MockHandBase : public Bridge::HandBase {
 public:
     using HandBase::HandBase;
     using HandBase::notifyAll;
-    MOCK_METHOD1(handleRequestReveal, void(IndexRange));
+    MOCK_METHOD1(handleRequestReveal, void(const IndexVector&));
 };
 
 }
@@ -34,14 +35,13 @@ protected:
 
 TEST_F(HandBaseTest, testSubscribe)
 {
-    const auto range = Bridge::to(std::size_t {10});
-    const auto state = Bridge::Hand::CardRevealState::REQUESTED;
+    const auto state = Hand::CardRevealState::REQUESTED;
     const auto observer = std::make_shared<
         Bridge::MockCardRevealStateObserver>();
-    EXPECT_CALL(*observer, handleNotify(state, ElementsAreArray(range)));
+    EXPECT_CALL(*observer, handleNotify(state, ElementsAre(10)));
 
     hand.subscribe(observer);
-    hand.notifyAll(state, range);
+    hand.notifyAll(state, Hand::IndexVector {10});
 }
 
 TEST_F(HandBaseTest, testNumberOfCards)

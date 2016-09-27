@@ -51,7 +51,7 @@ public:
 
 private:
 
-    void handleRequestReveal(IndexRange ns) override;
+    void handleRequestReveal(const IndexVector& ns) override;
 };
 
 template<typename IndexIterator>
@@ -64,7 +64,7 @@ bool BasicHand::reveal(IndexIterator first, IndexIterator last)
             return !card || card->isKnown();
         });
     if (notify) {
-        notifyAll(CardRevealState::COMPLETED, IndexRange(first, last));
+        notifyAll(CardRevealState::COMPLETED, IndexVector(first, last));
     }
     return notify;
 }
