@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+using testing::InSequence;
+using testing::InvokeWithoutArgs;
 using testing::NiceMock;
 
 class ObserverTest : public testing::Test {
@@ -47,6 +49,43 @@ TEST_F(ObserverTest, testUnsubscribe)
 
     observable.subscribe(observer2);
     observer.reset();
+    observable.notifyAll(1);
+}
+
+TEST_F(ObserverTest, testSubscribeWhileNotifying)
+{
+    EXPECT_CALL(*observer, handleNotify(1))
+        .WillOnce(
+            InvokeWithoutArgs(
+                [this]()
+                {
+                    observable.subscribe(observer2);
+                }));
+    EXPECT_CALL(*observer2, handleNotify(1));
+
+    observable.notifyAll(1);
+}
+
+TEST_F(ObserverTest, testNotifyWhileNotifying)
+{
+    {
+        InSequence sequence;
+        EXPECT_CALL(*observer, handleNotify(1))
+            .WillOnce(
+                InvokeWithoutArgs(
+                    [this]()
+                    {
+                        observable.notifyAll(2);
+                    }));
+        EXPECT_CALL(*observer, handleNotify(2));
+    }
+    {
+        InSequence sequence;
+        EXPECT_CALL(*observer2, handleNotify(1));
+        EXPECT_CALL(*observer2, handleNotify(2));
+    }
+
+    observable.subscribe(observer2);
     observable.notifyAll(1);
 }
 

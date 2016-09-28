@@ -13,8 +13,12 @@
 #ifndef OBSERVER_HH_
 #define OBSERVER_HH_
 
+#include "FunctionQueue.hh"
+
 #include <memory>
 #include <list>
+#include <tuple>
+#include <utility>
 
 namespace Bridge {
 
@@ -53,7 +57,7 @@ private:
 };
 
 template<typename... T>
-inline void Observer<T...>::notify(const T&... args)
+void Observer<T...>::notify(const T&... args)
 {
     handleNotify(args...);
 }
@@ -81,12 +85,12 @@ public:
     /** \brief Subscribe observer to this Observable
      *
      * Observers will receive notifications when notifyAll() is called. The
-     * observer is allowed to go out of scope, in which case it is simply
-     * removed from the list of observers.
+     * lifetime of the observer is allowed to end at any point, in which case
+     * it is simply removed from the list of observers.
      *
-     * \note This method is protected by default to let the derived class to
-     * control subscriptions. It can choose to publish the method with using
-     * declaration.
+     * The method can be called even if notification is already ongoing. In
+     * that case the new observer will receive the current notification after
+     * the existing subscribers.
      *
      * \param observer the observer to be registered
      */
@@ -94,27 +98,54 @@ public:
 
     /** \brief Notify all observers
      *
-     * \param args parameters to pass to Observer::notify
+     * This method call will call Observer::notify() for all observers that
+     * have previously subscribed to notifications.
+     *
+     * The method can be called even if notification is already ongoing. In
+     * that case the notification is queued and starts when all subscribers
+     * have received the prior notification or notifications.
+     *
+     * \param args arguments for Observer::notify
      */
-    void notifyAll(const T&... args);
+    template<typename... U>
+    void notifyAll(U&&... args);
 
 private:
+
+    template<std::size_t... Ns>
+    void internalNotifyAllHelper(
+        const std::tuple<T...>& args, std::index_sequence<Ns...>);
+
     std::list<std::weak_ptr<Observer<T...>>> observers;
+    FunctionQueue functionQueue;
 };
 
 template<typename... T>
-inline void Observable<T...>::subscribe(
+void Observable<T...>::subscribe(
     std::weak_ptr<Observer<T...>> observer)
 {
     observers.emplace_back(observer);
 }
 
 template<typename... T>
-inline void Observable<T...>::notifyAll(const T&... args)
+template<typename... U>
+void Observable<T...>::notifyAll(U&&... args)
+{
+    functionQueue(
+        [this, args = std::tuple<T...> {std::forward<U>(args)...}]()
+        {
+            internalNotifyAllHelper(args, std::index_sequence_for<T...> {});
+        });
+}
+
+template<typename... T>
+template<std::size_t... Ns>
+void Observable<T...>::internalNotifyAllHelper(
+    const std::tuple<T...>& args, std::index_sequence<Ns...>)
 {
     for (auto iter = observers.begin(); iter != observers.end(); ) {
         if (auto observer = iter->lock()) {
-            observer->notify(args...);
+            observer->notify(std::get<Ns>(args)...);
             ++iter;
         } else {
             iter = observers.erase(iter);

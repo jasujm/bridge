@@ -650,8 +650,8 @@ sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
             std::tie(CardServer::CARDS_COMMAND, event.cardNs));
         assert(event.hand);
         hand = event.hand;
-        ns = std::move(event.ns);
-        event.hand->notifyAll(CardRevealState::REQUESTED, ns);
+        ns = event.ns;
+        event.hand->notifyAll(CardRevealState::REQUESTED, std::move(event.ns));
     }
     return discard_event();
 }
@@ -662,8 +662,7 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
         outermost_context().revealCards(event.cards.begin(), event.cards.end());
         // Already set this->hand to null if the subscribers request new reveal
         const auto hand = std::move(this->hand);
-        const auto ns = std::move(this->ns);
-        hand->notifyAll(CardRevealState::COMPLETED, ns);
+        hand->notifyAll(CardRevealState::COMPLETED, std::move(this->ns));
     }
     return discard_event();
 }

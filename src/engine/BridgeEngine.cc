@@ -374,7 +374,8 @@ void InDeal::exit()
 {
     // This must be in exit() instead of ~InDeal(). Context might be
     // destructed if we ended up here due to destruction of Impl.
-    outermost_context().getDealEndedNotifier().notifyAll({});
+    outermost_context().getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {});
 }
 
 Bidding& InDeal::getBidding()
@@ -482,7 +483,7 @@ sc::result InBidding::react(const CallEvent& event)
     if (bidding.call(bidder_position, event.call)) {
         event.ret = true;
         outermost_context().getCallMadeNotifier().notifyAll(
-            { event.player, event.call });
+            BridgeEngine::CallMade { event.player, event.call });
         const auto has_contract = bidding.hasContract();
         if (has_contract) {
             return transit<Playing>();
@@ -656,7 +657,7 @@ void PlayingTrick::play()
     if (trick->play(playInfo->hand, card)) {
         playInfo->hand.markPlayed(playInfo->card);
         outermost_context().getCardPlayedNotifier().notifyAll(
-            { player_in_turn, playInfo->hand, card });
+            BridgeEngine::CardPlayed { player_in_turn, playInfo->hand, card });
         if (trick->isCompleted()) {
             context<Playing>().addTrick(std::move(trick));
         }
@@ -823,7 +824,8 @@ public:
 DummyVisible::DummyVisible(my_context ctx) :
     my_base {ctx}
 {
-    outermost_context().getDummyRevealedNotifier().notifyAll({});
+    outermost_context().getDummyRevealedNotifier().notifyAll(
+        BridgeEngine::DummyRevealed {});
 }
 
 const Hand& DummyVisible::getDummyHand() const
