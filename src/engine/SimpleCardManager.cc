@@ -1,8 +1,9 @@
 #include "engine/SimpleCardManager.hh"
 
-#include "bridge/HandBase.hh"
+#include "bridge/BasicHand.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/SimpleCard.hh"
+#include "FunctionObserver.hh"
 #include "Utility.hh"
 
 #include <boost/statechart/event.hpp>
@@ -20,20 +21,6 @@ namespace Bridge {
 namespace Engine {
 
 namespace {
-
-class HandImpl : public HandBase {
-public:
-    using HandBase::HandBase;
-    void handleRequestReveal(const IndexVector& ns) override;
-};
-
-void HandImpl::handleRequestReveal(const IndexVector& ns)
-{
-    // We can immediately notify about reveal completion because the cards are
-    // SimpleCard type whose type are always known.
-    notifyAll(CardRevealState::REQUESTED, ns);
-    notifyAll(CardRevealState::COMPLETED, ns);
-}
 
 using CardVector = std::vector<SimpleCard>;
 
@@ -61,6 +48,14 @@ public:
     using CardTypeVector = SimpleCardManager::CardTypeVector;
     using Observable<ShufflingState>::subscribe;
     void notifyStateChange(const NotifyStateEvent&);
+
+    void resetHands();
+    const CardVector& getCards() const;
+    auto getHand(const IndexVector& ns);
+
+private:
+
+    std::vector<std::shared_ptr<Hand::CardRevealStateObserver>> handObservers;
 };
 
 void SimpleCardManager::Impl::notifyStateChange(
@@ -121,6 +116,7 @@ public:
 ShuffleRequested::ShuffleRequested(my_context ctx) :
     my_base {ctx}
 {
+    outermost_context().resetHands();
     post_event(NotifyStateEvent {CardManager::ShufflingState::REQUESTED});
 }
 
@@ -137,12 +133,36 @@ ShuffleCompleted::ShuffleCompleted(my_context ctx) :
     post_event(NotifyStateEvent {CardManager::ShufflingState::COMPLETED});
 }
 
-const CardVector& getCardsFrom(const Impl& impl)
-{
-    const auto& state = impl.state_cast<const Active&>();
-    return state.getCards();
 }
 
+void SimpleCardManager::Impl::resetHands()
+{
+    handObservers.clear();
+}
+
+const CardVector& SimpleCardManager::Impl::getCards() const
+{
+    const auto active = state_cast<const Active*>();
+    assert(active);
+    return active->getCards();
+}
+
+auto SimpleCardManager::Impl::getHand(const IndexVector& ns)
+{
+    const auto& cards = getCards();
+    auto hand = std::make_shared<BasicHand>(
+        containerAccessIterator(ns.begin(), cards),
+        containerAccessIterator(ns.end(), cards));
+    handObservers.emplace_back(
+        makeObserver<Hand::CardRevealState, IndexVector>(
+            [hand](const auto state, const auto& ns)
+            {
+                if (state == Hand::CardRevealState::REQUESTED) {
+                    hand->reveal(ns.begin(), ns.end());
+                }
+            }));
+    hand->subscribe(handObservers.back());
+    return hand;
 }
 
 SimpleCardManager::SimpleCardManager() :
@@ -169,16 +189,13 @@ void SimpleCardManager::handleRequestShuffle()
 std::shared_ptr<Hand> SimpleCardManager::handleGetHand(const IndexVector& ns)
 {
     assert(impl);
-    const auto& cards = getCardsFrom(*impl);
-    return std::make_shared<HandImpl>(
-        containerAccessIterator(ns.begin(), cards),
-        containerAccessIterator(ns.end(), cards));
+    return impl->getHand(ns);
 }
 
 std::size_t SimpleCardManager::handleGetNumberOfCards() const
 {
     assert(impl);
-    return getCardsFrom(*impl).size();
+    return impl->getCards().size();
 }
 
 bool SimpleCardManager::handleIsShuffleCompleted() const
