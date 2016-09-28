@@ -1,8 +1,8 @@
 #include "main/CardServerProxy.hh"
 
-#include "bridge/Position.hh"
+#include "bridge/BasicHand.hh"
 #include "bridge/CardsForPosition.hh"
-#include "bridge/HandBase.hh"
+#include "bridge/Position.hh"
 #include "bridge/RevealableCard.hh"
 #include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
@@ -16,6 +16,7 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
+#include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
 #include "Utility.hh"
 
@@ -56,8 +57,6 @@ using IndexVector = std::vector<std::size_t>;
 
 namespace {
 
-class ProxyHand;
-
 class Initializing;
 class Idle;
 class WaitingShuffleReply;
@@ -65,12 +64,12 @@ class ShuffleCompleted;
 
 template<typename EventType>
 struct DrawEventBase : public sc::event<EventType> {
-    DrawEventBase(CardTypeVector cards) :
-        cards {std::move(cards)}
+    DrawEventBase(const CardTypeVector& cards) :
+        cards {cards}
     {
     }
 
-    CardTypeVector cards;
+    const CardTypeVector& cards;
 };
 
 struct PeerEvent : public sc::event<PeerEvent> {
@@ -101,16 +100,17 @@ struct NotifyShuffleCompletedEvent :
     public sc::event<NotifyShuffleCompletedEvent> {};
 struct RequestRevealEvent : public sc::event<RequestRevealEvent> {
     RequestRevealEvent(
-        std::shared_ptr<ProxyHand> hand, IndexVector& ns, IndexVector& cardNs) :
+        const std::shared_ptr<BasicHand>& hand, const IndexVector& ns,
+        const IndexVector& cardNs) :
         hand {std::move(hand)},
         ns {ns},
         cardNs {cardNs}
     {
     }
 
-    std::shared_ptr<ProxyHand> hand;
-    IndexVector& ns;
-    IndexVector& cardNs;
+    const std::shared_ptr<BasicHand>& hand;
+    const IndexVector& ns;
+    const IndexVector& cardNs;
 };
 struct RevealAllSuccessfulEvent :
     public DrawEventBase<RevealAllSuccessfulEvent> {
@@ -127,20 +127,6 @@ struct PeerPosition {
 
     boost::optional<std::string> identity;
     PositionVector positions;
-};
-
-class ProxyHand :
-    public HandBase, public std::enable_shared_from_this<ProxyHand> {
-public:
-    ProxyHand(std::shared_ptr<Impl> impl, IndexVector cardNs);
-
-    using HandBase::notifyAll;
-
-private:
-    void handleRequestReveal(const IndexVector& ns) override;
-
-    const std::weak_ptr<Impl> impl;
-    const IndexVector cardNs;
 };
 
 template<typename ParamIterator>
@@ -160,8 +146,7 @@ boost::optional<CardTypeVector> parseCardTypes(
 }
 
 class CardServerProxy::Impl :
-    public sc::state_machine<Impl, Initializing>, public CardManager,
-    public std::enable_shared_from_this<Impl> {
+    public sc::state_machine<Impl, Initializing>, public CardManager {
 public:
 
     Impl(zmq::context_t& context, const std::string& controlEndpoint);
@@ -207,6 +192,9 @@ private:
     bool handleIsShuffleCompleted() const override;
     std::size_t handleGetNumberOfCards() const override;
 
+    void internalHandleHandRevealRequest(
+        const std::shared_ptr<BasicHand>& hand,
+        const IndexVector& ns, const IndexVector& handNs);
     void internalHandleCardServerMessage(zmq::socket_t& socket);
 
     const MessageHandlerVector messageHandlers {{
@@ -223,6 +211,7 @@ private:
     std::vector<PeerPosition> peerPositions;
     CardVector cards;
     Observable<ShufflingState> shufflingStateNotifier;
+    std::vector<std::shared_ptr<Hand::CardRevealStateObserver>> handObservers;
 };
 
 Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
@@ -250,7 +239,7 @@ void Impl::enqueueIfHasCardsParam(
         functionQueue(
             [this, cards = std::move(*cards)]()
             {
-                process_event(Event {std::move(cards)});
+                process_event(Event {cards});
             });
     }
 }
@@ -265,6 +254,7 @@ void Impl::sendCommand(Args&&... args)
 
 void Impl::doRequestShuffle(const RequestShuffleEvent&)
 {
+    handObservers.clear();
     shufflingStateNotifier.notifyAll(ShufflingState::REQUESTED);
     sendCommand(CardServer::SHUFFLE_COMMAND);
     // For each peer, reveal their cards. For oneself (indicated by empty
@@ -371,9 +361,21 @@ void Impl::handleRequestShuffle()
     functionQueue([this]() { process_event(RequestShuffleEvent {}); });
 }
 
-std::shared_ptr<Hand> Impl::handleGetHand(const IndexVector& ns)
+std::shared_ptr<Hand> Impl::handleGetHand(const IndexVector& cardNs)
 {
-    return std::make_shared<ProxyHand>(shared_from_this(), std::move(ns));
+    auto hand = std::make_shared<BasicHand>(
+        containerAccessIterator(cardNs.begin(), cards),
+        containerAccessIterator(cardNs.end(), cards));
+    handObservers.emplace_back(
+        makeObserver<Hand::CardRevealState, IndexVector>(
+            [this, hand, cardNs](const auto state, const auto& handNs)
+            {
+                if (state == Hand::CardRevealState::REQUESTED) {
+                    this->internalHandleHandRevealRequest(hand, cardNs, handNs);
+                }
+            }));
+    hand->subscribe(handObservers.back());
+    return hand;
 }
 
 bool Impl::handleIsShuffleCompleted() const
@@ -384,6 +386,25 @@ bool Impl::handleIsShuffleCompleted() const
 std::size_t Impl::handleGetNumberOfCards() const
 {
     return N_CARDS;
+}
+
+void Impl::internalHandleHandRevealRequest(
+    const std::shared_ptr<BasicHand>& hand,
+    const IndexVector& ns, const IndexVector& handNs)
+{
+    // This observer receives notifications about card reveal request and
+    // generates event for the state machine. The request contains:
+    // hands - the indices of cards in "hand indexing"
+    // cardNs - the indices of the cards in "card manager indexing"
+    auto cardNs = IndexVector(
+        containerAccessIterator(handNs.begin(), ns),
+        containerAccessIterator(handNs.end(), ns));
+    functionQueue(
+        [this, hand, handNs, cardNs = std::move(cardNs)]()
+        {
+            this->process_event(
+                RequestRevealEvent {hand, handNs, cardNs});
+        });
 }
 
 void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
@@ -414,35 +435,6 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
 }
 
 namespace {
-
-ProxyHand::ProxyHand(std::shared_ptr<Impl> impl, IndexVector cardNs) :
-    HandBase(
-        impl->cardIterator(cardNs.begin()),
-        impl->cardIterator(cardNs.end())),
-    impl {std::move(impl)},
-    cardNs {std::move(cardNs)}
-{
-}
-
-void ProxyHand::handleRequestReveal(const IndexVector& ns)
-{
-    // ns = indices of the cards in the hand to be revealed
-    // cardNs = corresponding indices in the card server when considering what
-    //          cards have been assigned to this hand
-    auto cardNs = IndexVector(
-        containerAccessIterator(ns.begin(), this->cardNs),
-        containerAccessIterator(ns.end(),   this->cardNs));
-    if (const auto impl_ = impl.lock()) {
-        impl_->functionQueue(
-            [this, ns = ns, cardNs = std::move(cardNs)]() mutable
-            {
-                if (const auto impl_ = impl.lock()) {
-                    impl_->process_event(
-                        RequestRevealEvent {shared_from_this(), ns, cardNs});
-                }
-            });
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Initializing
@@ -638,7 +630,7 @@ public:
 
 private:
 
-    std::shared_ptr<ProxyHand> hand;
+    std::shared_ptr<BasicHand> hand;
     IndexVector ns;
 };
 
@@ -651,7 +643,6 @@ sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
         assert(event.hand);
         hand = event.hand;
         ns = event.ns;
-        event.hand->notifyAll(CardRevealState::REQUESTED, std::move(event.ns));
     }
     return discard_event();
 }
@@ -662,7 +653,7 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
         outermost_context().revealCards(event.cards.begin(), event.cards.end());
         // Already set this->hand to null if the subscribers request new reveal
         const auto hand = std::move(this->hand);
-        hand->notifyAll(CardRevealState::COMPLETED, std::move(this->ns));
+        hand->reveal(ns.begin(), ns.end());
     }
     return discard_event();
 }
