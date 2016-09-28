@@ -23,8 +23,8 @@ namespace Main {
 /** \brief Client for card server
  *
  * CardServerProxy implements the necessary message handlers for communicating
- * with card server. It allows several application instances to exchange cards
- * using secure protocol with minimum probability of any of the peers
+ * with the card server. It allows several application instances to exchange
+ * cards using secure protocol with minimum probability of any of the peers
  * cheating.
  *
  * CardServerProxy requires that all the peers have joined and are accepted
@@ -39,9 +39,6 @@ public:
      *
      * \param context ZeroMQ context
      * \param controlEndpoint the control endpoint of the card server
-     *
-     * \note It is assumed that the peer acceptor registed using setAcceptor()
-     * rejects any peer requesting to control \p firstPosition.
      */
     CardServerProxy(
         zmq::context_t& context, const std::string& controlEndpoint);
