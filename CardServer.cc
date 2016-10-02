@@ -1,9 +1,8 @@
 #include "csmain/CardServerMain.hh"
+#include "Signals.hh"
 
 #include <libTMCG.hh>
 #include <zmq.hpp>
-
-#include <signal.h>
 
 #include <atomic>
 #include <string>
@@ -21,35 +20,6 @@ extern "C" void signalHandler(int)
     app_observer->terminate();
 }
 
-void setSigactionOrDie(
-    const int signum, const struct sigaction* const action)
-{
-    if (sigaction(signum, action, nullptr)) {
-        std::cerr << "failed to set signal handler" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
-void setSignalHandler(const int signum)
-{
-    struct sigaction action;
-    action.sa_handler = &signalHandler;
-    sigemptyset(&action.sa_mask);
-    sigaddset(&action.sa_mask, SIGTERM);
-    sigaddset(&action.sa_mask, SIGINT);
-    action.sa_flags = 0;
-    setSigactionOrDie(signum, &action);
-}
-
-void resetSignalHandler(const int signum)
-{
-    struct sigaction action;
-    action.sa_handler = SIG_DFL;
-    sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-    setSigactionOrDie(signum, &action);
-}
-
 class CardServerApp {
 public:
 
@@ -60,15 +30,13 @@ public:
         app {zmqctx, controlEndpoint, basePeerEndpoint}
     {
         appObserver = &app;
-        setSignalHandler(SIGINT);
-        setSignalHandler(SIGTERM);
+        startHandlingSignals(signalHandler);
     }
 
     ~CardServerApp()
     {
+        stopHandlingSignals();
         appObserver = nullptr;
-        resetSignalHandler(SIGTERM);
-        resetSignalHandler(SIGINT);
     }
 
     void run()

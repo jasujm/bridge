@@ -27,13 +27,13 @@ include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
 add_subdirectory(src)
 add_subdirectory(test/src)
 
-add_executable(bridge Bridge.cc)
+add_executable(bridge Bridge.cc Signals.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
   bridge-engine bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES}
   Threads::Threads)
 
 if(LibTMCG_FOUND)
-  add_executable(cardserver CardServer.cc)
+  add_executable(cardserver CardServer.cc Signals.cc)
   target_link_libraries(cardserver bridge-csmain bridge-messaging
     bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
     Threads::Threads)
