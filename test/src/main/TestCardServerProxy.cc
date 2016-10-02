@@ -132,7 +132,7 @@ protected:
         const auto sockets = protocol.getSockets();
         const auto iter = sockets.begin();
         ASSERT_NE(iter, sockets.end());
-        EXPECT_TRUE(iter->second(dereference(iter->first)));
+        iter->second(dereference(iter->first));
     }
 
     template<typename IndexIterator>

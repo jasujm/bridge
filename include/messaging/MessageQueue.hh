@@ -6,7 +6,6 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
-#include <boost/optional/optional.hpp>
 #include <zmq.hpp>
 
 #include <map>
@@ -52,13 +51,8 @@ public:
     /** \brief Create message queue
      *
      * \param handlers mapping from commands to message handlers
-     * \param terminateCommand If provided, command for requesting termination
-     * of the message queue. If not provided, the message queue will have no
-     * termination command.
      */
-    explicit MessageQueue(
-        HandlerMap handlers,
-        boost::optional<std::string> terminateCommand = boost::none);
+    explicit MessageQueue(HandlerMap handlers);
 
     ~MessageQueue();
 
@@ -78,15 +72,12 @@ public:
      *
      * \param socket the socket the message is received from and the reply is
      * sent to
-     *
-     * \return true if the command was not termination, false otherwise
      */
-    bool operator()(zmq::socket_t& socket);
+    void operator()(zmq::socket_t& socket);
 
 private:
 
     HandlerMap handlers;
-    boost::optional<std::string> terminateCommand;
 };
 
 }

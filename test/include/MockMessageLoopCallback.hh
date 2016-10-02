@@ -9,7 +9,7 @@ namespace Messaging {
 
 class MockMessageLoopCallback {
 public:
-    MOCK_METHOD1(call, bool(zmq::socket_t&));
+    MOCK_METHOD1(call, void(zmq::socket_t&));
     MOCK_METHOD0(callSimple, void());
 };
 

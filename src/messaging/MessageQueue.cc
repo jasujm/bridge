@@ -59,41 +59,33 @@ void sendReplyHelper(
 
 }
 
-MessageQueue::MessageQueue(
-    MessageQueue::HandlerMap handlers,
-    boost::optional<std::string> terminateCommand) :
-    handlers {std::move(handlers)},
-    terminateCommand {std::move(terminateCommand)}
+MessageQueue::MessageQueue(HandlerMap handlers) :
+    handlers {std::move(handlers)}
 {
 }
 
 MessageQueue::~MessageQueue() = default;
 
-bool MessageQueue::operator()(zmq::socket_t& socket)
+void MessageQueue::operator()(zmq::socket_t& socket)
 {
-    auto output = std::vector<std::string> {};
     auto message = std::vector<std::string> {};
     auto identity = std::string {};
+    auto success = false;
+    auto output = std::vector<std::string> {};
     if (recvMessageHelper(identity, message, socket)) {
         assert(!message.empty());
         const auto command = message.front();
-        if (command == terminateCommand) {
-            return false;
-        }
         const auto entry = handlers.find(command);
         if (entry != handlers.end()) {
             auto& handler = dereference(entry->second);
             assert(output.empty());
             output.push_back(command);
-            const auto success = handler.handle(
+            success = handler.handle(
                 identity, std::next(message.begin()), message.end(),
                 std::back_inserter(output));
-            sendReplyHelper(identity, success, output, socket);
-            return true;
         }
     }
-    sendReplyHelper(identity, false, output, socket);
-    return true;
+    sendReplyHelper(identity, success, output, socket);
 }
 
 }

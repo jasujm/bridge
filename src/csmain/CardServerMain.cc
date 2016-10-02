@@ -386,7 +386,9 @@ CardServerMain::Impl::Impl(
 
 void CardServerMain::Impl::run()
 {
-    while (messageQueue(controlSocket));
+    for (;;) {
+        messageQueue(controlSocket);
+    }
 }
 
 Reply<> CardServerMain::Impl::init(

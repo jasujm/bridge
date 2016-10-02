@@ -18,7 +18,6 @@ public:
     void addSimpleCallback(SimpleCallback callback);
     bool run();
     void terminate();
-    bool isTerminated();
 
 private:
     std::atomic<bool> terminated {false};
@@ -52,19 +51,19 @@ bool MessageLoop::Impl::run()
     for (auto& item : pollitems) {
         item.revents = 0;
     }
+    if (terminated) {
+        return false;
+    }
     static_cast<void>(zmq::poll(pollitems));
     for (auto&& t : zip(pollitems, callbacks)) {
         const auto& item = t.get<0>();
         auto& callback = t.get<1>();
         if (item.revents & ZMQ_POLLIN) {
             assert(callback.second);
-            const auto go = callback.first(*callback.second);
+            callback.first(*callback.second);
             while (!simpleCallbacks.empty()) {
                 simpleCallbacks.front()();
                 simpleCallbacks.pop();
-            }
-            if (!go) {
-                return false;
             }
         }
     }
@@ -74,11 +73,6 @@ bool MessageLoop::Impl::run()
 void MessageLoop::Impl::terminate()
 {
     terminated = true;
-}
-
-bool MessageLoop::Impl::isTerminated()
-{
-    return terminated;
 }
 
 MessageLoop::MessageLoop() :
@@ -105,7 +99,7 @@ void MessageLoop::run()
 {
     assert(impl);
     auto go = true;
-    while (go && !impl->isTerminated()) {
+    while (go) {
         try {
             go = impl->run();
         } catch (const zmq::error_t& e) {

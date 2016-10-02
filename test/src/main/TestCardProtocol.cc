@@ -48,16 +48,16 @@ TEST_F(CardProtocolTest, testGetSockets)
     const auto socket =
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair);
     Bridge::Messaging::MockMessageLoopCallback callback;
-    EXPECT_CALL(callback, call(Ref(*socket))).WillOnce(Return(true));
+    EXPECT_CALL(callback, call(Ref(*socket)));
     CardProtocol::SocketVector expected_sockets {{
-        { socket, [&callback](auto& socket) { return callback.call(socket); } }
+        { socket, [&callback](auto& socket) { callback.call(socket); } }
     }};
     EXPECT_CALL(protocol, handleGetSockets())
         .WillOnce(Return(expected_sockets));
     const auto actual_sockets = protocol.getSockets();
     ASSERT_EQ(1, std::distance(actual_sockets.begin(), actual_sockets.end()));
     const auto pair = *actual_sockets.begin();
-    EXPECT_TRUE(pair.second(*pair.first));
+    pair.second(*pair.first);
 }
 
 TEST_F(CardProtocolTest, testGetCardManager)

@@ -15,7 +15,6 @@ using Bridge::Messaging::sendMessage;
 
 using testing::_;
 using testing::Ref;
-using testing::Return;
 using testing::Invoke;
 
 namespace {
@@ -32,11 +31,11 @@ protected:
         for (auto&& t : Bridge::zip(endpoints, frontSockets, backSockets, callbacks)) {
             ON_CALL(t.get<3>(), call(_)).WillByDefault(
                 Invoke(
-                    [](auto& socket)
+                    [this](auto& socket)
                     {
                         const auto msg = recvMessage(socket);
                         EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
-                        return false;
+                        loop.terminate();
                     }));
             t.get<2>()->bind(t.get<0>());
             t.get<1>().connect(t.get<0>());
@@ -44,7 +43,7 @@ protected:
                 t.get<2>(),
                 [&callback = t.get<3>()](auto& socket)
                 {
-                    return callback.call(socket);
+                    callback.call(socket);
                 });
         }
     }
@@ -85,7 +84,6 @@ TEST_F(MessageLoopTest, testMultipleMessages)
                     const auto msg = recvMessage(socket);
                     EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
                     sendMessage(frontSockets[1], DEFAULT_MSG);
-                    return true;
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
     sendMessage(frontSockets[0], OTHER_MSG);
@@ -102,7 +100,6 @@ TEST_F(MessageLoopTest, testTerminate)
                     const auto msg = recvMessage(socket);
                     EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
                     loop.terminate();
-                    return true;
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1]))).Times(0);
     sendMessage(frontSockets[0], OTHER_MSG);
@@ -124,7 +121,7 @@ TEST_F(MessageLoopTest, testCallOnce)
                             EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
                             callbacks[0].callSimple();
                         });
-                    return false;
+                    loop.terminate();
                 }));
     sendMessage(frontSockets[0], DEFAULT_MSG);
     loop.run();

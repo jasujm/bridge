@@ -28,7 +28,7 @@ public:
      *
      * \sa addSocket()
      */
-    using SocketCallback = std::function<bool(zmq::socket_t&)>;
+    using SocketCallback = std::function<void(zmq::socket_t&)>;
 
     /** \brief Callback that can be registered to be called by the message loop
      *
@@ -86,11 +86,10 @@ public:
      * receive messages. Thus when callback is called, the socket given as its
      * argument is guaranteed to not block when message is received from it.
      *
-     * The method block until a callback return false.
-     *
-     * The method catches zmq::error_t indicating interruption, and interrupts
-     * it. All other exceptions are propagated as is. It is intended that an
-     * interruption handler wishing to terminate the program calls terminate().
+     * The method catches zmq::error_t indicating interruption. All other
+     * exceptions are propagated as is. Note that interruption does not
+     * automatically terminate the loop. It is intended that an interruption
+     * handler wishing to terminate the loop calls terminate().
      */
     void run();
 
@@ -101,8 +100,7 @@ public:
      * function, it will return immediately.
      *
      * \note It is safe to call this function from other threads or signal
-     * handlers. However, for inter‐thread use, termination by returning false
-     * from callback is preferred.
+     * handlers.
      */
     void terminate();
 

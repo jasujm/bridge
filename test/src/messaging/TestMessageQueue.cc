@@ -27,7 +27,6 @@ namespace {
 const auto IDENTITY = "identity"s;
 const auto ENDPOINT = "inproc://testing"s;
 const auto COMMAND = "command"s;
-const auto TERMINATE = "terminate"s;
 }
 
 class MessageQueueTest : public testing::Test {
@@ -51,8 +50,7 @@ protected:
     std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
-        MessageQueue::HandlerMap(handlers.begin(), handlers.end()),
-        TERMINATE};
+        MessageQueue::HandlerMap(handlers.begin(), handlers.end())};
 };
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
@@ -67,7 +65,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     sendMessage(frontSocket, p1, true);
     sendMessage(frontSocket, p2);
 
-    EXPECT_TRUE(messageQueue(backSocket));
+    messageQueue(backSocket);
     assertReply(REPLY_SUCCESS);
 }
 
@@ -83,7 +81,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     sendMessage(frontSocket, p1, true);
     sendMessage(frontSocket, p2);
 
-    EXPECT_TRUE(messageQueue(backSocket));
+    messageQueue(backSocket);
     assertReply(REPLY_FAILURE);
 }
 
@@ -92,7 +90,7 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
     sendMessage(frontSocket, "invalid");
 
-    EXPECT_TRUE(messageQueue(backSocket));
+    messageQueue(backSocket);
 
     EXPECT_EQ(
         std::make_pair(REPLY_FAILURE, false),
@@ -111,7 +109,7 @@ TEST_F(MessageQueueTest, testReply)
                     outputs.begin(), outputs.end())));
     sendMessage(frontSocket, COMMAND, false);
 
-    EXPECT_TRUE(messageQueue(backSocket));
+    messageQueue(backSocket);
 
     EXPECT_EQ(
         std::make_pair(REPLY_SUCCESS, true),
@@ -121,12 +119,6 @@ TEST_F(MessageQueueTest, testReply)
         std::make_pair(outputs.begin()[0], true), recvMessage(frontSocket));
     EXPECT_EQ(
         std::make_pair(outputs.begin()[1], false), recvMessage(frontSocket));
-}
-
-TEST_F(MessageQueueTest, testTerminate)
-{
-    sendMessage(frontSocket, TERMINATE, false);
-    EXPECT_FALSE(messageQueue(backSocket));
 }
 
 TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
@@ -141,6 +133,6 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
         .WillOnce(Return(true));
 
     sendMessage(frontSocket, COMMAND, false);
-    EXPECT_TRUE(messageQueue(repSocket));
+    messageQueue(repSocket);
     assertReply(REPLY_SUCCESS);
 }
