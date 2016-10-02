@@ -77,7 +77,6 @@ EndpointIterator::difference_type EndpointIterator::distance_to(
 
 bool EndpointIterator::equal(const EndpointIterator& other) const
 {
-    printf("%s %s\n", address.c_str(), other.address.c_str());
     return address == other.address && port == other.port;
 }
 
