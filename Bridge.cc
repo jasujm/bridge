@@ -59,7 +59,7 @@ void resetSignalHandler(const int signum)
     setSigactionOrDie(signum, &action);
 }
 
-struct BridgeApp {
+class BridgeApp {
 public:
 
     BridgeApp(
