@@ -52,8 +52,17 @@ public:
     ~CardServerMain();
 
     /** \brief Run the card server
+     *
+     * This method blocks until terminate() is called.
      */
     void run();
+
+    /** \brief Terminate the card server
+     *
+     * This method is intended to be called from signal handler for clean
+     * termination.
+     */
+    void terminate();
 
 private:
 

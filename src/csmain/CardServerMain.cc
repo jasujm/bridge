@@ -13,6 +13,7 @@
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageBuffer.hh"
+#include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
@@ -25,6 +26,7 @@
 #include <zmq.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -323,6 +325,7 @@ public:
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& basePeerEndpoint);
     void run();
+    void terminate();
 
 private:
 
@@ -334,61 +337,67 @@ private:
     Reply<CardVector> revealAll(const std::string&, const IndexVector& ns);
 
     zmq::context_t& context;
-    zmq::socket_t controlSocket;
     const EndpointIterator peerEndpointIterator;
-    Messaging::MessageQueue messageQueue;
     boost::optional<TMCG> tmcg;
+    Messaging::MessageLoop messageLoop;
 };
 
 CardServerMain::Impl::Impl(
     zmq::context_t& context, const std::string& controlEndpoint,
     const std::string& basePeerEndpoint) :
     context {context},
-    controlSocket {context, zmq::socket_type::pair},
-    peerEndpointIterator {basePeerEndpoint},
-    messageQueue {
-        {
-            {
-                INIT_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::init, JsonSerializer {},
-                    std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
-            },
-            {
-                SHUFFLE_COMMAND,
-                makeMessageHandler(*this, &Impl::shuffle, JsonSerializer {})
-            },
-            {
-                DRAW_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::draw, JsonSerializer {},
-                    std::make_tuple(CARDS_COMMAND),
-                    std::make_tuple(CARDS_COMMAND))
-            },
-            {
-                REVEAL_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::reveal, JsonSerializer {},
-                    std::make_tuple(ID_COMMAND, CARDS_COMMAND))
-            },
-            {
-                REVEAL_ALL_COMMAND,
-                makeMessageHandler(
-                    *this, &Impl::revealAll, JsonSerializer {},
-                    std::make_tuple(CARDS_COMMAND),
-                    std::make_tuple(CARDS_COMMAND))
-            },
-        }
-    }
+    peerEndpointIterator {basePeerEndpoint}
 {
-    controlSocket.bind(controlEndpoint);
+    auto controlSocket = std::make_shared<zmq::socket_t>(
+        context, zmq::socket_type::pair);
+    controlSocket->bind(controlEndpoint);
+    messageLoop.addSocket(
+        std::move(controlSocket),
+        Messaging::MessageQueue {
+            {
+                {
+                    INIT_COMMAND,
+                        makeMessageHandler(
+                            *this, &Impl::init, JsonSerializer {},
+                            std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
+                },
+                {
+                    SHUFFLE_COMMAND,
+                        makeMessageHandler(
+                            *this, &Impl::shuffle, JsonSerializer {})
+                },
+                {
+                    DRAW_COMMAND,
+                        makeMessageHandler(
+                            *this, &Impl::draw, JsonSerializer {},
+                            std::make_tuple(CARDS_COMMAND),
+                            std::make_tuple(CARDS_COMMAND))
+                },
+                {
+                    REVEAL_COMMAND,
+                        makeMessageHandler(
+                            *this, &Impl::reveal, JsonSerializer {},
+                            std::make_tuple(ID_COMMAND, CARDS_COMMAND))
+                },
+                {
+                    REVEAL_ALL_COMMAND,
+                        makeMessageHandler(
+                            *this, &Impl::revealAll, JsonSerializer {},
+                            std::make_tuple(CARDS_COMMAND),
+                            std::make_tuple(CARDS_COMMAND))
+                },
+            }
+        });
 }
 
 void CardServerMain::Impl::run()
 {
-    for (;;) {
-        messageQueue(controlSocket);
-    }
+    messageLoop.run();
+}
+
+void CardServerMain::Impl::terminate()
+{
+    messageLoop.terminate();
 }
 
 Reply<> CardServerMain::Impl::init(
@@ -454,6 +463,12 @@ void CardServerMain::run()
 {
     assert(impl);
     impl->run();
+}
+
+void CardServerMain::terminate()
+{
+    assert(impl);
+    impl->terminate();
 }
 
 }
