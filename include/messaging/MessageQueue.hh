@@ -32,11 +32,12 @@ class MessageHandler;
  * MessageQueue is designed to be used with MessageLoop that handles the
  * actual polling of the sockets.
  *
- * MessageQueue uses request–reply pattern. The messages sent to the message
- * queue are strings that represent commands. A recognized command
- * (i.e. command for which a handler is registered) causes the handler for
- * that command to be executed. Based on the result of the handling either
- * success or failure is reported.
+ * MessageQueue uses request–reply pattern (although the sockets used do not
+ * have to be rep sockets). The messages sent to the message queue are strings
+ * that represent commands. A recognized command (i.e. command for which a
+ * handler is registered) causes the handler for that command to be
+ * executed. Based on the result of the handling either success or failure is
+ * reported.
  */
 class MessageQueue {
 public:
@@ -58,14 +59,20 @@ public:
 
     /** \brief Receive and reply the next message
      *
-     * When called, the method receives a message from \p socket, dispatch it
-     * to the correct handler and sends the reply through \p socket. The reply
-     * is either REPLY_SUCCESS or REPLY_FAILURE, as determined by the
-     * MessageHandler the message is dispatched to. If the MessageHandler has
-     * output, the output follows the initial REPLY_SUCCESS or REPLY_FAILURE
-     * frame in multipart message, each entry in its own frame. If handling
-     * the message fails or there is no handler, REPLY_FAILURE is sent to the
+     * When called, the method receives a message from \p socket, dispatchesq
+     * it to the correct handler and sends the reply through \p socket. The
+     * reply is either REPLY_SUCCESS or REPLY_FAILURE, as determined by the
+     * MessageHandler the message is dispatched to. If the MessageHandler
+     * generates output, the output is interpreted as the arguments of the
+     * reply, and sent after the initial REPLY_SUCCESS or REPLY_FAILURE frame
+     * in multipart message, each entry in its own frame. If handling the
+     * message fails or there is no handler, REPLY_FAILURE is sent to the
      * socket.
+     *
+     * \note The intention is that MessageQueue acts as a “server” receiving
+     * messages and replying back to the “client” who sent the message. The
+     * type of \p socket should support the intended use. For example rep,
+     * pair or router are such socket types.
      *
      * \note If \p socket is not router, the identity passed to the message
      * handler is always an empty string.
@@ -77,7 +84,7 @@ public:
 
 private:
 
-    HandlerMap handlers;
+    const HandlerMap handlers;
 };
 
 }
