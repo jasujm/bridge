@@ -16,21 +16,28 @@
 namespace Bridge {
 namespace Messaging {
 
-/** \brief Loop polling several ZeroMQ sockets
+/** \brief Event loop based on polling several ZeroMQ sockets
  *
- * MessageLoop class can be used as the event loop for an application or
- * thread that is based on polling several ZeroMQ sockets.
+ * MessageLoop is an event loop whose events consist of ZeroMQ messages. The
+ * application utilizing MessageLoop registers several sockets that are
+ * polled. The application is then signaled by calling a callback. The sockets
+ * are shared if the client of the class wishes to retain ownership.
+ *
+ * In addition MessageLoop supports immediate callbacks that are dispatched
+ * sequentially. They can be used to defer user code to be called once a
+ * previous callback has returned.
  */
 class MessageLoop : private boost::noncopyable {
 public:
 
-    /** \brief Callback for handling receiving message from the socket
+    /** \brief Callback for handling receiving message from a socket
      *
      * \sa addSocket()
      */
     using SocketCallback = std::function<void(zmq::socket_t&)>;
 
-    /** \brief Callback that can be registered to be called by the message loop
+    /** \brief Callback that can be registered to be called once by the
+     * message loop
      *
      * \sa callOnce()
      */
@@ -38,19 +45,17 @@ public:
 
     /** \brief Create new message loop
      *
-     * The message loop is initially empty. Sockets can be tied to callbacks
-     * using addSocket().
+     * The message loop is initially empty.
      */
     MessageLoop();
 
     ~MessageLoop();
 
-    /** \brief Add socket to the message loop
+    /** \brief Register socket to the message loop
      *
      * Add new socket to the message loop and associate a callback to handle
-     * messages sent to the socket. A callback is a function that receives the
-     * socket as its sole parameter. The callback should return true if the
-     * message loop should continue and false if it should terminate.
+     * messages received from the socket. The invocation of the callbacks
+     * starts when run() is called.
      *
      * \note The \p socket is accepted as shared pointer and stored for the
      * whole lifetime of the loop. It is the responsibility of the client to
