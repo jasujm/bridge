@@ -17,8 +17,8 @@ namespace Messaging {
 /** \brief Interface for handling messages
  *
  * In RPC protocol, MessageHandler acts as an interface between a driver
- * (message queue etc.) that receives messages from and sends replies to a
- * client or a peer. The driver passes identity of the sender and any
+ * (e.g. MessageQueue object) that receives messages from and sends replies to
+ * a client or a peer. The driver passes identity of the sender and any
  * arguments to the command to MessageHandler and excepts success status it
  * can communicate back to the sender.
  */
@@ -27,14 +27,14 @@ public:
 
     virtual ~MessageHandler() = default;
 
-    /** \brief Execute action of this handler
+    /** \brief Handle message
      *
-     * \tparam ParameterIterator Input terator for iterating the parameters
-     * (convertible to strings)
+     * \tparam ParameterIterator Input iterator that, when dereferenced,
+     * returns an object convertible to string.
      *
      * \param identity the identity of the sender of the message
-     * \param first iterator to the first parameter
-     * \param last iterator one past the last parameter
+     * \param first iterator to the first parameter of the message
+     * \param last iterator one past the last parameter of the message
      * \param out output iterator to which the output of the message handler
      * is written to
      *
