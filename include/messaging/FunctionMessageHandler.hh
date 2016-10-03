@@ -124,18 +124,19 @@ inline auto failure()
 
 /** \brief Class that adapts a function into MessageHandler interface
  *
- * FunctionMessageHandler wraps any function into MessageHandler interface. It
- * is responsible for deserializing the arguments consisting of key–value
- * pairs and forwarding the arguments of the handler to the function in type
- * safe manner, as well as outputting the return value of the function back to
- * the caller. The deserialization of function parameters is controlled by
- * serialization policy.
+ * FunctionMessageHandler wraps a function into MessageHandler interface. It
+ * is responsible for deserializing the message parameters consisting of
+ * key–value pairs and forwarding them as arguments to the function in type
+ * safe manner. The deserialization is controlled by serialization
+ * policy. When the function returns, the return is serialized and passed back
+ * to the caller.
  *
- * The function that handles the message must return an object of type \ref
- * Reply. Depending on the type of the reply (ReplySuccess or ReplyFailure)
- * the message handler returns true or false to the caller. In case of
- * successful reply, any arguments of ReplySuccess are serialized and written
- * as key–value pairs to the output iterator provided by the caller.
+ * The function that handles the message must accept a string containing the
+ * identity and any number of additional arguments. It must return an object
+ * of type \ref Reply. Depending on the type of the reply (ReplySuccess or
+ * ReplyFailure) the message handler returns true or false to the caller. In
+ * case of successful reply, any arguments of ReplySuccess are serialized and
+ * written as key–value pairs to the output iterator provided by the caller.
  *
  * The following is an example of message handler function in hypothetical
  * cloud service that checks credentials of a client and returns list of files
@@ -154,10 +155,10 @@ inline auto failure()
  *
  * FunctionMessageHandler supports optional arguments. If any of the \p Args
  * decays into \c boost::optional<T> for some type \c T, the corresponding
- * key–value pair is not required. If it is present, the optional contains
- * value obtained by deserializing \c T (and not \c boost::optional<T>
- * itself). Similarly any empty optional argument in the reply is not present
- * in the reply.
+ * key–value pair may be omitted from the message. If it is present, the value
+ * is deserializez as \c T (and not \c boost::optional<T> itself). Similarly,
+ * if the reply contains any empty optional values, they are not present in
+ * the serialized reply.
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
@@ -182,11 +183,11 @@ public:
      * reply
      *
      * \note The \p keys must appear in the tuple in the same order as the
-     * corresponding parameters appear in the \p function signature. The \p
+     * corresponding arguments appear in the \p function signature. The \p
      * replyKeys must appear in the tuple in the same order as the
-     * corresponding parameters appear in the Reply object returned by the \p
+     * corresponding arguments appear in the Reply object returned by the \p
      * function. Compile time check is done to check that the size of the
-     * tuple corresponds to the number of parameters in each case.
+     * tuple corresponds to the number of arguments in each case.
      */
     template<typename Keys, typename ReplyKeys>
     FunctionMessageHandler(
@@ -317,7 +318,8 @@ private:
     {
         auto first = params.begin();
         const auto last = params.end();
-        ParamTuple params_;
+        ParamTuple args;
+        // Deserialize parameters into function arguments
         while (first != last) {
             const auto iter = initFunctions.find(*first++);
             if (first == last) {
@@ -325,23 +327,25 @@ private:
             }
             if (iter != initFunctions.end()) {
                 const auto memfn = iter->second;
-                const auto success = (this->*memfn)(*first, params_);
+                const auto success = (this->*memfn)(*first, args);
                 if (!success) {
                     return false;
                 }
             }
             ++first;
         }
+        // Check that all required arguments are initialized
         std::array<bool, sizeof...(Args)> all_initialized {{
-            ParamTraits<Args>::isValid(std::get<Ns>(params_))...}};
+            ParamTraits<Args>::isValid(std::get<Ns>(args))...}};
         for (const auto initialized : all_initialized) {
             if (!initialized) {
                 return false;
             }
         }
+        // Call the function
         auto&& result = function(
             identity,
-            ParamTraits<Args>::unwrap(std::get<Ns>(params_))...);
+            ParamTraits<Args>::unwrap(std::get<Ns>(args))...);
         return boost::apply_visitor(
             ReplyVisitor {serializer, sink, replyKeys}, result.reply);
     }
@@ -488,20 +492,22 @@ internalInitParam(const std::string& arg, ParamTuple& params)
 
 /** \brief Utility for wrapping function into message handler
  *
- * This function constructs FunctionMessageHandler to the heap using the
- * parameters passed to this function and returns pointer to it.
+ * This is utility for constructing FunctionMessageHandler with some types
+ * deducted.
  *
- * \tparam Args the parameter types to the function, excluding the leading
- * identity string
+ * \note Invocation argument types cannot be deduced for general function
+ * object, which is why \p Args must be explicitly provided for this overload.
+ *
+ * \tparam Args the types of the arguments of the function, excluding the
+ * leading identity string
  *
  * \param function the function to be wrapped
- * \param serializer the serializer used for converting to/from argument and
- * return types of the function
+ * \param serializer the serialization policy used by the handler
  * \param keys tuple containing the keys corresponding to the parameters
  * \param replyKeys tuple containing the keys corresponding to the parameters
  * of the reply
  *
- * \return the constructed message handler
+ * \return pointer the constructed message handler
  *
  * \sa FunctionMessageHandler
  */
@@ -522,17 +528,22 @@ auto makeMessageHandler(
 
 /** \brief Utility for wrapping member function call into message handler
  *
- * This function constructs FunctionMessageHandler to heap. The message
- * handler invokes method call to \p memfn bound to \p handler.
+ * This function can be used to create FunctionMessageHandler in the usual
+ * case that the function is a method invocation for a known object.
  *
- * \param handler the handler object the method call is bound to \param memfn
- * pointer to the member function \param serializer the serializer used for
- * converting to/from argument and return types of the method call
+ * \note The MessageHandler returned by this function stores reference to \p
+ * handler. It is the responsibility of the user of this function to ensure
+ * that the lifetime of \p handler exceeds the lifetime of the message
+ * handler.
+ *
+ * \param handler the handler object the method call is bound to
+ * \param memfn pointer to the member function handling the message
+ * \param serializer the serialization policy used by the handler
  * \param keys tuple containing the keys corresponding to the parameters
  * \param replyKeys tuple containing the keys corresponding to the parameters
  * of the reply
  *
- * \return the constructed message handler
+ * \return Pointer the constructed message handler
  *
  * \sa FunctionMessageHandler
  */
