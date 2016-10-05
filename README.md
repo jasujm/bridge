@@ -41,7 +41,7 @@ To build and run unit tests for the backend
 
     mkdir /the/build/directory
     cd /the/build/directory
-    cmake -D BRIDGE_BUILD_TESTS=ON /the/source/directory
+    cmake /the/source/directory
     make
     make test
     make install
@@ -135,11 +135,8 @@ correspond to the cards that can be played to the current trick.
 If [LibTMCG](http://www.nongnu.org/libtmcg/) is found in the system, the card
 server is built in addition to the bridge application. When integrated with
 the bridge application, card server is responsible for executing the actual
-mental card game protocol. Small Python program can be used to test the card
-server intercation with peers.
-
-    $ cd /the/build/directory
-    $ python ../python/test_card_server.py
+mental card game protocol. Small Python program used to test the card server
+is run as part of the ctest suite.
 
 In order to use card server with bridge application, each peer must supply
 cs-cntl and cs-peer arguments when starting the backend application. The card

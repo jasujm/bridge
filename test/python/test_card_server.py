@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
-
 from collections import namedtuple
 import atexit
 import itertools
 import signal
 import subprocess
+import sys
 import json
 
 import zmq
@@ -50,7 +49,7 @@ CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 zmqctx = zmq.Context.instance()
 servers = [
     subprocess.Popen(
-        ["./cardserver", get_endpoint(peer.control),
+        [sys.argv[1], get_endpoint(peer.control),
          get_endpoint(peer.endpoint)]) for peer in PEERS]
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
 
@@ -71,7 +70,7 @@ for (n, (socket, peer)) in enumerate(zip(sockets, PEERS)):
     socket.send_json(entries)
 
 print("Receiving reply...")
-    
+
 for socket in sockets:
     assert(socket.recv_multipart() == REPLY_SUCCESS + [INIT_COMMAND])
 
@@ -140,7 +139,7 @@ for socket in sockets:
     if dummy_cards is None:
         dummy_cards = cards
     assert(cards == dummy_cards)
-    
+
 for socket in sockets:
     socket.close()
 

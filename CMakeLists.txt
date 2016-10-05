@@ -4,6 +4,7 @@ project(Bridge)
 enable_testing()
 
 include(CMakeParseArguments)
+include(FindPythonInterp)
 
 set(BRIDGE_COMPILE_FEATURES cxx_aggregate_default_initializers cxx_auto_type
   cxx_constexpr cxx_contextual_conversions cxx_decltype_auto
@@ -23,6 +24,7 @@ find_package(Boost REQUIRED)
 find_package(ZeroMQ REQUIRED)
 find_package(Json REQUIRED)
 find_package(LibTMCG)
+find_package(PythonInterp)
 
 include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS})

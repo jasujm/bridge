@@ -8,7 +8,6 @@ macro(add_bridge_library target)
 endmacro()
 
 add_subdirectory(main)
-add_subdirectory(csmain)
 add_subdirectory(messaging)
 add_subdirectory(cardserver)
 add_subdirectory(engine)
@@ -25,10 +24,14 @@ target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
 install(TARGETS bridge RUNTIME DESTINATION bin)
 
 if(LibTMCG_FOUND)
-  include_directories(${LibTMCG_INCLUDE_DIR})
-  add_executable(bridge-cs CardServer.cc Signals.cc)
-  target_link_libraries(bridge-cs bridge-csmain bridge-messaging
-    bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
-    Threads::Threads)
-  install(TARGETS bridge-cs RUNTIME DESTINATION bin)
+  set(BRIDGE_BUILD_CARD_SERVER ON CACHE BOOL "Build card server")
+  if (${BRIDGE_BUILD_CARD_SERVER})
+    include_directories(${LibTMCG_INCLUDE_DIR})
+    add_subdirectory(csmain)
+    add_executable(bridge-cs CardServer.cc Signals.cc)
+    target_link_libraries(bridge-cs bridge-csmain bridge-messaging
+      bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
+      Threads::Threads)
+    install(TARGETS bridge-cs RUNTIME DESTINATION bin)
+  endif()
 endif()
