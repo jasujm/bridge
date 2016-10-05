@@ -13,6 +13,22 @@ add_subdirectory(messaging)
 add_subdirectory(cardserver)
 add_subdirectory(engine)
 add_subdirectory(scoring)
-add_subdirectory(bridge)
+add_subdirectory(bridge_)
 
 set(BRIDGE_LIBRARIES ${BRIDGE_LIBRARIES} PARENT_SCOPE)
+
+add_executable(bridge Bridge.cc Signals.cc)
+target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
+  bridge-engine bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES}
+  Threads::Threads)
+
+install(TARGETS bridge RUNTIME DESTINATION bin)
+
+if(LibTMCG_FOUND)
+  include_directories(${LibTMCG_INCLUDE_DIR})
+  add_executable(bridge-cs CardServer.cc Signals.cc)
+  target_link_libraries(bridge-cs bridge-csmain bridge-messaging
+    bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
+    Threads::Threads)
+  install(TARGETS bridge-cs RUNTIME DESTINATION bin)
+endif()

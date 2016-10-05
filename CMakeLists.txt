@@ -5,12 +5,15 @@ enable_testing()
 
 include(CMakeParseArguments)
 
-set(BRIDGE_COMPILE_FEATURES cxx_auto_type cxx_constexpr cxx_decltype_auto
-  cxx_defaulted_functions cxx_generalized_initializers cxx_generic_lambdas
-  cxx_lambdas cxx_noexcept cxx_nonstatic_member_init cxx_override
-  cxx_range_for cxx_return_type_deduction cxx_right_angle_brackets
-  cxx_rvalue_references cxx_static_assert cxx_strong_enums
-  cxx_trailing_return_types cxx_variadic_templates)
+set(BRIDGE_COMPILE_FEATURES cxx_aggregate_default_initializers cxx_auto_type
+  cxx_constexpr cxx_contextual_conversions cxx_decltype_auto
+  cxx_default_function_template_args cxx_defaulted_functions
+  cxx_defaulted_move_initializers cxx_generalized_initializers
+  cxx_generic_lambdas cxx_lambdas cxx_lambda_init_captures cxx_noexcept
+  cxx_nonstatic_member_init cxx_nullptr cxx_override cxx_range_for
+  cxx_return_type_deduction cxx_right_angle_brackets cxx_rvalue_references
+  cxx_static_assert cxx_strong_enums cxx_trailing_return_types
+  cxx_uniform_initialization cxx_variadic_templates)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -25,16 +28,4 @@ include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS})
 
 add_subdirectory(src)
-add_subdirectory(test/src)
-
-add_executable(bridge Bridge.cc Signals.cc)
-target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
-  bridge-engine bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES}
-  Threads::Threads)
-
-if(LibTMCG_FOUND)
-  add_executable(cardserver CardServer.cc Signals.cc)
-  target_link_libraries(cardserver bridge-csmain bridge-messaging
-    bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
-    Threads::Threads)
-endif()
+add_subdirectory(test)

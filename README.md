@@ -43,13 +43,14 @@ To build and run unit tests for the backend
     cd /the/build/directory
     cmake -D BRIDGE_BUILD_TESTS=ON /the/source/directory
     make
-    ctest
+    make test
+    make install
 
 ## Usage
 
 Run the backend (server) located in the top level build directory
 
-    $ /the/build/directory/bridge --bind=endpoint --positions=positions \
+    $ bridge --bind=endpoint --positions=positions \
     >   --connect=peer‐endpoints --cs-cntl=cardserver‐control‐endpoint  \
     >   --cs-peer=cardserver‐base‐peer‐endpoint
 
@@ -91,7 +92,7 @@ By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server
 model one backend controls all positions and all frontends connect to it.
 
-    $ /the/build/directory/bridge --bind=tcp://*:5555
+    $ bridge --bind=tcp://*:5555
     
     $ for n in {1..4}; do
     >   /the/source/directory/python/bridge_gui.py tcp://example.com:5555 &
@@ -100,7 +101,7 @@ model one backend controls all positions and all frontends connect to it.
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ /the/build/directory/bridge --bind=tcp://*:5555 --positions='["north"]' \
+    $ bridge --bind=tcp://*:5555 --positions='["north"]' \
     >   --connect='["tcp://peer1.example.com:5555",…]' &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
 
@@ -131,11 +132,11 @@ correspond to the cards that can be played to the current trick.
 
 ## Card server
 
-If [LibTMCG](http://www.nongnu.org/libtmcg/) is found in the system,
-cardserver is built in addition to the bridge application. When integrated
-with the bridge application, card server is responsible for executing the
-actual mental card game protocol. Small Python program can be used to test the
-card server intercation with peers.
+If [LibTMCG](http://www.nongnu.org/libtmcg/) is found in the system, the card
+server is built in addition to the bridge application. When integrated with
+the bridge application, card server is responsible for executing the actual
+mental card game protocol. Small Python program can be used to test the card
+server intercation with peers.
 
     $ cd /the/build/directory
     $ python ../python/test_card_server.py
@@ -146,10 +147,10 @@ server is started with the same arguments. The control endpoint does needs to
 be visible only to the backend. The peer endpoints must be accessible to the
 peers.
 
-    $ /the/build/directory/bridge --bind=tcp://*:5555 --positions='["north"]' \
+    $ bridge --bind=tcp://*:5555 --positions='["north"]' \
     >   --connect='["tcp://peer1.example.com:5555",…]'                        \
     >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
-    $ /the/build/directory/cardserver tcp://127.0.0.1:5560 tcp://*:5565 &
+    $ bridge-cs tcp://127.0.0.1:5560 tcp://*:5565 &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
 
 One port is reserved for each peer. In the example above that means ports
