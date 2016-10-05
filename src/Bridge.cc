@@ -19,7 +19,9 @@
 
 namespace {
 
-using Bridge::Main::BridgeMain;
+using namespace Bridge;
+using Main::BridgeMain;
+using Messaging::JsonSerializer;
 
 std::atomic<BridgeMain*> appObserver {nullptr};
 
@@ -67,14 +69,12 @@ private:
 template<typename T>
 T parseArgument(const char* arg)
 {
-    auto serializer = Bridge::Messaging::JsonSerializer {};
+    auto serializer = JsonSerializer {};
     return serializer.deserialize<T>(arg);
 }
 
 BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    using Bridge::POSITIONS;
-
     auto baseEndpoint = std::string {};
     auto positions = BridgeMain::PositionVector(
         POSITIONS.begin(), POSITIONS.end());

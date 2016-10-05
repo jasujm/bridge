@@ -9,7 +9,8 @@
 
 namespace {
 
-using Bridge::CardServer::CardServerMain;
+using namespace Bridge;
+using CardServer::CardServerMain;
 
 std::atomic<CardServerMain*> appObserver {nullptr};
 

@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 
+namespace Bridge {
+
 namespace {
 
 void setSigactionOrDie(
@@ -46,4 +48,6 @@ void stopHandlingSignals()
 {
     resetSignalHandler(SIGTERM);
     resetSignalHandler(SIGINT);
+}
+
 }
