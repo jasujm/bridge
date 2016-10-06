@@ -101,7 +101,7 @@ model one backend controls all positions and all frontends connect to it.
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ bridge --bind=tcp://*:5555 --positions='["north"]' \
+    $ bridge --bind=tcp://*:5555 --positions='["north"]'               \
     >   --connect='["tcp://peer1.example.com:5555",…]' &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
 
@@ -144,8 +144,8 @@ server is started with the same arguments. The control endpoint does needs to
 be visible only to the backend. The peer endpoints must be accessible to the
 peers.
 
-    $ bridge --bind=tcp://*:5555 --positions='["north"]' \
-    >   --connect='["tcp://peer1.example.com:5555",…]'                        \
+    $ bridge --bind=tcp://*:5555 --positions='["north"]'               \
+    >   --connect='["tcp://peer1.example.com:5555",…]'                 \
     >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
     $ bridge-cs tcp://127.0.0.1:5560 tcp://*:5565 &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
