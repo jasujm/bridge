@@ -31,3 +31,10 @@ include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
 
 add_subdirectory(src)
 add_subdirectory(test)
+
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+  set(DOXYGEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+  configure_file(Doxyfile.in ${DOXYGEN_FILE} @ONLY)
+  add_custom_target(doc COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_FILE})
+endif()
