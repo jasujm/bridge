@@ -315,7 +315,6 @@ void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
     const auto position = engine.getPosition(event.player);
-    publish(CALL_COMMAND);
     publish(
         CALL_COMMAND,
         std::tie(POSITION_COMMAND, position),
