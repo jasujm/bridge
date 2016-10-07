@@ -9,7 +9,7 @@
  *
  * \code{.json}
  * {
- *     { "call": <call> }
+ *     { "type": <call> }
  * }
  * \endcode
  *
@@ -20,7 +20,7 @@
  *
  * \code{.json}
  * {
- *     { "call": "bid" },
+ *     { "type": "bid" },
  *     { "bid": <bid> }
  * }
  * \endcode
