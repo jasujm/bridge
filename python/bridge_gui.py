@@ -17,6 +17,8 @@ from PyQt5.QtWidgets import (
     QApplication, QGridLayout, QMainWindow,QMessageBox, QPushButton, QWidget)
 import zmq
 
+from bridgegui.util import freeze
+
 EMPTY_FRAME = b''
 REPLY_SUCCESS_PREFIX = [EMPTY_FRAME, b'success']
 HELLO_COMMAND = b'bridgehlo'
@@ -59,28 +61,6 @@ def format_call(call):
         return s
     bid = call[BID_TAG]
     return "%d%s" % (bid[LEVEL_TAG], STRAIN_FORMATS[bid[STRAIN_TAG]])
-
-
-def freeze(d):
-    """Freeze object
-
-    This object recursively freezes its (possibly) mutable argument consisting
-    of nested lists, tuples, sets and dictionaries. Any object not belonging to
-    the aforementioned types (including any container) must be hashable. The
-    result is a hashable object that can be used e.g. as dictionary key.
-
-    Not all distinct objects are distinct after being frozen. List freezes into
-    tuple, set freezes into frozenset and dict freezes into frozenset containing
-    tuples of key–value pairs.
-    """
-    if isinstance(d, (list, tuple)):
-        return tuple(freeze(d2) for d2 in d)
-    elif isinstance(d, set):
-        return frozenset(freeze(d2) for d2 in d)
-    elif isinstance(d, dict):
-        return frozenset(freeze(d2) for d2 in d.items())
-    else:
-        return d
 
 
 def endpoints(base):
@@ -278,7 +258,7 @@ class BridgeWindow(QMainWindow):
         raise ProtocolError(msg % args)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)
 
     parser = argparse.ArgumentParser(description='Run bridge frontend')
     parser.add_argument(
