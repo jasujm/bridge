@@ -13,10 +13,11 @@ import re
 import sys
 
 from PyQt5.QtCore import QSocketNotifier
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QMessageBox, QVBoxLayout, QWidget)
 import zmq
 
-from bridgegui.bidding import CallPanel
+from bridgegui.bidding import CallPanel, CallTable
 from bridgegui.messaging import (
     endpoints, sendCommand, MessageQueue, REPLY_SUCCESS_PREFIX)
 
@@ -71,13 +72,19 @@ class BridgeWindow(QMainWindow):
 
     def _init_widgets(self):
         logging.info("Initializing widgets")
+        self._central_widget = QWidget()
+        self._layout = QVBoxLayout(self._central_widget)
         self._call_panel = CallPanel()
         self._call_panel.callMade.connect(self._send_call_command)
-        self.setCentralWidget(self._call_panel)
+        self._layout.addWidget(self._call_panel)
+        self._call_table = CallTable()
+        self._layout.addWidget(self._call_table)
+        self.setCentralWidget(self._central_widget)
 
     def _connect_socket_to_notifier(self, socket, message_queue):
         def _handle_message_to_queue():
             if not message_queue.handleMessages():
+                # TODO: Localization
                 QMessageBox.warning(
                     "Server error",
                     "Unexpected message received from the server")
@@ -105,7 +112,11 @@ class BridgeWindow(QMainWindow):
         logging.debug("Call successful")
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
+        if not position or not call:
+            messaging.protocolError(
+                "Expected call event to contain position and call")
         logging.debug("Call made by %s: %s", position, str(call))
+        self._call_table.addCall(position, call)
         self._request(ALLOWED_CALLS_TAG)
 
 if __name__ == '__main__':
