@@ -12,12 +12,11 @@ import logging
 import re
 import sys
 
-from PyQt5.QtCore import QSocketNotifier, pyqtSignal
-from PyQt5.QtWidgets import (
-    QApplication, QGridLayout, QMainWindow,QMessageBox, QPushButton, QWidget)
+from PyQt5.QtCore import QSocketNotifier
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
 import zmq
 
-from bridgegui.util import freeze
+from bridgegui.bidding import CallPanel
 from bridgegui.messaging import (
     endpoints, sendCommand, MessageQueue, REPLY_SUCCESS_PREFIX)
 
@@ -28,77 +27,6 @@ CALL_COMMAND = b'call'
 STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
 ALLOWED_CARDS_TAG = "allowedCards"
-TYPE_TAG = "type"
-PASS_TAG = "pass"
-BID_TAG = "bid"
-DOUBLE_TAG = "double"
-REDOUBLE_TAG = "redouble"
-LEVEL_TAG = "level"
-STRAIN_TAG = "strain"
-CLUBS_TAG = "clubs"
-DIAMONDS_TAG = "diamonds"
-HEARTS_TAG = "hearts"
-SPADES_TAG = "spades"
-NOTRUMP_TAG = "notrump"
-
-CALL_TYPE_FORMATS = { PASS_TAG: 'PASS', DOUBLE_TAG: 'X', REDOUBLE_TAG: 'XX' }
-STRAIN_FORMATS = {
-    CLUBS_TAG: 'C', DIAMONDS_TAG: 'D', HEARTS_TAG: 'H', SPADES_TAG: 'S',
-    NOTRUMP_TAG: 'NT'
-}
-
-
-def format_call(call):
-    """Return text representation of call
-
-    Keyword Arguments:
-    call -- object representing the call in call serialization format
-    """
-    s = CALL_TYPE_FORMATS.get(call[TYPE_TAG], None)
-    if s:
-        return s
-    bid = call[BID_TAG]
-    return "%d%s" % (bid[LEVEL_TAG], STRAIN_FORMATS[bid[STRAIN_TAG]])
-
-
-class CallPanel(QWidget):
-    """Panel used to select calls to be made"""
-
-    callMade = pyqtSignal(dict)
-
-    def __init__(self):
-        """Initialize call panel"""
-        super().__init__()
-        self.setLayout(QGridLayout())
-        self._buttons = {}
-        suits = (CLUBS_TAG, DIAMONDS_TAG, HEARTS_TAG, SPADES_TAG, NOTRUMP_TAG)
-        for row, level in enumerate(range(1, 8)):
-            for col, strain in enumerate(suits):
-                self._init_call(
-                    row, col,
-                    {
-                        TYPE_TAG: BID_TAG,
-                        BID_TAG: { LEVEL_TAG: level, STRAIN_TAG: strain }
-                    })
-        self._init_call(8, 0, { TYPE_TAG: PASS_TAG })
-        self._init_call(8, 1, { TYPE_TAG: DOUBLE_TAG })
-        self._init_call(8, 2, { TYPE_TAG: REDOUBLE_TAG })
-
-    def set_allowed_calls(self, calls):
-        for button in self._buttons.values():
-            button.setEnabled(False)
-        for call in calls:
-            button = self._buttons.get(freeze(call), None)
-            if not button:
-                return False
-            button.setEnabled(True)
-        return True
-
-    def _init_call(self, row, col, call):
-        button = QPushButton(format_call(call))
-        button.clicked.connect(lambda: self.callMade.emit(call))
-        self.layout().addWidget(button, row, col)
-        self._buttons[freeze(call)] = button
 
 
 class BridgeWindow(QMainWindow):
@@ -171,10 +99,10 @@ class BridgeWindow(QMainWindow):
         self._request(STATE_TAG, ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG)
 
     def _handle_get_reply(self, allowedCalls=(), **kwargs):
-        self._call_panel.set_allowed_calls(allowedCalls)
+        self._call_panel.setAllowedCalls(allowedCalls)
 
     def _handle_call_reply(self, **kwargs):
-        pass
+        logging.debug("Call successful")
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
         logging.debug("Call made by %s: %s", position, str(call))
