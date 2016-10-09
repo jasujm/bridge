@@ -83,7 +83,7 @@ const Player* PeerClientControl::addClient(std::string identity)
     return nullptr;
 }
 
-const Player* PeerClientControl::getPlayer(const std::string& identity)
+const Player* PeerClientControl::getPlayer(const std::string& identity) const
 {
     return callIfFound(
         others, identity,

@@ -82,7 +82,7 @@ public:
      * with \p identity. If \p identity is unrecognized or is a peer
      * controlling multiple players, nullptr is returned.
      */
-    const Player* getPlayer(const std::string& identity);
+    const Player* getPlayer(const std::string& identity) const;
 
     /** \brief Determine if a given peer or client controls a player
      *
