@@ -154,10 +154,8 @@
  *
  * - \b Command: get
  * - \b Parameters:
- *   - \e position (optional)
- *   - \e keys: list of keys for the values to be rettrieved
+ *   - \e keys: list of keys for the values to be retrieved
  * - \b Reply:
- *   - \e state: the state of the deal, see \ref jsondealstate
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
@@ -168,12 +166,14 @@
  * MUST contain the values corresponding to the keys. Keys that are not
  * recognized MUST be igrored.
  *
- * The position argument is optional. If omitted, the position of the unique
- * player controlled by the client or the peer is implied. If the peer
- * controls several players, the command MUST fail.
- *
- * The state is the deal state as is known both to the player in the position
- * and the peer itself.
+ * The intention is that this command is used by the clients to query the state
+ * of the game. All peers are expected to track the state of the game
+ * themselves, and in fact it is not possible for a peer to know what a player
+ * controlled by another peer is supposed to see (in particular their
+ * cards). Therefore, the result of this command is unspecified if it comes from
+ * another peer. In particular, get command from peer MAY be ignored with
+ * failure message. In any case any information about hidden cards of a player
+ * MUST NOT be revealed to peer or client not controlling that player.
  *
  * If the deal is in the bidding phase and the player in the position has
  * turn, the allowedCalls key is the set of calls allowed to be made by the

@@ -1,24 +1,22 @@
 #include "main/BridgeMain.hh"
 
-#include "bridge/AllowedCalls.hh"
-#include "bridge/AllowedCards.hh"
 #include "bridge/BasicPlayer.hh"
 #include "bridge/Call.hh"
-#include "bridge/DealState.hh"
+#include "bridge/Card.hh"
+#include "bridge/CardType.hh"
+#include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/CardManager.hh"
-#include "engine/MakeDealState.hh"
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
+#include "main/GetMessageHandler.hh"
 #include "main/PeerClientControl.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
-#include "messaging/DealStateJsonSerializer.hh"
-#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
@@ -26,7 +24,6 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
-#include "scoring/DuplicateScoreSheet.hh"
 #include "Observer.hh"
 
 #include <boost/iterator/indirect_iterator.hpp>
@@ -47,12 +44,9 @@ using Messaging::makeMessageHandler;
 using Messaging::MessageQueue;
 using Messaging::Reply;
 using Messaging::success;
-using Scoring::DuplicateScoreSheet;
 
 namespace {
 
-using CallVector = std::vector<Call>;
-using CardVector = std::vector<CardType>;
 using StringVector = std::vector<std::string>;
 
 template<typename PairIterator>
@@ -124,11 +118,6 @@ private:
         const std::string& identity, const boost::optional<Position>& position);
 
     Reply<Position> hello(const std::string& indentity);
-    Reply<
-        boost::optional<DealState>, boost::optional<CallVector>,
-        boost::optional<CardVector>, boost::optional<DuplicateScoreSheet>> get(
-        const std::string& identity, const boost::optional<Position>& position,
-        const StringVector& keys);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
@@ -144,11 +133,11 @@ private:
         {Position::EAST, std::make_shared<BasicPlayer>()},
         {Position::SOUTH, std::make_shared<BasicPlayer>()},
         {Position::WEST, std::make_shared<BasicPlayer>()}};
-    PeerClientControl peerClientControl;
+    std::shared_ptr<PeerClientControl> peerClientControl;
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
     std::unique_ptr<CardProtocol> cardProtocol;
-    BridgeEngine engine;
+    std::shared_ptr<BridgeEngine> engine;
     zmq::socket_t eventSocket;
     Messaging::MessageLoop messageLoop;
 };
@@ -185,15 +174,17 @@ BridgeMain::Impl::Impl(
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     peerClientControl {
-        positionPlayerIterator(positions.begin()),
-        positionPlayerIterator(positions.end())},
+        std::make_shared<PeerClientControl>(
+            positionPlayerIterator(positions.begin()),
+            positionPlayerIterator(positions.end()))},
     cardProtocol {
         makeCardProtocol(
             context, cardServerControlEndpoint, cardServerBasePeerEndpoint)},
     engine {
-        cardProtocol->getCardManager(), gameManager,
-        secondIterator(players.begin()),
-        secondIterator(players.end())},
+        std::make_shared<BridgeEngine>(
+            cardProtocol->getCardManager(), gameManager,
+            secondIterator(players.begin()),
+            secondIterator(players.end()))},
     eventSocket {context, zmq::socket_type::pub}
 {
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
@@ -211,12 +202,8 @@ BridgeMain::Impl::Impl(
         },
         {
             GET_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::get, JsonSerializer {},
-                std::make_tuple(POSITION_COMMAND, KEYS_COMMAND),
-                std::make_tuple(
-                    STATE_COMMAND, ALLOWED_CALLS_COMMAND,
-                    ALLOWED_CARDS_COMMAND, SCORE_COMMAND))
+            std::make_shared<GetMessageHandler>(
+                gameManager, engine, peerClientControl)
         },
         {
             CALL_COMMAND,
@@ -266,7 +253,8 @@ void BridgeMain::Impl::terminate()
 
 bool BridgeMain::Impl::readyToStart() const
 {
-    return peerClientControl.arePlayersControlled(
+    assert(peerClientControl);
+    return peerClientControl->arePlayersControlled(
         boost::make_indirect_iterator(secondIterator(players.begin())),
         boost::make_indirect_iterator(secondIterator(players.end())));
 }
@@ -274,7 +262,8 @@ bool BridgeMain::Impl::readyToStart() const
 void BridgeMain::Impl::startIfReady()
 {
     if (readyToStart()) {
-        engine.initiate();
+        assert(engine);
+        engine->initiate();
     }
 }
 
@@ -286,7 +275,8 @@ CardProtocol& BridgeMain::Impl::getCardProtocol()
 
 BridgeEngine& BridgeMain::Impl::getEngine()
 {
-    return engine;
+    assert(engine);
+    return *engine;
 }
 
 template<typename... Args>
@@ -309,14 +299,16 @@ template<typename... Args>
 void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
     const Player& player, const std::string& command, Args&&... args)
 {
-    if (peerClientControl.isSelfControlledPlayer(player)) {
+    assert(peerClientControl);
+    if (peerClientControl->isSelfControlledPlayer(player)) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
-    const auto position = engine.getPosition(event.player);
+    assert(engine);
+    const auto position = engine->getPosition(event.player);
     publish(
         CALL_COMMAND,
         std::tie(POSITION_COMMAND, position),
@@ -335,7 +327,8 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
-    const auto hand_position = engine.getPosition(event.hand);
+    assert(engine);
+    const auto hand_position = engine->getPosition(event.hand);
     const auto card_type = event.card.getType().get();
     publish(
         PLAY_COMMAND,
@@ -363,20 +356,24 @@ void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
 const Player* BridgeMain::Impl::getPlayerFor(
     const std::string& identity, const boost::optional<Position>& position)
 {
+    assert(peerClientControl);
     if (position) {
-        const auto& player = engine.getPlayer(*position);
-        if (peerClientControl.isAllowedToAct(identity, player)) {
+        assert(engine);
+        const auto& player = engine->getPlayer(*position);
+        if (peerClientControl->isAllowedToAct(identity, player)) {
             return &player;
         }
         return nullptr;
     }
-    return peerClientControl.getPlayer(identity);
+    return peerClientControl->getPlayer(identity);
 }
 
 Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 {
-    if (const auto player = peerClientControl.addClient(identity)) {
-        return success(engine.getPosition(*player));
+    assert(peerClientControl);
+    if (const auto player = peerClientControl->addClient(identity)) {
+        assert(engine);
+        return success(engine->getPosition(*player));
     }
     return failure();
 }
@@ -384,7 +381,8 @@ Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
     const std::string& identity, const CardProtocol::PositionVector& positions)
 {
-    const auto success = peerClientControl.addPeer(
+    assert(peerClientControl);
+    const auto success = peerClientControl->addPeer(
         identity,
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end()));
@@ -392,8 +390,9 @@ CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
         if (readyToStart()) {
             // Engine initialization is deferred to give the card protocol
             // opportunity to initialize before cards are requested
+            assert(engine);
             messageLoop.callOnce(
-                [&engine = this->engine]() { engine.initiate(); });
+                [&engine = *this->engine]() { engine.initiate(); });
             return CardProtocol::PeerAcceptState::ALL_ACCEPTED;
         }
         return CardProtocol::PeerAcceptState::ACCEPTED;
@@ -401,56 +400,13 @@ CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
     return CardProtocol::PeerAcceptState::REJECTED;
 }
 
-Reply<
-    boost::optional<DealState>, boost::optional<CallVector>,
-    boost::optional<CardVector>, boost::optional<DuplicateScoreSheet>>
-BridgeMain::Impl::get(
-    const std::string& identity, const boost::optional<Position>& position,
-    const StringVector& keys)
-{
-    const auto player = getPlayerFor(identity, position);
-    if (!player) {
-        return failure();
-    }
-    auto deal_state = boost::optional<DealState> {};
-    auto allowed_calls = boost::optional<CallVector> {};
-    auto allowed_cards = boost::optional<CardVector> {};
-    auto score_sheet = boost::optional<DuplicateScoreSheet> {};
-    const auto player_has_turn = (engine.getPlayerInTurn() == player);
-    for (auto&& key : keys) {
-        if (key == STATE_COMMAND) {
-            deal_state = makeDealState(engine, *player);
-        } else if (key == ALLOWED_CALLS_COMMAND) {
-            allowed_calls.emplace();
-            if (player_has_turn) {
-                if (const auto bidding = engine.getBidding()) {
-                    getAllowedCalls(
-                        *bidding, std::back_inserter(*allowed_calls));
-                }
-            }
-        } else if (key == ALLOWED_CARDS_COMMAND) {
-            allowed_cards.emplace();
-            if (player_has_turn) {
-                if (const auto trick = engine.getCurrentTrick()) {
-                    getAllowedCards(*trick, std::back_inserter(*allowed_cards));
-                }
-            }
-        } else if (key == SCORE_COMMAND) {
-            assert(gameManager);
-            score_sheet = gameManager->getScoreSheet();
-        }
-    }
-    return success(
-        std::move(deal_state), std::move(allowed_calls),
-        std::move(allowed_cards), std::move(score_sheet));
-}
-
 Reply<> BridgeMain::Impl::call(
     const std::string& identity, const boost::optional<Position>& position,
     const Call& call)
 {
     if (const auto player = getPlayerFor(identity, position)) {
-        if (engine.call(*player, call)) {
+        assert(engine);
+        if (engine->call(*player, call)) {
             return success();
         }
     }
@@ -468,11 +424,12 @@ Reply<> BridgeMain::Impl::play(
     }
 
     if (const auto player = getPlayerFor(identity, position)) {
-        if (const auto hand = engine.getHandInTurn()) {
+        assert(engine);
+        if (const auto hand = engine->getHandInTurn()) {
             const auto n_card = index ? index : findFromHand(*hand, *card);
             if (n_card) {
-                if (engine.play(*player, *hand, *n_card)) {
-                    const auto player_position = engine.getPosition(*player);
+                if (engine->play(*player, *hand, *n_card)) {
+                    const auto player_position = engine->getPosition(*player);
                     sendToPeersIfSelfControlledPlayer(
                         *player,
                         PLAY_COMMAND,

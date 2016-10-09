@@ -103,7 +103,7 @@ class BridgeWindow(QMainWindow):
             messaging.protocolError("Expected server to assign position")
         logging.info("Successfully joined, position is %s", position)
         self.setWindowTitle("Bridge: %s" % position)
-        self._request(STATE_TAG, ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG)
+        self._request(ALLOWED_CALLS_TAG)
 
     def _handle_get_reply(self, allowedCalls=(), **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)

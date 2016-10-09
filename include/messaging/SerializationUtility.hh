@@ -34,6 +34,33 @@
 namespace Bridge {
 namespace Messaging {
 
+/** \brief Find and deserialize single parameter from a range
+ *
+ * \tparam T type of the parameter to deserialize
+ *
+ * \param serializer see \ref serializationpolicy
+ * \param first iterator to the first argument
+ * \param last iterator one past the last argument
+ * \param param the parameter to find
+ *
+ * \return the deserialized parameter corresponding to \p param, or none if the
+ * parameter is not found in the range
+ */
+template<typename T, typename SerializationPolicy, typename ParamIterator>
+boost::optional<T> deserializeParam(
+    SerializationPolicy&& serializer,
+    ParamIterator first, ParamIterator last, const std::string& param)
+{
+    first = std::find(first, last, param);
+    if (first != last) {
+        ++first;
+        if (first != last) {
+            return serializer.template deserialize<T>(*first);
+        }
+    }
+    return boost::none;
+}
+
 /** \brief Deserialize several strings
  *
  * This function is an utility used to deserialize arbitrary number of strings

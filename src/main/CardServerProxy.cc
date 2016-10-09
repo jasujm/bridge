@@ -16,6 +16,7 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
+#include "messaging/SerializationUtility.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
 #include "Utility.hh"
@@ -129,20 +130,6 @@ struct PeerPosition {
     PositionVector positions;
 };
 
-template<typename ParamIterator>
-boost::optional<CardTypeVector> parseCardTypes(
-    ParamIterator first, ParamIterator last)
-{
-    first = std::find(first, last, CardServer::CARDS_COMMAND);
-    if (first != last) {
-        ++first;
-        if (first != last) {
-            return JsonSerializer::deserialize<CardTypeVector>(*first);
-        }
-    }
-    return boost::none;
-}
-
 }
 
 class CardServerProxy::Impl :
@@ -232,10 +219,11 @@ Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
 }
 
 template<typename Event, typename ParamIterator>
-void Impl::enqueueIfHasCardsParam(
-    ParamIterator first, ParamIterator last)
+void Impl::enqueueIfHasCardsParam(ParamIterator first, ParamIterator last)
 {
-    if (auto&& cards = parseCardTypes(first, last)) {
+    auto&& cards = Messaging::deserializeParam<CardTypeVector>(
+        JsonSerializer {}, first, last, CardServer::CARDS_COMMAND);
+    if (cards) {
         functionQueue(
             [this, cards = std::move(*cards)]()
             {
