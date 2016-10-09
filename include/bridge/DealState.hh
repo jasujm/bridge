@@ -54,6 +54,12 @@ extern const StageToStringMap STAGE_TO_STRING_MAP;
  *
  * \note Boost operators library is used to ensure that operator!= is
  * generated with usual semantics when operator== is supplied.
+ *
+ * \deprecated This class is mainly used to aid serializing the state of a
+ * single deal into message sent to the clients. As such it is very complex
+ * object and may provide way more information that the client actually
+ * needs. Instead of passing DealState objects around, the fields of this struct
+ * are being added as keys to the get command one by one.
  */
 struct DealState : private boost::equality_comparable<DealState> {
 

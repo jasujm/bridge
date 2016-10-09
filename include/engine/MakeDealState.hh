@@ -22,6 +22,8 @@ class BridgeEngine;
  *
  * \return DealState object describing the state of the deal as seen by \p
  * player
+ *
+ * \deprecated See DealState for more information
  */
 DealState makeDealState(const BridgeEngine& engine, const Player& player);
 
