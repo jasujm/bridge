@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtTest import QSignalSpy
 
 import bridgegui.bidding as bidding
+import bridgegui.messaging as messaging
 
 CALLS = [
     bidding.makePass(),
@@ -35,11 +36,12 @@ class CallPanelTest(unittest.TestCase):
             self.assertIn(format_, button_texts)
 
     def testSetAllowedCallsWithInvalidCall(self):
-        self.assertFalse(self._call_panel.setAllowedCalls(('invalid',)))
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_panel.setAllowedCalls(('invalid',))
 
     def testSetAllowedCalls(self):
         allowed, not_allowed = random.sample(CALLS, 2)
-        self.assertTrue(self._call_panel.setAllowedCalls((allowed,)))
+        self._call_panel.setAllowedCalls((allowed,))
         self.assertTrue(self._call_panel.getButton(allowed).isEnabled())
         self.assertFalse(self._call_panel.getButton(not_allowed).isEnabled())
 
@@ -48,7 +50,7 @@ class CallPanelTest(unittest.TestCase):
         call = random.choice(CALLS)
         button = self._call_panel.getButton(call)
         button.clicked.emit()
-        self.assertEqual(spy[0][0], call)
+        self.assertEqual(bidding.asCall(spy[0][0]), call)
 
 
 class CallTableTest(unittest.TestCase):
@@ -68,11 +70,13 @@ class CallTableTest(unittest.TestCase):
 
     def testAddCallInvalidPosition(self):
         call = random.choice(CALLS)
-        self.assertFalse(self._call_table.addCall('invalid', call))
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_table.addCall('invalid', call)
 
     def testAddCallInvalidCall(self):
         position = random.choice(bidding.POSITION_TAGS)
-        self.assertFalse(self._call_table.addCall(position, 'invalid'))
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_table.addCall(position, 'invalid')
 
     def testAddSingleCall(self):
         rows = 0,
@@ -93,7 +97,8 @@ class CallTableTest(unittest.TestCase):
         position = random.choice(bidding.POSITION_TAGS)
         call = random.choice(CALLS)
         self._call_table.addCall(position, call)
-        self.assertFalse(self._call_table.addCall(position, call))
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_table.addCall(position, call)
 
     def _add_calls_and_assert_success(self, rows, ns):
         positions = tuple(bidding.POSITION_TAGS[n] for n in ns)
@@ -101,6 +106,6 @@ class CallTableTest(unittest.TestCase):
         formats = tuple(bidding.formatCall(call) for call in calls)
         for row, n, position, call, format_ in zip(
                 rows, ns, positions, calls, formats):
-            self.assertTrue(self._call_table.addCall(position, call))
+            self._call_table.addCall(position, call)
             item = self._call_table.item(row, n)
             self.assertEqual(item.text(), format_)

@@ -47,15 +47,6 @@ class ProtocolError(Exception):
     pass
 
 
-def protocolError(msg, *args):
-    """Raise protocol error
-
-    Keyword Arguments:
-    msg   -- error message
-    *args -- positional format arguments
-    """
-    raise ProtocolError(msg % args)
-
 class MessageQueue:
     """Object for handling messages coming from the bridge server"""
 
@@ -104,23 +95,24 @@ class MessageQueue:
             try:
                 self._handle_message(parts)
             except ProtocolError as e:
-                logging.warning(str(e))
+                logging.warning(
+                    "Error while handling message from %s: %r", self._name, e)
                 return False
 
     def _handle_message(self, parts):
         logging.debug("Received message: %r", parts)
         n_prefix = len(self._prefix)
         if parts[:n_prefix] != self._prefix:
-            protocolError(
-                "Unexpected message prefix in %r. Expected: %r",
-                parts, self._prefix)
+            raise ProtocolError(
+                "Unexpected message prefix in %r. Expected: %r" % (
+                parts, self._prefix))
         if len(parts) < n_prefix + 1:
-            protocolError(
-                "Message too short: %r. Expected at least %d", parts, n_prefix)
+            raise ProtocolError(
+                "Message too short: %r. Expected at least %d parts" % (
+                    parts, n_prefix + 1))
         command = self._handlers.get(parts[n_prefix], None)
         if not command:
-            protocolError(
-                "Unrecognized command: %r", parts[n_prefix])
+            raise ProtocolError("Unrecognized command: %r" % parts[n_prefix])
         kwargs = {}
         for n in range(n_prefix+1, len(parts)-1, 2):
             key = parts[n].decode()
@@ -128,7 +120,6 @@ class MessageQueue:
             try:
                 value = json.loads(value)
             except json.decoder.JSONDecodeError as e:
-                protocolError(
-                    "Error while parsing %r: %r", value, e)
+                raise ProtocolError("Error while parsing %r: %r" % (value, e))
             kwargs[key] = value
         command(**kwargs)

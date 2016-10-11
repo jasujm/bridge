@@ -4,23 +4,20 @@ This module contains miscellaneous utilities that are too small by themselves to
 have a module of their own.
 """
 
-def freeze(d):
-    """Freeze object
+import os
 
-    This object recursively freezes its (possibly) mutable argument consisting
-    of nested lists, tuples, sets and dictionaries. Any object not belonging to
-    the aforementioned types (including any container) must be hashable. The
-    result is a hashable object that can be used e.g. as dictionary key.
+import PyQt5.QtGui
 
-    Not all distinct objects are distinct after being frozen. List freezes into
-    tuple, set freezes into frozenset and dict freezes into frozenset containing
-    tuples of key–value pairs.
+
+def getImage(filename):
+    """Load image from file
+
+    Given filename as its argument, this function loads image from the file and
+    returns a QImage object containing the loaded image. The filename argument
+    is prepended with the path to image directory.
+
+    Keyword Arguments:
+    filename -- the filename of the image file
     """
-    if isinstance(d, (list, tuple)):
-        return tuple(freeze(d2) for d2 in d)
-    elif isinstance(d, set):
-        return frozenset(freeze(d2) for d2 in d)
-    elif isinstance(d, dict):
-        return frozenset(freeze(d2) for d2 in d.items())
-    else:
-        return d
+    imagepath = os.environ["BRIDGE_IMAGE_PATH"]
+    return PyQt5.QtGui.QImage(os.path.join(imagepath, filename))

@@ -17,9 +17,9 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QMessageBox, QVBoxLayout, QWidget)
 import zmq
 
-from bridgegui.bidding import CallPanel, CallTable
-from bridgegui.messaging import (
-    endpoints, sendCommand, MessageQueue, REPLY_SUCCESS_PREFIX)
+import bridgegui.bidding as bidding
+import bridgegui.messaging as messaging
+from bridgegui.messaging import sendCommand
 
 HELLO_COMMAND = b'bridgehlo'
 GET_COMMAND = b'get'
@@ -44,13 +44,13 @@ class BridgeWindow(QMainWindow):
     def _init_sockets(self, endpoint):
         logging.info("Initializing sockets")
         zmqctx = zmq.Context.instance()
-        endpoint_generator = endpoints(endpoint)
+        endpoint_generator = messaging.endpoints(endpoint)
         self._socket_notifiers = []
         self._control_socket = zmqctx.socket(zmq.DEALER)
         self._control_socket.connect(next(endpoint_generator))
-        self._control_socket_queue = MessageQueue(
+        self._control_socket_queue = messaging.MessageQueue(
             self._control_socket, "control socket queue",
-            REPLY_SUCCESS_PREFIX,
+            messaging.REPLY_SUCCESS_PREFIX,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
                 GET_COMMAND: self._handle_get_reply,
@@ -61,7 +61,7 @@ class BridgeWindow(QMainWindow):
         self._event_socket = zmqctx.socket(zmq.SUB)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
         self._event_socket.connect(next(endpoint_generator))
-        self._event_socket_queue = MessageQueue(
+        self._event_socket_queue = messaging.MessageQueue(
             self._event_socket, "event socket queue", [],
             {
                 CALL_COMMAND: self._handle_call_event
@@ -74,10 +74,10 @@ class BridgeWindow(QMainWindow):
         logging.info("Initializing widgets")
         self._central_widget = QWidget()
         self._layout = QVBoxLayout(self._central_widget)
-        self._call_panel = CallPanel()
+        self._call_panel = bidding.CallPanel()
         self._call_panel.callMade.connect(self._send_call_command)
         self._layout.addWidget(self._call_panel)
-        self._call_table = CallTable()
+        self._call_table = bidding.CallTable()
         self._layout.addWidget(self._call_table)
         self.setCentralWidget(self._central_widget)
 
@@ -86,7 +86,7 @@ class BridgeWindow(QMainWindow):
             if not message_queue.handleMessages():
                 # TODO: Localization
                 QMessageBox.warning(
-                    "Server error",
+                    self, "Server error",
                     "Unexpected message received from the server")
         socket_notifier = QSocketNotifier(socket.fd, QSocketNotifier.Read)
         socket_notifier.activated.connect(_handle_message_to_queue)
@@ -100,10 +100,11 @@ class BridgeWindow(QMainWindow):
 
     def _handle_hello_reply(self, position=None, **kwargs):
         if not position:
-            messaging.protocolError("Expected server to assign position")
+            raise messaging.ProtocolError("Expected server to assign position")
         logging.info("Successfully joined, position is %s", position)
+        self._position = position
         self.setWindowTitle("Bridge: %s" % position)
-        self._request(ALLOWED_CALLS_TAG)
+        self._request(ALLOWED_CALLS_TAG, CARDS_TAG)
 
     def _handle_get_reply(self, allowedCalls=(), **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
@@ -113,9 +114,6 @@ class BridgeWindow(QMainWindow):
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
         logging.debug("Call made. Position: %r, Call: %r", position, call)
-        if not position or not call:
-            messaging.protocolError(
-                "Expected call event to contain position and call")
         self._call_table.addCall(position, call)
         self._request(ALLOWED_CALLS_TAG)
 
