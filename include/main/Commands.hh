@@ -159,6 +159,7 @@
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
+ *   - \e cards
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * Get commands returns one or multiple values corresponding to the keys
@@ -175,13 +176,16 @@
  * failure message. In any case any information about hidden cards of a player
  * MUST NOT be revealed to peer or client not controlling that player.
  *
- * If the deal is in the bidding phase and the player in the position has
- * turn, the allowedCalls key is the set of calls allowed to be made by the
- * player.
+ * If the deal is in the bidding phase and the player has turn, the allowedCalls
+ * parameter is the set of calls allowed to be made by the player.
  *
- * If the deal is in the playing phase and the player in the position has
- * turn, the allowedCards is the set of cards allowed to be played by the
- * player.
+ * If the deal is in the playing phase and the player has turn, the allowedCards
+ * parameter is the set of cards allowed to be played by the player.
+ *
+ * The cards parameter is an object containing mapping from positions to list of
+ * cards held by the player in that position. The mapping MUST only contain
+ * those hands that are visible to the player, i.e. his own hand and dummy if it
+ * has been revealed. The object is empty if cards have not been dealt yet.
  *
  * The score is the current scoresheet of the game.
  *

@@ -14,10 +14,11 @@ import sys
 
 from PyQt5.QtCore import QSocketNotifier
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QMessageBox, QVBoxLayout, QWidget)
+    QApplication, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget)
 import zmq
 
 import bridgegui.bidding as bidding
+import bridgegui.cards as cards
 import bridgegui.messaging as messaging
 from bridgegui.messaging import sendCommand
 
@@ -28,6 +29,7 @@ CALL_COMMAND = b'call'
 STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
 ALLOWED_CARDS_TAG = "allowedCards"
+CARDS_TAG = "cards"
 
 
 class BridgeWindow(QMainWindow):
@@ -36,6 +38,7 @@ class BridgeWindow(QMainWindow):
     def __init__(self, args):
         """Initialize BridgeWindow"""
         super().__init__()
+        self._position = None
         self._init_sockets(args.endpoint)
         self._init_widgets()
         self.setWindowTitle('Bridge')
@@ -73,12 +76,16 @@ class BridgeWindow(QMainWindow):
     def _init_widgets(self):
         logging.info("Initializing widgets")
         self._central_widget = QWidget()
-        self._layout = QVBoxLayout(self._central_widget)
+        self._layout = QHBoxLayout(self._central_widget)
+        self._bidding_layout = QVBoxLayout()
         self._call_panel = bidding.CallPanel()
         self._call_panel.callMade.connect(self._send_call_command)
-        self._layout.addWidget(self._call_panel)
+        self._bidding_layout.addWidget(self._call_panel)
         self._call_table = bidding.CallTable()
-        self._layout.addWidget(self._call_table)
+        self._bidding_layout.addWidget(self._call_table)
+        self._layout.addLayout(self._bidding_layout)
+        self._hand_panel = cards.HandPanel()
+        self._layout.addWidget(self._hand_panel)
         self.setCentralWidget(self._central_widget)
 
     def _connect_socket_to_notifier(self, socket, message_queue):
@@ -106,8 +113,10 @@ class BridgeWindow(QMainWindow):
         self.setWindowTitle("Bridge: %s" % position)
         self._request(ALLOWED_CALLS_TAG, CARDS_TAG)
 
-    def _handle_get_reply(self, allowedCalls=(), **kwargs):
+    def _handle_get_reply(self, allowedCalls=(), cards=None, **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
+        if cards is not None:
+            self._hand_panel.addCards(cards.get(self._position, []))
 
     def _handle_call_reply(self, **kwargs):
         logging.debug("Call successful")

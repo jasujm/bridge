@@ -3,6 +3,7 @@
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Partnership.hh"
+#include "bridge/Position.hh"
 #include "scoring/DuplicateScoreSheet.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -46,6 +47,7 @@ using namespace std::string_literals;
 using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Bridge::Call>;
 using CardVector = std::vector<Bridge::CardType>;
+using OptionalCardVector = std::vector<boost::optional<Bridge::CardType>>;
 
 const auto PLAYER1 = "player1"s;
 const auto PLAYER2 = "player2"s;
@@ -63,6 +65,10 @@ protected:
         peerClientControl->addClient(PLAYER3);
         peerClientControl->addClient(PLAYER4);
         engine->initiate();
+    }
+
+    void shuffle()
+    {
         cardManager->shuffle(
             cardTypeIterator(0), cardTypeIterator(Bridge::N_CARDS));
     }
@@ -132,6 +138,7 @@ TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIsRejected)
 
 TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerInTurn)
 {
+    shuffle();
     request(PLAYER1, ALLOWED_CALLS_COMMAND);
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(ALLOWED_CALLS_COMMAND, reply[0]);
@@ -141,6 +148,7 @@ TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerInTurn)
 
 TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerNotInTurn)
 {
+    shuffle();
     request(PLAYER2, ALLOWED_CALLS_COMMAND);
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(ALLOWED_CALLS_COMMAND, reply[0]);
@@ -150,6 +158,7 @@ TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerNotInTurn)
 
 TEST_F(GetMessageHandlerTest, testAllowedCallsAfterBidding)
 {
+    shuffle();
     makeBidding();
     request(PLAYER1, ALLOWED_CALLS_COMMAND);
     ASSERT_EQ(2u, reply.size());
@@ -160,6 +169,7 @@ TEST_F(GetMessageHandlerTest, testAllowedCallsAfterBidding)
 
 TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerInTurn)
 {
+    shuffle();
     makeBidding();
     request(PLAYER2, ALLOWED_CARDS_COMMAND);
     ASSERT_EQ(2u, reply.size());
@@ -174,12 +184,49 @@ TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerInTurn)
 
 TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerNotInTurn)
 {
+    shuffle();
     makeBidding();
     request(PLAYER1, ALLOWED_CARDS_COMMAND);
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(ALLOWED_CARDS_COMMAND, reply[0]);
     const auto cards = JsonSerializer::deserialize<CardVector>(reply[1]);
     EXPECT_TRUE(cards.empty());
+}
+
+TEST_F(GetMessageHandlerTest, testAllowedCardsBeforeBiddingIsCompleted)
+{
+    shuffle();
+    request(PLAYER1, ALLOWED_CARDS_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(ALLOWED_CARDS_COMMAND, reply[0]);
+    const auto cards = JsonSerializer::deserialize<CardVector>(reply[1]);
+    EXPECT_TRUE(cards.empty());
+}
+
+TEST_F(GetMessageHandlerTest, testCardsIfEmpty)
+{
+    request(PLAYER1, CARDS_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(CARDS_COMMAND, reply[0]);
+    const auto j = nlohmann::json::parse(reply[1]);
+    EXPECT_EQ(0u, j.size());
+}
+
+TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
+{
+    shuffle();
+    request(PLAYER1, CARDS_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(CARDS_COMMAND, reply[0]);
+    const auto j = nlohmann::json::parse(reply[1]);
+    for (const auto position : Bridge::POSITIONS) {
+        const auto actual = Bridge::Messaging::fromJson<OptionalCardVector>(
+            j.at(Bridge::POSITION_TO_STRING_MAP.left.at(position)));
+        const auto expected = (position == Bridge::Position::NORTH) ?
+            OptionalCardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS_PER_PLAYER)) :
+            OptionalCardVector(N_CARDS_PER_PLAYER, boost::none);
+        EXPECT_EQ(expected, actual);
+    }
 }
 
 TEST_F(GetMessageHandlerTest, testScoreIfEmpty)
@@ -190,15 +237,6 @@ TEST_F(GetMessageHandlerTest, testScoreIfEmpty)
     const auto scores =
         JsonSerializer::deserialize<DuplicateScoreSheet>(reply[1]);
     EXPECT_TRUE(scores.begin() == scores.end());
-}
-
-TEST_F(GetMessageHandlerTest, testAllowedCardsBeforeBiddingIsCompleted)
-{
-    request(PLAYER1, ALLOWED_CARDS_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(ALLOWED_CARDS_COMMAND, reply[0]);
-    const auto cards = JsonSerializer::deserialize<CardVector>(reply[1]);
-    EXPECT_TRUE(cards.empty());
 }
 
 TEST_F(GetMessageHandlerTest, testScoreIfNotEmpty)

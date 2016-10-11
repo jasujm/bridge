@@ -174,6 +174,11 @@ stuff is up first, and the usability stuff comes after that.
 - Peer discovery
 - Recovery from more serious failures (lost messages, crash)
 
+## Acknowledgements
+
+Byron Knoll is acknowledged for the playing card graphics:
+<http://byronknoll.blogspot.com/2011/03/vector-playing-cards.html>
+
 ## Copyright
 
 Copyright © 2015–2016 Jaakko Moisio <jaakko@moisio.fi>

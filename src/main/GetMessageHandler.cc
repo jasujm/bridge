@@ -4,6 +4,7 @@
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Position.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
@@ -13,12 +14,15 @@
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationUtility.hh"
 #include "Utility.hh"
 
 #include <boost/optional/optional.hpp>
+#include <boost/iterator/transform_iterator.hpp>
 
 #include <algorithm>
+#include <map>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -60,6 +64,27 @@ std::string getScore(const DuplicateGameManager& gameManager)
     return JsonSerializer::serialize(gameManager.getScoreSheet());
 }
 
+auto getCards(const Player& player, const BridgeEngine& engine)
+{
+    using CardTypeVector = std::vector<boost::optional<CardType>>;
+    auto cards = nlohmann::json::object();
+    for (const auto position : POSITIONS) {
+        const auto hand = engine.getHand(engine.getPlayer(position));
+        if (hand) {
+            auto type_func = [](const auto& card) { return card.getType(); };
+            const auto cards_in_hand = engine.isVisible(*hand, player) ?
+                CardTypeVector(
+                    boost::make_transform_iterator(hand->begin(), type_func),
+                    boost::make_transform_iterator(hand->end(), type_func)) :
+                CardTypeVector(
+                    std::distance(hand->begin(), hand->end()), boost::none);
+            const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
+            cards[position_str] = Messaging::toJson(cards_in_hand);
+        }
+    }
+    return cards.dump();
+}
+
 }
 
 GetMessageHandler::GetMessageHandler(
@@ -85,6 +110,8 @@ bool GetMessageHandler::doHandle(
                 sink(getAllowedCalls(dereference(engine), *player));
             } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
                 sink(getAllowedCards(dereference(engine), *player));
+            } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
+                sink(getCards(*player, dereference(engine)));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
                 sink(getScore(dereference(gameManager)));
             }
