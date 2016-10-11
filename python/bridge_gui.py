@@ -112,10 +112,10 @@ class BridgeWindow(QMainWindow):
         logging.debug("Call successful")
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
+        logging.debug("Call made. Position: %r, Call: %r", position, call)
         if not position or not call:
             messaging.protocolError(
                 "Expected call event to contain position and call")
-        logging.debug("Call made by %s: %s", position, str(call))
         self._call_table.addCall(position, call)
         self._request(ALLOWED_CALLS_TAG)
 

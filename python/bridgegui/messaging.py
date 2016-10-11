@@ -38,7 +38,7 @@ def sendCommand(socket, command, **kwargs):
     parts = [b'', command]
     for (key, value) in kwargs.items():
         parts.extend((key.encode(), json.dumps(value).encode()))
-    logging.debug("Sending command: %s", str(parts))
+    logging.debug("Sending command: %r", parts)
     socket.send_multipart(parts)
 
 
@@ -108,20 +108,19 @@ class MessageQueue:
                 return False
 
     def _handle_message(self, parts):
-        logging.debug("Received message: %s", str(parts))
+        logging.debug("Received message: %r", parts)
         n_prefix = len(self._prefix)
         if parts[:n_prefix] != self._prefix:
             protocolError(
-                "Unexpected message prefix in %s. Expected: %s",
-                str(parts), self._prefix)
+                "Unexpected message prefix in %r. Expected: %r",
+                parts, self._prefix)
         if len(parts) < n_prefix + 1:
             protocolError(
-                "Message too short: %s. Expected at least %d",
-                str(parts), n_prefix)
+                "Message too short: %r. Expected at least %d", parts, n_prefix)
         command = self._handlers.get(parts[n_prefix], None)
         if not command:
             protocolError(
-                "Unrecognized command: %s", parts[n_prefix].decode())
+                "Unrecognized command: %r", parts[n_prefix])
         kwargs = {}
         for n in range(n_prefix+1, len(parts)-1, 2):
             key = parts[n].decode()
@@ -130,6 +129,6 @@ class MessageQueue:
                 value = json.loads(value)
             except json.decoder.JSONDecodeError as e:
                 protocolError(
-                    "Error while parsing '%s': %s", value, str(e))
+                    "Error while parsing %r: %r", value, e)
             kwargs[key] = value
         command(**kwargs)
