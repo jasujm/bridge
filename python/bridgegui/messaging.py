@@ -86,7 +86,7 @@ class MessageQueue:
         handling messages stops due to an error, False is returned. Otherwise
         True is returned.
         """
-        logging.debug("Ready to receive message from %s", self._name)
+        #logging.debug("Ready to receive message from %s", self._name)
         while True:
             try:
                 parts = self._socket.recv_multipart(flags=zmq.NOBLOCK)

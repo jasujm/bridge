@@ -12,7 +12,7 @@ import logging
 import re
 import sys
 
-from PyQt5.QtCore import QSocketNotifier
+from PyQt5.QtCore import QSocketNotifier, QTimer
 from PyQt5.QtWidgets import (
     QApplication, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget)
 import zmq
@@ -39,10 +39,13 @@ class BridgeWindow(QMainWindow):
         """Initialize BridgeWindow"""
         super().__init__()
         self._position = None
+        self._timer = QTimer(self)
+        self._timer.setInterval(1000)
         self._init_sockets(args.endpoint)
         self._init_widgets()
         self.setWindowTitle('Bridge')
         self.show()
+        self._timer.start()
 
     def _init_sockets(self, endpoint):
         logging.info("Initializing sockets")
@@ -97,6 +100,7 @@ class BridgeWindow(QMainWindow):
                     "Unexpected message received from the server")
         socket_notifier = QSocketNotifier(socket.fd, QSocketNotifier.Read)
         socket_notifier.activated.connect(_handle_message_to_queue)
+        self._timer.timeout.connect(_handle_message_to_queue)
         self._socket_notifiers.append(socket_notifier)
 
     def _request(self, *args):
