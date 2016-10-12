@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QWidget, QGridLayout, QTableWidget, QTableWidgetItem)
 
 import bridgegui.messaging as messaging
+import bridgegui.positions as positions
 
 TYPE_TAG = "type"
 BID_TAG = "bid"
@@ -37,15 +38,10 @@ DIAMONDS_TAG = "diamonds"
 HEARTS_TAG = "hearts"
 SPADES_TAG = "spades"
 NOTRUMP_TAG = "notrump"
-NORTH_TAG = "north"
-EAST_TAG = "east"
-SOUTH_TAG = "south"
-WEST_TAG = "west"
 
 TYPE_TAGS = (BID_TAG, PASS_TAG, DOUBLE_TAG, REDOUBLE_TAG)
 LEVELS = 7
 STRAIN_TAGS = (CLUBS_TAG, DIAMONDS_TAG, HEARTS_TAG, SPADES_TAG, NOTRUMP_TAG)
-POSITION_TAGS = (NORTH_TAG, EAST_TAG, SOUTH_TAG, WEST_TAG)
 
 # TODO: Localization
 CALL_TYPE_FORMATS = { PASS_TAG: 'PASS', DOUBLE_TAG: 'X', REDOUBLE_TAG: 'XX' }
@@ -54,7 +50,8 @@ STRAIN_FORMATS = {
     NOTRUMP_TAG: 'NT'
 }
 POSITION_FORMATS = {
-    NORTH_TAG: "North", EAST_TAG: "East", SOUTH_TAG: "South", WEST_TAG: "West"
+    positions.NORTH_TAG: "North", positions.EAST_TAG: "East",
+    positions.SOUTH_TAG: "South", positions.WEST_TAG: "West"
 }
 
 Bid = namedtuple("Bid", [LEVEL_TAG, STRAIN_TAG])
@@ -217,7 +214,7 @@ class CallTable(QTableWidget):
     def __init__(self):
         """Initialize call table"""
         super().__init__(0, 4)
-        labels = (POSITION_FORMATS[tag] for tag in POSITION_TAGS)
+        labels = (POSITION_FORMATS[tag] for tag in positions.POSITION_TAGS)
         self.setHorizontalHeaderLabels(labels)
         self._cursor = None
 
@@ -233,7 +230,7 @@ class CallTable(QTableWidget):
         call     -- the call to be added
         """
         try:
-            col = POSITION_TAGS.index(position)
+            col = positions.POSITION_TAGS.index(position)
         except ValueError:
             raise messaging.ProtocolError(
                 "Trying to add call with invalid position: %r" % position)

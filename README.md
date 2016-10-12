@@ -82,7 +82,8 @@ is used, so no peeking the network traffic :innocent:
 
 Run the four frontend (client) instances
 
-    python /the/source/directory/python/bridge_gui.py endpoint
+    $ export BRIDGE_IMAGE_PATH=/the/source/directory/images
+    $ python /the/source/directory/python/bridge_gui.py endpoint
 
 where endpoint is the control endpoint of the backend application. Exactly one
 frontend must connect for each position the backend controls. The backend
@@ -144,8 +145,8 @@ server is started with the same arguments. The control endpoint does needs to
 be visible only to the backend. The peer endpoints must be accessible to the
 peers.
 
-    $ bridge --bind=tcp://*:5555 --positions='["north"]'               \
-    >   --connect='["tcp://peer1.example.com:5555",…]'                 \
+    $ bridge --bind=tcp://*:5555 --positions='["north"]'                \
+    >   --connect='["tcp://peer1.example.com:5555",…]'                  \
     >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
     $ bridge-cs tcp://127.0.0.1:5560 tcp://*:5565 &
     $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555

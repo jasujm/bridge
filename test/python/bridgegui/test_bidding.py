@@ -8,6 +8,7 @@ from PyQt5.QtTest import QSignalSpy
 
 import bridgegui.bidding as bidding
 import bridgegui.messaging as messaging
+from bridgegui.positions import POSITION_TAGS
 
 CALLS = [
     bidding.makePass(),
@@ -66,7 +67,7 @@ class CallTableTest(unittest.TestCase):
 
     def testItHasOneColumnForEachPosition(self):
         self.assertEqual(
-            self._call_table.columnCount(), len(bidding.POSITION_TAGS))
+            self._call_table.columnCount(), len(POSITION_TAGS))
 
     def testAddCallInvalidPosition(self):
         call = random.choice(CALLS)
@@ -74,13 +75,13 @@ class CallTableTest(unittest.TestCase):
             self._call_table.addCall('invalid', call)
 
     def testAddCallInvalidCall(self):
-        position = random.choice(bidding.POSITION_TAGS)
+        position = random.choice(POSITION_TAGS)
         with self.assertRaises(messaging.ProtocolError):
             self._call_table.addCall(position, 'invalid')
 
     def testAddSingleCall(self):
         rows = 0,
-        ns = random.randrange(len(bidding.POSITION_TAGS)),
+        ns = random.randrange(len(POSITION_TAGS)),
         self._add_calls_and_assert_success(rows, ns)
 
     def testAddMultipleCalls(self):
@@ -90,18 +91,18 @@ class CallTableTest(unittest.TestCase):
 
     def testAddCallsToMultipleRows(self):
         rows = 0, 1
-        ns = len(bidding.POSITION_TAGS)-1, 0
+        ns = len(POSITION_TAGS)-1, 0
         self._add_calls_and_assert_success(rows, ns)
 
     def testAddCallsOutOfOrder(self):
-        position = random.choice(bidding.POSITION_TAGS)
+        position = random.choice(POSITION_TAGS)
         call = random.choice(CALLS)
         self._call_table.addCall(position, call)
         with self.assertRaises(messaging.ProtocolError):
             self._call_table.addCall(position, call)
 
     def _add_calls_and_assert_success(self, rows, ns):
-        positions = tuple(bidding.POSITION_TAGS[n] for n in ns)
+        positions = tuple(POSITION_TAGS[n] for n in ns)
         calls = random.sample(CALLS, 2)
         formats = tuple(bidding.formatCall(call) for call in calls)
         for row, n, position, call, format_ in zip(

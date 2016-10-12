@@ -25,6 +25,8 @@ from bridgegui.messaging import sendCommand
 HELLO_COMMAND = b'bridgehlo'
 GET_COMMAND = b'get'
 CALL_COMMAND = b'call'
+PLAY_COMMAND = b'play'
+BIDDING_COMMAND = b'bidding'
 
 STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
@@ -61,16 +63,21 @@ class BridgeWindow(QMainWindow):
                 HELLO_COMMAND: self._handle_hello_reply,
                 GET_COMMAND: self._handle_get_reply,
                 CALL_COMMAND: self._handle_call_reply,
+                PLAY_COMMAND: self._handle_play_reply,
             })
         self._connect_socket_to_notifier(
             self._control_socket, self._control_socket_queue)
         self._event_socket = zmqctx.socket(zmq.SUB)
         self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
         self._event_socket.connect(next(endpoint_generator))
         self._event_socket_queue = messaging.MessageQueue(
             self._event_socket, "event socket queue", [],
             {
-                CALL_COMMAND: self._handle_call_event
+                CALL_COMMAND: self._handle_call_event,
+                BIDDING_COMMAND: self._handle_bidding_event,
+                PLAY_COMMAND: self._handle_play_event,
             })
         self._connect_socket_to_notifier(
             self._event_socket, self._event_socket_queue)
@@ -87,8 +94,10 @@ class BridgeWindow(QMainWindow):
         self._call_table = bidding.CallTable()
         self._bidding_layout.addWidget(self._call_table)
         self._layout.addLayout(self._bidding_layout)
-        self._hand_panel = cards.HandPanel()
-        self._layout.addWidget(self._hand_panel)
+        self._card_area = cards.CardArea()
+        for hand in self._card_area.hands():
+            hand.cardPlayed.connect(self._send_play_command)
+        self._layout.addWidget(self._card_area)
         self.setCentralWidget(self._central_widget)
 
     def _connect_socket_to_notifier(self, socket, message_queue):
@@ -105,9 +114,12 @@ class BridgeWindow(QMainWindow):
 
     def _request(self, *args):
         sendCommand(self._control_socket, GET_COMMAND, keys=args)
-        
+
     def _send_call_command(self, call):
         sendCommand(self._control_socket, CALL_COMMAND, call=call)
+
+    def _send_play_command(self, card):
+        sendCommand(self._control_socket, PLAY_COMMAND, card=card._asdict())
 
     def _handle_hello_reply(self, position=None, **kwargs):
         if not position:
@@ -115,20 +127,36 @@ class BridgeWindow(QMainWindow):
         logging.info("Successfully joined, position is %s", position)
         self._position = position
         self.setWindowTitle("Bridge: %s" % position)
-        self._request(ALLOWED_CALLS_TAG, CARDS_TAG)
+        self._card_area.setPlayerPosition(position)
+        self._request(ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG)
 
-    def _handle_get_reply(self, allowedCalls=(), cards=None, **kwargs):
+    def _handle_get_reply(
+            self, allowedCalls=(), allowedCards=None, cards=None, **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
         if cards is not None:
-            self._hand_panel.addCards(cards.get(self._position, []))
+            self._card_area.setCards(cards)
+        if allowedCards is not None:
+            self._card_area.setAllowedCards(allowedCards)
 
     def _handle_call_reply(self, **kwargs):
         logging.debug("Call successful")
+
+    def _handle_play_reply(self, **kwargs):
+        logging.debug("Play successful")
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
         logging.debug("Call made. Position: %r, Call: %r", position, call)
         self._call_table.addCall(position, call)
         self._request(ALLOWED_CALLS_TAG)
+
+    def _handle_bidding_event(self, **kwargs):
+        logging.debug("Bidding completed")
+        self._request(ALLOWED_CARDS_TAG)
+
+    def _handle_play_event(self, position=None, card=None, **kwargs):
+        logging.debug("Card played. Position: %r, Card: %r", position, card)
+        self._card_area.playCard(position, card)
+        self._request(CARDS_TAG, ALLOWED_CARDS_TAG)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)
