@@ -48,7 +48,7 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
-    /** \brief Event for announcing that a call was mas
+    /** \brief Event for announcing that a call was made
      */
     struct CallMade : private boost::equality_comparable<CallMade> {
         /** \brief Create new card played event
@@ -61,6 +61,10 @@ public:
         const Player& player; ///< \brief The player that made the call
         const Call call;      ///< \brief The call that was made
     };
+
+    /** \brief Event for announcing that contract was reached
+     */
+    struct BiddingCompleted {};
 
     /** \brief Event for announcing that a card was played
      */
@@ -118,6 +122,14 @@ public:
      * starts.
      */
     void subscribeToCallMade(std::weak_ptr<Observer<CallMade>> observer);
+
+    /** \brief Subscribe to notifications about bidding completed
+     *
+     * The notification takes place when contract has been reached. If the
+     * bidding was passed out, this notification does not take place.
+     */
+    void subscribeToBiddingCompleted(
+        std::weak_ptr<Observer<BiddingCompleted>> observer);
 
     /** \brief Subscribe to notifications about card being played
      *

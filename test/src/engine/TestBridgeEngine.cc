@@ -294,6 +294,11 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         assertHandsVisible();
         const auto& player = *players[e.first % players.size()];
         const auto position = engine.getPosition(player);
+        auto observer = std::make_shared<
+            MockObserver<BridgeEngine::BiddingCompleted>>();
+        EXPECT_CALL(*observer, handleNotify(_)).Times(
+            static_cast<std::size_t>(e.first + 1) == calls.size() ? 1 : 0);
+        engine.subscribeToBiddingCompleted(observer);
         engine.call(player, call);
         expectedState.calls->emplace_back(position, call);
         expectedState.positionInTurn.emplace(clockwise(position));
@@ -345,6 +350,10 @@ TEST_F(BridgeEngineTest, testPassOut)
 
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     for (const auto& player : players) {
+        auto observer = std::make_shared<
+            MockObserver<BridgeEngine::BiddingCompleted>>();
+        engine.subscribeToBiddingCompleted(observer);
+        EXPECT_CALL(*observer, handleNotify(_)).Times(0);
         engine.call(*player, Pass {});
     }
     EXPECT_FALSE(engine.hasEnded());

@@ -67,6 +67,7 @@ auto secondIterator(PairIterator iter)
 class BridgeMain::Impl :
     public CardProtocol::PeerAcceptor,
     public Observer<BridgeEngine::CallMade>,
+    public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::DummyRevealed>,
     public Observer<BridgeEngine::DealEnded>,
@@ -113,6 +114,7 @@ private:
         const std::string& identity,
         const CardProtocol::PositionVector& positions) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
+    void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
@@ -326,6 +328,11 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
         std::tie(CALL_COMMAND, event.call));
 }
 
+void BridgeMain::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
+{
+    publish(BIDDING_COMMAND);
+}
+
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
     const auto hand_position = engine.getPosition(event.hand);
@@ -494,6 +501,7 @@ BridgeMain::BridgeMain(
     card_protocol.setAcceptor(impl);
     auto& engine = impl->getEngine();
     engine.subscribeToCallMade(impl);
+    engine.subscribeToBiddingCompleted(impl);
     engine.subscribeToCardPlayed(impl);
     engine.subscribeToDummyRevealed(impl);
     engine.subscribeToDealEnded(impl);

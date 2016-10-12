@@ -163,6 +163,10 @@ public:
     {
         return callMadeNotifier;
     }
+    Observable<BiddingCompleted>& getBiddingCompletedNotifier()
+    {
+        return biddingCompletedNotifier;
+    }
     Observable<CardPlayed>& getCardPlayedNotifier()
     {
         return cardPlayedNotifier;
@@ -210,6 +214,7 @@ private:
     const boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
     Observable<CallMade> callMadeNotifier;
+    Observable<BiddingCompleted> biddingCompletedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
     Observable<DummyRevealed> dummyRevealedNotifier;
     Observable<DealEnded> dealEndedNotifier;
@@ -482,10 +487,13 @@ sc::result InBidding::react(const CallEvent& event)
     const auto bidder_position = outermost_context().getPosition(event.player);
     if (bidding.call(bidder_position, event.call)) {
         event.ret = true;
-        outermost_context().getCallMadeNotifier().notifyAll(
+        auto& context = outermost_context();
+        context.getCallMadeNotifier().notifyAll(
             BridgeEngine::CallMade { event.player, event.call });
         const auto has_contract = bidding.hasContract();
         if (has_contract) {
+            context.getBiddingCompletedNotifier().notifyAll(
+                BridgeEngine::BiddingCompleted {});
             return transit<Playing>();
         } else if (!has_contract) {
             post_event(DealPassedOutEvent {});
@@ -978,6 +986,13 @@ void BridgeEngine::subscribeToCallMade(
 {
     assert(impl);
     impl->getCallMadeNotifier().subscribe(std::move(observer));
+}
+
+void BridgeEngine::subscribeToBiddingCompleted(
+    std::weak_ptr<Observer<BiddingCompleted>> observer)
+{
+    assert(impl);
+    impl->getBiddingCompletedNotifier().subscribe(std::move(observer));
 }
 
 void BridgeEngine::subscribeToCardPlayed(

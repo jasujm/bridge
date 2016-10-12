@@ -275,6 +275,13 @@
  *
  * This event is published whenever a call is made.
  *
+ * \subsection bridgeprotocoleventbidding bidding
+ *
+ * - \b Command: bidding
+ * - \b Parameters: \e none
+ *
+ * This event is published whenever contract is reached in bidding
+ *
  * \subsection bridgeprotocoleventplay play
  *
  * - \b Command: play
@@ -374,6 +381,10 @@ extern const std::string DEAL_COMMAND;
 /** \brief See \ref bridgeprotocolcontroldeal
  */
 extern const std::string CARDS_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventbidding
+ */
+extern const std::string BIDDING_COMMAND;
 
 /** \brief See \ref bridgeprotocoleventdummy
  */
