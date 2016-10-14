@@ -13,7 +13,6 @@
 #include <boost/operators.hpp>
 #include <boost/optional/optional_fwd.hpp>
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -171,7 +170,7 @@ public:
      *
      * \return true if the call is successful, false otherwise
      *
-     * \throw std::out_of_score if \p player is not in the game
+     * \throw std::out_of_range if \p player is not in the game
      */
     bool call(const Player& player, const Call& call);
 
@@ -192,7 +191,7 @@ public:
      *
      * \return true if the play is successful, false otherwise
      *
-     * \throw std::out_of_score if \p player or \p hand is not in the game
+     * \throw std::out_of_range if \p player or \p hand is not in the game
      */
     bool play(const Player& player, const Hand& hand, std::size_t card);
 
@@ -253,24 +252,21 @@ public:
      */
     const Hand* getHand(const Player& player) const;
 
-    /** \brief Retrieve all hands visible to the given player
+    /** \brief Determine whether a player is allowed to se ea hand
      *
-     * If a deal is ongoing, each player sees his own hand. If the opening
-     * lead has been played, each player also sees the hand of the dummy. At
-     * most two hands will be output.
+     * If a deal is ongoing, each player sees his own hand. If the opening lead
+     * has been played, each player also sees the hand of the dummy. This method
+     * can be used to determine whether \p player can see \p hand according to
+     * those rules.
      *
-     * \tparam OutputIterator an output iterator which must accept const Hand&
+     * \param hand the hand \p player is interested in
+     * \param player the player interested in \p hand
      *
-     * \param player the player
-     * \param out the iterator to which the the visible hands will be written
-     *
-     * \return one past the position the last hand was written to
+     * \return true if \p player is allowed to see \p hand, false otherwise
      *
      * \throw std::out_of_range if the player is not in the current game
      */
-    template<typename OutputIterator>
-    OutputIterator getVisibleHands(
-        const Player& player, OutputIterator out) const;
+    bool isVisible(const Hand& hand, const Player& player) const;
 
     /** \brief Determine the position of given hand
      *
@@ -320,8 +316,6 @@ private:
         std::shared_ptr<GameManager> gameManager,
         std::vector<std::shared_ptr<Player>> players);
 
-    const Hand* getDummyHandIfVisible() const;
-
     const std::shared_ptr<Impl> impl;
 };
 
@@ -336,24 +330,6 @@ BridgeEngine::BridgeEngine(
             std::move(gameManager),
             std::vector<std::shared_ptr<Player>>(first, last))}
 {
-}
-
-template<typename OutputIterator>
-OutputIterator BridgeEngine::getVisibleHands(
-    const Player& player, OutputIterator out) const
-{
-    std::array<const Hand*, 2> hands {
-        {getHand(player), getDummyHandIfVisible()}};
-    const auto first = hands.begin();
-    auto last = hands.end();
-    last = std::remove(first, last, nullptr);
-    last = std::unique(first, last);
-    return std::transform(
-        first, last, out, [](const auto* hand) -> decltype(auto)
-        {
-            assert(hand);
-            return *hand;
-        });
 }
 
 /** \brief Equality operator for call made events

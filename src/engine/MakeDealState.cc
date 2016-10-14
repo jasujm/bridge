@@ -9,7 +9,6 @@
 #include "engine/BridgeEngine.hh"
 #include "Utility.hh"
 
-#include <boost/function_output_iterator.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
@@ -83,13 +82,13 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     // Fill cards
     {
         state.cards.emplace();
-        auto fill_cards = [&state, &engine](const auto& hand)
-        {
-            const auto position = dereference(engine.getPosition(hand));
-            fillCards(state, position, hand);
-        };
-        engine.getVisibleHands(
-            player, boost::make_function_output_iterator(fill_cards));
+        for (const auto position : POSITIONS) {
+            const auto& hand = dereference(
+                engine.getHand(engine.getPlayer(position)));
+            if (engine.isVisible(hand, player)) {
+                fillCards(state, position, hand);
+            }
+        }
     }
 
     // Fill bidding

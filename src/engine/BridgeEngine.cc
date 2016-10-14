@@ -1066,6 +1066,12 @@ const Player& BridgeEngine::getPlayer(const Position position) const
     return impl->getPlayer(position);
 }
 
+bool BridgeEngine::isVisible(const Hand& hand, const Player& player) const
+{
+    assert(impl);
+    return &hand == getHand(player) || &hand == impl->getDummyHandIfVisible();
+}
+
 Position BridgeEngine::getPosition(const Player& player) const
 {
     assert(impl);
@@ -1106,12 +1112,6 @@ boost::optional<TricksWon> BridgeEngine::getTricksWon() const
 {
     assert(impl);
     return impl->getTricksWon();
-}
-
-const Hand* BridgeEngine::getDummyHandIfVisible() const
-{
-    assert(impl);
-    return impl->getDummyHandIfVisible();
 }
 
 BridgeEngine::CallMade::CallMade(

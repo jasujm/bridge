@@ -50,19 +50,6 @@ using testing::ReturnRef;
 using namespace Bridge;
 using Engine::BridgeEngine;
 
-namespace {
-
-template<typename Iterator>
-bool isInVisibleHands(
-    Iterator first, Iterator last, const BridgeEngine& engine,
-    const Player& player)
-{
-    const auto& hand = dereference(engine.getHand(player));
-    return std::find_if(first, last, compareAddress(hand)) != last;
-}
-
-}
-
 class BridgeEngineTest : public testing::Test {
 private:
     auto cardsForFunctor(const Position position)
@@ -198,18 +185,24 @@ protected:
         }
     }
 
-    void assertHandsVisible(bool ownVisible, const Player* dummy = nullptr)
+    void assertNoHands()
     {
         for (const auto position : POSITIONS) {
-            const auto& player = engine.getPlayer(position);
-            auto hands = std::vector<std::reference_wrapper<const Hand>> {};
-            engine.getVisibleHands(player, std::back_inserter(hands));
-            EXPECT_TRUE(
-                !ownVisible ||
-                isInVisibleHands(hands.begin(), hands.end(), engine, player));
-            EXPECT_TRUE(
-                dummy == nullptr ||
-                isInVisibleHands(hands.begin(), hands.end(), engine, *dummy));
+            EXPECT_FALSE(engine.getHand(engine.getPlayer(position)));
+        }
+    }
+
+    void assertHandsVisible(const Player* dummy = nullptr)
+    {
+        for (const auto player_position : POSITIONS) {
+            const auto& player = engine.getPlayer(player_position);
+            for (const auto hand_position : POSITIONS) {
+                const auto& hand_player = engine.getPlayer(hand_position);
+                const auto& hand = dereference(engine.getHand(hand_player));
+                EXPECT_EQ(
+                    player_position == hand_position || dummy == &hand_player,
+                    engine.isVisible(hand, player));
+            }
         }
     }
 
@@ -272,7 +265,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.stage = Stage::SHUFFLING;
     expectedState.vulnerability.emplace(true, true);
     assertDealState();
-    assertHandsVisible(false);
+    assertNoHands();
 
     // Shuffling
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
@@ -298,7 +291,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     for (const auto e : enumerate(calls)) {
         const auto& call = e.second;
         assertDealState();
-        assertHandsVisible(true);
+        assertHandsVisible();
         const auto& player = *players[e.first % players.size()];
         const auto position = engine.getPosition(player);
         engine.call(player, call);
@@ -320,7 +313,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         auto& player = *players[turn_i % players.size()];
         playCard(player, 0, i == 0);
         updateExpectedStateAfterPlay(player);
-        assertHandsVisible(true, &engine.getPlayer(Position::WEST));
+        assertHandsVisible(&engine.getPlayer(Position::WEST));
     }
 
     expectedState.positionInTurn = Position::NORTH;
@@ -334,7 +327,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 &player == &players.back()) ? 1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             assertDealState(Position::WEST);
-            assertHandsVisible(true, &engine.getPlayer(Position::WEST));
+            assertHandsVisible(&engine.getPlayer(Position::WEST));
 
             engine.subscribeToDealEnded(observer);
             playCard(*player, i);
