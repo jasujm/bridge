@@ -7,14 +7,15 @@ Functions:
 asCard -- convert serialized card into internal representation
 
 Classes:
-HandPanel -- widget for presenting hand
-CardArea  -- widget that holds HandPanel objects for all players
+HandPanel  -- widget for presenting hand
+TrickPanel -- widget for presenting trick
+CardArea   -- widget that holds HandPanel and TrickPanel objects
 """
 
 import itertools
 from collections import namedtuple
 
-from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt
+from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt, QTimer
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QGridLayout, QWidget
 
@@ -39,6 +40,20 @@ for rank, suit in itertools.product(RANK_TAGS, SUIT_TAGS):
     card = Card(rank, suit)
     CARD_IMAGES[card] = util.getImage("%s_of_%s.png" % (rank, suit))
 BACK_IMAGE = util.getImage("back.png")
+
+def _rotate_positions(position):
+    try:
+        n = POSITION_TAGS.index(position)
+    except:
+        raise messaging.ProtocolError("Invalid position: %r" % position)
+    return POSITION_TAGS[n:] + POSITION_TAGS[:n]
+
+def _draw_image(painter, rect, image, shift=False):
+    if shift:
+        rect = rect.adjusted(0, -HandPanel._MARGIN, 0, -HandPanel._MARGIN)
+    painter.drawImage(rect, image)
+    painter.drawRect(rect)
+
 
 def asCard(card):
     """Convert serialized card representation into Card object
@@ -177,7 +192,7 @@ class HandPanel(QWidget):
                 painter.setOpacity(0.8)
             else:
                 painter.setOpacity(1)
-            self._draw_image(painter, rect, image, n == self._selected_card_n)
+            _draw_image(painter, rect, image, n == self._selected_card_n)
         painter.end()
 
     def mouseMoveEvent(self, event):
@@ -205,11 +220,118 @@ class HandPanel(QWidget):
                     self._selected_card_n = len(self._cards) - n - 1
                     break
 
-    def _draw_image(self, painter, rect, image, shift):
-        if shift:
-            rect = rect.adjusted(0, -self._MARGIN, 0, -self._MARGIN)
-        painter.drawImage(rect, image)
-        painter.drawRect(rect)
+
+class TrickPanel(QWidget):
+    """Widget for presenting trick"""
+
+    _CARD_RECTS = (
+        QRectF(
+            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN, HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN,
+            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+        QRectF(
+            0, HandPanel._IMAGE_HEIGHT / 2 + HandPanel._MARGIN,
+            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+        QRectF(
+            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN, 0,
+            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+        QRectF(
+            2 * HandPanel._IMAGE_WIDTH + 2 * HandPanel._MARGIN, HandPanel._IMAGE_HEIGHT / 2 + HandPanel._MARGIN,
+            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+    )
+
+    def __init__(self, parent=None):
+        """Initialize trick panel
+
+        Keyword Arguments:
+        parent -- the parent widget
+        """
+        super().__init__(parent)
+        self.setMinimumSize(
+            3 * HandPanel._IMAGE_WIDTH + 2 * HandPanel._MARGIN,
+            2 * HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN)
+        self._rect_map = {}
+        self._cards = {}
+        self._card_rects = []
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(2000)
+        self._timer.timeout.connect(self._clear_cards)
+
+    def setPlayerPosition(self, position):
+        """Set position of the current player
+
+        The player must be set before setting cards in the trick. The card
+        played by the current player is laid at the bottom of the panel.
+        """
+        self._rect_map = dict(zip(_rotate_positions(position), self._CARD_RECTS))
+
+    def setCards(self, cards):
+        """Set cards in the trick
+
+        This method accepts as argument a mapping from positions to the cards
+        played by the player in given position. See bridge protocol
+        specification.
+
+        If the argument is empty (i.e. clearing the trick), the cards are
+        removed after a delay to give the players an opportunity to see the last
+        card played to the trick.
+        """
+        new_cards = {}
+        new_card_rects = []
+        for position in POSITION_TAGS:
+            if position in cards and position in self._rect_map:
+                card = asCard(cards[position])
+                new_cards[position] = card
+                new_card_rects.append(self._get_card_rect(position, card))
+        if new_cards:
+            self._cards, self._card_rects = new_cards, new_card_rects
+            self._timer.stop()
+            self.repaint()
+        elif self._cards:
+            self._timer.start()
+
+    def playCard(self, position, card):
+        """Play single card to the trick
+
+        This method puts card to given position, given that the position is
+        empty or the timer period for clearing cards is ongoing.
+
+        Keyword Arguments:
+        position -- the position of the player who plays the card
+        card     -- the card played
+        """
+        if position not in self._cards or self._timer.isActive():
+            if self._timer.isActive():
+                self._clear_cards()
+                self._timer.stop()
+            card = asCard(card)
+            self._cards[position] = card
+            self._card_rects.append(self._get_card_rect(position, card))
+            self._timer.stop()
+            self.repaint()
+
+    def cards(self):
+        """Return dict containing mapping between positions and players"""
+        return dict(self._cards)
+
+    def paintEvent(self, event):
+        """Paint cards"""
+        painter = QPainter()
+        painter.begin(self)
+        for (rect, image) in self._card_rects:
+            _draw_image(painter, rect, image)
+
+    def _get_card_rect(self, position, card):
+        try:
+            rect = self._rect_map[position]
+        except Exception:
+            raise messaging.ProtocolError("Invalid position: %r" % position)
+        return (rect, CARD_IMAGES[card])
+
+    def _clear_cards(self):
+        self._cards.clear()
+        del self._card_rects[:]
+        self.repaint()
 
 
 class CardArea(QWidget):
@@ -239,6 +361,10 @@ class CardArea(QWidget):
             hand_panel = HandPanel(self, n % 2 == 1)
             hand_panel.move(point)
             self._hand_panels.append(hand_panel)
+        self._trick_panel = TrickPanel(self)
+        self._trick_panel.move(
+            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN,
+            HandPanel._IMAGE_HEIGHT + 3 * HandPanel._MARGIN)
 
     def setPlayerPosition(self, position):
         """Set position of the current player
@@ -247,11 +373,11 @@ class CardArea(QWidget):
         player are laid at the bottom of the area.
         """
         self._position = position
-        n = POSITION_TAGS.index(position)
-        self._hand_map = {}
-        for hand in self._hand_panels:
-            self._hand_map[POSITION_TAGS[n]] = hand
-            n = (n + 1) % len(self._hand_panels)
+        hand_map = {}
+        for pos, hand in zip(_rotate_positions(position), self._hand_panels):
+            hand_map[pos] = hand
+        self._hand_map = hand_map
+        self._trick_panel.setPlayerPosition(position)
 
     def setCards(self, cards):
         """Set cards for all players
@@ -277,6 +403,9 @@ class CardArea(QWidget):
             if position in self._hand_map:
                 self._hand_map[position].setAllowedCards(cards)
 
+    def setTrick(self, cards):
+        self._trick_panel.setCards(cards)
+
     def playCard(self, position, card):
         """Confirm that a card has been played by the player in the position
 
@@ -289,7 +418,8 @@ class CardArea(QWidget):
         """
         if position in self._hand_map:
             self._hand_map[position].playCard(card)
+        self._trick_panel.playCard(position, card)
 
     def hands(self):
-        """Return tuple containing all HandPanel objects"""
-        return tuple(self._hand_panels)
+        """Return list containing all HandPanel objects"""
+        return list(self._hand_panels)

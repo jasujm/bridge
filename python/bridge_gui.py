@@ -32,6 +32,7 @@ STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
+CURRENT_TRICK_TAG = "currentTrick"
 
 
 class BridgeWindow(QMainWindow):
@@ -128,15 +129,19 @@ class BridgeWindow(QMainWindow):
         self._position = position
         self.setWindowTitle("Bridge: %s" % position)
         self._card_area.setPlayerPosition(position)
-        self._request(ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG)
+        self._request(
+            ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG, CURRENT_TRICK_TAG)
 
     def _handle_get_reply(
-            self, allowedCalls=(), allowedCards=None, cards=None, **kwargs):
+            self, allowedCalls=(), allowedCards=None, cards=None,
+            currentTrick=None, **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
         if cards is not None:
             self._card_area.setCards(cards)
         if allowedCards is not None:
             self._card_area.setAllowedCards(allowedCards)
+        if currentTrick is not None:
+            self._card_area.setTrick(currentTrick)
 
     def _handle_call_reply(self, **kwargs):
         logging.debug("Call successful")
@@ -156,7 +161,7 @@ class BridgeWindow(QMainWindow):
     def _handle_play_event(self, position=None, card=None, **kwargs):
         logging.debug("Card played. Position: %r, Card: %r", position, card)
         self._card_area.playCard(position, card)
-        self._request(CARDS_TAG, ALLOWED_CARDS_TAG)
+        self._request(CARDS_TAG, ALLOWED_CARDS_TAG, CURRENT_TRICK_TAG)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)

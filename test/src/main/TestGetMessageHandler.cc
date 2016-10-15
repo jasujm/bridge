@@ -2,6 +2,7 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 #include "scoring/DuplicateScoreSheet.hh"
@@ -30,13 +31,17 @@
 
 namespace {
 
+using Bridge::CardType;
 using Bridge::cardTypeIterator;
 using Bridge::MockPlayer;
 using Bridge::N_CARDS_PER_PLAYER;
+using Bridge::Position;
+using Bridge::POSITION_TO_STRING_MAP;
 using Bridge::Engine::BridgeEngine;
 using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::JsonSerializer;
+using Bridge::Messaging::fromJson;
 using Bridge::Scoring::DuplicateScoreSheet;
 
 using testing::Return;
@@ -46,7 +51,7 @@ using namespace std::string_literals;
 
 using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Bridge::Call>;
-using CardVector = std::vector<Bridge::CardType>;
+using CardVector = std::vector<CardType>;
 using OptionalCardVector = std::vector<boost::optional<Bridge::CardType>>;
 
 const auto PLAYER1 = "player1"s;
@@ -220,13 +225,29 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
     EXPECT_EQ(CARDS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
     for (const auto position : Bridge::POSITIONS) {
-        const auto actual = Bridge::Messaging::fromJson<OptionalCardVector>(
-            j.at(Bridge::POSITION_TO_STRING_MAP.left.at(position)));
-        const auto expected = (position == Bridge::Position::NORTH) ?
+        const auto actual = fromJson<OptionalCardVector>(
+            j.at(POSITION_TO_STRING_MAP.left.at(position)));
+        const auto expected = (position == Position::NORTH) ?
             OptionalCardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS_PER_PLAYER)) :
             OptionalCardVector(N_CARDS_PER_PLAYER, boost::none);
         EXPECT_EQ(expected, actual);
     }
+}
+
+TEST_F(GetMessageHandlerTest, testCurrentTrick)
+{
+    shuffle();
+    makeBidding();
+    const auto& hand = dereference(engine->getHand(*players[1]));
+    const auto expected = dereference(hand.getCard(0)).getType();
+    engine->play(*players[1], hand, 0);
+    request(PLAYER1, CURRENT_TRICK_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(CURRENT_TRICK_COMMAND, reply[0]);
+    const auto j = nlohmann::json::parse(reply[1]);
+    const auto actual = fromJson<CardType>(
+        j.at(POSITION_TO_STRING_MAP.left.at(Position::EAST)));
+    EXPECT_EQ(expected, actual);
 }
 
 TEST_F(GetMessageHandlerTest, testScoreIfEmpty)
