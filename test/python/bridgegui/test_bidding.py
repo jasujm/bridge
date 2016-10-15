@@ -95,11 +95,39 @@ class CallTableTest(unittest.TestCase):
         self._add_calls_and_assert_success(rows, ns)
 
     def testAddCallsOutOfOrder(self):
-        position = random.choice(POSITION_TAGS)
-        call = random.choice(CALLS)
-        self._call_table.addCall(position, call)
+        position1, position2 = reversed(POSITION_TAGS[1:3])
+        call1, call2 = random.sample(CALLS, 2)
+        self._call_table.addCall(position1, call1)
+        self._call_table.addCall(position2, call2)
+        row = self._call_table.rowCount() - 1
+        col = POSITION_TAGS.index(position2)
+        self.assertIsNone(self._call_table.item(row, col))
+
+    def testSetCalls(self):
+        calls = random.sample(CALLS, 4)
+        formats = tuple(bidding.formatCall(call) for call in calls)
+        self._call_table.setCalls(
+            dict(position=position, call=call) for (position, call) in
+            zip(POSITION_TAGS, calls))
+        for col, format_ in enumerate(formats):
+            item = self._call_table.item(0, col)
+            self.assertEqual(item.text(), format_)
+
+    def testSetCallsWithInvalidPosition(self):
+        calls = random.sample(CALLS, 4)
+        formats = tuple(bidding.formatCall(call) for call in calls)
         with self.assertRaises(messaging.ProtocolError):
-            self._call_table.addCall(position, call)
+            self._call_table.setCalls(
+                dict(position=position, call=call) for (position, call) in
+                zip(list(POSITION_TAGS[:3]) + ['invalid'], calls))
+
+    def testSetCallsWithInvalidCall(self):
+        calls = random.sample(CALLS, 3)
+        formats = tuple(bidding.formatCall(call) for call in calls)
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_table.setCalls(
+                dict(position=position, call=call) for (position, call) in
+                zip(POSITION_TAGS, calls + ['invalid']))
 
     def _add_calls_and_assert_success(self, rows, ns):
         positions = tuple(POSITION_TAGS[n] for n in ns)

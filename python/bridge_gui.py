@@ -30,6 +30,7 @@ BIDDING_COMMAND = b'bidding'
 
 STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
+CALLS_TAG = "calls"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
 CURRENT_TRICK_TAG = "currentTrick"
@@ -129,12 +130,15 @@ class BridgeWindow(QMainWindow):
         self.setWindowTitle("Bridge: %s" % position)
         self._card_area.setPlayerPosition(position)
         self._request(
-            ALLOWED_CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG, CURRENT_TRICK_TAG)
+            ALLOWED_CALLS_TAG, CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
+            CURRENT_TRICK_TAG)
 
     def _handle_get_reply(
-            self, allowedCalls=(), allowedCards=None, cards=None,
+            self, allowedCalls=(), calls=None, allowedCards=None, cards=None,
             currentTrick=None, **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
+        if calls is not None:
+            self._call_table.setCalls(calls)
         if cards is not None:
             self._card_area.setCards(cards)
         if allowedCards is not None:
@@ -151,7 +155,7 @@ class BridgeWindow(QMainWindow):
     def _handle_call_event(self, position=None, call=None, **kwargs):
         logging.debug("Call made. Position: %r, Call: %r", position, call)
         self._call_table.addCall(position, call)
-        self._request(ALLOWED_CALLS_TAG)
+        self._request(ALLOWED_CALLS_TAG, CALLS_TAG)
 
     def _handle_bidding_event(self, **kwargs):
         logging.debug("Bidding completed")
