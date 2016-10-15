@@ -160,6 +160,7 @@
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
  *   - \e cards
+ *   - \e currentTrick:
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * Get commands returns one or multiple values corresponding to the keys
@@ -186,6 +187,12 @@
  * cards held by the player in that position. The mapping MUST only contain
  * those hands that are visible to the player, i.e. his own hand and dummy if it
  * has been revealed. The object is empty if cards have not been dealt yet.
+ *
+ * The currentTrick parameter is an object containing mapping from positions to
+ * the cards the corresponding player has played to the current trick. The
+ * object is empty if there are currently no cards played in a trick (perhaps
+ * because the playing phase has not begun or no card has been lead to the
+ * current trick).
  *
  * The score is the current scoresheet of the game.
  *
@@ -357,6 +364,10 @@ extern const std::string ALLOWED_CALLS_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string ALLOWED_CARDS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string CURRENT_TRICK_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

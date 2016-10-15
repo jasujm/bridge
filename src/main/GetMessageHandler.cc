@@ -5,6 +5,7 @@
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "bridge/Position.hh"
+#include "bridge/Trick.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
@@ -36,6 +37,7 @@ namespace {
 using Engine::BridgeEngine;
 using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
+using Messaging::toJson;
 
 std::string getAllowedCalls(const BridgeEngine& engine, const Player& player)
 {
@@ -59,18 +61,12 @@ std::string getAllowedCards(const BridgeEngine& engine, const Player& player)
     return JsonSerializer::serialize(allowed_cards);
 }
 
-std::string getScore(const DuplicateGameManager& gameManager)
-{
-    return JsonSerializer::serialize(gameManager.getScoreSheet());
-}
-
 auto getCards(const Player& player, const BridgeEngine& engine)
 {
     using CardTypeVector = std::vector<boost::optional<CardType>>;
     auto cards = nlohmann::json::object();
     for (const auto position : POSITIONS) {
-        const auto hand = engine.getHand(engine.getPlayer(position));
-        if (hand) {
+        if (const auto hand = engine.getHand(engine.getPlayer(position))) {
             auto type_func = [](const auto& card) { return card.getType(); };
             const auto cards_in_hand = engine.isVisible(*hand, player) ?
                 CardTypeVector(
@@ -79,10 +75,28 @@ auto getCards(const Player& player, const BridgeEngine& engine)
                 CardTypeVector(
                     std::distance(hand->begin(), hand->end()), boost::none);
             const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
-            cards[position_str] = Messaging::toJson(cards_in_hand);
+            cards[position_str] = toJson(cards_in_hand);
         }
     }
     return cards.dump();
+}
+
+auto getCurrentTrick(const BridgeEngine& engine)
+{
+    auto cards = nlohmann::json::object();
+    if (const auto trick = engine.getCurrentTrick()) {
+        for (const auto p : *trick) {
+            const auto position = dereference(engine.getPosition(p.first));
+            const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
+            cards[position_str] = toJson(dereference(p.second.getType()));
+        }
+    }
+    return cards.dump();
+}
+
+std::string getScore(const DuplicateGameManager& gameManager)
+{
+    return JsonSerializer::serialize(gameManager.getScoreSheet());
 }
 
 }
@@ -112,6 +126,8 @@ bool GetMessageHandler::doHandle(
                 sink(getAllowedCards(dereference(engine), *player));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
                 sink(getCards(*player, dereference(engine)));
+            } else if (internalContainsKey(key, CURRENT_TRICK_COMMAND, sink)) {
+                sink(getCurrentTrick(dereference(engine)));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
                 sink(getScore(dereference(gameManager)));
             }
