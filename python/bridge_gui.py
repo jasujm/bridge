@@ -105,7 +105,8 @@ class BridgeWindow(QMainWindow):
                 # TODO: Localization
                 QMessageBox.warning(
                     self, "Server error",
-                    "Unexpected message received from the server")
+                    "Error while receiving message from server. Please see logs.")
+                self._timer.timeout.disconnect(_handle_message_to_queue)
         socket_notifier = QSocketNotifier(socket.fd, QSocketNotifier.Read, self)
         socket_notifier.activated.connect(_handle_message_to_queue)
         self._timer.timeout.connect(_handle_message_to_queue)

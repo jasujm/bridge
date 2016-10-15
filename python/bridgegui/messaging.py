@@ -39,7 +39,11 @@ def sendCommand(socket, command, **kwargs):
     for (key, value) in kwargs.items():
         parts.extend((key.encode(), json.dumps(value).encode()))
     logging.debug("Sending command: %r", parts)
-    socket.send_multipart(parts)
+    try:
+        socket.send_multipart(parts)
+    except zmq.ZMQError as e:
+        logging.error(
+            "Error %d while sending message %r: %s", e.errno, parts, str(e))
 
 
 class ProtocolError(Exception):
@@ -92,11 +96,17 @@ class MessageQueue:
                 parts = self._socket.recv_multipart(flags=zmq.NOBLOCK)
             except zmq.Again:
                 return True
+            except zmq.ZMQError as e:
+                logging.error(
+                    "Error %d while receiving message from %s: %s",
+                    e.errno, self._name, str(e))
+                return False
             try:
                 self._handle_message(parts)
             except ProtocolError as e:
                 logging.warning(
-                    "Error while handling message from %s: %r", self._name, e)
+                    "Unexpected event while handling message from %s: %s",
+                    self._name, str(e))
                 return False
 
     def _handle_message(self, parts):
