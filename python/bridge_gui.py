@@ -38,27 +38,30 @@ CURRENT_TRICK_TAG = "currentTrick"
 class BridgeWindow(QMainWindow):
     """The main window of the birdge frontend"""
     
-    def __init__(self, args):
-        """Initialize BridgeWindow"""
+    def __init__(self, control_socket, event_socket):
+        """Initialize BridgeWindow
+
+        Keyword Arguments:
+        control_socket -- the control socket used to send commands
+        event_socket   -- the event socket used to subscribe events
+        """
         super().__init__()
         self._position = None
         self._timer = QTimer(self)
         self._timer.setInterval(1000)
-        self._init_sockets(args.endpoint)
+        self._init_sockets(control_socket, event_socket)
         self._init_widgets()
         self.setWindowTitle('Bridge')
         self.show()
         self._timer.start()
 
-    def _init_sockets(self, endpoint):
-        logging.info("Initializing sockets")
+    def _init_sockets(self, control_socket, event_socket):
+        logging.info("Initializing message handlers")
         zmqctx = zmq.Context.instance()
-        endpoint_generator = messaging.endpoints(endpoint)
         self._socket_notifiers = []
-        self._control_socket = zmqctx.socket(zmq.DEALER)
-        self._control_socket.connect(next(endpoint_generator))
+        self._control_socket = control_socket
         self._control_socket_queue = messaging.MessageQueue(
-            self._control_socket, "control socket queue",
+            control_socket, "control socket queue",
             messaging.REPLY_SUCCESS_PREFIX,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
@@ -67,22 +70,17 @@ class BridgeWindow(QMainWindow):
                 PLAY_COMMAND: self._handle_play_reply,
             })
         self._connect_socket_to_notifier(
-            self._control_socket, self._control_socket_queue)
-        self._event_socket = zmqctx.socket(zmq.SUB)
-        self._event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
-        self._event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
-        self._event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
-        self._event_socket.connect(next(endpoint_generator))
+            control_socket, self._control_socket_queue)
+        self._event_socket = event_socket
         self._event_socket_queue = messaging.MessageQueue(
-            self._event_socket, "event socket queue", [],
+            event_socket, "event socket queue", [],
             {
                 CALL_COMMAND: self._handle_call_event,
                 BIDDING_COMMAND: self._handle_bidding_event,
                 PLAY_COMMAND: self._handle_play_event,
             })
-        self._connect_socket_to_notifier(
-            self._event_socket, self._event_socket_queue)
-        sendCommand(self._control_socket, HELLO_COMMAND)
+        self._connect_socket_to_notifier(event_socket, self._event_socket_queue)
+        sendCommand(control_socket, HELLO_COMMAND)
 
     def _init_widgets(self):
         logging.info("Initializing widgets")
@@ -173,6 +171,22 @@ if __name__ == '__main__':
              protocol syntax. For example: tcp://bridge.example.com:5555''')
     args = parser.parse_args()
 
+    logging.info("Initializing sockets")
+    zmqctx = zmq.Context.instance()
+    endpoint_generator = messaging.endpoints(args.endpoint)
+    control_socket = zmqctx.socket(zmq.DEALER)
+    control_socket.connect(next(endpoint_generator))
+    event_socket = zmqctx.socket(zmq.SUB)
+    event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
+    event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
+    event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+    event_socket.connect(next(endpoint_generator))
+
+    logging.info("Starting main window")
     app = QApplication(sys.argv)
-    window = BridgeWindow(args)
-    sys.exit(app.exec_())
+    window = BridgeWindow(control_socket, event_socket)
+    code = app.exec_()
+
+    logging.info("Main window closed. Closing sockets.")
+    zmqctx.destroy()
+    sys.exit(code)
