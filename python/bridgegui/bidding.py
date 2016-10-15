@@ -162,10 +162,13 @@ class CallPanel(QWidget):
 
     callMade = pyqtSignal(dict)
 
-    def __init__(self):
-        """Initialize call panel"""
-        super().__init__()
-        self.setLayout(QGridLayout())
+    def __init__(self, parent=None):
+        """Initialize call panel
+
+        Keyword Arguments:
+        parent -- the parent widget"""
+        super().__init__(parent)
+        self.setLayout(QGridLayout(self))
         self._buttons = {}
         for row, level in enumerate(range(1, 8)):
             for col, strain in enumerate(STRAIN_TAGS):
@@ -201,7 +204,7 @@ class CallPanel(QWidget):
         emit_call = { TYPE_TAG: call.type }
         if call.bid is not None:
             emit_call[BID_TAG] = call.bid._asdict()
-        button = QPushButton(formatCall(call))
+        button = QPushButton(formatCall(call), self)
         button.setEnabled(False)
         button.clicked.connect(lambda: self.callMade.emit(emit_call))
         self.layout().addWidget(button, row, col)
@@ -211,9 +214,13 @@ class CallPanel(QWidget):
 class CallTable(QTableWidget):
     """Table view used for displaying the calls made"""
 
-    def __init__(self):
-        """Initialize call table"""
-        super().__init__(0, 4)
+    def __init__(self, parent=None):
+        """Initialize call table
+
+        Keyword Arguments:
+        parent -- the parent widget
+        """
+        super().__init__(0, 4, parent)
         labels = (POSITION_FORMATS[tag] for tag in positions.POSITION_TAGS)
         self.setHorizontalHeaderLabels(labels)
         self._cursor = None

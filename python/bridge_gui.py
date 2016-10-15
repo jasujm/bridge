@@ -86,16 +86,16 @@ class BridgeWindow(QMainWindow):
 
     def _init_widgets(self):
         logging.info("Initializing widgets")
-        self._central_widget = QWidget()
+        self._central_widget = QWidget(self)
         self._layout = QHBoxLayout(self._central_widget)
         self._bidding_layout = QVBoxLayout()
-        self._call_panel = bidding.CallPanel()
+        self._call_panel = bidding.CallPanel(self._central_widget)
         self._call_panel.callMade.connect(self._send_call_command)
         self._bidding_layout.addWidget(self._call_panel)
-        self._call_table = bidding.CallTable()
+        self._call_table = bidding.CallTable(self._central_widget)
         self._bidding_layout.addWidget(self._call_table)
         self._layout.addLayout(self._bidding_layout)
-        self._card_area = cards.CardArea()
+        self._card_area = cards.CardArea(self._central_widget)
         for hand in self._card_area.hands():
             hand.cardPlayed.connect(self._send_play_command)
         self._layout.addWidget(self._card_area)
@@ -108,7 +108,7 @@ class BridgeWindow(QMainWindow):
                 QMessageBox.warning(
                     self, "Server error",
                     "Unexpected message received from the server")
-        socket_notifier = QSocketNotifier(socket.fd, QSocketNotifier.Read)
+        socket_notifier = QSocketNotifier(socket.fd, QSocketNotifier.Read, self)
         socket_notifier.activated.connect(_handle_message_to_queue)
         self._timer.timeout.connect(_handle_message_to_queue)
         self._socket_notifiers.append(socket_notifier)

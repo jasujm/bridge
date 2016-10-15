@@ -351,9 +351,12 @@ class CardArea(QWidget):
         _HAND_POSITIONS[3].x() + HandPanel._VERTICAL_SIZE.width(),
         _HAND_POSITIONS[0].y() + HandPanel._HORIZONTAL_SIZE.height())
 
-    def __init__(self):
-        """Initlalize card area"""
-        super().__init__()
+    def __init__(self, parent=None):
+        """Initialize card area
+
+        Keyword Arguments:
+        parent  -- the parent widget"""
+        super().__init__(parent)
         self.setMinimumSize(self._SIZE)
         self._hand_panels = []
         self._hand_map = {}
