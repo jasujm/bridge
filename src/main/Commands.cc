@@ -12,6 +12,7 @@ const std::string GET_COMMAND {"get"};
 const std::string KEYS_COMMAND {"keys"};
 const std::string STATE_COMMAND {"state"};
 const std::string ALLOWED_CALLS_COMMAND {"allowedCalls"};
+const std::string CALLS_COMMAND {"calls"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};
 const std::string CARDS_COMMAND {"cards"};
 const std::string CURRENT_TRICK_COMMAND {"currentTrick"};

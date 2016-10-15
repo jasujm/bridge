@@ -154,19 +154,20 @@
  *
  * - \b Command: get
  * - \b Parameters:
- *   - \e keys: list of keys for the values to be retrieved
+ *   - \e keys: array of keys for the values to be retrieved
  * - \b Reply:
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
+ *   - \e calls: array of \e calls that have been made in the current deal
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
- *   - \e cards
- *   - \e currentTrick:
+ *   - \e cards: object containing \e cards that are visible to the player
+ *   - \e currentTrick: object containing \e cards in the current trick
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * Get commands returns one or multiple values corresponding to the keys
- * specified. The keys parameter is a list of keys to be retrieved. The reply
+ * specified. The keys parameter is a array of keys to be retrieved. The reply
  * MUST contain the values corresponding to the keys. Keys that are not
- * recognized MUST be igrored.
+ * recognized SHOULD be igrored.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game
@@ -177,24 +178,41 @@
  * failure message. In any case any information about hidden cards of a player
  * MUST NOT be revealed to peer or client not controlling that player.
  *
- * If the deal is in the bidding phase and the player has turn, the allowedCalls
- * parameter is the set of calls allowed to be made by the player.
+ * If the deal is in the bidding phase and the player has turn, the \b
+ * allowedCalls parameter is the set of calls allowed to be made by the player.
  *
- * If the deal is in the playing phase and the player has turn, the allowedCards
- * parameter is the set of cards allowed to be played by the player.
+ * The \b calls parameter is an array of positon–call objects, each describing a
+ * position (field “position”) and a \ref jsoncall (field “call”) made by the
+ * player at the position. The list is ordered is the order the calls were
+ * made. The array is empty if no calls have been made (possibly because cards
+ * have not been dealt and bidding not started).
  *
- * The cards parameter is an object containing mapping from positions to list of
- * cards held by the player in that position. The mapping MUST only contain
+ * An example of an object corresponding to the player at north bidding
+ * one clubs would be:
+ *
+ * \code{.json}
+ * {
+ *     "position": "north",
+ *     "call": { "type": "bid", "bid": { "level": 1, "strain": "clubs" } }
+ * }
+ * \endcode
+ *
+ * If the deal is in the playing phase and the player has turn, the \b
+ * allowedCards parameter is the set of cards allowed to be played by the
+ * player.
+ *
+ * The \b cards parameter is an object containing mapping from positions to list
+ * of cards held by the player in that position. The mapping MUST only contain
  * those hands that are visible to the player, i.e. his own hand and dummy if it
  * has been revealed. The object is empty if cards have not been dealt yet.
  *
- * The currentTrick parameter is an object containing mapping from positions to
- * the cards the corresponding player has played to the current trick. The
+ * The \b currentTrick parameter is an object containing mapping from positions
+ * to the cards the corresponding player has played to the current trick. The
  * object is empty if there are currently no cards played in a trick (perhaps
  * because the playing phase has not begun or no card has been lead to the
  * current trick).
  *
- * The score is the current scoresheet of the game.
+ * The \b score is the current scoresheet of the game.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -360,6 +378,10 @@ extern const std::string STATE_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string ALLOWED_CALLS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string CALLS_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

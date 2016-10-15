@@ -17,7 +17,9 @@
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PositionJsonSerializer.hh"
 #include "MockPlayer.hh"
+#include "Zip.hh"
 
 #include <gtest/gtest.h>
 #include <boost/iterator/indirect_iterator.hpp>
@@ -31,11 +33,13 @@
 
 namespace {
 
+using Bridge::Call;
 using Bridge::CardType;
 using Bridge::cardTypeIterator;
 using Bridge::MockPlayer;
 using Bridge::N_CARDS_PER_PLAYER;
 using Bridge::Position;
+using Bridge::POSITIONS;
 using Bridge::POSITION_TO_STRING_MAP;
 using Bridge::Engine::BridgeEngine;
 using Bridge::Engine::DuplicateGameManager;
@@ -50,7 +54,7 @@ using namespace Bridge::Main;
 using namespace std::string_literals;
 
 using StringVector = std::vector<std::string>;
-using CallVector = std::vector<Bridge::Call>;
+using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using OptionalCardVector = std::vector<boost::optional<Bridge::CardType>>;
 
@@ -58,6 +62,13 @@ const auto PLAYER1 = "player1"s;
 const auto PLAYER2 = "player2"s;
 const auto PLAYER3 = "player3"s;
 const auto PLAYER4 = "player4"s;
+
+std::array<Call, 4> CALLS {{
+    Bridge::Bid {1, Bridge::Strain::CLUBS},
+    Bridge::Pass {},
+    Bridge::Pass {},
+    Bridge::Pass {},
+}};
 
 }
 
@@ -80,10 +91,9 @@ protected:
 
     void makeBidding()
     {
-        engine->call(*players[0], Bridge::Bid {1, Bridge::Strain::CLUBS});
-        engine->call(*players[1], Bridge::Pass {});
-        engine->call(*players[2], Bridge::Pass {});
-        engine->call(*players[3], Bridge::Pass {});
+        for (auto&& t : zip(players, CALLS)) {
+            engine->call(*t.get<0>(), t.get<1>());
+        }
     }
 
     template<typename... String>
@@ -98,6 +108,16 @@ protected:
         EXPECT_TRUE(
             handler.handle(
                 identity, args.begin(), args.end(), std::back_inserter(reply)));
+    }
+
+    void testEmptyRequestReply(
+        const std::string& command, const std::string& player = PLAYER1)
+    {
+        request(player, command);
+        ASSERT_EQ(2u, reply.size());
+        EXPECT_EQ(command, reply[0]);
+        const auto j = nlohmann::json::parse(reply[1]);
+        EXPECT_TRUE(j.empty());
     }
 
     std::shared_ptr<SimpleCardManager> cardManager {
@@ -154,22 +174,37 @@ TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerInTurn)
 TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerNotInTurn)
 {
     shuffle();
-    request(PLAYER2, ALLOWED_CALLS_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(ALLOWED_CALLS_COMMAND, reply[0]);
-    const auto calls = JsonSerializer::deserialize<CallVector>(reply[1]);
-    EXPECT_TRUE(calls.empty());
+    testEmptyRequestReply(ALLOWED_CALLS_COMMAND, PLAYER2);
 }
 
 TEST_F(GetMessageHandlerTest, testAllowedCallsAfterBidding)
 {
     shuffle();
     makeBidding();
-    request(PLAYER1, ALLOWED_CALLS_COMMAND);
+    testEmptyRequestReply(ALLOWED_CALLS_COMMAND);
+}
+
+TEST_F(GetMessageHandlerTest, testCallsIfEmpty)
+{
+    shuffle();
+    testEmptyRequestReply(CALLS_COMMAND);
+}
+
+TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
+{
+    shuffle();
+    makeBidding();
+    request(PLAYER1, CALLS_COMMAND);
     ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(ALLOWED_CALLS_COMMAND, reply[0]);
-    const auto calls = JsonSerializer::deserialize<CallVector>(reply[1]);
-    EXPECT_TRUE(calls.empty());
+    EXPECT_EQ(CALLS_COMMAND, reply[0]);
+    const auto j = nlohmann::json::parse(reply[1]);
+    for (auto&& t : zip(j, POSITIONS, CALLS)) {
+        const auto position = fromJson<Position>(
+            t.get<0>().at(POSITION_COMMAND));
+        EXPECT_EQ(t.get<1>(), position);
+        const auto call = fromJson<Call>(t.get<0>().at(CALL_COMMAND));
+        EXPECT_EQ(t.get<2>(), call);
+    }
 }
 
 TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerInTurn)
@@ -191,30 +226,18 @@ TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerNotInTurn)
 {
     shuffle();
     makeBidding();
-    request(PLAYER1, ALLOWED_CARDS_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(ALLOWED_CARDS_COMMAND, reply[0]);
-    const auto cards = JsonSerializer::deserialize<CardVector>(reply[1]);
-    EXPECT_TRUE(cards.empty());
+    testEmptyRequestReply(ALLOWED_CARDS_COMMAND);
 }
 
 TEST_F(GetMessageHandlerTest, testAllowedCardsBeforeBiddingIsCompleted)
 {
     shuffle();
-    request(PLAYER1, ALLOWED_CARDS_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(ALLOWED_CARDS_COMMAND, reply[0]);
-    const auto cards = JsonSerializer::deserialize<CardVector>(reply[1]);
-    EXPECT_TRUE(cards.empty());
+    testEmptyRequestReply(ALLOWED_CARDS_COMMAND);
 }
 
 TEST_F(GetMessageHandlerTest, testCardsIfEmpty)
 {
-    request(PLAYER1, CARDS_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(CARDS_COMMAND, reply[0]);
-    const auto j = nlohmann::json::parse(reply[1]);
-    EXPECT_EQ(0u, j.size());
+    testEmptyRequestReply(CARDS_COMMAND);
 }
 
 TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
@@ -224,7 +247,7 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(CARDS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
-    for (const auto position : Bridge::POSITIONS) {
+    for (const auto position : POSITIONS) {
         const auto actual = fromJson<OptionalCardVector>(
             j.at(POSITION_TO_STRING_MAP.left.at(position)));
         const auto expected = (position == Position::NORTH) ?
@@ -234,7 +257,17 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
     }
 }
 
-TEST_F(GetMessageHandlerTest, testCurrentTrick)
+TEST_F(GetMessageHandlerTest, testCurrentTrickIfEmpty)
+{
+    shuffle();
+    request(PLAYER1, CURRENT_TRICK_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(CURRENT_TRICK_COMMAND, reply[0]);
+    const auto j = nlohmann::json::parse(reply[1]);
+    EXPECT_TRUE(j.empty());
+}
+
+TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
 {
     shuffle();
     makeBidding();

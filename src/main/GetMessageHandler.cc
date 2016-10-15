@@ -50,6 +50,19 @@ std::string getAllowedCalls(const BridgeEngine& engine, const Player& player)
     return JsonSerializer::serialize(allowed_calls);
 }
 
+std::string getCalls(const BridgeEngine& engine)
+{
+    auto calls = nlohmann::json::array();
+    if (const auto& bidding = engine.getBidding()) {
+        for (const auto& pair : *bidding) {
+            calls.push_back(
+                Messaging::pairToJson<Position, Call>(
+                    pair, POSITION_COMMAND, CALL_COMMAND));
+        }
+    }
+    return calls.dump();
+}
+
 std::string getAllowedCards(const BridgeEngine& engine, const Player& player)
 {
     auto allowed_cards = std::vector<CardType> {};
@@ -122,6 +135,8 @@ bool GetMessageHandler::doHandle(
         for (const auto& key : *keys) {
             if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
                 sink(getAllowedCalls(dereference(engine), *player));
+            } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
+                sink(getCalls(dereference(engine)));
             } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
                 sink(getAllowedCards(dereference(engine), *player));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
