@@ -2,7 +2,6 @@
 #include "bridge/CardType.hh"
 #include "bridge/Call.hh"
 #include "bridge/Contract.hh"
-#include "bridge/DealState.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
@@ -12,7 +11,6 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DealStateJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
@@ -311,141 +309,6 @@ TEST_F(JsonSerializerTest, testTricksWonEastWestInvalid)
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), 5},
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
     testFailedDeserializationHelper<TricksWon>(j);
-}
-
-TEST_F(JsonSerializerTest, testSimpleDealState)
-{
-    const auto j = json {
-        {DEAL_STATE_STAGE_KEY, toJson(Stage::SHUFFLING)}};
-    auto state = DealState {};
-    state.stage = Stage::SHUFFLING;
-    testHelper(state, j);
-}
-
-TEST_F(JsonSerializerTest, testComplexDealState)
-{
-    const auto card1 = CardType {Rank::ACE, Suit::SPADES};
-    const auto card2 = CardType {Rank::TWO, Suit::CLUBS};
-    const auto card3 = CardType {Rank::SEVEN, Suit::DIAMONDS};
-    const auto cards = DealState::Cards {
-        { Position::NORTH, {card1} },
-        { Position::SOUTH, {card2, card3} }
-    };
-    const auto call1 = Call {BID};
-    const auto call2 = Call {Double {}};
-    const auto calls = DealState::Calls {
-        { Position::SOUTH, call1 },
-        { Position::WEST, call2 }
-    };
-    const auto trick = DealState::Trick {
-        { Position::EAST, card1 },
-        { Position::WEST, card2 }
-    };
-    const auto j = json {
-        {
-            DEAL_STATE_STAGE_KEY,
-            toJson(Stage::PLAYING)
-        },
-        {
-            DEAL_STATE_POSITION_IN_TURN_KEY,
-            toJson(Position::EAST)
-        },
-        {
-            DEAL_STATE_VULNERABILITY_KEY,
-            toJson(VULNERABILITY)
-        },
-        {
-            DEAL_STATE_CARDS_KEY,
-            {
-                {
-                    POSITION_TO_STRING_MAP.left.at(Position::NORTH),
-                    {
-                        toJson(card1)
-                    }
-                },
-                {
-                    POSITION_TO_STRING_MAP.left.at(Position::SOUTH),
-                    {
-                        toJson(card2),
-                        toJson(card3)
-                    }
-                }
-            }
-        },
-        {
-            DEAL_STATE_CALLS_KEY,
-            {
-                {
-                    {
-                        DEAL_STATE_POSITION_KEY,
-                        toJson(Position::SOUTH)
-                    },
-                    {
-                        DEAL_STATE_CALL_KEY,
-                        toJson(call1)
-                    },
-                },
-                {
-                    {
-                        DEAL_STATE_POSITION_KEY,
-                        toJson(Position::WEST)
-                    },
-                    {
-                        DEAL_STATE_CALL_KEY,
-                        toJson(call2)
-                    },
-                }
-            }
-        },
-        {
-            DEAL_STATE_DECLARER_KEY,
-            toJson(Position::SOUTH)
-        },
-        {
-            DEAL_STATE_CONTRACT_KEY,
-            toJson(CONTRACT)
-        },
-        {
-            DEAL_STATE_CURRENT_TRICK_KEY,
-            {
-                {
-                    {
-                        DEAL_STATE_POSITION_KEY,
-                        toJson(Position::EAST)
-                    },
-                    {
-                        DEAL_STATE_CARD_KEY,
-                        toJson(card1)
-                    }
-                },
-                {
-                    {
-                        DEAL_STATE_POSITION_KEY,
-                        toJson(Position::WEST)
-                    },
-                    {
-                        DEAL_STATE_CARD_KEY,
-                        toJson(card2)
-                    }
-                }
-            }
-        },
-        {
-            DEAL_STATE_TRICKS_WON_KEY,
-            toJson(TRICKS_WON)
-        }
-    };
-    auto state = DealState {};
-    state.stage = Stage::PLAYING;
-    state.positionInTurn = Position::EAST;
-    state.vulnerability = VULNERABILITY;
-    state.cards = cards;
-    state.calls = calls;
-    state.declarer = Position::SOUTH;
-    state.contract = CONTRACT;
-    state.currentTrick = trick;
-    state.tricksWon = TRICKS_WON;
-    testHelper(state, j);
 }
 
 TEST_F(JsonSerializerTest, testDuplicateScoreSheet)
