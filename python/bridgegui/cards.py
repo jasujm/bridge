@@ -15,7 +15,7 @@ CardArea   -- widget that holds HandPanel and TrickPanel objects
 import itertools
 from collections import namedtuple
 
-from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt, QTimer
+from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt, QSize, QTimer
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QGridLayout, QWidget
 
@@ -41,6 +41,10 @@ for rank, suit in itertools.product(RANK_TAGS, SUIT_TAGS):
     CARD_IMAGES[card] = util.getImage("%s_of_%s.png" % (rank, suit))
 BACK_IMAGE = util.getImage("back.png")
 
+_IMAGE_WIDTH = next(iter(CARD_IMAGES.values())).width()
+_IMAGE_HEIGHT = next(iter(CARD_IMAGES.values())).height()
+_MARGIN = _IMAGE_WIDTH / 4
+
 def _rotate_positions(position):
     try:
         n = POSITION_TAGS.index(position)
@@ -50,7 +54,7 @@ def _rotate_positions(position):
 
 def _draw_image(painter, rect, image, shift=False):
     if shift:
-        rect = rect.adjusted(0, -HandPanel._MARGIN, 0, -HandPanel._MARGIN)
+        rect = rect.adjusted(0, -_MARGIN, 0, -_MARGIN)
     painter.drawImage(rect, image)
     painter.drawRect(rect)
 
@@ -88,9 +92,9 @@ class HandPanel(QWidget):
 
     cardPlayed = pyqtSignal(Card)
 
-    _IMAGE_WIDTH = next(iter(CARD_IMAGES.values())).width()
-    _IMAGE_HEIGHT = next(iter(CARD_IMAGES.values())).height()
-    _MARGIN = _IMAGE_WIDTH / 4
+    _VERTICAL_SIZE = QSize(_IMAGE_WIDTH + 1, _IMAGE_HEIGHT + 12 * _MARGIN + 1)
+    _HORIZONTAL_SIZE = QSize(
+        _IMAGE_WIDTH + 12 * _MARGIN + 1, _IMAGE_HEIGHT + _MARGIN + 1)
 
     def __init__(self, parent=None, vertical=False):
         """Initialize hand panel
@@ -101,12 +105,8 @@ class HandPanel(QWidget):
         """
         super().__init__(parent)
         self.setMouseTracking(True)
-        if vertical:
-            self.setMinimumSize(
-                self._IMAGE_WIDTH, 3 * self._IMAGE_WIDTH + self._IMAGE_HEIGHT)
-        else:
-            self.setMinimumSize(
-                4 * self._IMAGE_WIDTH, self._IMAGE_HEIGHT + self._MARGIN)
+        self.setMinimumSize(
+            self._VERTICAL_SIZE if vertical else self._HORIZONTAL_SIZE)
         self._vertical = vertical
         self._cards = []
         self._allowed_cards = set()
@@ -131,14 +131,10 @@ class HandPanel(QWidget):
             raise messaging.ProtocolError("Invalid cards: %r" % cards)
         cards.sort(key=get_key)
         new_cards = []
-        for card, x in zip(cards, itertools.count(0, self._MARGIN)):
+        for card, x in zip(cards, itertools.count(0, _MARGIN)):
             image = CARD_IMAGES[card] if card else BACK_IMAGE
-            if self._vertical:
-                rect = QRectF(
-                    0, x, self._IMAGE_WIDTH, self._IMAGE_HEIGHT)
-            else:
-                rect = QRectF(
-                    x, self._MARGIN, self._IMAGE_WIDTH, self._IMAGE_HEIGHT)
+            point = (0, x) if self._vertical else (x, _MARGIN)
+            rect = QRectF(*point, _IMAGE_WIDTH, _IMAGE_HEIGHT)
             new_cards.append((card, rect, image))
         self._cards, self._allowed_cards = new_cards, set()
         self.repaint()
@@ -214,9 +210,6 @@ class HandPanel(QWidget):
         for n, (card, rect, image) in enumerate(reversed(self._cards)):
             if rect.contains(pos):
                 if card in self._allowed_cards:
-                    rect = QRectF(
-                        (self.width() - self._IMAGE_WIDTH)/2, 0,
-                        self._IMAGE_WIDTH, self._IMAGE_HEIGHT)
                     self._selected_card_n = len(self._cards) - n - 1
                     break
 
@@ -226,18 +219,20 @@ class TrickPanel(QWidget):
 
     _CARD_RECTS = (
         QRectF(
-            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN, HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN,
-            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+            _IMAGE_WIDTH + _MARGIN, _IMAGE_HEIGHT + _MARGIN,
+            _IMAGE_WIDTH, _IMAGE_HEIGHT),
         QRectF(
-            0, HandPanel._IMAGE_HEIGHT / 2 + HandPanel._MARGIN,
-            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+            0, _IMAGE_HEIGHT / 2 + _MARGIN, _IMAGE_WIDTH, _IMAGE_HEIGHT),
         QRectF(
-            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN, 0,
-            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+            _IMAGE_WIDTH + _MARGIN, 0, _IMAGE_WIDTH, _IMAGE_HEIGHT),
         QRectF(
-            2 * HandPanel._IMAGE_WIDTH + 2 * HandPanel._MARGIN, HandPanel._IMAGE_HEIGHT / 2 + HandPanel._MARGIN,
-            HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT),
+            2 * _IMAGE_WIDTH + 2 * _MARGIN, _IMAGE_HEIGHT / 2 + _MARGIN,
+            _IMAGE_WIDTH, _IMAGE_HEIGHT),
     )
+
+    _SIZE = QSize(
+        _CARD_RECTS[3].x() + _IMAGE_WIDTH + 1,
+        _CARD_RECTS[0].y() + _IMAGE_HEIGHT + 1)
 
     def __init__(self, parent=None):
         """Initialize trick panel
@@ -246,9 +241,7 @@ class TrickPanel(QWidget):
         parent -- the parent widget
         """
         super().__init__(parent)
-        self.setMinimumSize(
-            3 * HandPanel._IMAGE_WIDTH + 2 * HandPanel._MARGIN,
-            2 * HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN)
+        self.setMinimumSize(self._SIZE)
         self._rect_map = {}
         self._cards = {}
         self._card_rects = []
@@ -342,18 +335,26 @@ class CardArea(QWidget):
     """
 
     _HAND_POSITIONS = (
-        QPoint(HandPanel._IMAGE_WIDTH, 3 * HandPanel._IMAGE_WIDTH + 2 * HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN),
-        QPoint(0, HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN),
-        QPoint(HandPanel._IMAGE_WIDTH, HandPanel._MARGIN),
-        QPoint(5 * HandPanel._IMAGE_WIDTH, HandPanel._IMAGE_HEIGHT + HandPanel._MARGIN),
+        QPoint(
+            HandPanel._VERTICAL_SIZE.width(),
+            (HandPanel._HORIZONTAL_SIZE.height() +
+             HandPanel._VERTICAL_SIZE.height() + _MARGIN)),
+        QPoint(0, HandPanel._HORIZONTAL_SIZE.height() + _MARGIN),
+        QPoint(HandPanel._VERTICAL_SIZE.width(), 0),
+        QPoint(
+            (HandPanel._HORIZONTAL_SIZE.width() +
+             HandPanel._VERTICAL_SIZE.width()),
+            HandPanel._HORIZONTAL_SIZE.height() + _MARGIN)
     )
+
+    _SIZE = QSize(
+        _HAND_POSITIONS[3].x() + HandPanel._VERTICAL_SIZE.width(),
+        _HAND_POSITIONS[0].y() + HandPanel._HORIZONTAL_SIZE.height())
 
     def __init__(self):
         """Initlalize card area"""
         super().__init__()
-        self.setMinimumSize(
-            6 * HandPanel._IMAGE_WIDTH,
-            3 * HandPanel._IMAGE_WIDTH + 3 * HandPanel._IMAGE_HEIGHT + 2 * HandPanel._MARGIN)
+        self.setMinimumSize(self._SIZE)
         self._hand_panels = []
         self._hand_map = {}
         for n, (point, position) in enumerate(
@@ -363,8 +364,8 @@ class CardArea(QWidget):
             self._hand_panels.append(hand_panel)
         self._trick_panel = TrickPanel(self)
         self._trick_panel.move(
-            HandPanel._IMAGE_WIDTH + HandPanel._MARGIN,
-            HandPanel._IMAGE_HEIGHT + 3 * HandPanel._MARGIN)
+            (self._SIZE.width() - TrickPanel._SIZE.width()) / 2,
+            (self._SIZE.height() - TrickPanel._SIZE.height()) / 2)
 
     def setPlayerPosition(self, position):
         """Set position of the current player
