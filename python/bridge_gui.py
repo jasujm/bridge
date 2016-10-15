@@ -21,12 +21,14 @@ import bridgegui.bidding as bidding
 import bridgegui.cards as cards
 import bridgegui.messaging as messaging
 from bridgegui.messaging import sendCommand
+import bridgegui.score as score
 
 HELLO_COMMAND = b'bridgehlo'
 GET_COMMAND = b'get'
 CALL_COMMAND = b'call'
 PLAY_COMMAND = b'play'
 BIDDING_COMMAND = b'bidding'
+DEALEND_COMMAND = b'dealend'
 
 STATE_TAG = "state"
 ALLOWED_CALLS_TAG = "allowedCalls"
@@ -34,6 +36,7 @@ CALLS_TAG = "calls"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
 CURRENT_TRICK_TAG = "currentTrick"
+SCORE_TAG = "score"
 
 
 class BridgeWindow(QMainWindow):
@@ -79,6 +82,7 @@ class BridgeWindow(QMainWindow):
                 CALL_COMMAND: self._handle_call_event,
                 BIDDING_COMMAND: self._handle_bidding_event,
                 PLAY_COMMAND: self._handle_play_event,
+                DEALEND_COMMAND: self._handle_dealend_event,
             })
         self._connect_socket_to_notifier(event_socket, self._event_socket_queue)
         sendCommand(control_socket, HELLO_COMMAND)
@@ -98,6 +102,8 @@ class BridgeWindow(QMainWindow):
         for hand in self._card_area.hands():
             hand.cardPlayed.connect(self._send_play_command)
         self._layout.addWidget(self._card_area)
+        self._score_table = score.ScoreTable(self._central_widget)
+        self._layout.addWidget(self._score_table)
         self.setCentralWidget(self._central_widget)
 
     def _connect_socket_to_notifier(self, socket, message_queue):
@@ -131,11 +137,11 @@ class BridgeWindow(QMainWindow):
         self._card_area.setPlayerPosition(position)
         self._request(
             ALLOWED_CALLS_TAG, CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
-            CURRENT_TRICK_TAG)
+            CURRENT_TRICK_TAG, SCORE_TAG)
 
     def _handle_get_reply(
             self, allowedCalls=(), calls=None, allowedCards=None, cards=None,
-            currentTrick=None, **kwargs):
+            currentTrick=None, score=None, **kwargs):
         self._call_panel.setAllowedCalls(allowedCalls)
         if calls is not None:
             self._call_table.setCalls(calls)
@@ -145,6 +151,8 @@ class BridgeWindow(QMainWindow):
             self._card_area.setAllowedCards(allowedCards)
         if currentTrick is not None:
             self._card_area.setTrick(currentTrick)
+        if score is not None:
+            self._score_table.setScoreSheet(score)
 
     def _handle_call_reply(self, **kwargs):
         logging.debug("Call successful")
@@ -166,6 +174,10 @@ class BridgeWindow(QMainWindow):
         self._card_area.playCard(position, card)
         self._request(CARDS_TAG, ALLOWED_CARDS_TAG, CURRENT_TRICK_TAG)
 
+    def _handle_dealend_event(self, **kwargs):
+        logging.debug("Deal ended")
+        self._request(ALLOWED_CALLS_TAG, CALLS_TAG, SCORE_TAG)
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)
 
@@ -185,6 +197,7 @@ if __name__ == '__main__':
     event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+    event_socket.setsockopt(zmq.SUBSCRIBE, DEALEND_COMMAND)
     event_socket.connect(next(endpoint_generator))
 
     logging.info("Starting main window")
