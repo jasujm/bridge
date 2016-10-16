@@ -14,6 +14,7 @@
 #include "main/PeerClientControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/ContractJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
@@ -69,6 +70,11 @@ std::array<Call, 4> CALLS {{
     Bridge::Pass {},
     Bridge::Pass {},
 }};
+
+const auto CONTRACT = Bridge::Contract {
+    { 1, Bridge::Strain::CLUBS },
+    { Bridge::Doubling::UNDOUBLED }
+};
 
 }
 
@@ -173,11 +179,7 @@ TEST_F(GetMessageHandlerTest, testPositionInTurn)
 
 TEST_F(GetMessageHandlerTest, testPositionInTurnBeforeDealStarted)
 {
-    request(PLAYER1, POSITION_IN_TURN_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(POSITION_IN_TURN_COMMAND, reply[0]);
-    const auto position = nlohmann::json::parse(reply[1]);
-    EXPECT_TRUE(position.is_null());
+    testEmptyRequestReply(POSITION_IN_TURN_COMMAND);
 }
 
 TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerInTurn)
@@ -224,6 +226,40 @@ TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
         const auto call = fromJson<Call>(t.get<0>().at(CALL_COMMAND));
         EXPECT_EQ(t.get<2>(), call);
     }
+}
+
+TEST_F(GetMessageHandlerTest, testDeclarerIfBiddingNotCompleted)
+{
+    testEmptyRequestReply(DECLARER_COMMAND);
+}
+
+TEST_F(GetMessageHandlerTest, testDeclarerIfBiddingCompleted)
+{
+    shuffle();
+    makeBidding();
+    request(PLAYER1, DECLARER_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(DECLARER_COMMAND, reply[0]);
+    const auto position = JsonSerializer::deserialize<Position>(reply[1]);
+    EXPECT_EQ(Position::NORTH, position);
+}
+
+TEST_F(GetMessageHandlerTest, testContractIfBiddingNotCompleted)
+{
+    shuffle();
+    testEmptyRequestReply(CONTRACT_COMMAND);
+}
+
+TEST_F(GetMessageHandlerTest, testContractIfBiddingCompleted)
+{
+    shuffle();
+    makeBidding();
+    request(PLAYER1, CONTRACT_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(CONTRACT_COMMAND, reply[0]);
+    const auto contract = JsonSerializer::deserialize<Bridge::Contract>(
+        reply[1]);
+    EXPECT_EQ(CONTRACT, contract);
 }
 
 TEST_F(GetMessageHandlerTest, testAllowedCardsForPlayerInTurn)

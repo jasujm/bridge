@@ -13,6 +13,8 @@ const std::string KEYS_COMMAND {"keys"};
 const std::string POSITION_IN_TURN_COMMAND {"positionInTurn"};
 const std::string ALLOWED_CALLS_COMMAND {"allowedCalls"};
 const std::string CALLS_COMMAND {"calls"};
+const std::string DECLARER_COMMAND {"declarer"};
+const std::string CONTRACT_COMMAND {"contract"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};
 const std::string CARDS_COMMAND {"cards"};
 const std::string CURRENT_TRICK_COMMAND {"currentTrick"};

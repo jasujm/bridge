@@ -4,6 +4,7 @@
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Contract.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
 #include "engine/BridgeEngine.hh"
@@ -12,6 +13,7 @@
 #include "main/PeerClientControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
+#include "messaging/ContractJsonSerializer.hh"
 #include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
@@ -19,8 +21,9 @@
 #include "messaging/SerializationUtility.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/optional/optional.hpp>
+#include <boost/logic/tribool.hpp>
 
 #include <algorithm>
 #include <map>
@@ -64,11 +67,24 @@ std::string getCalls(const BridgeEngine& engine)
     if (const auto& bidding = engine.getBidding()) {
         for (const auto& pair : *bidding) {
             calls.push_back(
-                Messaging::pairToJson<Position, Call>(
-                    pair, POSITION_COMMAND, CALL_COMMAND));
+                Messaging::pairToJson(pair, POSITION_COMMAND, CALL_COMMAND));
         }
     }
     return calls.dump();
+}
+
+template<typename Result>
+std::string getBiddingResult(
+    const BridgeEngine& engine,
+    boost::optional<boost::optional<Result>> (Bidding::*getResult)() const)
+{
+    auto result = boost::optional<Result> {};
+    if (const auto bidding = engine.getBidding()) {
+        if (bidding->hasContract()) {
+            result = dereference((bidding->*getResult)());
+        }
+    }
+    return JsonSerializer::serialize(result);
 }
 
 std::string getAllowedCards(const BridgeEngine& engine, const Player& player)
@@ -140,19 +156,24 @@ bool GetMessageHandler::doHandle(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
     const auto player = dereference(peerClientControl).getPlayer(identity);
     if (keys && player) {
+        const auto& engine_ = dereference(engine);
         for (const auto& key : *keys) {
             if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
-                sink(getPositionInTurn(dereference(engine)));
+                sink(getPositionInTurn(engine_));
+            } else if (internalContainsKey(key, DECLARER_COMMAND, sink)) {
+                sink(getBiddingResult(engine_, &Bidding::getDeclarerPosition));
+            } else if (internalContainsKey(key, CONTRACT_COMMAND, sink)) {
+                sink(getBiddingResult(engine_, &Bidding::getContract));
             } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
-                sink(getAllowedCalls(dereference(engine), *player));
+                sink(getAllowedCalls(engine_, *player));
             } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
-                sink(getCalls(dereference(engine)));
+                sink(getCalls(engine_));
             } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
-                sink(getAllowedCards(dereference(engine), *player));
+                sink(getAllowedCards(engine_, *player));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
-                sink(getCards(*player, dereference(engine)));
+                sink(getCards(*player, engine_));
             } else if (internalContainsKey(key, CURRENT_TRICK_COMMAND, sink)) {
-                sink(getCurrentTrick(dereference(engine)));
+                sink(getCurrentTrick(engine_));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
                 sink(getScore(dereference(gameManager)));
             }

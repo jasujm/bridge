@@ -159,6 +159,8 @@
  *   - \e positionInTurn: the position of the player who is in turn to act
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e calls: array of \e calls that have been made in the current deal
+ *   - \e declarer: the \e position of the declarer
+ *   - \e contract: the \e contract reached, see \ref jsoncontract
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
  *   - \e cards: object containing \e cards that are visible to the player
@@ -203,6 +205,11 @@
  *     "call": { "type": "bid", "bid": { "level": 1, "strain": "clubs" } }
  * }
  * \endcode
+ *
+ * The \b declarer and \b contract parameters are the position of the declarer
+ * and the contract reached in a completed bidding, respectively. If contract
+ * has not been reached in the current deal (or perhaps because the deal is not
+ * ongoing), both declarer and contract are null values.
  *
  * If the deal is in the playing phase and the player has turn, the \b
  * allowedCards parameter is the set of cards allowed to be played by the
@@ -389,6 +396,14 @@ extern const std::string ALLOWED_CALLS_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string CALLS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string DECLARER_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string CONTRACT_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
