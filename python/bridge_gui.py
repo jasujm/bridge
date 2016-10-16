@@ -33,6 +33,8 @@ DEALEND_COMMAND = b'dealend'
 POSITION_IN_TURN_TAG = "positionInTurn"
 ALLOWED_CALLS_TAG = "allowedCalls"
 CALLS_TAG = "calls"
+DECLARER_TAG = "declarer"
+CONTRACT_TAG = "contract"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
 CURRENT_TRICK_TAG = "currentTrick"
@@ -97,6 +99,8 @@ class BridgeWindow(QMainWindow):
         self._bidding_layout.addWidget(self._call_panel)
         self._call_table = bidding.CallTable(self._central_widget)
         self._bidding_layout.addWidget(self._call_table)
+        self._bidding_result_label = bidding.ResultLabel(self._central_widget)
+        self._bidding_layout.addWidget(self._bidding_result_label)
         self._layout.addLayout(self._bidding_layout)
         self._card_area = cards.CardArea(self._central_widget)
         for hand in self._card_area.hands():
@@ -136,7 +140,8 @@ class BridgeWindow(QMainWindow):
         self._card_area.setPlayerPosition(position)
         self._request(
             POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
-            ALLOWED_CARDS_TAG, CARDS_TAG, CURRENT_TRICK_TAG, SCORE_TAG)
+            DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
+            CURRENT_TRICK_TAG, SCORE_TAG)
 
     def _handle_get_reply(
             self, allowedCalls=None, calls=None, allowedCards=None, cards=None,
@@ -147,6 +152,9 @@ class BridgeWindow(QMainWindow):
             self._call_panel.setAllowedCalls(allowedCalls)
         if calls is not None:
             self._call_table.setCalls(calls)
+        if DECLARER_TAG in kwargs and CONTRACT_TAG in kwargs:
+            self._bidding_result_label.setBiddingResult(
+                kwargs[DECLARER_TAG], kwargs[CONTRACT_TAG])
         if cards is not None:
             self._card_area.setCards(cards)
         if allowedCards is not None:
@@ -169,7 +177,7 @@ class BridgeWindow(QMainWindow):
 
     def _handle_bidding_event(self, **kwargs):
         logging.debug("Bidding completed")
-        self._request(ALLOWED_CARDS_TAG)
+        self._request(ALLOWED_CARDS_TAG, DECLARER_TAG, CONTRACT_TAG)
 
     def _handle_play_event(self, position=None, card=None, **kwargs):
         logging.debug("Card played. Position: %r, Card: %r", position, card)
@@ -180,7 +188,8 @@ class BridgeWindow(QMainWindow):
 
     def _handle_dealend_event(self, **kwargs):
         logging.debug("Deal ended")
-        self._request(ALLOWED_CALLS_TAG, CALLS_TAG, SCORE_TAG)
+        self._request(
+            ALLOWED_CALLS_TAG, CALLS_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)

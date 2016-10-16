@@ -10,6 +10,7 @@ makePass     -- make pass call object
 makeBid      -- make bid call object
 makeDouble   -- make double call object
 makeRedouble -- make redouble call object
+formatBid    -- retrieve human readable text representation of bid
 formatCall   -- retrieve human readable text representation of call
 
 Classes:
@@ -21,7 +22,7 @@ from collections import namedtuple
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (
-    QPushButton, QWidget, QGridLayout, QTableWidget, QTableWidgetItem)
+    QPushButton, QWidget, QGridLayout, QLabel, QTableWidget, QTableWidgetItem)
 
 import bridgegui.messaging as messaging
 import bridgegui.positions as positions
@@ -39,17 +40,24 @@ DIAMONDS_TAG = "diamonds"
 HEARTS_TAG = "hearts"
 SPADES_TAG = "spades"
 NOTRUMP_TAG = "notrump"
+BID_TAG = "bid"
+DOUBLING_TAG = "doubling"
+UNDOUBLED_TAG = "undoubled"
+DOUBLED_TAG = "doubled"
+REDOUBLED_TAG = "redoubled"
 
 TYPE_TAGS = (BID_TAG, PASS_TAG, DOUBLE_TAG, REDOUBLE_TAG)
 LEVELS = 7
 STRAIN_TAGS = (CLUBS_TAG, DIAMONDS_TAG, HEARTS_TAG, SPADES_TAG, NOTRUMP_TAG)
+DOUBLING_TAGS = (UNDOUBLED_TAG, DOUBLED_TAG, REDOUBLED_TAG)
 
 # TODO: Localization
-CALL_TYPE_FORMATS = { PASS_TAG: 'PASS', DOUBLE_TAG: 'X', REDOUBLE_TAG: 'XX' }
+CALL_TYPE_FORMATS = { PASS_TAG: "PASS", DOUBLE_TAG: "X", REDOUBLE_TAG: "XX" }
 STRAIN_FORMATS = {
-    CLUBS_TAG: 'C', DIAMONDS_TAG: 'D', HEARTS_TAG: 'H', SPADES_TAG: 'S',
-    NOTRUMP_TAG: 'NT'
+    CLUBS_TAG: "C", DIAMONDS_TAG: "D", HEARTS_TAG: "H", SPADES_TAG: "S",
+    NOTRUMP_TAG: "NT"
 }
+DOUBLING_FORMATS = { UNDOUBLED_TAG: "", DOUBLED_TAG: "X", REDOUBLED_TAG: "XX" }
 
 Bid = namedtuple("Bid", [LEVEL_TAG, STRAIN_TAG])
 Call = namedtuple("Call", [TYPE_TAG, BID_TAG])
@@ -142,16 +150,19 @@ def makeRedouble():
     return Call(REDOUBLE_TAG, None)
 
 
-def formatCall(call):
-    """Return text representation of call
+def formatBid(bid):
+    """Return human readable text representation of bid"""
+    bid = asBid(bid)
+    return "%d%s" % (bid.level, STRAIN_FORMATS[bid.strain])
 
-    Keyword Arguments:
-    call -- object representing the call in call serialization format
-    """
+
+def formatCall(call):
+    """Return human readable text representation of call"""
+    call = asCall(call)
     s = CALL_TYPE_FORMATS.get(call.type, None)
     if s:
         return s
-    return "%d%s" % (call.bid.level, STRAIN_FORMATS[call.bid.strain])
+    return formatBid(call.bid)
 
 
 class CallPanel(QWidget):
@@ -273,3 +284,39 @@ class CallTable(QTableWidget):
             return
         self._cursor = col
         self.setItem(row, col, QTableWidgetItem(formatCall(call)))
+
+
+class ResultLabel(QLabel):
+    """Label for displaying information about results of the bidding"""
+    
+    def __init__(self, parent=None):
+        """Initialize result label"""
+        super().__init__(parent)
+
+    def setBiddingResult(self, declarer, contract):
+        """Set bidding result
+
+        The effect of this method is to set the text of the label to one
+        indicating the declarer and the contract reached. If declarer or
+        contract is None, the text is cleared.
+
+        Keyword Arguments:
+        declarer -- the declarer determined by the bidding
+        declarer -- the contract determined by the bidding
+        """
+        if declarer and contract:
+            declarer_format = positions.label(declarer)
+            try:
+                bid_format = formatBid(contract[BID_TAG])
+                doubling_format = DOUBLING_FORMATS[contract[DOUBLING_TAG]]
+            except Exception:
+                raise messaging.ProtocolError("Invalid contract: %r" % contract)
+            self.setText(
+                "%(declarer)s declares %(bid)s %(doubling)s" % {
+                    "declarer": declarer_format,
+                    "bid": bid_format,
+                    "doubling": doubling_format
+                })
+        else:
+            self.clear()
+ 

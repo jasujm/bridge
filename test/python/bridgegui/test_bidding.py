@@ -19,6 +19,8 @@ CALLS = [
     bidding.makeBid(7, bidding.NOTRUMP_TAG),
 ]
 
+BIDS = [CALLS[-2].bid, CALLS[-1].bid]
+
 
 class CallPanelTest(unittest.TestCase):
     """Test suite for bidding"""
@@ -142,3 +144,32 @@ class CallTableTest(unittest.TestCase):
             self._call_table.addCall(position, call)
             item = self._call_table.item(row, n)
             self.assertEqual(item.text(), format_)
+
+
+class ResultLabelTest(unittest.TestCase):
+    """Test suite for bidding result label"""
+
+    @classmethod
+    def setUpClass(cls):
+        random.seed(str(cls))
+
+    def setUp(self):
+        self._app = QApplication(sys.argv)
+        self._declarer = random.choice(positions.POSITION_TAGS)
+        self._bid = random.choice(BIDS)
+        self._doubling = random.choice(bidding.DOUBLING_TAGS)
+        self._result_label = bidding.ResultLabel()
+
+    def tearDown(self):
+        del self._app
+
+    def testInitiallyTextIsEmpty(self):
+        self.assertFalse(self._result_label.text())
+
+    def testSetBiddingResult(self):
+        self._result_label.setBiddingResult(
+            self._declarer, dict(bid=self._bid, doubling=self._doubling))
+        text = self._result_label.text()
+        self.assertIn(positions.label(self._declarer), text)
+        self.assertIn(bidding.formatBid(self._bid), text)
+        self.assertIn(bidding.DOUBLING_FORMATS[self._doubling], text)
