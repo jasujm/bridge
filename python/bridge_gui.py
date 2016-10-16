@@ -55,7 +55,7 @@ class BridgeWindow(QMainWindow):
         self._timer.setInterval(1000)
         self._init_sockets(control_socket, event_socket)
         self._init_widgets()
-        self.setWindowTitle('Bridge')
+        self.setWindowTitle("Bridge") # TODO: Localization
         self.show()
         self._timer.start()
 
@@ -133,7 +133,6 @@ class BridgeWindow(QMainWindow):
             raise messaging.ProtocolError("Expected server to assign position")
         logging.info("Successfully joined, position is %s", position)
         self._position = position
-        self.setWindowTitle("Bridge: %s" % position)
         self._card_area.setPlayerPosition(position)
         self._request(
             ALLOWED_CALLS_TAG, CALLS_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,

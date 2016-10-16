@@ -17,7 +17,7 @@ from collections import namedtuple
 
 from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt, QSize, QTimer
 from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QGridLayout, QWidget
+from PyQt5.QtWidgets import QGridLayout, QLabel, QWidget
 
 import bridgegui.messaging as messaging
 import bridgegui.positions as positions
@@ -87,7 +87,7 @@ class HandPanel(QWidget):
 
     cardPlayed = pyqtSignal(Card)
 
-    _VERTICAL_SIZE = QSize(_IMAGE_WIDTH + 1, _IMAGE_HEIGHT + 12 * _MARGIN + 1)
+    _VERTICAL_SIZE = QSize(_IMAGE_WIDTH + 1, _IMAGE_HEIGHT + 13 * _MARGIN + 1)
     _HORIZONTAL_SIZE = QSize(
         _IMAGE_WIDTH + 12 * _MARGIN + 1, _IMAGE_HEIGHT + _MARGIN + 1)
 
@@ -128,7 +128,7 @@ class HandPanel(QWidget):
         new_cards = []
         for card, x in zip(cards, itertools.count(0, _MARGIN)):
             image = CARD_IMAGES[card] if card else BACK_IMAGE
-            point = (0, x) if self._vertical else (x, _MARGIN)
+            point = (0, x + _MARGIN) if self._vertical else (x, _MARGIN)
             rect = QRectF(*point, _IMAGE_WIDTH, _IMAGE_HEIGHT)
             new_cards.append((card, rect, image))
         self._cards, self._allowed_cards = new_cards, set()
@@ -373,6 +373,9 @@ class CardArea(QWidget):
             hand_panel = HandPanel(self, n % 2 == 1)
             hand_panel.move(point)
             self._hand_panels.append(hand_panel)
+        self._position_labels = [
+            self._get_position_label(position) for
+            position in positions.Position]
         self._trick_panel = TrickPanel(self)
         self._trick_panel.move(
             (self._SIZE.width() - TrickPanel._SIZE.width()) / 2,
@@ -386,9 +389,12 @@ class CardArea(QWidget):
         """
         self._position = positions.asPosition(position)
         hand_map = {}
-        for pos, hand in zip(
-                positions.rotate(self._position), self._hand_panels):
-            hand_map[pos] = hand
+        for position, hand, label in zip(
+                positions.rotate(self._position), self._hand_panels,
+                self._position_labels):
+            hand_map[position] = hand
+            label.setText(positions.label(position))
+            label.resize(hand.width(), label.height())
         self._hand_map = hand_map
         self._trick_panel.setPlayerPosition(self._position)
 
@@ -440,3 +446,8 @@ class CardArea(QWidget):
     def hands(self):
         """Return list containing all HandPanel objects"""
         return list(self._hand_panels)
+
+    def _get_position_label(self, position):
+        label = QLabel(self)
+        label.move(self._HAND_POSITIONS[position])
+        return label
