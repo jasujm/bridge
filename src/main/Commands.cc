@@ -18,6 +18,7 @@ const std::string CONTRACT_COMMAND {"contract"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};
 const std::string CARDS_COMMAND {"cards"};
 const std::string CURRENT_TRICK_COMMAND {"currentTrick"};
+const std::string VULNERABILITY_COMMAND {"vulnerability"};
 const std::string SCORE_COMMAND {"score"};
 const std::string CALL_COMMAND {"call"};
 const std::string PLAY_COMMAND {"play"};

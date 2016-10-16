@@ -7,6 +7,7 @@
 #include "bridge/Contract.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
+#include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
@@ -19,6 +20,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationUtility.hh"
+#include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -131,6 +133,11 @@ auto getCurrentTrick(const BridgeEngine& engine)
     return cards.dump();
 }
 
+std::string getVulnerability(const DuplicateGameManager& gameManager)
+{
+    return JsonSerializer::serialize(gameManager.getVulnerability());
+}
+
 std::string getScore(const DuplicateGameManager& gameManager)
 {
     return JsonSerializer::serialize(gameManager.getScoreSheet());
@@ -174,6 +181,8 @@ bool GetMessageHandler::doHandle(
                 sink(getCards(*player, engine_));
             } else if (internalContainsKey(key, CURRENT_TRICK_COMMAND, sink)) {
                 sink(getCurrentTrick(engine_));
+            } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
+                sink(getVulnerability(dereference(gameManager)));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
                 sink(getScore(dereference(gameManager)));
             }

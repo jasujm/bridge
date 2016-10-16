@@ -165,6 +165,8 @@
  *     \ref jsoncardtype
  *   - \e cards: object containing \e cards that are visible to the player
  *   - \e currentTrick: object containing \e cards in the current trick
+ *   - \e vulnerability: \e vulnerabilities of the current deal,
+ *     see \ref jsonvulnerability
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * Get commands returns one or multiple values corresponding to the keys
@@ -226,7 +228,11 @@
  * because the playing phase has not begun or no card has been lead to the
  * current trick).
  *
- * The \b score is the current scoresheet of the game.
+ * The \b vulnerability parameter is an object containing the current
+ * vulnerabilities of the partnerships. If they are not known (perhaps because
+ * there is no ongoing deal), the value is empty.
+ *
+ * The \b score parameter is the current scoresheet of the game.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -412,6 +418,10 @@ extern const std::string ALLOWED_CARDS_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string CURRENT_TRICK_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string VULNERABILITY_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
