@@ -8,6 +8,7 @@ from PyQt5.QtTest import QSignalSpy
 
 import bridgegui.bidding as bidding
 import bridgegui.messaging as messaging
+import bridgegui.positions as positions
 from bridgegui.positions import POSITION_TAGS
 
 CALLS = [
@@ -67,7 +68,7 @@ class CallTableTest(unittest.TestCase):
 
     def testItHasOneColumnForEachPosition(self):
         self.assertEqual(
-            self._call_table.columnCount(), len(POSITION_TAGS))
+            self._call_table.columnCount(), len(positions.Position))
 
     def testAddCallInvalidPosition(self):
         call = random.choice(CALLS)
@@ -81,7 +82,7 @@ class CallTableTest(unittest.TestCase):
 
     def testAddSingleCall(self):
         rows = 0,
-        ns = random.randrange(len(POSITION_TAGS)),
+        ns = random.randrange(len(positions.Position)),
         self._add_calls_and_assert_success(rows, ns)
 
     def testAddMultipleCalls(self):

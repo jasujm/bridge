@@ -50,10 +50,6 @@ STRAIN_FORMATS = {
     CLUBS_TAG: 'C', DIAMONDS_TAG: 'D', HEARTS_TAG: 'H', SPADES_TAG: 'S',
     NOTRUMP_TAG: 'NT'
 }
-POSITION_FORMATS = {
-    positions.NORTH_TAG: "North", positions.EAST_TAG: "East",
-    positions.SOUTH_TAG: "South", positions.WEST_TAG: "West"
-}
 
 Bid = namedtuple("Bid", [LEVEL_TAG, STRAIN_TAG])
 Call = namedtuple("Call", [TYPE_TAG, BID_TAG])
@@ -221,8 +217,8 @@ class CallTable(QTableWidget):
         Keyword Arguments:
         parent -- the parent widget
         """
-        super().__init__(0, len(positions.POSITION_TAGS), parent)
-        labels = (POSITION_FORMATS[tag] for tag in positions.POSITION_TAGS)
+        super().__init__(0, len(positions.Position), parent)
+        labels = (positions.label(position) for position in positions.Position)
         self.setHorizontalHeaderLabels(labels)
         self._reset_calls()
 
@@ -242,13 +238,12 @@ class CallTable(QTableWidget):
     def addCall(self, position, call):
         """Add call to the table
 
-        Add new call coming from the specified position to the table. The call
-        can be either in serialized representation or Call objects. The position
-        is string.
+        Add new call coming from the specified position to the table. Both
+        arguments can be either in serialized or internal representation.
 
         If the call is not in correct order (that is, positions do not follow
         each other clockwise), the call is ignored. Error is raised if the
-        positio or call does not have correct format (see bridge protocol
+        position or call does not have correct format (see bridge protocol
         specification).
 
         Keyword Arguments:
@@ -264,12 +259,7 @@ class CallTable(QTableWidget):
         self._cursor = None
 
     def _generate_position_call_pair(self, position=None, call=None, **kwargs):
-        try:
-            col = positions.POSITION_TAGS.index(position)
-        except Exception:
-            raise messaging.ProtocolError(
-                "Invalid position in pair: %r" % position)
-        return (col, asCall(call))
+        return (positions.asPosition(position), asCall(call))
 
     def _add_call_helper(self, position_call_pair):
         col, call = position_call_pair
@@ -281,7 +271,5 @@ class CallTable(QTableWidget):
             row = self.rowCount() - 1
         else:
             return
-            raise messaging.ProtocolError(
-                "Trying to add call to invalid column: %d" % col)
         self._cursor = col
         self.setItem(row, col, QTableWidgetItem(formatCall(call)))

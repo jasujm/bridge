@@ -135,7 +135,7 @@ class TrickPanelTest(unittest.TestCase):
         self.assertNotIn(
             (position, card_played), self._trick_panel.cards().items())
 
-    def testSetEmptyCardsDoesNotImmeadiatelyClearCards(self):
+    def testSetEmptyCardsDoesNotImmediatelyClearCards(self):
         self._set_player_position()
         self._trick_panel.setCards(self._cards)
         self._trick_panel.setCards({})

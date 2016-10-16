@@ -22,7 +22,6 @@ from PyQt5.QtWidgets import QGridLayout, QWidget
 import bridgegui.messaging as messaging
 import bridgegui.positions as positions
 import bridgegui.util as util
-from bridgegui.positions import POSITION_TAGS
 
 RANK_TAG = "rank"
 SUIT_TAG = "suit"
@@ -45,18 +44,14 @@ _IMAGE_WIDTH = next(iter(CARD_IMAGES.values())).width()
 _IMAGE_HEIGHT = next(iter(CARD_IMAGES.values())).height()
 _MARGIN = _IMAGE_WIDTH / 4
 
-def _rotate_positions(position):
-    try:
-        n = POSITION_TAGS.index(position)
-    except:
-        raise messaging.ProtocolError("Invalid position: %r" % position)
-    return POSITION_TAGS[n:] + POSITION_TAGS[:n]
-
 def _draw_image(painter, rect, image, shift=False):
     if shift:
         rect = rect.adjusted(0, -_MARGIN, 0, -_MARGIN)
     painter.drawImage(rect, image)
     painter.drawRect(rect)
+
+def _is_position(position):
+    return position in positions.POSITION_TAGS or position in positions.Position
 
 
 def asCard(card):
@@ -256,24 +251,28 @@ class TrickPanel(QWidget):
         The player must be set before setting cards in the trick. The card
         played by the current player is laid at the bottom of the panel.
         """
-        self._rect_map = dict(zip(_rotate_positions(position), self._CARD_RECTS))
+        self._rect_map = dict(zip(positions.rotate(position), self._CARD_RECTS))
 
     def setCards(self, cards):
         """Set cards in the trick
 
         This method accepts as argument a mapping from positions to the cards
-        played by the player in given position. See bridge protocol
+        played by the player in given position. The cards may be either in
+        serialized or internal representation. The positions (dict keys) must be
+        in serialized representation (strings). See bridge protocol
         specification.
 
         If the argument is empty (i.e. clearing the trick), the cards are
         removed after a delay to give the players an opportunity to see the last
         card played to the trick.
+
+        TODO: Internal representation in keys should be allowed.
         """
         new_cards = {}
         new_card_rects = []
-        for position in POSITION_TAGS:
-            if position in cards and position in self._rect_map:
-                card = asCard(cards[position])
+        for (tag, position) in zip(positions.POSITION_TAGS, positions.Position):
+            if tag in cards and position in self._rect_map:
+                card = asCard(cards[tag])
                 new_cards[position] = card
                 new_card_rects.append(self._get_card_rect(position, card))
         if new_cards:
@@ -287,12 +286,14 @@ class TrickPanel(QWidget):
         """Play single card to the trick
 
         This method puts card to given position, given that the position is
-        empty or the timer period for clearing cards is ongoing.
+        empty or the timer period for clearing cards is ongoing. The arguments
+        can be in internal or serialized representation.
 
         Keyword Arguments:
         position -- the position of the player who plays the card
         card     -- the card played
         """
+        position = positions.asPosition(position)
         if position not in self._cards or self._timer.isActive():
             if self._timer.isActive():
                 self._clear_cards()
@@ -304,8 +305,19 @@ class TrickPanel(QWidget):
             self.repaint()
 
     def cards(self):
-        """Return dict containing mapping between positions and players"""
-        return dict(self._cards)
+        """Return dict containing mapping between positions and cards
+
+        The dictionary contains positions (in serialized representation) as keys
+        and cards (also in internal representation) played by the player in the
+        position as values.
+
+        TODO: The keys should be in internal representation but unit tests
+        depend on serialized representation.
+        """
+        return {
+            positions.POSITION_TAGS[position]: cards for
+            (position, cards) in self._cards.items()
+        }
 
     def paintEvent(self, event):
         """Paint cards"""
@@ -315,10 +327,7 @@ class TrickPanel(QWidget):
             _draw_image(painter, rect, image)
 
     def _get_card_rect(self, position, card):
-        try:
-            rect = self._rect_map[position]
-        except Exception:
-            raise messaging.ProtocolError("Invalid position: %r" % position)
+        rect = self._rect_map[position]
         return (rect, CARD_IMAGES[card])
 
     def _clear_cards(self):
@@ -360,8 +369,7 @@ class CardArea(QWidget):
         self.setMinimumSize(self._SIZE)
         self._hand_panels = []
         self._hand_map = {}
-        for n, (point, position) in enumerate(
-                zip(self._HAND_POSITIONS, POSITION_TAGS)):
+        for n, point in enumerate(self._HAND_POSITIONS):
             hand_panel = HandPanel(self, n % 2 == 1)
             hand_panel.move(point)
             self._hand_panels.append(hand_panel)
@@ -373,15 +381,16 @@ class CardArea(QWidget):
     def setPlayerPosition(self, position):
         """Set position of the current player
 
-        The player must be set before setting cards. Cards for the current
+        The position must be set before setting cards. Cards for the current
         player are laid at the bottom of the area.
         """
-        self._position = position
+        self._position = positions.asPosition(position)
         hand_map = {}
-        for pos, hand in zip(_rotate_positions(position), self._hand_panels):
+        for pos, hand in zip(
+                positions.rotate(self._position), self._hand_panels):
             hand_map[pos] = hand
         self._hand_map = hand_map
-        self._trick_panel.setPlayerPosition(position)
+        self._trick_panel.setPlayerPosition(self._position)
 
     def setCards(self, cards):
         """Set cards for all players
@@ -391,13 +400,14 @@ class CardArea(QWidget):
         method is to set the cards for all players based on the mapping.
         """
         if not isinstance(cards, dict):
-            raise messaging.ProtocolError("Invalid cards format: %r", cards)
+            raise messaging.ProtocolError("Invalid cards format: %r" % cards)
         for position, cards_for_position in cards.items():
-            if position in self._hand_map:
+            if _is_position(position):
+                position = positions.asPosition(position)
                 self._hand_map[position].setCards(cards_for_position)
 
     def setAllowedCards(self, cards):
-        """Set allowed cards for current player
+        """Set allowed cards for the current player
 
         This method accepts as its argument a list of allowed cards. It is
         assumed that the player is only allowed to play cards that are in his
@@ -408,6 +418,7 @@ class CardArea(QWidget):
                 self._hand_map[position].setAllowedCards(cards)
 
     def setTrick(self, cards):
+        """Set cards in the current trick"""
         self._trick_panel.setCards(cards)
 
     def playCard(self, position, card):
@@ -420,6 +431,8 @@ class CardArea(QWidget):
         position -- the position of the player
         card     -- the card played by the player
         """
+        position = positions.asPosition(position)
+        card = asCard(card)
         if position in self._hand_map:
             self._hand_map[position].playCard(card)
         self._trick_panel.playCard(position, card)
