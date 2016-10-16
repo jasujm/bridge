@@ -33,6 +33,9 @@ class HandPanelTest(unittest.TestCase):
             vertical=random.choice((True, False)))
         self._cards = _generate_random_cards()
 
+    def tearDown(self):
+        del self._app
+
     def testSetInvalidCards(self):
         with self.assertRaises(messaging.ProtocolError):
             self._hand_panel.setCards('invalid')
@@ -99,6 +102,9 @@ class TrickPanelTest(unittest.TestCase):
         self._app = QApplication(sys.argv)
         self._trick_panel = cards.TrickPanel()
         self._cards = dict(zip(POSITION_TAGS, _generate_random_cards()))
+
+    def tearDown(self):
+        del self._app
 
     def testInvalidPosition(self):
         with self.assertRaises(messaging.ProtocolError):

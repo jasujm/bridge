@@ -66,6 +66,9 @@ class CallTableTest(unittest.TestCase):
         self._app = QApplication(sys.argv)
         self._call_table = bidding.CallTable()
 
+    def tearDown(self):
+        del self._app
+
     def testItHasOneColumnForEachPosition(self):
         self.assertEqual(
             self._call_table.columnCount(), len(positions.Position))
