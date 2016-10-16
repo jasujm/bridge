@@ -16,7 +16,7 @@ import itertools
 from collections import namedtuple
 
 from PyQt5.QtCore import pyqtSignal, QPoint, QRectF, Qt, QSize, QTimer
-from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QFont, QPainter
 from PyQt5.QtWidgets import QGridLayout, QLabel, QWidget
 
 import bridgegui.messaging as messaging
@@ -52,6 +52,11 @@ def _draw_image(painter, rect, image, shift=False):
 
 def _is_position(position):
     return position in positions.POSITION_TAGS or position in positions.Position
+
+def _mark_turn(label, hasTurn):
+    font = QFont(label.font())
+    font.setBold(hasTurn)
+    label.setFont(font)
 
 
 def asCard(card):
@@ -367,6 +372,7 @@ class CardArea(QWidget):
         parent  -- the parent widget"""
         super().__init__(parent)
         self.setMinimumSize(self._SIZE)
+        self._position_in_turn = None
         self._hand_panels = []
         self._hand_map = {}
         for n, point in enumerate(self._HAND_POSITIONS):
@@ -392,11 +398,20 @@ class CardArea(QWidget):
         for position, hand, label in zip(
                 positions.rotate(self._position), self._hand_panels,
                 self._position_labels):
-            hand_map[position] = hand
+            hand_map[position] = (hand, label)
             label.setText(positions.label(position))
             label.resize(hand.width(), label.height())
         self._hand_map = hand_map
         self._trick_panel.setPlayerPosition(self._position)
+
+    def setPositionInTurn(self, position):
+        if position is not None:
+            position = positions.asPosition(position)
+        if self._position_in_turn is not None:
+            _mark_turn(self._hand_map[self._position_in_turn][1], False)
+        if position in self._hand_map:
+            _mark_turn(self._hand_map[position][1], True)
+        self._position_in_turn = position
 
     def setCards(self, cards):
         """Set cards for all players
@@ -410,7 +425,7 @@ class CardArea(QWidget):
         for position, cards_for_position in cards.items():
             if _is_position(position):
                 position = positions.asPosition(position)
-                self._hand_map[position].setCards(cards_for_position)
+                self._hand_map[position][0].setCards(cards_for_position)
 
     def setAllowedCards(self, cards):
         """Set allowed cards for the current player
@@ -421,7 +436,7 @@ class CardArea(QWidget):
         """
         for position in (self._position, positions.partner(self._position)):
             if position in self._hand_map:
-                self._hand_map[position].setAllowedCards(cards)
+                self._hand_map[position][0].setAllowedCards(cards)
 
     def setTrick(self, cards):
         """Set cards in the current trick"""
@@ -440,7 +455,7 @@ class CardArea(QWidget):
         position = positions.asPosition(position)
         card = asCard(card)
         if position in self._hand_map:
-            self._hand_map[position].playCard(card)
+            self._hand_map[position][0].playCard(card)
         self._trick_panel.playCard(position, card)
 
     def hands(self):
