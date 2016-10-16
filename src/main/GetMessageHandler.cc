@@ -39,6 +39,14 @@ using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
 using Messaging::toJson;
 
+std::string getPositionInTurn(const BridgeEngine& engine)
+{
+    const auto player_in_turn = engine.getPlayerInTurn();
+    const auto position_in_turn = player_in_turn ?
+        boost::make_optional(engine.getPosition(*player_in_turn)) : boost::none;
+    return JsonSerializer::serialize(position_in_turn);
+}
+
 std::string getAllowedCalls(const BridgeEngine& engine, const Player& player)
 {
     auto allowed_calls = std::vector<Call> {};
@@ -133,7 +141,9 @@ bool GetMessageHandler::doHandle(
     const auto player = dereference(peerClientControl).getPlayer(identity);
     if (keys && player) {
         for (const auto& key : *keys) {
-            if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
+            if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
+                sink(getPositionInTurn(dereference(engine)));
+            } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
                 sink(getAllowedCalls(dereference(engine), *player));
             } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
                 sink(getCalls(dereference(engine)));

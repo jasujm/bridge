@@ -10,7 +10,7 @@ const std::string POSITIONS_COMMAND {"positions"};
 const std::string CARD_SERVER_COMMAND {"cardserver"};
 const std::string GET_COMMAND {"get"};
 const std::string KEYS_COMMAND {"keys"};
-const std::string STATE_COMMAND {"state"};
+const std::string POSITION_IN_TURN_COMMAND {"positionInTurn"};
 const std::string ALLOWED_CALLS_COMMAND {"allowedCalls"};
 const std::string CALLS_COMMAND {"calls"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};

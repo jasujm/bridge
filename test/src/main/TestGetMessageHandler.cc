@@ -161,6 +161,25 @@ TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIsRejected)
     EXPECT_TRUE(reply.empty());
 }
 
+TEST_F(GetMessageHandlerTest, testPositionInTurn)
+{
+    shuffle();
+    request(PLAYER1, POSITION_IN_TURN_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(POSITION_IN_TURN_COMMAND, reply[0]);
+    const auto position = JsonSerializer::deserialize<Position>(reply[1]);
+    EXPECT_EQ(Position::NORTH, position);
+}
+
+TEST_F(GetMessageHandlerTest, testPositionInTurnBeforeDealStarted)
+{
+    request(PLAYER1, POSITION_IN_TURN_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(POSITION_IN_TURN_COMMAND, reply[0]);
+    const auto position = nlohmann::json::parse(reply[1]);
+    EXPECT_TRUE(position.is_null());
+}
+
 TEST_F(GetMessageHandlerTest, testAllowedCallsForPlayerInTurn)
 {
     shuffle();

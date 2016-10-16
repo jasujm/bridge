@@ -156,6 +156,7 @@
  * - \b Parameters:
  *   - \e keys: array of keys for the values to be retrieved
  * - \b Reply:
+ *   - \e positionInTurn: the position of the player who is in turn to act
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e calls: array of \e calls that have been made in the current deal
  *   - \e allowedCards: array of allowed \e cards to play, if any,
@@ -177,6 +178,12 @@
  * another peer. In particular, get command from peer MAY be ignored with
  * failure message. In any case any information about hidden cards of a player
  * MUST NOT be revealed to peer or client not controlling that player.
+ *
+ * The \b positionInTurn parameter contains the position of the player that has
+ * the turn to act next. If no player has turn (e.g. because deal has ended and
+ * the cards are not dealt yet for the next deal), the position is null. The
+ * declarer plays for dummy, so if the next card will be played from the hand of
+ * the dummy, the declarer has turn.
  *
  * If the deal is in the bidding phase and the player has turn, the \b
  * allowedCalls parameter is the set of calls allowed to be made by the player.
@@ -373,7 +380,7 @@ extern const std::string KEYS_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string STATE_COMMAND;
+extern const std::string POSITION_IN_TURN_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
