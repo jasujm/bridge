@@ -3,8 +3,8 @@
  * \brief Definition of Bridge::TricksWon struct
  */
 
-#ifndef DEALRESULT_HH_
-#define DEALRESULT_HH_
+#ifndef TRICKSWON_HH_
+#define TRICKSWON_HH_
 
 #include "BridgeConstants.hh"
 
@@ -90,4 +90,4 @@ std::ostream& operator<<(std::ostream& os, const TricksWon& tricksWon);
 
 }
 
-#endif // DEALRESULT_HH_
+#endif // TRICKSWON_HH_
