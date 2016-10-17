@@ -21,6 +21,7 @@ partner          -- return the partner of given position
 rotate           -- return a list of positions starting from given position
 asPartnership    -- convert serialized partnership into Partnership enumeration
 partnershipLabel -- return human readable label for given partnership
+partnershipFor   -- determine partnership for position
 """
 
 import enum
@@ -133,3 +134,8 @@ def asPartnership(partnership):
 def partnershipLabel(partnership):
     """Return human readable label for given partnership"""
     return PARTNERSHIP_FORMATS[asPartnership(partnership)]
+
+
+def partnershipFor(position):
+    """Return partnership for given position"""
+    return POSITION_PARTNERSHIPS[asPosition(position)]

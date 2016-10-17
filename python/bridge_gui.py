@@ -22,12 +22,14 @@ import bridgegui.cards as cards
 import bridgegui.messaging as messaging
 from bridgegui.messaging import sendCommand
 import bridgegui.score as score
+import bridgegui.tricks as tricks
 
 HELLO_COMMAND = b'bridgehlo'
 GET_COMMAND = b'get'
 CALL_COMMAND = b'call'
-PLAY_COMMAND = b'play'
 BIDDING_COMMAND = b'bidding'
+PLAY_COMMAND = b'play'
+TRICK_COMMAND = b'trick'
 DEALEND_COMMAND = b'dealend'
 
 POSITION_IN_TURN_TAG = "positionInTurn"
@@ -38,6 +40,7 @@ CONTRACT_TAG = "contract"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
 CURRENT_TRICK_TAG = "currentTrick"
+TRICKS_WON_TAG = "tricksWon"
 VULNERABILITY_TAG = "vulnerability"
 SCORE_TAG = "score"
 
@@ -85,6 +88,7 @@ class BridgeWindow(QMainWindow):
                 CALL_COMMAND: self._handle_call_event,
                 BIDDING_COMMAND: self._handle_bidding_event,
                 PLAY_COMMAND: self._handle_play_event,
+                TRICK_COMMAND: self._handle_trick_event,
                 DEALEND_COMMAND: self._handle_dealend_event,
             })
         self._connect_socket_to_notifier(event_socket, self._event_socket_queue)
@@ -102,6 +106,8 @@ class BridgeWindow(QMainWindow):
         self._bidding_layout.addWidget(self._call_table)
         self._bidding_result_label = bidding.ResultLabel(self._central_widget)
         self._bidding_layout.addWidget(self._bidding_result_label)
+        self._tricks_won_label = tricks.TricksWonLabel(self._central_widget)
+        self._bidding_layout.addWidget(self._tricks_won_label)
         self._layout.addLayout(self._bidding_layout)
         self._card_area = cards.CardArea(self._central_widget)
         for hand in self._card_area.hands():
@@ -142,11 +148,11 @@ class BridgeWindow(QMainWindow):
         self._request(
             POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
             DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
-            CURRENT_TRICK_TAG, VULNERABILITY_TAG, SCORE_TAG)
+            CURRENT_TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
 
     def _handle_get_reply(
             self, allowedCalls=None, calls=None, allowedCards=None, cards=None,
-            currentTrick=None, score=None, **kwargs):
+            currentTrick=None, tricksWon=None, score=None, **kwargs):
         if POSITION_IN_TURN_TAG in kwargs:
             self._card_area.setPositionInTurn(kwargs[POSITION_IN_TURN_TAG])
         if allowedCalls is not None:
@@ -162,6 +168,8 @@ class BridgeWindow(QMainWindow):
             self._card_area.setAllowedCards(allowedCards)
         if currentTrick is not None:
             self._card_area.setTrick(currentTrick)
+        if tricksWon is not None:
+            self._tricks_won_label.setTricksWon(tricksWon)
         if VULNERABILITY_TAG in kwargs:
             self._call_table.setVulnerability(kwargs[VULNERABILITY_TAG])
         if score is not None:
@@ -189,6 +197,11 @@ class BridgeWindow(QMainWindow):
             POSITION_IN_TURN_TAG, CARDS_TAG, ALLOWED_CARDS_TAG,
             CURRENT_TRICK_TAG)
 
+    def _handle_trick_event(self, winner, **kwargs):
+        logging.debug("Trick completed. Winner: %r", winner)
+        self._tricks_won_label.addTrick(winner)
+        self._request(TRICKS_WON_TAG)
+
     def _handle_dealend_event(self, **kwargs):
         logging.debug("Deal ended")
         self._request(
@@ -214,6 +227,7 @@ if __name__ == '__main__':
     event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+    event_socket.setsockopt(zmq.SUBSCRIBE, TRICK_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, DEALEND_COMMAND)
     event_socket.connect(next(endpoint_generator))
 

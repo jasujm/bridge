@@ -291,7 +291,7 @@ class CallTable(QTableWidget):
             raise messaging.ProtocolError(
                 "Invalid vulnerability object: %r" % vulnerability)
         for position in positions.Position:
-            partnership = positions.POSITION_PARTNERSHIPS[position]
+            partnership = positions.partnershipFor(position)
             brush = self._VULNERABILITY_BRUSHES[
                 partnership in vulnerable_partnerships]
             self.horizontalHeaderItem(position).setBackground(brush)
