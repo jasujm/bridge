@@ -37,7 +37,6 @@ EAST_WEST_TAG = "eastWest"
 POSITION_TAGS = (NORTH_TAG, EAST_TAG, SOUTH_TAG, WEST_TAG)
 PARTNERSHIP_TAGS = (NORTH_SOUTH_TAG, EAST_WEST_TAG)
 
-
 class Position(enum.IntEnum):
     """Position enumeration"""
     north = 0
@@ -45,22 +44,26 @@ class Position(enum.IntEnum):
     south = 2
     west = 3
 
-# TODO: Localization
-POSITION_FORMATS = {
-    Position.north: "North", Position.east: "East",
-    Position.south: "South", Position.west: "West"
-}
-
 class Partnership(enum.IntEnum):
     """Partnership enumeration"""
     northSouth = 0
     eastWest = 1
 
 # TODO: Localization
+POSITION_FORMATS = {
+    Position.north: "North", Position.east: "East",
+    Position.south: "South", Position.west: "West"
+}
 PARTNERSHIP_FORMATS = {
     Partnership.northSouth: "North South", Partnership.eastWest: "East West"
 }
 
+POSITION_PARTNERSHIPS = {
+    Position.north: Partnership.northSouth,
+    Position.east: Partnership.eastWest,
+    Position.south: Partnership.northSouth,
+    Position.west: Partnership.eastWest
+}
 
 def asPosition(position):
     """Convert serialized position representation into Position enumeration

@@ -38,6 +38,7 @@ CONTRACT_TAG = "contract"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
 CURRENT_TRICK_TAG = "currentTrick"
+VULNERABILITY_TAG = "vulnerability"
 SCORE_TAG = "score"
 
 
@@ -141,7 +142,7 @@ class BridgeWindow(QMainWindow):
         self._request(
             POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
             DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
-            CURRENT_TRICK_TAG, SCORE_TAG)
+            CURRENT_TRICK_TAG, VULNERABILITY_TAG, SCORE_TAG)
 
     def _handle_get_reply(
             self, allowedCalls=None, calls=None, allowedCards=None, cards=None,
@@ -161,6 +162,8 @@ class BridgeWindow(QMainWindow):
             self._card_area.setAllowedCards(allowedCards)
         if currentTrick is not None:
             self._card_area.setTrick(currentTrick)
+        if VULNERABILITY_TAG in kwargs:
+            self._call_table.setVulnerability(kwargs[VULNERABILITY_TAG])
         if score is not None:
             self._score_table.setScoreSheet(score)
 
@@ -189,7 +192,8 @@ class BridgeWindow(QMainWindow):
     def _handle_dealend_event(self, **kwargs):
         logging.debug("Deal ended")
         self._request(
-            ALLOWED_CALLS_TAG, CALLS_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
+            ALLOWED_CALLS_TAG, CALLS_TAG, VULNERABILITY_TAG,
+            SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)

@@ -3,6 +3,7 @@ import sys
 import random
 
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtTest import QSignalSpy
 
@@ -137,6 +138,19 @@ class CallTableTest(unittest.TestCase):
             self._call_table.setCalls(
                 dict(position=position, call=call) for (position, call) in
                 zip(POSITION_TAGS, calls + ['invalid']))
+
+    def testSetVulnerability(self):
+        self._call_table.setVulnerability(
+            { positions.NORTH_SOUTH_TAG: True, positions.EAST_WEST_TAG: False })
+        for position in positions.Position:
+            item = self._call_table.horizontalHeaderItem(position)
+            color = Qt.red if (positions.POSITION_PARTNERSHIPS[position] ==
+                positions.Partnership.northSouth) else Qt.white
+            self.assertEqual(item.background().color(), color)
+
+    def testSetVulnerabilityInvalid(self):
+        with self.assertRaises(messaging.ProtocolError):
+            self._call_table.setVulnerability('invalid')
 
     def _add_calls_and_assert_success(self, rows, ns):
         positions = tuple(POSITION_TAGS[n] for n in ns)

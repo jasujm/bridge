@@ -20,7 +20,8 @@ CallTable -- table for displaying calls made
 
 from collections import namedtuple
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QBrush
 from PyQt5.QtWidgets import (
     QPushButton, QWidget, QGridLayout, QLabel, QTableWidget, QTableWidgetItem)
 
@@ -222,6 +223,11 @@ class CallPanel(QWidget):
 class CallTable(QTableWidget):
     """Table view used for displaying the calls made"""
 
+    _VULNERABILITY_BRUSHES = {
+        False: QBrush(Qt.white),
+        True: QBrush(Qt.red)
+    }
+
     def __init__(self, parent=None):
         """Initialize call table
 
@@ -232,6 +238,8 @@ class CallTable(QTableWidget):
         self.setHorizontalHeaderLabels(
             positions.positionLabel(position) for
             position in positions.Position)
+        self.setVulnerability(
+            { tag: False for tag in positions.PARTNERSHIP_TAGS })
         self._reset_calls()
 
     def setCalls(self, calls):
@@ -265,6 +273,29 @@ class CallTable(QTableWidget):
         pair = self._generate_position_call_pair(position, call)
         self._add_call_helper(pair)
 
+    def setVulnerability(self, vulnerability):
+        """Set vulnerabilities for partnerships
+
+        Set vulnerability indications (color of header items) according to the
+        vulnerability object given as argument. The vulnerability object is a
+        mapping from partnership tags to vulnerability status (see bridge
+        protocol specification).
+        """
+        vulnerable_partnerships = set()
+        try:
+            for tag, partnership in zip(
+                    positions.PARTNERSHIP_TAGS, positions.Partnership):
+                if vulnerability.get(tag, False):
+                    vulnerable_partnerships.add(partnership)
+        except Exception:
+            raise messaging.ProtocolError(
+                "Invalid vulnerability object: %r" % vulnerability)
+        for position in positions.Position:
+            partnership = positions.POSITION_PARTNERSHIPS[position]
+            brush = self._VULNERABILITY_BRUSHES[
+                partnership in vulnerable_partnerships]
+            self.horizontalHeaderItem(position).setBackground(brush)
+
     def _reset_calls(self):
         self.clearContents()
         self.setRowCount(0)
@@ -289,7 +320,7 @@ class CallTable(QTableWidget):
 
 class ResultLabel(QLabel):
     """Label for displaying information about results of the bidding"""
-    
+
     def __init__(self, parent=None):
         """Initialize result label"""
         super().__init__(parent)
