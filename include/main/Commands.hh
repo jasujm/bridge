@@ -165,6 +165,7 @@
  *     \ref jsoncardtype
  *   - \e cards: object containing \e cards that are visible to the player
  *   - \e currentTrick: object containing \e cards in the current trick
+ *   - \e tricksWon: see \ref jsontrickswon
  *   - \e vulnerability: \e vulnerabilities of the current deal,
  *     see \ref jsonvulnerability
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
@@ -227,6 +228,10 @@
  * object is empty if there are currently no cards played in a trick (perhaps
  * because the playing phase has not begun or no card has been lead to the
  * current trick).
+ *
+ * The \b tricksWon parameter is an object containing mapping from partnerships
+ * to the number of tricks won by each side. If no tricks have been completed
+ * (perhaps because bidding is not yet completed), both fields are zero.
  *
  * The \b vulnerability parameter is an object containing the current
  * vulnerabilities of the partnerships. If they are not known (perhaps because
@@ -422,6 +427,10 @@ extern const std::string CONTRACT_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string ALLOWED_CARDS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string TRICKS_WON_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

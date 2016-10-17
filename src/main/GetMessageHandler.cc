@@ -7,6 +7,7 @@
 #include "bridge/Contract.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -20,6 +21,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationUtility.hh"
+#include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
@@ -100,7 +102,7 @@ std::string getAllowedCards(const BridgeEngine& engine, const Player& player)
     return JsonSerializer::serialize(allowed_cards);
 }
 
-auto getCards(const Player& player, const BridgeEngine& engine)
+std::string getCards(const Player& player, const BridgeEngine& engine)
 {
     using CardTypeVector = std::vector<boost::optional<CardType>>;
     auto cards = nlohmann::json::object();
@@ -120,7 +122,7 @@ auto getCards(const Player& player, const BridgeEngine& engine)
     return cards.dump();
 }
 
-auto getCurrentTrick(const BridgeEngine& engine)
+std::string getCurrentTrick(const BridgeEngine& engine)
 {
     auto cards = nlohmann::json::object();
     if (const auto trick = engine.getCurrentTrick()) {
@@ -131,6 +133,12 @@ auto getCurrentTrick(const BridgeEngine& engine)
         }
     }
     return cards.dump();
+}
+
+std::string getTricksWon(const BridgeEngine& engine)
+{
+    return JsonSerializer::serialize(
+        engine.getTricksWon().value_or(TricksWon {0, 0}));
 }
 
 std::string getVulnerability(const DuplicateGameManager& gameManager)
@@ -181,6 +189,8 @@ bool GetMessageHandler::doHandle(
                 sink(getCards(*player, engine_));
             } else if (internalContainsKey(key, CURRENT_TRICK_COMMAND, sink)) {
                 sink(getCurrentTrick(engine_));
+            } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
+                sink(getTricksWon(engine_));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
                 sink(getVulnerability(dereference(gameManager)));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {

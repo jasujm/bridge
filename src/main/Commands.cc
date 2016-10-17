@@ -17,6 +17,7 @@ const std::string DECLARER_COMMAND {"declarer"};
 const std::string CONTRACT_COMMAND {"contract"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};
 const std::string CARDS_COMMAND {"cards"};
+const std::string TRICKS_WON_COMMAND {"tricksWon"};
 const std::string CURRENT_TRICK_COMMAND {"currentTrick"};
 const std::string VULNERABILITY_COMMAND {"vulnerability"};
 const std::string SCORE_COMMAND {"score"};

@@ -5,6 +5,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
+#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "scoring/DuplicateScoreSheet.hh"
 #include "engine/BridgeEngine.hh"
@@ -20,6 +21,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "MockPlayer.hh"
 #include "Zip.hh"
@@ -338,6 +340,16 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
     const auto actual = fromJson<CardType>(
         j.at(POSITION_TO_STRING_MAP.left.at(Position::EAST)));
     EXPECT_EQ(expected, actual);
+}
+
+TEST_F(GetMessageHandlerTest, testTricksWon)
+{
+    request(PLAYER1, TRICKS_WON_COMMAND);
+    ASSERT_EQ(2u, reply.size());
+    EXPECT_EQ(TRICKS_WON_COMMAND, reply[0]);
+    EXPECT_EQ(
+        Bridge::TricksWon(0, 0),
+        JsonSerializer::deserialize<Bridge::TricksWon>(reply[1]));
 }
 
 TEST_F(GetMessageHandlerTest, testVulnerability)
