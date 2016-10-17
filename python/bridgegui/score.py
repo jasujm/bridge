@@ -9,18 +9,10 @@ ScoreTable -- table for displaying scoresheet
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem
 
 import bridgegui.messaging as messaging
+import bridgegui.positions as positions
 
-PARTNERSHIP_TAG = "partnership"
-NORTH_SOUTH_TAG = "northSouth"
-EAST_WEST_TAG = "eastWest"
 SCORE_TAG = "score"
-
-PARTNERSHIP_TAGS = NORTH_SOUTH_TAG, EAST_WEST_TAG
-
-# TODO: Localization
-PARTNERSHIP_FORMATS = {
-    NORTH_SOUTH_TAG: "North South", EAST_WEST_TAG: "East West"
-}
+PARTNERSHIP_TAG = "partnership"
 
 
 class ScoreTable(QTableWidget):
@@ -32,9 +24,10 @@ class ScoreTable(QTableWidget):
         Keyword Arguments:
         parent -- the parent widget
         """
-        super().__init__(0, len(PARTNERSHIP_TAGS), parent)
-        labels = (PARTNERSHIP_FORMATS[tag] for tag in PARTNERSHIP_TAGS)
-        self.setHorizontalHeaderLabels(labels)
+        super().__init__(0, len(positions.Partnership), parent)
+        self.setHorizontalHeaderLabels(
+            positions.partnershipLabel(partnership) for
+            partnership in positions.Partnership)
         self.setMinimumWidth(
             5 + self.verticalHeader().width() +
             sum(self.columnWidth(n) for n in range(self.columnCount())))
@@ -60,7 +53,10 @@ class ScoreTable(QTableWidget):
             return ("0", "0")
         try:
             amount = str(score[SCORE_TAG])
-            winner = PARTNERSHIP_TAGS.index(score[PARTNERSHIP_TAG])
-            return (amount, "0") if winner == 0 else ("0", amount)
+            winner = positions.asPartnership(score[PARTNERSHIP_TAG])
+            if winner == positions.Partnership.northSouth:
+                return (amount, "0")
+            else:
+                return ("0", amount)
         except Exception:
             raise messaging.ProtocolError("Invalid score: %r" % score)

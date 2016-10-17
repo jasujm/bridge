@@ -229,8 +229,9 @@ class CallTable(QTableWidget):
         parent -- the parent widget
         """
         super().__init__(0, len(positions.Position), parent)
-        labels = (positions.label(position) for position in positions.Position)
-        self.setHorizontalHeaderLabels(labels)
+        self.setHorizontalHeaderLabels(
+            positions.positionLabel(position) for
+            position in positions.Position)
         self._reset_calls()
 
     def setCalls(self, calls):
@@ -305,7 +306,7 @@ class ResultLabel(QLabel):
         declarer -- the contract determined by the bidding
         """
         if declarer and contract:
-            declarer_format = positions.label(declarer)
+            declarer_format = positions.positionLabel(declarer)
             try:
                 bid_format = formatBid(contract[BID_TAG])
                 doubling_format = DOUBLING_FORMATS[contract[DOUBLING_TAG]]

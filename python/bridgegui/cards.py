@@ -399,7 +399,7 @@ class CardArea(QWidget):
                 positions.rotate(self._position), self._hand_panels,
                 self._position_labels):
             hand_map[position] = (hand, label)
-            label.setText(positions.label(position))
+            label.setText(positions.positionLabel(position))
             label.resize(hand.width(), label.height())
         self._hand_map = hand_map
         self._trick_panel.setPlayerPosition(self._position)

@@ -33,6 +33,9 @@ class CallPanelTest(unittest.TestCase):
         self._app = QApplication(sys.argv)
         self._call_panel = bidding.CallPanel()
 
+    def tearDown(self):
+        del self._app
+
     def testCallPanelHasButtonsForAllCalls(self):
         button_texts = {button.text() for button in self._call_panel.buttons()}
         for call in CALLS:
@@ -170,6 +173,6 @@ class ResultLabelTest(unittest.TestCase):
         self._result_label.setBiddingResult(
             self._declarer, dict(bid=self._bid, doubling=self._doubling))
         text = self._result_label.text()
-        self.assertIn(positions.label(self._declarer), text)
+        self.assertIn(positions.positionLabel(self._declarer), text)
         self.assertIn(bidding.formatBid(self._bid), text)
         self.assertIn(bidding.DOUBLING_FORMATS[self._doubling], text)

@@ -1,18 +1,26 @@
 """Utilities for handling positions
 
-This module contains functions that can be used to manipulate player
-positions. In particular it offers utilities to convert between serialized and
-internal position representation.
+This module contains functions that can be used to manipulate player positions
+and partnerships. In particular it offers utilities to convert between
+serialized and internal representations.
 
 The internal position representation is Position enumeration. This enumeration
 can direcly be used to index the POSITION_TAGS tuple providing the serialized
 representation of the positions as specified by the bridge protocol
 specification.
 
+The internal partnership representation is Partnership enumeration. This
+enumeration can direcly be used to index the PARTNERSHIP_TAGS tuple providing
+the serialized representation of the partnerships as specified by the bridge
+protocol specification
+
 Functions:
-label   -- return human readable label for given position
-partner -- return the partner of given position
-rotate  -- return a list of positions starting from given position
+asPartnership    -- convert serialized position into Position enumeration
+positionLabel    -- return human readable label for given position
+partner          -- return the partner of given position
+rotate           -- return a list of positions starting from given position
+asPartnership    -- convert serialized partnership into Partnership enumeration
+partnershipLabel -- return human readable label for given partnership
 """
 
 import enum
@@ -23,8 +31,11 @@ NORTH_TAG = "north"
 EAST_TAG = "east"
 SOUTH_TAG = "south"
 WEST_TAG = "west"
+NORTH_SOUTH_TAG = "northSouth"
+EAST_WEST_TAG = "eastWest"
 
 POSITION_TAGS = (NORTH_TAG, EAST_TAG, SOUTH_TAG, WEST_TAG)
+PARTNERSHIP_TAGS = (NORTH_SOUTH_TAG, EAST_WEST_TAG)
 
 
 class Position(enum.IntEnum):
@@ -38,6 +49,16 @@ class Position(enum.IntEnum):
 POSITION_FORMATS = {
     Position.north: "North", Position.east: "East",
     Position.south: "South", Position.west: "West"
+}
+
+class Partnership(enum.IntEnum):
+    """Partnership enumeration"""
+    northSouth = 0
+    eastWest = 1
+
+# TODO: Localization
+PARTNERSHIP_FORMATS = {
+    Partnership.northSouth: "North South", Partnership.eastWest: "East West"
 }
 
 
@@ -60,7 +81,7 @@ def asPosition(position):
         raise messaging.ProtocolError("Invalid position: %r" % position)
 
 
-def label(position):
+def positionLabel(position):
     """Return human readable label for given position"""
     return POSITION_FORMATS[asPosition(position)]
 
@@ -85,3 +106,27 @@ def rotate(position):
     position = asPosition(position)
     positions = list(Position)
     return positions[position:] + positions[:position]
+
+
+def asPartnership(partnership):
+    """Convert serialized partnership representation into Partnership enumeration
+
+    The serialized representation is one of the strings in PARTNERSHIP_TAGS
+    tuple. This function converts a string into the corresponding Partnership
+    enumeration. The function is idempotent, meaning that it is safe to call it
+    also with Position enum.
+
+    Keyword Arguments:
+    partnership -- the partnership to convert
+    """
+    if isinstance(partnership, Partnership):
+        return partnership
+    try:
+        return Partnership(PARTNERSHIP_TAGS.index(partnership))
+    except Exception:
+        raise messaging.ProtocolError("Invalid partnership: %r" % partnership)
+
+
+def partnershipLabel(partnership):
+    """Return human readable label for given partnership"""
+    return PARTNERSHIP_FORMATS[asPartnership(partnership)]
