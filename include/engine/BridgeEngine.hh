@@ -82,6 +82,20 @@ public:
         const Card& card;     ///< \brief The card played
     };
 
+    /** \brief Event for announcing that a trick was completed
+     */
+    struct TrickCompleted : private boost::equality_comparable<TrickCompleted> {
+        /** \brief Create new trick completed event
+         *
+         * \param trick see \ref trick
+         * \param winner see \ref winner
+         */
+        TrickCompleted(const Trick& trick, const Hand& winner);
+
+        const Trick& trick;     ///< \brief The trick that was completed
+        const Hand& winner;     ///< \brief The winning hand
+    };
+
     /** \brief Event for announcing that dummy has been revealed
      */
     struct DummyRevealed {};
@@ -134,11 +148,19 @@ public:
     /** \brief Subscribe to notifications about card being played
      *
      * When a card is successfully played, the notification takes place after
-     * the card has been played from the hand but before the possible next
-     * trick is started or (in case of the opening lead) the cards of the
-     * dummy are revealed.
+     * the card has been played from the hand but before the possible trick is
+     * completed or (in case of the opening lead) the cards of the dummy are
+     * revealed.
      */
     void subscribeToCardPlayed(std::weak_ptr<Observer<CardPlayed>> observer);
+
+    /** \brief Subscribe to notifications about trick being completed
+     *
+     * This notification takes place when trick has been completed and awarded
+     * to the winner, but before the next trick is started.
+     */
+    void subscribeToTrickCompleted(
+        std::weak_ptr<Observer<TrickCompleted>> observer);
 
     /** \brief Subscribe to notifications about dummy being revealed
      *
@@ -353,6 +375,11 @@ bool operator==(
  */
 bool operator==(
     const BridgeEngine::CardPlayed&, const BridgeEngine::CardPlayed&);
+
+/** \brief Equality operator for trick completed events
+ */
+bool operator==(
+    const BridgeEngine::TrickCompleted&, const BridgeEngine::TrickCompleted&);
 
 }
 }

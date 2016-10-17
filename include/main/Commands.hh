@@ -347,6 +347,14 @@
  *
  * This event is published whenever the hand of the dummy is revealed.
  *
+ * \subsection bridgeprotocoleventtrick trick
+ *
+ * - \b Command: trick
+ * - \b Parameters:
+ *   - \e winner: the \e position of the player that wins the trick
+ *
+ * This event is published whenever a trick is completed.
+ *
  * \subsection bridgeprotocoleventdealend dealend
  *
  * - \b Command: dealend
@@ -458,6 +466,14 @@ extern const std::string BIDDING_COMMAND;
 /** \brief See \ref bridgeprotocoleventdummy
  */
 extern const std::string DUMMY_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventtrick
+ */
+extern const std::string TRICK_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventtrick
+ */
+extern const std::string WINNER_COMMAND;
 
 /** \brief See \ref bridgeprotocoleventdealend
  */

@@ -171,6 +171,10 @@ public:
     {
         return cardPlayedNotifier;
     }
+    Observable<TrickCompleted>& getTrickCompletedNotifier()
+    {
+        return trickCompletedNotifier;
+    }
     Observable<DummyRevealed>& getDummyRevealedNotifier()
     {
         return dummyRevealedNotifier;
@@ -216,6 +220,7 @@ private:
     Observable<CallMade> callMadeNotifier;
     Observable<BiddingCompleted> biddingCompletedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
+    Observable<TrickCompleted> trickCompletedNotifier;
     Observable<DummyRevealed> dummyRevealedNotifier;
     Observable<DealEnded> dealEndedNotifier;
 };
@@ -530,6 +535,10 @@ private:
 void Playing::addTrick(std::unique_ptr<Trick>&& trick)
 {
     tricks.emplace_back(std::move(trick));
+    const auto& added_trick = *tricks.back();
+    const auto& winner_hand = dereference(getWinner(added_trick, getTrump()));
+    outermost_context().getTrickCompletedNotifier().notifyAll(
+        BridgeEngine::TrickCompleted {added_trick, winner_hand});
     if (tricks.size() == N_CARDS_PER_PLAYER) {
         post_event(DealCompletedEvent {getTricksWon()});
     } else {
@@ -1002,6 +1011,13 @@ void BridgeEngine::subscribeToCardPlayed(
     impl->getCardPlayedNotifier().subscribe(std::move(observer));
 }
 
+void BridgeEngine::subscribeToTrickCompleted(
+    std::weak_ptr<Observer<TrickCompleted>> observer)
+{
+    assert(impl);
+    impl->getTrickCompletedNotifier().subscribe(std::move(observer));
+}
+
 void BridgeEngine::subscribeToDummyRevealed(
     std::weak_ptr<Observer<DummyRevealed>> observer)
 {
@@ -1144,6 +1160,13 @@ BridgeEngine::CardPlayed::CardPlayed(
 {
 }
 
+BridgeEngine::TrickCompleted::TrickCompleted(
+    const Trick& trick, const Hand& winner) :
+    trick {trick},
+    winner {winner}
+{
+}
+
 bool operator==(
     const BridgeEngine::CallMade& lhs, const BridgeEngine::CallMade& rhs)
 {
@@ -1157,6 +1180,13 @@ bool operator==(
     return &lhs.player == &rhs.player &&
         &lhs.hand == &rhs.hand &&
         &lhs.card == &rhs.card;
+}
+
+bool operator==(
+    const BridgeEngine::TrickCompleted& lhs,
+    const BridgeEngine::TrickCompleted& rhs)
+{
+    return &lhs.trick == &rhs.trick && &lhs.winner == &rhs.winner;
 }
 
 }

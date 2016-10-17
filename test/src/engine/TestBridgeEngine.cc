@@ -121,7 +121,8 @@ protected:
     }
 
     void playCard(
-        const Player& player, std::size_t card, bool revealDummy = false)
+        const Player& player, std::size_t card, bool revealDummy = false,
+        bool completeTrick = false)
     {
         const auto& partner = engine.getPlayer(
             partnerFor(engine.getPosition(player)));
@@ -152,6 +153,19 @@ protected:
                     Hand::CardRevealState::COMPLETED,
                     ElementsAreArray(to(N_CARDS_PER_PLAYER))))
                 .Times(AtLeast(1));
+        }
+
+        const auto trick_completed_observer =
+            std::make_shared<MockObserver<BridgeEngine::TrickCompleted>>();
+        engine.subscribeToTrickCompleted(trick_completed_observer);
+        if (completeTrick) {
+            const auto& trick = dereference(engine.getCurrentTrick());
+            EXPECT_CALL(
+                *trick_completed_observer,
+                handleNotify(
+                    BridgeEngine::TrickCompleted {trick, hands.at(0).get()}));
+        } else {
+            EXPECT_CALL(*trick_completed_observer, handleNotify(_)).Times(0);
         }
 
         engine.play(player, hand, card);
@@ -316,7 +330,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             i == 0 ? boost::none : boost::make_optional(Position::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
-        playCard(player, 0, i == 0);
+        playCard(player, 0, i == 0, i == players.size() - 1);
         updateExpectedStateAfterPlay(player);
         assertHandsVisible(&engine.getPlayer(Position::WEST));
     }
@@ -327,15 +341,16 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         for (const auto& player : players) {
             auto observer =
                 std::make_shared<MockObserver<BridgeEngine::DealEnded>>();
-            const auto notify_count = (
-                i == N_CARDS_PER_PLAYER - 1 &&
-                &player == &players.back()) ? 1 : 0;
+            const auto last_card_in_trick = &player == &players.back();
+            const auto notify_count =
+                (i == N_CARDS_PER_PLAYER - 1 && last_card_in_trick) ?
+                1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             assertDealState(Position::WEST);
             assertHandsVisible(&engine.getPlayer(Position::WEST));
 
             engine.subscribeToDealEnded(observer);
-            playCard(*player, i);
+            playCard(*player, i, false, last_card_in_trick);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();

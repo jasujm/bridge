@@ -63,6 +63,7 @@ class BridgeMain::Impl :
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
+    public Observer<BridgeEngine::TrickCompleted>,
     public Observer<BridgeEngine::DummyRevealed>,
     public Observer<BridgeEngine::DealEnded>,
     public Observer<CardManager::ShufflingState> {
@@ -110,6 +111,7 @@ private:
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
+    void handleNotify(const BridgeEngine::TrickCompleted&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
     void handleNotify(const CardManager::ShufflingState& state) override;
@@ -336,6 +338,12 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
         std::tie(CARD_COMMAND, card_type));
 }
 
+void BridgeMain::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
+{
+    const auto position = dereference(engine->getPosition(event.winner));
+    publish(TRICK_COMMAND, std::tie(WINNER_COMMAND, position));
+}
+
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
 {
     publish(DUMMY_COMMAND);
@@ -460,6 +468,7 @@ BridgeMain::BridgeMain(
     engine.subscribeToCallMade(impl);
     engine.subscribeToBiddingCompleted(impl);
     engine.subscribeToCardPlayed(impl);
+    engine.subscribeToTrickCompleted(impl);
     engine.subscribeToDummyRevealed(impl);
     engine.subscribeToDealEnded(impl);
     dereference(card_protocol.getCardManager()).subscribe(impl);
