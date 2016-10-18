@@ -29,7 +29,14 @@ find_package(PythonInterp)
 include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
   ${JSON_INCLUDE_DIRS})
 
+if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
+  set(BRIDGE_PYTHON_AVAILABLE ON)
+endif()
+
 add_subdirectory(src)
+if (${BRIDGE_PYTHON_AVAILABLE})
+  add_subdirectory(python)
+endif()
 add_subdirectory(test)
 
 find_package(Doxygen)

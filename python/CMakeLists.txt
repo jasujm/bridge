@@ -1,0 +1,6 @@
+set(BRIDGE_PYTHON_DIR ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
+
+set(BRIDGE_BUILD_GUI ON CACHE BOOL "Build GUI")
+if (${BRIDGE_BUILD_GUI})
+  add_subdirectory(bridgegui)
+endif()
