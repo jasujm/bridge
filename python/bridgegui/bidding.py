@@ -343,12 +343,11 @@ class ResultLabel(QLabel):
                 doubling_format = DOUBLING_FORMATS[contract[DOUBLING_TAG]]
             except Exception:
                 raise messaging.ProtocolError("Invalid contract: %r" % contract)
+            # TODO: Localization
             self.setText(
-                "%(declarer)s declares %(bid)s %(doubling)s" % {
-                    "declarer": declarer_format,
-                    "bid": bid_format,
-                    "doubling": doubling_format
-                })
+                "{declarer} declares {bid} {doubling}".format(
+                    declarer=declarer_format, bid=bid_format,
+                    doubling=doubling_format))
         else:
             self.clear()
  

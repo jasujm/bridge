@@ -59,10 +59,10 @@ class TricksWonLabel(QLabel):
         # TODO: Localization
         self.setText(
             """Tricks
-%(northSouthLabel)s: %(northSouthTricks)d
-%(eastWestLabel)s: %(eastWestTricks)d""" % {
-                "northSouthLabel": partnershipLabel(Partnership.northSouth),
-                "northSouthTricks": self._tricks[Partnership.northSouth],
-                "eastWestLabel": partnershipLabel(Partnership.eastWest),
-                "eastWestTricks": self._tricks[Partnership.eastWest]
-            })
+{northSouthLabel}: {northSouthTricks}
+{eastWestLabel}: {eastWestTricks}""".format(
+                northSouthLabel=partnershipLabel(Partnership.northSouth),
+                northSouthTricks=self._tricks[Partnership.northSouth],
+                eastWestLabel=partnershipLabel(Partnership.eastWest),
+                eastWestTricks=self._tricks[Partnership.eastWest]
+            ))
