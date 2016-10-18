@@ -90,7 +90,6 @@ class MessageQueue:
         handling messages stops due to an error, False is returned. Otherwise
         True is returned.
         """
-        #logging.debug("Ready to receive message from %s", self._name)
         while True:
             try:
                 parts = self._socket.recv_multipart(flags=zmq.NOBLOCK)
@@ -105,8 +104,8 @@ class MessageQueue:
                 self._handle_message(parts)
             except ProtocolError as e:
                 logging.warning(
-                    "Unexpected event while handling message from %s: %s",
-                    self._name, str(e))
+                    "Unexpected event while handling message %r from %s: %s",
+                    parts, self._name, str(e))
                 return False
 
     def _handle_message(self, parts):

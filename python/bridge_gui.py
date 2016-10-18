@@ -146,7 +146,7 @@ class BridgeWindow(QMainWindow):
     def _handle_hello_reply(self, position=None, **kwargs):
         if not position:
             raise messaging.ProtocolError("Expected server to assign position")
-        logging.info("Successfully joined, position is %s", position)
+        logging.info("Successfully joined. Position assigned: %r", position)
         self._position = position
         self._card_area.setPlayerPosition(position)
         self._request(
@@ -186,41 +186,41 @@ class BridgeWindow(QMainWindow):
         logging.debug("Play successful")
 
     def _handle_deal_event(self, **kwargs):
-        logging.debug("Cards dealt")
+        logging.info("Cards dealt")
         self._request(POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CARDS_TAG)
 
     def _handle_call_event(self, position=None, call=None, **kwargs):
-        logging.debug("Call made. Position: %r, Call: %r", position, call)
+        logging.info("Call made. Position: %r, Call: %r", position, call)
         self._call_table.addCall(position, call)
         self._request(POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG)
 
     def _handle_bidding_event(self, **kwargs):
-        logging.debug("Bidding completed")
+        logging.info("Bidding completed")
         self._request(ALLOWED_CARDS_TAG, DECLARER_TAG, CONTRACT_TAG)
 
     def _handle_play_event(self, position=None, card=None, **kwargs):
-        logging.debug("Card played. Position: %r, Card: %r", position, card)
+        logging.info("Card played. Position: %r, Card: %r", position, card)
         self._card_area.playCard(position, card)
         self._request(
             POSITION_IN_TURN_TAG, CARDS_TAG, ALLOWED_CARDS_TAG,
             CURRENT_TRICK_TAG)
 
     def _handle_dummy_event(self, **kwargs):
-        logging.debug("Dummy hand revealed")
+        logging.info("Dummy hand revealed")
         self._request(CARDS_TAG, ALLOWED_CARDS_TAG)
 
     def _handle_trick_event(self, winner, **kwargs):
-        logging.debug("Trick completed. Winner: %r", winner)
+        logging.info("Trick completed. Winner: %r", winner)
         self._tricks_won_label.addTrick(winner)
         self._request(TRICKS_WON_TAG)
 
     def _handle_dealend_event(self, **kwargs):
-        logging.debug("Deal ended")
+        logging.info("Deal ended")
         self._request(
             CALLS_TAG, VULNERABILITY_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO)
 
     parser = argparse.ArgumentParser(description='Run bridge frontend')
     parser.add_argument(
