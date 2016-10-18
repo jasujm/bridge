@@ -26,9 +26,11 @@ import bridgegui.tricks as tricks
 
 HELLO_COMMAND = b'bridgehlo'
 GET_COMMAND = b'get'
+DEAL_COMMAND = b'deal'
 CALL_COMMAND = b'call'
 BIDDING_COMMAND = b'bidding'
 PLAY_COMMAND = b'play'
+DUMMY_COMMAND = b'dummy'
 TRICK_COMMAND = b'trick'
 DEALEND_COMMAND = b'dealend'
 
@@ -85,9 +87,11 @@ class BridgeWindow(QMainWindow):
         self._event_socket_queue = messaging.MessageQueue(
             event_socket, "event socket queue", [],
             {
+                DEAL_COMMAND: self._handle_deal_event,
                 CALL_COMMAND: self._handle_call_event,
                 BIDDING_COMMAND: self._handle_bidding_event,
                 PLAY_COMMAND: self._handle_play_event,
+                DUMMY_COMMAND: self._handle_dummy_event,
                 TRICK_COMMAND: self._handle_trick_event,
                 DEALEND_COMMAND: self._handle_dealend_event,
             })
@@ -181,6 +185,10 @@ class BridgeWindow(QMainWindow):
     def _handle_play_reply(self, **kwargs):
         logging.debug("Play successful")
 
+    def _handle_deal_event(self, **kwargs):
+        logging.debug("Cards dealt")
+        self._request(POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CARDS_TAG)
+
     def _handle_call_event(self, position=None, call=None, **kwargs):
         logging.debug("Call made. Position: %r, Call: %r", position, call)
         self._call_table.addCall(position, call)
@@ -197,6 +205,10 @@ class BridgeWindow(QMainWindow):
             POSITION_IN_TURN_TAG, CARDS_TAG, ALLOWED_CARDS_TAG,
             CURRENT_TRICK_TAG)
 
+    def _handle_dummy_event(self, **kwargs):
+        logging.debug("Dummy hand revealed")
+        self._request(CARDS_TAG, ALLOWED_CARDS_TAG)
+
     def _handle_trick_event(self, winner, **kwargs):
         logging.debug("Trick completed. Winner: %r", winner)
         self._tricks_won_label.addTrick(winner)
@@ -205,8 +217,7 @@ class BridgeWindow(QMainWindow):
     def _handle_dealend_event(self, **kwargs):
         logging.debug("Deal ended")
         self._request(
-            ALLOWED_CALLS_TAG, CALLS_TAG, VULNERABILITY_TAG,
-            SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
+            CALLS_TAG, VULNERABILITY_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG)
@@ -224,9 +235,11 @@ if __name__ == '__main__':
     control_socket = zmqctx.socket(zmq.DEALER)
     control_socket.connect(next(endpoint_generator))
     event_socket = zmqctx.socket(zmq.SUB)
+    event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
+    event_socket.setsockopt(zmq.SUBSCRIBE, DUMMY_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, TRICK_COMMAND)
     event_socket.setsockopt(zmq.SUBSCRIBE, DEALEND_COMMAND)
     event_socket.connect(next(endpoint_generator))
