@@ -1,7 +1,3 @@
-if (${BRIDGE_BUILD_GUI})
-  add_subdirectory(bridgegui)
-endif()
-
 if (${BRIDGE_BUILD_CARD_SERVER})
   add_custom_target(
     test-card-server ALL

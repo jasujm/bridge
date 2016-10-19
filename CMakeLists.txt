@@ -34,10 +34,10 @@ if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
 endif()
 
 add_subdirectory(src)
+add_subdirectory(test)
 if (${BRIDGE_PYTHON_AVAILABLE})
   add_subdirectory(python)
 endif()
-add_subdirectory(test)
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

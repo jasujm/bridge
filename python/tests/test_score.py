@@ -29,7 +29,7 @@ class ScoreTableTest(unittest.TestCase):
 
     def tearDown(self):
         del self._app
-    
+
     def testSetScoresheet(self):
         self._score_table.setScoreSheet(SCORESHEET)
         for row, row_item in enumerate(SCORE_ITEMS):

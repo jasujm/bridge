@@ -1,0 +1,14 @@
+from setuptools import setup
+setup(
+    name="Bridge GUI",
+    packages=["bridgegui"],
+    package_dir={"": "${CMAKE_CURRENT_SOURCE_DIR}"},
+    entry_points={
+        "gui_scripts": ["bridgegui=bridgegui.main:main"]
+    },
+    package_data={
+        "bridgegui": ["images/*.png"]
+    },
+    install_requires=["pyzmq>=15.4","PyQt5>=5.7"],
+    test_suite="tests"
+)

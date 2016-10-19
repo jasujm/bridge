@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-
 """Bridge frontend
 
-This script starts the frontend which is part of the bridge project. The usage
-is documented when the script is run with the -h argument.
+This module contains the startpoint for the frontend which is part of the bridge
+project. The usage is documented when the script is run with the -h argument.
 """
 
 import argparse
@@ -49,7 +47,7 @@ SCORE_TAG = "score"
 
 class BridgeWindow(QMainWindow):
     """The main window of the birdge frontend"""
-    
+
     def __init__(self, control_socket, event_socket):
         """Initialize BridgeWindow
 
@@ -219,7 +217,7 @@ class BridgeWindow(QMainWindow):
         self._request(
             CALLS_TAG, VULNERABILITY_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
 
-if __name__ == '__main__':
+def main():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO)
 
     parser = argparse.ArgumentParser(description='Run bridge frontend')

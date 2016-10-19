@@ -5,6 +5,7 @@ have a module of their own.
 """
 
 import os
+import pkg_resources
 
 
 def getImage(filename):
@@ -18,8 +19,7 @@ def getImage(filename):
     filename -- the filename of the image file
     """
     from PyQt5.QtGui import QImage
-    imagepath = os.environ.get("BRIDGE_IMAGE_PATH", None)
-    if imagepath:
-        return QImage(os.path.join(imagepath, filename))
-    else:
-        return QImage(50, 100, QImage.Format_Mono)
+    filename = os.path.join("images", filename)
+    path = pkg_resources.resource_filename(__name__, filename)
+    print(path)
+    return QImage(path)

@@ -50,7 +50,7 @@ To build and run unit tests for the backend
 
 Run the backend (server) located in the top level build directory
 
-    $ bridge --bind=endpoint --positions=positions \
+    $ bridge --bind=endpoint --positions=positions                      \
     >   --connect=peer‐endpoints --cs-cntl=cardserver‐control‐endpoint  \
     >   --cs-peer=cardserver‐base‐peer‐endpoint
 
@@ -82,8 +82,7 @@ is used, so no peeking the network traffic :innocent:
 
 Run the four frontend (client) instances
 
-    $ export BRIDGE_IMAGE_PATH=/the/source/directory/images
-    $ python /the/source/directory/python/bridge_gui.py endpoint
+    $ bridgegui endpoint
 
 where endpoint is the control endpoint of the backend application. Exactly one
 frontend must connect for each position the backend controls. The backend
@@ -96,7 +95,7 @@ model one backend controls all positions and all frontends connect to it.
     $ bridge --bind=tcp://*:5555
     
     $ for n in {1..4}; do
-    >   /the/source/directory/python/bridge_gui.py tcp://example.com:5555 &
+    >   bridgegui tcp://example.com:5555 &
     > done
 
 In pure peer‐to‐peer model each player has their own instance of backend
@@ -104,7 +103,7 @@ application and (presumably) local frontend connecting to it.
 
     $ bridge --bind=tcp://*:5555 --positions='["north"]'               \
     >   --connect='["tcp://peer1.example.com:5555",…]' &
-    $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
+    $ bridgegui tcp://localhost:5555
 
 Players and their cards are shown in the middle of the screen. The player
 whose position is bolded has turn to call (during auction) or play a card to
@@ -149,7 +148,7 @@ peers.
     >   --connect='["tcp://peer1.example.com:5555",…]'                  \
     >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
     $ bridge-cs tcp://127.0.0.1:5560 tcp://*:5565 &
-    $ /the/source/directory/python/bridge_gui.py tcp://localhost:5555
+    $ bridgegui tcp://localhost:5555
 
 One port is reserved for each peer. In the example above that means ports
 5565–5567 assuming three peers.
