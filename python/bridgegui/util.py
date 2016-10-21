@@ -21,5 +21,4 @@ def getImage(filename):
     from PyQt5.QtGui import QImage
     filename = os.path.join("images", filename)
     path = pkg_resources.resource_filename(__name__, filename)
-    print(path)
     return QImage(path)
