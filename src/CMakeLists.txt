@@ -23,10 +23,10 @@ if(LibTMCG_FOUND)
   if (${BRIDGE_BUILD_CARD_SERVER})
     include_directories(${LibTMCG_INCLUDE_DIR})
     add_subdirectory(csmain)
-    add_executable(bridge-cs CardServer.cc Signals.cc)
-    target_link_libraries(bridge-cs bridge-csmain bridge-messaging
+    add_executable(bridgecs CardServer.cc Signals.cc)
+    target_link_libraries(bridgecs bridge-csmain bridge-messaging
       bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
       Threads::Threads)
-    install(TARGETS bridge-cs RUNTIME DESTINATION bin)
+    install(TARGETS bridgecs RUNTIME DESTINATION bin)
   endif()
 endif()
