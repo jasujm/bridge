@@ -319,11 +319,7 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
 TEST_F(GetMessageHandlerTest, testCurrentTrickIfEmpty)
 {
     shuffle();
-    request(PLAYER1, CURRENT_TRICK_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(CURRENT_TRICK_COMMAND, reply[0]);
-    const auto j = nlohmann::json::parse(reply[1]);
-    EXPECT_TRUE(j.empty());
+    testEmptyRequestReply(TRICK_COMMAND);
 }
 
 TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
@@ -331,14 +327,17 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
     shuffle();
     makeBidding();
     const auto& hand = dereference(engine->getHand(*players[1]));
-    const auto expected = dereference(hand.getCard(0)).getType();
+    const auto expected = std::make_pair(
+        Position::EAST,
+        dereference(dereference(hand.getCard(0)).getType()));
     engine->play(*players[1], hand, 0);
-    request(PLAYER1, CURRENT_TRICK_COMMAND);
+    request(PLAYER1, TRICK_COMMAND);
     ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(CURRENT_TRICK_COMMAND, reply[0]);
-    const auto j = nlohmann::json::parse(reply[1]);
-    const auto actual = fromJson<CardType>(
-        j.at(POSITION_TO_STRING_MAP.left.at(Position::EAST)));
+    EXPECT_EQ(TRICK_COMMAND, reply[0]);
+    const auto trick = nlohmann::json::parse(reply[1]);
+    ASSERT_EQ(1u, trick.size());
+    const auto actual = Bridge::Messaging::jsonToPair<Position, CardType>(
+        trick[0], POSITION_COMMAND, CARD_COMMAND);
     EXPECT_EQ(expected, actual);
 }
 

@@ -18,7 +18,7 @@ const std::string CONTRACT_COMMAND {"contract"};
 const std::string ALLOWED_CARDS_COMMAND {"allowedCards"};
 const std::string CARDS_COMMAND {"cards"};
 const std::string TRICKS_WON_COMMAND {"tricksWon"};
-const std::string CURRENT_TRICK_COMMAND {"currentTrick"};
+const std::string TRICK_COMMAND {"trick"};
 const std::string VULNERABILITY_COMMAND {"vulnerability"};
 const std::string SCORE_COMMAND {"score"};
 const std::string CALL_COMMAND {"call"};
@@ -28,7 +28,6 @@ const std::string INDEX_COMMAND {"index"};
 const std::string DEAL_COMMAND {"deal"};
 const std::string BIDDING_COMMAND {"bidding"};
 const std::string DUMMY_COMMAND {"dummy"};
-const std::string TRICK_COMMAND {"trick"};
 const std::string WINNER_COMMAND {"winner"};
 const std::string DEAL_END_COMMAND {"dealend"};
 

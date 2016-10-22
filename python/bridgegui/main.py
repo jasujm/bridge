@@ -39,7 +39,7 @@ DECLARER_TAG = "declarer"
 CONTRACT_TAG = "contract"
 ALLOWED_CARDS_TAG = "allowedCards"
 CARDS_TAG = "cards"
-CURRENT_TRICK_TAG = "currentTrick"
+TRICK_TAG = "trick"
 TRICKS_WON_TAG = "tricksWon"
 VULNERABILITY_TAG = "vulnerability"
 SCORE_TAG = "score"
@@ -150,11 +150,11 @@ class BridgeWindow(QMainWindow):
         self._request(
             POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
             DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
-            CURRENT_TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
+            TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
 
     def _handle_get_reply(
             self, allowedCalls=None, calls=None, allowedCards=None, cards=None,
-            currentTrick=None, tricksWon=None, score=None, **kwargs):
+            trick=None, tricksWon=None, score=None, **kwargs):
         if POSITION_IN_TURN_TAG in kwargs:
             self._card_area.setPositionInTurn(kwargs[POSITION_IN_TURN_TAG])
         if allowedCalls is not None:
@@ -168,8 +168,8 @@ class BridgeWindow(QMainWindow):
             self._card_area.setCards(cards)
         if allowedCards is not None:
             self._card_area.setAllowedCards(allowedCards)
-        if currentTrick is not None:
-            self._card_area.setTrick(currentTrick)
+        if trick is not None:
+            self._card_area.setTrick(trick)
         if tricksWon is not None:
             self._tricks_won_label.setTricksWon(tricksWon)
         if VULNERABILITY_TAG in kwargs:
@@ -200,8 +200,7 @@ class BridgeWindow(QMainWindow):
         logging.info("Card played. Position: %r, Card: %r", position, card)
         self._card_area.playCard(position, card)
         self._request(
-            POSITION_IN_TURN_TAG, CARDS_TAG, ALLOWED_CARDS_TAG,
-            CURRENT_TRICK_TAG)
+            POSITION_IN_TURN_TAG, CARDS_TAG, ALLOWED_CARDS_TAG, TRICK_TAG)
 
     def _handle_dummy_event(self, **kwargs):
         logging.info("Dummy hand revealed")

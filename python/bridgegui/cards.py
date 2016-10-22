@@ -23,6 +23,8 @@ import bridgegui.messaging as messaging
 import bridgegui.positions as positions
 import bridgegui.util as util
 
+POSITION_TAG = "position"
+CARD_TAG = "card"
 RANK_TAG = "rank"
 SUIT_TAG = "suit"
 
@@ -243,8 +245,7 @@ class TrickPanel(QWidget):
         super().__init__(parent)
         self.setMinimumSize(self._SIZE)
         self._rect_map = {}
-        self._cards = {}
-        self._card_rects = []
+        self._cards = []
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(2000)
@@ -261,27 +262,25 @@ class TrickPanel(QWidget):
     def setCards(self, cards):
         """Set cards in the trick
 
-        This method accepts as argument a mapping from positions to the cards
-        played by the player in given position. The cards may be either in
-        serialized or internal representation. The positions (dict keys) must be
-        in serialized representation (strings). See bridge protocol
-        specification.
+        This method accepts as argument an array consisting of position card
+        pairs. The positions and cards may be either in the serialized or the
+        internal representation. See the bridge protocol specification.
 
         If the argument is empty (i.e. clearing the trick), the cards are
         removed after a delay to give the players an opportunity to see the last
         card played to the trick.
-
-        TODO: Internal representation in keys should be allowed.
         """
-        new_cards = {}
-        new_card_rects = []
-        for (tag, position) in zip(positions.POSITION_TAGS, positions.Position):
-            if tag in cards and position in self._rect_map:
-                card = asCard(cards[tag])
-                new_cards[position] = card
-                new_card_rects.append(self._get_card_rect(position, card))
+        if not self._rect_map:
+            return
+        def _generate_position_card_pair(pair):
+            return (
+                positions.asPosition(pair[POSITION_TAG]), asCard(pair[CARD_TAG]))
+        try:
+            new_cards = [_generate_position_card_pair(pair) for pair in cards]
+        except Exception:
+            raise messaging.ProtocolError("Invalid cards: %r" % cards)
         if new_cards:
-            self._cards, self._card_rects = new_cards, new_card_rects
+            self._cards = new_cards
             self._timer.stop()
             self.repaint()
         elif self._cards:
@@ -298,46 +297,33 @@ class TrickPanel(QWidget):
         position -- the position of the player who plays the card
         card     -- the card played
         """
+        if self._timer.isActive():
+            del self._cards[:]
         position = positions.asPosition(position)
-        if position not in self._cards or self._timer.isActive():
-            if self._timer.isActive():
-                self._clear_cards()
-                self._timer.stop()
+        if position not in (p for (p, _) in self._cards):
             card = asCard(card)
-            self._cards[position] = card
-            self._card_rects.append(self._get_card_rect(position, card))
+            self._cards.append((position, card))
             self._timer.stop()
             self.repaint()
 
     def cards(self):
-        """Return dict containing mapping between positions and cards
+        """Return list containing the positions and cards played to the trick
 
-        The dictionary contains positions (in serialized representation) as keys
-        and cards (also in internal representation) played by the player in the
-        position as values.
-
-        TODO: The keys should be in internal representation but unit tests
-        depend on serialized representation.
+        The list has tuples which have positions and as first the cards played
+        by the player in the position as second elements. Both are in the
+        internal representation.
         """
-        return {
-            positions.POSITION_TAGS[position]: cards for
-            (position, cards) in self._cards.items()
-        }
+        return list(self._cards)
 
     def paintEvent(self, event):
         """Paint cards"""
         painter = QPainter()
         painter.begin(self)
-        for (rect, image) in self._card_rects:
-            _draw_image(painter, rect, image)
-
-    def _get_card_rect(self, position, card):
-        rect = self._rect_map[position]
-        return (rect, CARD_IMAGES[card])
+        for (position, card) in self._cards:
+            _draw_image(painter, self._rect_map[position], CARD_IMAGES[card])
 
     def _clear_cards(self):
-        self._cards.clear()
-        del self._card_rects[:]
+        del self._cards[:]
         self.repaint()
 
 

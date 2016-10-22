@@ -122,14 +122,17 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
     return cards.dump();
 }
 
-std::string getCurrentTrick(const BridgeEngine& engine)
+std::string getTrick(const BridgeEngine& engine)
 {
-    auto cards = nlohmann::json::object();
+    auto cards = nlohmann::json::array();
     if (const auto trick = engine.getCurrentTrick()) {
-        for (const auto p : *trick) {
-            const auto position = dereference(engine.getPosition(p.first));
-            const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
-            cards[position_str] = toJson(dereference(p.second.getType()));
+        for (const auto pair : *trick) {
+            const auto position = engine.getPosition(pair.first);
+            const auto card = pair.second.getType();
+            cards.push_back(
+                Messaging::pairToJson(
+                    std::make_pair(position, card),
+                    POSITION_COMMAND, CARD_COMMAND));
         }
     }
     return cards.dump();
@@ -187,8 +190,8 @@ bool GetMessageHandler::doHandle(
                 sink(getAllowedCards(engine_, *player));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
                 sink(getCards(*player, engine_));
-            } else if (internalContainsKey(key, CURRENT_TRICK_COMMAND, sink)) {
-                sink(getCurrentTrick(engine_));
+            } else if (internalContainsKey(key, TRICK_COMMAND, sink)) {
+                sink(getTrick(engine_));
             } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
                 sink(getTricksWon(engine_));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {

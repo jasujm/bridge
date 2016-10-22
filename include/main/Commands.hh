@@ -161,7 +161,7 @@
  *   - \e allowedCards: array of allowed \e cards to play, if any,
  *     \ref jsoncardtype
  *   - \e cards: object containing \e cards that are visible to the player
- *   - \e currentTrick: object containing \e cards in the current trick
+ *   - \e trick: array containing \e cards in the current trick
  *   - \e tricksWon: see \ref jsontrickswon
  *   - \e vulnerability: \e vulnerabilities of the current deal,
  *     see \ref jsonvulnerability
@@ -190,11 +190,11 @@
  * If the deal is in the bidding phase and the player has turn, the \b
  * allowedCalls parameter is the set of calls allowed to be made by the player.
  *
- * The \b calls parameter is an array of positon–call objects, each describing a
- * position (field “position”) and a \ref jsoncall (field “call”) made by the
- * player at the position. The list is ordered is the order the calls were
- * made. The array is empty if no calls have been made (possibly because cards
- * have not been dealt and bidding not started).
+ * The \b calls parameter is an array of positon–call pairs, each containing a
+ * position (field “position”) and a call (field “call”) made by the player at
+ * the position. The array is ordered in the order the calls were made. The
+ * array is empty if no calls have been made (possibly because cards have not
+ * been dealt and bidding not started).
  *
  * An example of an object corresponding to the player at north bidding
  * one clubs would be:
@@ -220,11 +220,12 @@
  * those hands that are visible to the player, i.e. his own hand and dummy if it
  * has been revealed. The object is empty if cards have not been dealt yet.
  *
- * The \b currentTrick parameter is an object containing mapping from positions
- * to the cards the corresponding player has played to the current trick. The
- * object is empty if there are currently no cards played in a trick (perhaps
- * because the playing phase has not begun or no card has been lead to the
- * current trick).
+ * The \b trick parameter is an array of position–card pairs, each containing a
+ * position (field “position”) and a card (field “card”) played by the position
+ * to the trick. The array is ordered in the order that the cards were played to
+ * the trick. The array is empty if no cards have been played to the current
+ * trick (possibly because the last trick was just completed or the playing
+ * phase has not started).
  *
  * The \b tricksWon parameter is an object containing mapping from partnerships
  * to the number of tricks won by each side. If no tricks have been completed
@@ -441,7 +442,7 @@ extern const std::string TRICKS_WON_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string CURRENT_TRICK_COMMAND;
+extern const std::string TRICK_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

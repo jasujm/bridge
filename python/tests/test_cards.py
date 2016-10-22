@@ -9,7 +9,7 @@ from PyQt5.QtTest import QSignalSpy, QTest
 import bridgegui.cards as cards
 from bridgegui.cards import RANK_TAGS, SUIT_TAGS
 import bridgegui.messaging as messaging
-from bridgegui.positions import POSITION_TAGS
+from bridgegui.positions import asPosition, POSITION_TAGS
 
 def _generate_random_cards():
     ranks = random.sample(RANK_TAGS, 4)
@@ -101,7 +101,12 @@ class TrickPanelTest(unittest.TestCase):
     def setUp(self):
         self._app = QApplication(sys.argv)
         self._trick_panel = cards.TrickPanel()
-        self._cards = dict(zip(POSITION_TAGS, _generate_random_cards()))
+        self._cards = [
+            dict(position=position, card=card) for (position, card) in
+            zip(POSITION_TAGS, _generate_random_cards())]
+        self._internal_cards = [
+            (asPosition(pair[cards.POSITION_TAG]), pair[cards.CARD_TAG]) for
+            pair in self._cards]
 
     def tearDown(self):
         del self._app
@@ -112,40 +117,38 @@ class TrickPanelTest(unittest.TestCase):
 
     def testCards(self):
         self._set_player_position()
-        cards = dict(self._cards, extra="does not matter")
-        self._trick_panel.setCards(cards)
-        self.assertEqual(self._trick_panel.cards(), self._cards)
+        self._trick_panel.setCards(self._cards)
+        self.assertEqual(self._trick_panel.cards(), self._internal_cards)
 
     def testInvalidCards(self):
         self._set_player_position()
-        self._cards[random.choice(POSITION_TAGS)] = 'invalid'
+        self._cards.append('invalid')
         with self.assertRaises(messaging.ProtocolError):
             self._trick_panel.setCards(self._cards)
 
     def testPlayCard(self):
         self._set_player_position()
-        cards = dict(self._cards)
-        card_played = cards.popitem()
-        self._trick_panel.setCards(cards)
-        self._trick_panel.playCard(*card_played)
-        self.assertEqual(self._trick_panel.cards(), self._cards)
+        card_played = self._cards.pop()
+        self._trick_panel.setCards(self._cards)
+        self._trick_panel.playCard(**card_played)
+        self.assertEqual(self._trick_panel.cards(), self._internal_cards)
 
     def testPlayCardDoesNotAcceptCardIfCardHasBeenPlayed(self):
         self._set_player_position()
         self._trick_panel.setCards(self._cards)
         position = random.choice(POSITION_TAGS)
         card_played = _generate_random_card()
-        while card_played == self._cards[position]:
+        while card_played == self._internal_cards[asPosition(position)]:
             card_played = _generate_random_card()
         self._trick_panel.playCard(position, card_played)
-        self.assertNotIn(
-            (position, card_played), self._trick_panel.cards().items())
+        self.assertNotEqual(
+            card_played, self._trick_panel.cards()[asPosition(position)])
 
     def testSetEmptyCardsDoesNotImmediatelyClearCards(self):
         self._set_player_position()
         self._trick_panel.setCards(self._cards)
         self._trick_panel.setCards({})
-        self.assertEqual(self._trick_panel.cards(), self._cards)
+        self.assertEqual(self._trick_panel.cards(), self._internal_cards)
 
     def testPlayCardClearsPreviousTrick(self):
         self._set_player_position()
@@ -153,7 +156,9 @@ class TrickPanelTest(unittest.TestCase):
         self._trick_panel.setCards({})
         card_played = (random.choice(POSITION_TAGS), _generate_random_card())
         self._trick_panel.playCard(*card_played)
-        self.assertEqual(self._trick_panel.cards(), dict([card_played]))
+        self.assertEqual(
+            self._trick_panel.cards(),
+            [(asPosition(card_played[0]), card_played[1])])
 
     def _set_player_position(self):
         self._trick_panel.setPlayerPosition(random.choice(POSITION_TAGS))
