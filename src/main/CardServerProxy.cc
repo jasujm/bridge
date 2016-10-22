@@ -101,17 +101,17 @@ struct NotifyShuffleCompletedEvent :
     public sc::event<NotifyShuffleCompletedEvent> {};
 struct RequestRevealEvent : public sc::event<RequestRevealEvent> {
     RequestRevealEvent(
-        const std::shared_ptr<BasicHand>& hand, const IndexVector& ns,
-        const IndexVector& cardNs) :
+        const std::shared_ptr<BasicHand>& hand, const IndexVector& handNs,
+        const IndexVector& deckNs) :
         hand {std::move(hand)},
-        ns {ns},
-        cardNs {cardNs}
+        handNs {handNs},
+        deckNs {deckNs}
     {
     }
 
     const std::shared_ptr<BasicHand>& hand;
-    const IndexVector& ns;
-    const IndexVector& cardNs;
+    const IndexVector& handNs;
+    const IndexVector& deckNs;
 };
 struct RevealAllSuccessfulEvent :
     public DrawEventBase<RevealAllSuccessfulEvent> {
@@ -175,13 +175,13 @@ private:
     void handleSubscribe(
         std::weak_ptr<Observer<ShufflingState>> observer) override;
     void handleRequestShuffle() override;
-    std::shared_ptr<Hand> handleGetHand(const IndexVector& ns) override;
+    std::shared_ptr<Hand> handleGetHand(const IndexVector& handNs) override;
     bool handleIsShuffleCompleted() const override;
     std::size_t handleGetNumberOfCards() const override;
 
     void internalHandleHandRevealRequest(
         const std::shared_ptr<BasicHand>& hand,
-        const IndexVector& ns, const IndexVector& handNs);
+        const IndexVector& deckNs, const IndexVector& handNs);
     void internalHandleCardServerMessage(zmq::socket_t& socket);
 
     const MessageHandlerVector messageHandlers {{
@@ -248,17 +248,17 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
     // For each peer, reveal their cards. For oneself (indicated by empty
     // identity) draw cards.
     for (const auto& peer : peerPositions) {
-        auto cardNs = cardsFor(
+        auto deckNs = cardsFor(
             peer.positions.begin(), peer.positions.end());
         if (peer.identity) {
             sendCommand(
                 CardServer::REVEAL_COMMAND,
                 std::tie(CardServer::ID_COMMAND, *peer.identity),
-                std::tie(CardServer::CARDS_COMMAND, cardNs));
+                std::tie(CardServer::CARDS_COMMAND, deckNs));
         } else {
             sendCommand(
                 CardServer::DRAW_COMMAND,
-                std::tie(CardServer::CARDS_COMMAND, cardNs));
+                std::tie(CardServer::CARDS_COMMAND, deckNs));
         }
     }
 }
@@ -349,17 +349,17 @@ void Impl::handleRequestShuffle()
     functionQueue([this]() { process_event(RequestShuffleEvent {}); });
 }
 
-std::shared_ptr<Hand> Impl::handleGetHand(const IndexVector& cardNs)
+std::shared_ptr<Hand> Impl::handleGetHand(const IndexVector& deckNs)
 {
     auto hand = std::make_shared<BasicHand>(
-        containerAccessIterator(cardNs.begin(), cards),
-        containerAccessIterator(cardNs.end(), cards));
+        containerAccessIterator(deckNs.begin(), cards),
+        containerAccessIterator(deckNs.end(), cards));
     handObservers.emplace_back(
         makeObserver<Hand::CardRevealState, IndexVector>(
-            [this, hand, cardNs](const auto state, const auto& handNs)
+            [this, hand, deckNs](const auto state, const auto& handNs)
             {
                 if (state == Hand::CardRevealState::REQUESTED) {
-                    this->internalHandleHandRevealRequest(hand, cardNs, handNs);
+                    this->internalHandleHandRevealRequest(hand, deckNs, handNs);
                 }
             }));
     hand->subscribe(handObservers.back());
@@ -378,20 +378,22 @@ std::size_t Impl::handleGetNumberOfCards() const
 
 void Impl::internalHandleHandRevealRequest(
     const std::shared_ptr<BasicHand>& hand,
-    const IndexVector& ns, const IndexVector& handNs)
+    const IndexVector& deckNs, const IndexVector& handNs)
 {
     // This observer receives notifications about card reveal request and
     // generates event for the state machine. The request contains:
-    // hands - the indices of cards in "hand indexing"
-    // cardNs - the indices of the cards in "card manager indexing"
-    auto cardNs = IndexVector(
-        containerAccessIterator(handNs.begin(), ns),
-        containerAccessIterator(handNs.end(), ns));
+    // deckNs - the indices of the cards in the "deck indexing" (for the card
+    // server)
+    // handNs - the indices of cards in the "hand indexing" (for the Hand
+    // subscribers)
+    auto cardInDeckNs = IndexVector(
+        containerAccessIterator(handNs.begin(), deckNs),
+        containerAccessIterator(handNs.end(), deckNs));
     functionQueue(
-        [this, hand, handNs, cardNs = std::move(cardNs)]()
+        [this, hand, handNs, cardInDeckNs = std::move(cardInDeckNs)]()
         {
             this->process_event(
-                RequestRevealEvent {hand, handNs, cardNs});
+                RequestRevealEvent {hand, handNs, cardInDeckNs});
         });
 }
 
@@ -619,7 +621,7 @@ public:
 private:
 
     std::shared_ptr<BasicHand> hand;
-    IndexVector ns;
+    IndexVector handNs;
 };
 
 sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
@@ -627,10 +629,10 @@ sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
     if (!hand) {
         outermost_context().sendCommand(
             CardServer::REVEAL_ALL_COMMAND,
-            std::tie(CardServer::CARDS_COMMAND, event.cardNs));
+            std::tie(CardServer::CARDS_COMMAND, event.deckNs));
         assert(event.hand);
         hand = event.hand;
-        ns = event.ns;
+        handNs = event.handNs;
     }
     return discard_event();
 }
@@ -641,7 +643,7 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
         outermost_context().revealCards(event.cards.begin(), event.cards.end());
         // Already set this->hand to null if the subscribers request new reveal
         const auto hand = std::move(this->hand);
-        hand->reveal(ns.begin(), ns.end());
+        hand->reveal(handNs.begin(), handNs.end());
     }
     return discard_event();
 }
