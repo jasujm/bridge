@@ -123,21 +123,9 @@ class CallTableTest(unittest.TestCase):
             item = self._call_table.item(0, col)
             self.assertEqual(item.text(), format_)
 
-    def testSetCallsWithInvalidPosition(self):
-        calls = random.sample(CALLS, 4)
-        formats = tuple(bidding.formatCall(call) for call in calls)
+    def testSetCallsWithInvalidCalls(self):
         with self.assertRaises(messaging.ProtocolError):
-            self._call_table.setCalls(
-                dict(position=position, call=call) for (position, call) in
-                zip(list(POSITION_TAGS[:3]) + ['invalid'], calls))
-
-    def testSetCallsWithInvalidCall(self):
-        calls = random.sample(CALLS, 3)
-        formats = tuple(bidding.formatCall(call) for call in calls)
-        with self.assertRaises(messaging.ProtocolError):
-            self._call_table.setCalls(
-                dict(position=position, call=call) for (position, call) in
-                zip(POSITION_TAGS, calls + ['invalid']))
+            self._call_table.setCalls(('invalid',))
 
     def testSetVulnerability(self):
         self._call_table.setVulnerability(

@@ -28,6 +28,7 @@ from PyQt5.QtWidgets import (
 import bridgegui.messaging as messaging
 import bridgegui.positions as positions
 
+POSITION_TAG = "position"
 CALL_TAG = "call"
 TYPE_TAG = "type"
 BID_TAG = "bid"
@@ -250,7 +251,13 @@ class CallTable(QTableWidget):
         clears the table and proceeds as if addCall() was called with each pair
         in the argument.
         """
-        new_calls = [self._generate_position_call_pair(**call) for call in calls]
+        def _generate_position_call_pair(pair):
+            return (
+                positions.asPosition(pair[POSITION_TAG]), asCall(pair[CALL_TAG]))
+        try:
+            new_calls = [_generate_position_call_pair(call) for call in calls]
+        except Exception:
+            raise messaging.ProtocolError("Invalid calls: %r" % calls)
         self._reset_calls()
         for pair in new_calls:
             self._add_call_helper(pair)
@@ -270,8 +277,7 @@ class CallTable(QTableWidget):
         position -- the position of the player to make the call
         call     -- the call to be added
         """
-        pair = self._generate_position_call_pair(position, call)
-        self._add_call_helper(pair)
+        self._add_call_helper((positions.asPosition(position), asCall(call)))
 
     def setVulnerability(self, vulnerability):
         """Set vulnerabilities for partnerships
@@ -300,9 +306,6 @@ class CallTable(QTableWidget):
         self.clearContents()
         self.setRowCount(0)
         self._cursor = None
-
-    def _generate_position_call_pair(self, position=None, call=None, **kwargs):
-        return (positions.asPosition(position), asCall(call))
 
     def _add_call_helper(self, position_call_pair):
         col, call = position_call_pair
@@ -350,4 +353,3 @@ class ResultLabel(QLabel):
                     doubling=doubling_format))
         else:
             self.clear()
- 
