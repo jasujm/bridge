@@ -422,10 +422,14 @@ class CardArea(QWidget):
         """
         if not isinstance(cards, dict):
             raise messaging.ProtocolError("Invalid cards format: %r" % cards)
+        positions_to_clear = set(positions.Position)
         for position, cards_for_position in cards.items():
             if _is_position(position):
                 position = positions.asPosition(position)
                 self._hand_map[position][0].setCards(cards_for_position)
+                positions_to_clear.remove(position)
+        for position in positions_to_clear:
+            self._hand_map[position][0].setCards([])
 
     def setAllowedCards(self, cards):
         """Set allowed cards for the current player

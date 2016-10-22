@@ -215,7 +215,8 @@ class BridgeWindow(QMainWindow):
     def _handle_dealend_event(self, **kwargs):
         logging.info("Deal ended")
         self._request(
-            CALLS_TAG, VULNERABILITY_TAG, SCORE_TAG, DECLARER_TAG, CONTRACT_TAG)
+            CALLS_TAG, CARDS_TAG, VULNERABILITY_TAG, SCORE_TAG, DECLARER_TAG,
+            CONTRACT_TAG)
 
 def main():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO)
