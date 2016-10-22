@@ -14,7 +14,7 @@
 
 namespace Bridge {
 
-/** \brief Determine the indices of cards dealt to given position
+/** \brief Determine the indices of cards dealt to the player at given position
  *
  * \param position the position
  *

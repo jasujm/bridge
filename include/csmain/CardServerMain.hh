@@ -16,25 +16,27 @@ namespace Bridge {
 
 /** \brief Mental card game framework
  *
- * The main class is CardServerMain is responsible for configuring a card
- * server to execute secure mental card game protocol built on top of LibTMCG
- * (http://nognu.org/libtmcg/).
+ * The classes in the CardServer namespace are needed to run the \ref
+ * cardserverprotocol. The entry point for instantiating a card server is the
+ * CardServerMain class.
  */
 namespace CardServer {
 
-/** \brief Server for executing mental card game protocol
+/** \brief Entry point for a card server instance
  *
- * This class is used to configure a card server instance. The responsibility
- * of a card server is to execute mental card game protocol between peers to
- * securely perform services such as shuffling and revealing cards. A card
- * server is oblivious to the rules of bridge or any other card game. It is
- * the responsibility of the client to use commands according to the rules of
- * the game.
+ * The CardServerMain is responsible for configuring a single card server
+ * instance. A card server is a service intended to execute secure mental card
+ * game protocol built on top of LibTMCG (http://nognu.org/libtmcg/).
+ *
+ * The card server itself is oblivious to the rules of the contract bridge or
+ * any other card game. It is the responsibility of the controlling application
+ * to use the commands according to the rules of the game.
  *
  * CardServerMain reserves a thread by blocking when run() is called. It
- * communicates with other peers and the client by ZeroMQ messages.
+ * communicates with other peers and the controlling instance by ZeroMQ
+ * messages.
  *
- * \sa \ref bridgeprotocol
+ * \sa \ref cardserverprotocol
  */
 class CardServerMain {
 public:

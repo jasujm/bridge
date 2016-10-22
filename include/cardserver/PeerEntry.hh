@@ -20,7 +20,7 @@ namespace CardServer {
  * This struct is the internal representation of a peer of card server. The
  * init command in card server protocol consumes a list of peer entries.
  *
- * \sa \ref cardprotocol
+ * \sa \ref cardserverprotocol
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
     std::string identity;                   ///< \brief Peer identity

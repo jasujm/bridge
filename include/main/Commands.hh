@@ -44,10 +44,10 @@
  * \section bridgeprotocolcontrolmessage Control messages
  *
  * All ZMTP messages sent to the control socket of a peer MUST consist of an
- * empty frame, the command frame and command dependent arguments consisting
- * of alternating key and value frames. The command and argument key parts
- * MUST be a string of ASCII lower case letters a—z. The argument values MUST
- * be JSON data structures encoded in UTF‐8.
+ * empty frame, the command frame and command dependent arguments consisting of
+ * alternating key and value frames. The command and argument key parts MUST
+ * consist of printable ASCII characters. The argument values MUST be JSON
+ * documents encoded in UTF‐8.
  *
  * \b Example. A valid command to play seven of diamonds from the south hand
  * would consist of the following four frames:
@@ -61,19 +61,19 @@
  * | 5 | card                           | Key for card argument        |
  * | 6 | {"rank":"7","suit":"diamonds"} |                              |
  *
- * Commands with extraneous arguments MUST be accepted. Unrecognized arguments
- * SHOULD be ignored.
+ * Commands with additional unspecified arguments MUST be accepted. Unrecognized
+ * arguments SHOULD be ignored.
  *
  * In the following sections when describing the commands, the empty frame and
  * the serialization are ignored. Links to the pages describing the JSON
  * representation of the parameters are presented instead.
  *
- * The reply to the command MUST consist of an empty frame, status frame,
- * frame identifying the command and command dependent number of alternating
- * key and value frames for parameters accompanying the reply. The status MUST
- * be either success or failure depending on the state of the command. The
- * identification frame MUST be the same as the command frame of the message
- * it replies to. The arguments MUST be JSON data structures encoded in
+ * The reply to the command MUST consist of an empty frame, status frame, frame
+ * identifying the command and command dependent number of reply arguments
+ * consisting of alternating key and value frames. The status MUST be either
+ * success or failure depending on whether or not the command was successfully
+ * handled. The identification frame MUST be the same as the command frame of
+ * the message it replies to. The arguments MUST be JSON documents encoded in
  * UTF‐8. A failed reply MUST NOT be accompanied by parameters.
  *
  * \b Example. A successful reply to the bridgehlo command consists of the
@@ -87,15 +87,12 @@
  * | 4 | position                       |                              |
  * | 5 | "north"                        |                              |
  *
- * The peer MUST reply to every command that has valid format, including the
- * number and representation of the arguments.
- *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not
  * accepted. The reply to any of the previous MUST be failure.
  *
- * The control socket MUST NOT send any messages except replies to the
- * commands received.
+ * The backend MUST NOT send any messages through the control socket except
+ * replies to the commands received.
  *
  * \section bridgeprotocoleventmessage Event messages
  *
@@ -256,6 +253,11 @@
  * the index order for the purpose of the \ref bridgeprotocolcontrolplay
  * command.
  *
+ * \note To disambiguate the indexing of the cards determined by their place in
+ * the array of dealt cards from other related indexing concepts (most notably
+ * then hand index used when playing the cards), the indices of the cards in the
+ * dealt cards array are called the \e deck indices.
+ *
  * Peers MUST ignore the command and reply failure unless it comes from the
  * leader at the beginning of the deal, or if another protocol (such as card
  * server) is used for card exchange.
@@ -292,11 +294,16 @@
  *
  * Peers and clients use this command to announce that they want to play the
  * specified card during the playing phase. The first argument is the position
- * playing and the second argument is reference to the card played. The card
- * can be identified either by card type or index. If index (an integer
- * between 0–12) is used, it refers to the index established during the
- * shuffling phase. The index of each card remains the same throughout the
- * whole deal and does not change when cards are played.
+ * playing and the second argument is reference to the card played. The card can
+ * be identified either by card type or index. If index (an integer between
+ * 0–12) is used, it refers to the index established during the shuffling
+ * phase. The index of each card remains the same throughout the whole deal and
+ * does not change when cards are played.
+ *
+ * \note To disambiguate this index concept from the related concepts of
+ * indexing cards (most notably the \e deck index determined during the
+ * shuffling), the index used to refer to the place of the card in the hand is
+ * called the \e hand index.
  *
  * If the play comes from a client, the peer MUST send the command to other
  * peers. The index variant of referring to the card MUST be used if the card

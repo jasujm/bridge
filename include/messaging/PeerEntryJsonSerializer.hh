@@ -17,7 +17,7 @@
  * - &lt;id&gt; is a string containing the identity of the peer
  * - &lt;endpoint&gt; is a string containing the endpoint of the peer. Optional.
  *
- * \sa \ref cardprotocol
+ * \sa \ref cardserverprotocol
  */
 
 #ifndef MESSAGING_PEERENTRYJSONSERIALIZER_HH_
