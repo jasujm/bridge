@@ -90,23 +90,24 @@ class MessageQueue:
         handling messages stops due to an error, False is returned. Otherwise
         True is returned.
         """
-        while True:
+        ret = True
+        while self._socket.events & zmq.POLLIN:
             try:
-                parts = self._socket.recv_multipart(flags=zmq.NOBLOCK)
-            except zmq.Again:
-                return True
+                parts = self._socket.recv_multipart()
             except zmq.ZMQError as e:
                 logging.error(
                     "Error %d while receiving message from %s: %s",
                     e.errno, self._name, str(e))
-                return False
-            try:
-                self._handle_message(parts)
-            except ProtocolError as e:
-                logging.warning(
-                    "Unexpected event while handling message %r from %s: %s",
-                    parts, self._name, str(e))
-                return False
+                ret = False
+            else:
+                try:
+                    self._handle_message(parts)
+                except ProtocolError as e:
+                    logging.warning(
+                        "Unexpected event while handling message %r from %s: %s",
+                        parts, self._name, str(e))
+                    ret = False
+        return ret
 
     def _handle_message(self, parts):
         logging.debug("Received message: %r", parts)
