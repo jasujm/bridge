@@ -248,5 +248,5 @@ def main():
     code = app.exec_()
 
     logging.info("Main window closed. Closing sockets.")
-    zmqctx.destroy()
+    zmqctx.destroy(linger=0)
     sys.exit(code)

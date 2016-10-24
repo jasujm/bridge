@@ -94,6 +94,8 @@ class MessageQueue:
         while self._socket.events & zmq.POLLIN:
             try:
                 parts = self._socket.recv_multipart()
+            except zmq.ContextTerminated: # It's okay as we're about to exit
+                return True
             except zmq.ZMQError as e:
                 logging.error(
                     "Error %d while receiving message from %s: %s",
