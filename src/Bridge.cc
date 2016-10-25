@@ -7,7 +7,6 @@
 #include "Logging.hh"
 #include "Signals.hh"
 
-#include <boost/core/demangle.hpp>
 #include <zmq.hpp>
 
 #include <getopt.h>
@@ -16,7 +15,6 @@
 #include <atomic>
 #include <cassert>
 #include <cstdlib>
-#include <exception>
 #include <iostream>
 #include <string>
 
@@ -140,20 +138,9 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
 }
 
-int main(int argc, char* argv[])
+int bridge_main(int argc, char* argv[])
 {
-#ifndef NDEBUG
-    setupLogging(Bridge::LogLevel::DEBUG, std::cerr);
-#endif
-    log(Bridge::LogLevel::INFO, "%s started", argv[0]);
-    try {
-        zmq::context_t zmqctx;
-        createApp(zmqctx, argc, argv).run();
-    } catch (std::exception& e) {
-        log(
-            Bridge::LogLevel::FATAL,
-            "%s terminated with exception of type %r: %s",
-            argv[0], boost::core::demangle(typeid(e).name()), e.what());
-    }
+    zmq::context_t zmqctx;
+    createApp(zmqctx, argc, argv).run();
     return EXIT_SUCCESS;
 }
