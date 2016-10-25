@@ -4,8 +4,10 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "Logging.hh"
 #include "Signals.hh"
 
+#include <boost/core/demangle.hpp>
 #include <zmq.hpp>
 
 #include <getopt.h>
@@ -14,6 +16,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <string>
 
@@ -48,12 +51,14 @@ public:
     {
         appObserver = &app;
         startHandlingSignals(signalHandler);
+        log(Bridge::LogLevel::INFO, "Configuring application completed");
     }
 
     ~BridgeApp()
     {
         stopHandlingSignals();
         appObserver = nullptr;
+        log(Bridge::LogLevel::INFO, "Preparing to shut down");
     }
 
     void run()
@@ -82,7 +87,7 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     auto cardServerControlEndpoint = std::string {};
     auto cardServerBasePeerEndpoint = std::string {};
 
-    const auto short_opt = "b:p:c:t:q:";
+    const auto short_opt = "vb:p:c:t:q:";
     std::array<struct option, 6> long_opt {{
         { "bind", required_argument, 0, 'b' },
         { "positions", required_argument, 0, 'p' },
@@ -91,12 +96,15 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         { "cs-peer", required_argument, 0, 'q' },
         { nullptr, 0, 0, 0 },
     }};
+    auto verbosity = 0;
     auto opt_index = 0;
     while (true) {
         auto c = getopt_long(
             argc, argv, short_opt, long_opt.data(), &opt_index);
         if (c == -1 || c == '?') {
             break;
+        } else if (c == 'v') {
+            ++verbosity;
         } else if (c == 'b') {
             baseEndpoint = optarg;
         } else if (c == 'p') {
@@ -112,6 +120,14 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         }
     }
 
+    auto logging_level = Bridge::LogLevel::WARNING;
+    if (verbosity == 1) {
+        logging_level = Bridge::LogLevel::INFO;
+    } else if (verbosity >= 2) {
+        logging_level = Bridge::LogLevel::DEBUG;
+    }
+    setupLogging(logging_level, std::cerr);
+
     if (baseEndpoint.empty()) {
         std::cerr << argv[0] << ": --bind option required" << std::endl;
         std::exit(EXIT_FAILURE);
@@ -126,7 +142,18 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    zmq::context_t zmqctx;
-    createApp(zmqctx, argc, argv).run();
+#ifndef NDEBUG
+    setupLogging(Bridge::LogLevel::DEBUG, std::cerr);
+#endif
+    log(Bridge::LogLevel::INFO, "%s started", argv[0]);
+    try {
+        zmq::context_t zmqctx;
+        createApp(zmqctx, argc, argv).run();
+    } catch (std::exception& e) {
+        log(
+            Bridge::LogLevel::FATAL,
+            "%s terminated with exception of type %r: %s",
+            argv[0], boost::core::demangle(typeid(e).name()), e.what());
+    }
     return EXIT_SUCCESS;
 }

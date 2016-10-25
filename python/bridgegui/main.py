@@ -218,7 +218,7 @@ class BridgeWindow(QMainWindow):
             CONTRACT_TAG)
 
 def main():
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
 
     parser = argparse.ArgumentParser(description='Run bridge frontend')
     parser.add_argument(

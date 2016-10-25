@@ -11,9 +11,12 @@ add_subdirectory(engine)
 add_subdirectory(scoring)
 add_subdirectory(bridge_)
 
-add_executable(bridge Bridge.cc Signals.cc)
+add_library(bridge-common STATIC Signals.cc Logging.cc)
+target_compile_features(bridge-common PUBLIC ${BRIDGE_COMPILE_FEATURES})
+
+add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
-  bridge-engine bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES}
+  bridge-engine bridge-scoring bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
   Threads::Threads)
 
 install(TARGETS bridge RUNTIME DESTINATION bin)
@@ -23,10 +26,10 @@ if(LibTMCG_FOUND)
   if (${BRIDGE_BUILD_CARD_SERVER})
     include_directories(${LibTMCG_INCLUDE_DIR})
     add_subdirectory(csmain)
-    add_executable(bridgecs CardServer.cc Signals.cc)
+    add_executable(bridgecs CardServer.cc)
     target_link_libraries(bridgecs bridge-csmain bridge-messaging
-      bridge-cardserver bridge-bridge ${ZEROMQ_LIBRARIES} ${TMCG_LIBRARIES}
-      Threads::Threads)
+      bridge-cardserver bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
+      ${TMCG_LIBRARIES} Threads::Threads)
     install(TARGETS bridgecs RUNTIME DESTINATION bin)
   endif()
 endif()

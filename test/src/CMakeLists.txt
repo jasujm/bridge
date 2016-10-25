@@ -15,13 +15,16 @@ ExternalProject_Add(googletest
   GIT_TAG ec44c6c1675c25b9827aacd08c02433cccde7780
   INSTALL_COMMAND "")
 add_googlemock_library(gmock)
-add_googlemock_library(gmock_main)
 ExternalProject_Get_Property(googletest SOURCE_DIR)
 set(GOOGLETEST_INCLUDE_DIR
   ${SOURCE_DIR}/googletest/include ${SOURCE_DIR}/googlemock/include)
 
 set(BRIDGE_TEST_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/test/include ${GOOGLETEST_INCLUDE_DIR})
+
+add_library(test-common STATIC TestMain.cc ${PROJECT_SOURCE_DIR}/src/Logging.cc)
+target_include_directories(test-common PUBLIC ${BRIDGE_TEST_INCLUDE_DIRS})
+target_compile_features(test-common PUBLIC ${BRIDGE_COMPILE_FEATURES})
 
 function(add_bridge_test)
   set(OneValueArgs TARGET NAME)
@@ -30,10 +33,8 @@ function(add_bridge_test)
     "" "${OneValueArgs}" "${MultiValueArgs}" ${ARGN})
   file(GLOB src *.cc)
   add_executable(${BRIDGE_TEST_TARGET} ${src})
-  target_include_directories(${BRIDGE_TEST_TARGET}
-    PRIVATE ${BRIDGE_TEST_INCLUDE_DIRS})
   target_link_libraries(${BRIDGE_TEST_TARGET} ${BRIDGE_TEST_DEPENDS}
-    gmock gmock_main Threads::Threads)
+    gmock test-common Threads::Threads)
   add_test(${BRIDGE_TEST_NAME} ${BRIDGE_TEST_TARGET})
 endfunction()
 

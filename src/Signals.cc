@@ -1,7 +1,7 @@
-#include <signal.h>
+#include "Logging.hh"
 
 #include <cstdlib>
-#include <iostream>
+#include <signal.h>
 
 namespace Bridge {
 
@@ -11,7 +11,7 @@ void setSigactionOrDie(
     const int signum, const struct sigaction* const action)
 {
     if (sigaction(signum, action, nullptr)) {
-        std::cerr << "failed to set signal handler" << std::endl;
+        log(LogLevel::FATAL, "Failed to set signal handlers");
         std::exit(EXIT_FAILURE);
     }
 }
