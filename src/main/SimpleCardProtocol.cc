@@ -12,6 +12,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "Logging.hh"
 
 #include <boost/optional/optional.hpp>
 
@@ -89,6 +90,8 @@ void SimpleCardProtocol::Impl::handleNotify(
 {
     if (state == CardManager::ShufflingState::REQUESTED) {
         if (!leaderIdentity) {
+            log(LogLevel::DEBUG,
+                "Simple card protocol: Generating deck");
             auto cards = CardVector(
                 cardTypeIterator(0),
                 cardTypeIterator(N_CARDS));
@@ -100,6 +103,8 @@ void SimpleCardProtocol::Impl::handleNotify(
                 DEAL_COMMAND,
                 std::tie(CARDS_COMMAND, cards));
         } else {
+            log(LogLevel::DEBUG,
+                "Simple card protocol: Expecting deck");
             expectingCards = true;
         }
     }
@@ -108,6 +113,7 @@ void SimpleCardProtocol::Impl::handleNotify(
 Reply<> SimpleCardProtocol::Impl::peer(
     const std::string& identity, const PositionVector& positions)
 {
+    log(LogLevel::DEBUG, "Peer command from %s", asHex(identity));
     const auto acceptor = std::shared_ptr<PeerAcceptor>(peerAcceptor);
     const auto accept_state = acceptor->acceptPeer(identity, positions);
     if (accept_state != PeerAcceptState::REJECTED) {
@@ -124,6 +130,7 @@ Reply<> SimpleCardProtocol::Impl::peer(
 Reply<> SimpleCardProtocol::Impl::deal(
     const std::string& identity, const CardVector& cards)
 {
+    log(LogLevel::DEBUG, "Deal command from %s", identity);
     if (expectingCards && leaderIdentity == identity) {
         cardManager->shuffle(cards.begin(), cards.end());
         expectingCards = false;

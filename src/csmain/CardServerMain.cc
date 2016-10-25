@@ -19,6 +19,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "Enumerate.hh"
+#include "Logging.hh"
 #include "Utility.hh"
 
 #include <boost/optional/optional.hpp>
@@ -208,6 +209,9 @@ bool TMCG::shuffle()
                 !tmcg.TMCG_VerifyStackEquality(
                     stack, stack2, false, p_vtmf,
                     peer->instream, peer->outstream)) {
+                log(LogLevel::WARNING,
+                    "Failed to verify stack equality. Prover: %s",
+                    asHex(peer->identity));
                 return false;
             }
         } else {
@@ -285,6 +289,9 @@ bool TMCG::draw(const IndexVector& ns)
                 if (
                     !tmcg.TMCG_VerifyCardSecret(
                         card, p_vtmf, peer->instream, peer->outstream)) {
+                    log(LogLevel::WARNING,
+                        "Failed to verify card secret. Prover: %s",
+                        asHex(peer->identity));
                     return false;
                 }
             }
@@ -403,13 +410,14 @@ void CardServerMain::Impl::terminate()
 Reply<> CardServerMain::Impl::init(
     const std::string&, const int order, PeerVector&& peers)
 {
+    log(LogLevel::DEBUG, "Initializing");
     if (!tmcg) {
         try {
             tmcg.emplace(
                 context, order, std::move(peers), peerEndpointIterator);
             return success();
         } catch (TMCGInitFailure) {
-            // failed
+            log(LogLevel::WARNING, "Card server initialization failed");
         }
     }
     return failure();
@@ -417,36 +425,44 @@ Reply<> CardServerMain::Impl::init(
 
 Reply<> CardServerMain::Impl::shuffle(const std::string&)
 {
+    log(LogLevel::DEBUG, "Shuffling requested");
     if (tmcg && tmcg->shuffle()) {
         return success();
     }
+    log(LogLevel::WARNING, "Shuffling failed");
     return failure();
 }
 
 Reply<CardVector> CardServerMain::Impl::draw(
     const std::string&, const IndexVector& ns)
 {
+    log(LogLevel::DEBUG, "Drawing %d cards", ns.size());
     if (tmcg && tmcg->draw(ns)) {
         return success(tmcg->getCards());
     }
+    log(LogLevel::WARNING, "Drawing failed");
     return failure();
 }
 
 Reply<> CardServerMain::Impl::reveal(
     const std::string&, const std::string& identity, const IndexVector& ns)
 {
+    log(LogLevel::DEBUG, "Revealing %d cards to %s", ns.size(), asHex(identity));
     if (tmcg && tmcg->reveal(identity, ns)) {
         return success();
     }
+    log(LogLevel::WARNING, "Revealing failed");
     return failure();
 }
 
 Reply<CardVector> CardServerMain::Impl::revealAll(
     const std::string&, const IndexVector& ns)
 {
+    log(LogLevel::DEBUG, "Revealing %d cards to all players");
     if (tmcg && tmcg->revealAll(ns)) {
         return success(tmcg->getCards());
     }
+    log(LogLevel::WARNING, "Revealing to all players failed");
     return failure();
 }
 

@@ -49,14 +49,14 @@ public:
     {
         appObserver = &app;
         startHandlingSignals(signalHandler);
-        log(Bridge::LogLevel::INFO, "Configuring application completed");
+        log(Bridge::LogLevel::INFO, "Startup completed");
     }
 
     ~BridgeApp()
     {
         stopHandlingSignals();
         appObserver = nullptr;
-        log(Bridge::LogLevel::INFO, "Preparing to shut down");
+        log(Bridge::LogLevel::INFO, "Shutting down");
     }
 
     void run()

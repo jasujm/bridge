@@ -19,6 +19,7 @@
 #include "messaging/SerializationUtility.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
+#include "Logging.hh"
 #include "Utility.hh"
 
 #include <boost/optional/optional.hpp>
@@ -244,6 +245,7 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
 {
     handObservers.clear();
     shufflingStateNotifier.notifyAll(ShufflingState::REQUESTED);
+    log(LogLevel::DEBUG, "Card server proxy: Shuffling");
     sendCommand(CardServer::SHUFFLE_COMMAND);
     // For each peer, reveal their cards. For oneself (indicated by empty
     // identity) draw cards.
@@ -251,11 +253,14 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
         auto deckNs = cardsFor(
             peer.positions.begin(), peer.positions.end());
         if (peer.identity) {
+            log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
+                asHex(*peer.identity));
             sendCommand(
                 CardServer::REVEAL_COMMAND,
                 std::tie(CardServer::ID_COMMAND, *peer.identity),
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
         } else {
+            log(LogLevel::DEBUG, "Card server proxy: Drawing cards");
             sendCommand(
                 CardServer::DRAW_COMMAND,
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
@@ -324,6 +329,7 @@ Reply<> Impl::peer(
     const std::string& identity, PositionVector positions,
     std::string cardServerBasePeerEndpoint)
 {
+    log(LogLevel::DEBUG, "Peer command from %s", asHex(identity));
     auto ret = true;
     functionQueue(
         [this, &identity, &positions, &cardServerBasePeerEndpoint, &ret]()
@@ -399,16 +405,19 @@ void Impl::internalHandleHandRevealRequest(
 
 void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
 {
-    // FIXME: If any reply is not successful, the protocol just gets
-    // stuck. Error handling is needed.
     using namespace Messaging;
 
     if (&socket == sockets.front().first.get()) {
         auto reply = std::vector<std::string> {};
         recvAll(std::back_inserter(reply), socket);
         if (reply.size() < 2 || reply[0] != REPLY_SUCCESS) {
+            log(
+                LogLevel::WARNING,
+                "Card server failure. It is unlikely that the protocol can proceed.");
             return;
-        } else if (reply[1] == CardServer::SHUFFLE_COMMAND) {
+        }
+        log(LogLevel::DEBUG, "Card server proxy: Reply received for %s", reply[1]);
+        if (reply[1] == CardServer::SHUFFLE_COMMAND) {
             functionQueue(
                 [this]() { process_event(ShuffleSuccessfulEvent {}); });
         } else if (reply[1] == CardServer::REVEAL_COMMAND) {
@@ -519,6 +528,8 @@ void Initializing::internalInitCardServer()
     }
     // Send initialization and the initial shuffle commands
     auto& impl = outermost_context();
+    log(LogLevel::DEBUG,
+        "Card server proxy: Initializing card server. Order: %d.", order);
     impl.sendCommand(
         CardServer::INIT_COMMAND,
         std::tie(CardServer::ORDER_COMMAND, order),
@@ -627,6 +638,7 @@ private:
 sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
 {
     if (!hand) {
+        log(LogLevel::DEBUG,"Card server proxy: Revealing card(s) to all players");
         outermost_context().sendCommand(
             CardServer::REVEAL_ALL_COMMAND,
             std::tie(CardServer::CARDS_COMMAND, event.deckNs));

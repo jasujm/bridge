@@ -24,9 +24,12 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "Logging.hh"
 #include "Observer.hh"
 
 #include <boost/iterator/indirect_iterator.hpp>
+#include <boost/optional/optional.hpp>
+#include <boost/optional/optional_io.hpp>
 #include <zmq.hpp>
 
 #include <string>
@@ -164,9 +167,11 @@ std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
 {
     if (!cardServerControlEndpoint.empty() &&
         !cardServerBasePeerEndpoint.empty()) {
+        log(LogLevel::DEBUG, "Card exchange protocol: card server");
         return std::make_unique<CardServerProxy>(
             context, cardServerControlEndpoint);
     }
+    log(LogLevel::DEBUG, "Card exchange protocol: simple");
     return std::make_unique<SimpleCardProtocol>(peerCommandSender);
 }
 
@@ -265,6 +270,7 @@ void BridgeMain::Impl::startIfReady()
 {
     if (readyToStart()) {
         assert(engine);
+        log(LogLevel::DEBUG, "Starting bridge engine");
         engine->initiate();
     }
 }
@@ -311,6 +317,7 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
     assert(engine);
     const auto position = engine->getPosition(event.player);
+    log(LogLevel::DEBUG, "Call made. Position: %s. Call: %s", position, event.call);
     publish(
         CALL_COMMAND,
         std::tie(POSITION_COMMAND, position),
@@ -324,14 +331,17 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
 {
+    log(LogLevel::DEBUG, "Bidding completed");
     publish(BIDDING_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
     assert(engine);
-    const auto hand_position = engine->getPosition(event.hand);
+    const auto hand_position = dereference(engine->getPosition(event.hand));
     const auto card_type = event.card.getType().get();
+    log(LogLevel::DEBUG, "Card played. Position: %s. Card: %s", hand_position,
+        card_type);
     publish(
         PLAY_COMMAND,
         std::tie(POSITION_COMMAND, hand_position),
@@ -341,22 +351,26 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 void BridgeMain::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
 {
     const auto position = dereference(engine->getPosition(event.winner));
+    log(LogLevel::DEBUG, "Trick completed. Winner: %s", position);
     publish(TRICK_COMMAND, std::tie(WINNER_COMMAND, position));
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
 {
+    log(LogLevel::DEBUG, "Dummy hand revealed");
     publish(DUMMY_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
+    log(LogLevel::DEBUG, "Deal ended");
     publish(DEAL_END_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
 {
     if (state == CardManager::ShufflingState::COMPLETED) {
+        log(LogLevel::DEBUG, "Shuffling completed");
         publish(DEAL_COMMAND);
     }
 }
@@ -381,8 +395,12 @@ Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
     assert(peerClientControl);
     if (const auto player = peerClientControl->addClient(identity)) {
         assert(engine);
-        return success(engine->getPosition(*player));
+        const auto position = engine->getPosition(*player);
+        log(LogLevel::DEBUG, "Client accepted: %s. Position: %s",
+            asHex(identity), position);
+        return success(position);
     }
+    log(LogLevel::DEBUG, "Client rejected: %s", asHex(identity));
     return failure();
 }
 
@@ -395,6 +413,7 @@ CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end()));
     if (success) {
+        log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
         if (readyToStart()) {
             // Engine initialization is deferred to give the card protocol
             // opportunity to initialize before cards are requested
@@ -405,6 +424,7 @@ CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
         }
         return CardProtocol::PeerAcceptState::ACCEPTED;
     }
+    log(LogLevel::DEBUG, "Peer rejected: %s", identity);
     return CardProtocol::PeerAcceptState::REJECTED;
 }
 
@@ -412,6 +432,8 @@ Reply<> BridgeMain::Impl::call(
     const std::string& identity, const boost::optional<Position>& position,
     const Call& call)
 {
+    log(LogLevel::DEBUG, "Call command from %s. Position: %s. Call: %s",
+        asHex(identity), position, call);
     if (const auto player = getPlayerFor(identity, position)) {
         assert(engine);
         if (engine->call(*player, call)) {
@@ -426,6 +448,9 @@ Reply<> BridgeMain::Impl::play(
     const boost::optional<CardType>& card,
     const boost::optional<std::size_t>& index)
 {
+    log(LogLevel::DEBUG, "Play command from %s. Position: %s. Card: %s. Index: %d",
+        asHex(identity), position, card, index);
+
     // Either card or index - but not both - needs to be provided
     if (bool(card) == bool(index)) {
         return failure();
