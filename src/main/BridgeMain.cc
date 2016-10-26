@@ -197,6 +197,7 @@ BridgeMain::Impl::Impl(
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
+    controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     controlSocket->bind(*endpointIterator++);
     eventSocket.bind(*endpointIterator);
     auto handlers = MessageQueue::HandlerMap {

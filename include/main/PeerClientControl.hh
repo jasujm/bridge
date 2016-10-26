@@ -40,25 +40,28 @@ public:
 
     /** \brief Add new client
      *
-     * The client is mapped to one of the players controlled by this
+     * This method maps a client to one of the players controlled by this
      * application. Clients are assigned players to control in the order they
-     * were in the range given as parameter to the constructor. If there are
-     * no more players that the client could be assigned to, the client cannot
-     * be added.
+     * were in the range given as parameter to the constructor. If there are no
+     * more players that the client could be assigned to, the client cannot be
+     * added.
+     *
+     * If \p identity is the identity of an already added client, the player
+     * already assigned to the client is returned.
      *
      * \param identity identity string of the client
      *
-     * \return pointer to the player the newly created client is allowed to
-     * control, or nullptr if adding the client was not successful
+     * \return pointer to the player the newly created or existing client is
+     * allowed to control, or nullptr if adding the client was not successful
      */
-    const Player* addClient(std::string identity);
+    const Player* addClient(const std::string& identity);
 
     /** \brief Add new peer
      *
-     * Peer is other bridge application that controls some players that the
-     * application itself or no other peer controls. If the peer tries to
-     * assume control of a player either this application or another peer
-     * added previously controls, the peer cannot be added.
+     * A peer is another bridge application that controls some players that the
+     * application itself or no other peer controls. If the peer tries to assume
+     * control of a player either this application or another peer added
+     * previously controls, the peer cannot be added.
      *
      * \tparam PlayerIterator An input iterator that, when dereferenced,
      * returns a reference to Player object.

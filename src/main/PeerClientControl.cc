@@ -66,16 +66,17 @@ private:
     const Player& player;
 };
 
-const Player* PeerClientControl::addClient(std::string identity)
+const Player* PeerClientControl::addClient(const std::string& identity)
 {
-    if (nClients >= nSelfPlayers)
-    {
+    if (const auto player = getPlayer(identity)) {
+        return player;
+    } else if (nClients >= nSelfPlayers) {
         return nullptr;
     }
 
     assert(nClients < allPlayers.size());
     const auto& player = allPlayers[nClients].get();
-    const auto entry = others.emplace(std::move(identity), Client {player});
+    const auto entry = others.emplace(identity, Client {player});
     if (entry.second) {
         ++nClients;
         return &player;

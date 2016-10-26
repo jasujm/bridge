@@ -17,6 +17,7 @@ import zmq
 
 import bridgegui.bidding as bidding
 import bridgegui.cards as cards
+import bridgegui.config as config
 import bridgegui.messaging as messaging
 from bridgegui.messaging import sendCommand
 import bridgegui.score as score
@@ -220,17 +221,28 @@ class BridgeWindow(QMainWindow):
 def main():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s')
 
-    parser = argparse.ArgumentParser(description='Run bridge frontend')
+    parser = argparse.ArgumentParser(description="Run bridge frontend")
     parser.add_argument(
-        'endpoint',
-        help='''Base endpoint of the bridge backend. Follows ZeroMQ transmit
-             protocol syntax. For example: tcp://bridge.example.com:5555''')
+        "endpoint",
+        help="""Base endpoint of the bridge backend. Follows ZeroMQ transmit
+             protocol syntax. For example: tcp://bridge.example.com:5555""")
+    parser.add_argument(
+        "--config",
+        help="""Configuration file. The file tracks the identity of the player
+             withing a single bridge session. By using the same configuration
+             file between runs, the game session can be preserved.
+
+             If the file does not exist, it will be created with a new random
+             identity. It is possible to play without config file but in that
+             case preserving the session is not possible.""")
     args = parser.parse_args()
 
     logging.info("Initializing sockets")
     zmqctx = zmq.Context.instance()
     endpoint_generator = messaging.endpoints(args.endpoint)
     control_socket = zmqctx.socket(zmq.DEALER)
+    identity = config.getIdentity(args.config)
+    control_socket.identity = identity.bytes
     control_socket.connect(next(endpoint_generator))
     event_socket = zmqctx.socket(zmq.SUB)
     event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)

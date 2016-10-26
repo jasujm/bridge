@@ -22,13 +22,15 @@
  * for the player they control. A program implementing the client protocol is
  * typically the one the user interacts with.
  *
- * Bridge protocol uses ZMTP over TCP (http://rfc.zeromq.org/spec:23). Each
+ * Bridge protocol uses ZMTP 3.0 over TCP (http://rfc.zeromq.org/spec:23). Each
  * peer MUST open control socket (ROUTER) for communicating commands and game
  * state with clients, and SHOULD open event socket (PUB) for publishing
  * events. Clients and other peers wishing to interact with the peer MUST
- * connect to the control socket using a ZMTP socket compatible with
- * ROUTER. In addition they MAY connect to the event socket to subscribe to
- * one or more events.
+ * connect to the control socket using a socket compatible with ROUTER. In
+ * addition they MAY connect to the event socket to subscribe to one or more
+ * events. A client SHOULD set its identity to a unique value (such as UUID
+ * generated for the specific session). If a client disconnects and reconnects,
+ * a peer MUST handover the connection to the new client.
  *
  * The communication with the control socket is based on requests and
  * replies. The peer or client connecting to the control socket sends a
@@ -146,6 +148,14 @@
  * else. A successful reply to the command consists of the position the peer
  * assigns to the client. The peer MUST assign one of the positions it
  * controls itself. It MUST assign different position to each client.
+ *
+ * If a client (or a new client with the same identity as the original client)
+ * sends the command again, the peer MUST send the previously assigned position
+ * back to the client.
+ *
+ * \note The requirement to accept multiple bridgehlo commands from the clients
+ * with the same identity enables handling over the state to new client or
+ * recovering from disconnection.
  *
  * \subsection bridgeprotocolcontrolget get
  *

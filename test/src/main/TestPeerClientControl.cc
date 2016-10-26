@@ -43,10 +43,10 @@ TEST_F(PeerClientControlTest, testAddClient)
     EXPECT_EQ(&players[1], peerClientControl.addClient(CLIENT2));
 }
 
-TEST_F(PeerClientControlTest, testTwoClientsCannotHaveSameIdentity)
+TEST_F(PeerClientControlTest, testAddExistingClient)
 {
-    peerClientControl.addClient(CLIENT1);
-    EXPECT_FALSE(peerClientControl.addClient(CLIENT1));
+    const auto player = peerClientControl.addClient(CLIENT1);
+    EXPECT_EQ(player, peerClientControl.addClient(CLIENT1));
 }
 
 TEST_F(
