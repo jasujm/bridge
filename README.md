@@ -82,6 +82,9 @@ If the last two parameters are present, card server is used for secure card
 exchange between the peers. Otherwise plaintext simple card exchange protocol
 is used, so no peeking the network traffic :innocent:
 
+To increase logging level, -v and -vv flags can be used for INFO and DEBUG level
+logging, respectively.
+
 Run the four frontend (client) instances
 
     $ bridgegui endpoint
@@ -171,14 +174,15 @@ person — the interesting network stuff comes first and the (in comparison)
 boring UX stuff comes later. In approximate order of importance the next goals
 for this project are:
 
-- Basic reliability against lost connections, crashes and such failures
 - Backend to host more games and similar features one would expect from server
   software
 - Peer discovery
-- More user friendly configuring and installation
+- More user friendly configuration and installation
   - This includes replacing the cumbersome command line configurations with
     nicer mechanism
 - Nicer GUI
+- Persistent state for the backend (recover sessions after crash/restart, keep
+  records etc.)
 
 ## Acknowledgments
 
