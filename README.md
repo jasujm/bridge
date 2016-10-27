@@ -52,9 +52,9 @@ To build and run unit tests for the backend
 
 Run the backend (server) located in the top level build directory
 
-    $ bridge --bind=endpoint --positions=positions                      \
-    >   --connect=peer‐endpoints --cs-cntl=cardserver‐control‐endpoint  \
-    >   --cs-peer=cardserver‐base‐peer‐endpoint
+    $ bridge --positions=positions --connect=peer‐endpoints   \
+    >   --cs-cntl=cardserver‐control‐endpoint                 \
+    >   --cs-peer=cardserver‐base‐peer‐endpoint endpoint
 
 The backend opens two sockets into two consequtive ports. The first one is
 used to receive commands from the frontend and peers. The second one is for
@@ -62,7 +62,7 @@ publishing events to the clients.
 
 Arguments to the options are:
 
-    bind       The endpoint for control socket. The endpoint for event socket
+    endpoint   The endpoint for control socket. The endpoint for event socket
                has the same interface but one greater port, i.e. if the
                endpoint for control socket is tcp://*:5555, the endpoint
                for event socket is tcp://*:5556.
@@ -94,7 +94,7 @@ By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server
 model one backend controls all positions and all frontends connect to it.
 
-    $ bridge --bind=tcp://*:5555
+    $ bridge tcp://*:5555
     $ for n in {1..4}; do
     >   bridgegui tcp://example.com:5555 &
     > done
@@ -102,8 +102,8 @@ model one backend controls all positions and all frontends connect to it.
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ bridge --bind=tcp://*:5555 --positions='["north"]'               \
-    >   --connect='["tcp://peer1.example.com:5555",…]' &
+    $ bridge --positions='["north"]'                                      \
+    >     --connect='["tcp://peer1.example.com:5555",…]' tcp://*:5555 &
     $ bridgegui tcp://localhost:5555
 
 Players and their cards are shown in the middle of the screen. The player
@@ -145,9 +145,9 @@ card server is started with the same arguments. The control endpoint does needs
 to be visible only to the backend. The peer endpoints must be accessible to the
 peers.
 
-    $ bridge --bind=tcp://*:5555 --positions='["north"]'                \
-    >   --connect='["tcp://peer1.example.com:5555",…]'                  \
-    >   --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
+    $ bridge --positions='["north"]'                                           \
+    >     --connect='["tcp://peer1.example.com:5555",…]'                       \
+    >     --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 tcp://*:5555 &
     $ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
     $ bridgegui tcp://localhost:5555
 

@@ -78,16 +78,14 @@ T parseArgument(const char* arg)
 
 BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    auto baseEndpoint = std::string {};
     auto positions = BridgeMain::PositionVector(
         POSITIONS.begin(), POSITIONS.end());
     auto peerEndpoints = BridgeMain::EndpointVector {};
     auto cardServerControlEndpoint = std::string {};
     auto cardServerBasePeerEndpoint = std::string {};
 
-    const auto short_opt = "vb:p:c:t:q:";
+    const auto short_opt = "vp:c:t:q:";
     std::array<struct option, 6> long_opt {{
-        { "bind", required_argument, 0, 'b' },
         { "positions", required_argument, 0, 'p' },
         { "connect", required_argument, 0, 'c' },
         { "cs-cntl", required_argument, 0, 't' },
@@ -103,8 +101,6 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
             break;
         } else if (c == 'v') {
             ++verbosity;
-        } else if (c == 'b') {
-            baseEndpoint = optarg;
         } else if (c == 'p') {
             positions = parseArgument<BridgeMain::PositionVector>(optarg);
         } else if (c == 'c') {
@@ -118,6 +114,11 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         }
     }
 
+    if (optind == argc) {
+        std::cerr << argv[0] << ": base endpoint required" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     auto logging_level = Bridge::LogLevel::WARNING;
     if (verbosity == 1) {
         logging_level = Bridge::LogLevel::INFO;
@@ -126,13 +127,8 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     }
     setupLogging(logging_level, std::cerr);
 
-    if (baseEndpoint.empty()) {
-        std::cerr << argv[0] << ": --bind option required" << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
     return BridgeApp {
-        zmqctx, baseEndpoint, positions, peerEndpoints,
+        zmqctx, argv[optind], positions, peerEndpoints,
         cardServerControlEndpoint, cardServerBasePeerEndpoint};
 }
 
