@@ -87,11 +87,17 @@ logging, respectively.
 
 Run the four frontend (client) instances
 
-    $ bridgegui endpoint
+    $ bridgegui --config=bridge-config endpoint
 
 where endpoint is the control endpoint of the backend application. Exactly one
 frontend must connect for each position the backend controls. The backend
 automatically assigns positions in order the frontends connect.
+
+The configuration file specified with the --config option is optional but
+useful. It remembers the frontend to remember its identity. If the client quits
+(or worse, crashes), the old session can be recovered by specifying the same
+configuration file and backend. The file can be any file to which the used has
+write access.
 
 By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server
@@ -109,13 +115,12 @@ application and (presumably) local frontend connecting to it.
     >     --connect='["tcp://peer1.example.com:5555",…]' tcp://*:5555 &
     $ bridgegui tcp://localhost:5555
 
-Players and their cards are shown in the middle of the screen. The player
-whose position is bolded has turn to call (during auction) or play a card to
-the trick (during playing). Only the cards of the player in turn and (during
-the playing phase) the dummy are shown at any time.
+Players and their cards are shown in the middle of the screen. The player whose
+position is bolded has turn to call (during auction) or play a card to the trick
+(during playing).
 
-Note! The application does not yet correctly handle peers and clients leaving
-and rejoining the game. If connection is lost, the position is never reassigned.
+Note! The application does not yet correctly handle peers leaving and rejoining
+the game. If a peer or a card server crashes, the session is likely lost.
 
 ### Score
 
@@ -137,16 +142,17 @@ that cannot be played to the current trick are slightly transparent.
 ## Card server
 
 If [LibTMCG](http://www.nongnu.org/libtmcg/) is found in the system, the card
-server is built in addition to the bridge application. When used with the bridge
-application, the card server is responsible for executing the actual mental card
-game protocol. Small Python program used to test the card server is run as part
-of the ctest suite.
+server is built in addition to the bridge application. Card server can be used
+to execute secure mental card game protocol (ensuring that peers cannot know the
+cards of the other peers except when all peers cooperate within the normal laws
+of contract bridge). Small Python program used to test the card server is run as
+part of the ctest suite.
 
 In order to the use the card server with the bridge application, each peer must
-supply cs-cntl and cs-peer arguments when starting the backend application. The
-card server is started with the same arguments. The control endpoint does needs
-to be visible only to the backend. The peer endpoints must be accessible to the
-peers.
+supply the cs-cntl and cs-peer options when starting the backend application.
+The card server is started, giving the same endpoints as arguments. The control
+endpoint does needs to be visible only to the backend. The peer endpoints must
+be accessible to the peers.
 
     $ bridge --positions='["north"]'                                           \
     >     --connect='["tcp://peer1.example.com:5555",…]'                       \
