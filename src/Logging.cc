@@ -41,6 +41,16 @@ std::ostream& logStream()
 
 }
 
+LogLevel getLogLevel(int verbosity)
+{
+    if (verbosity >= 2) {
+        return LogLevel::DEBUG;
+    } else if (verbosity == 1) {
+        return LogLevel::INFO;
+    }
+    return LogLevel::WARNING;
+}
+
 void setupLogging(LogLevel level, std::ostream& stream)
 {
     globalLoggingLevel = level;

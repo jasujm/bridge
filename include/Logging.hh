@@ -128,6 +128,21 @@ void log(LogLevel level, const String& format, const Ts&... ts)
     }
 }
 
+/** \brief Default mapping between verbosity and logging level
+ *
+ * It is common convention that the verbosity of the output of an application
+ * can be increased and decreased by specifying -v option one or more times when
+ * invoking the application. This function provides the default mapping between
+ * the number of times verbosity is specified and the logging level for the
+ * verbosity.
+ *
+ * \param verbosity the verbosity level (typically the number of times -v flag
+ * is given)
+ *
+ * \return LogLevel corresponding the verbosity (0 warning, 1 info, >=2 debug)
+ */
+LogLevel getLogLevel(int verbosity);
+
 /** \brief Setup logging utility
  *
  * This function sets up the (global) minimum logging level and the stream to

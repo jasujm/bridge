@@ -2,6 +2,7 @@
 #include "Signals.hh"
 #include "Logging.hh"
 
+#include <getopt.h>
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
@@ -36,6 +37,8 @@ public:
         log(Bridge::LogLevel::INFO, "Setup completed");
     }
 
+    CardServerApp(CardServerApp&&) = default;
+
     ~CardServerApp()
     {
         stopHandlingSignals();
@@ -55,21 +58,41 @@ private:
 
 }
 
-int bridge_main(int argc, char* argv[])
+CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    if (argc != 3) {
-        std::cerr << argv[0] << ": Unexpected number of arguments" << std::endl;
-        return EXIT_FAILURE;
+    const auto opt = "v";
+    auto verbosity = 0;
+    while(true) {
+        auto c = getopt(argc, argv, opt);
+        if (c == -1 || c == '?') {
+            break;
+        } else if (c == 'v') {
+            ++verbosity;
+        } else {
+            exit(EXIT_FAILURE);
+        }
     }
+
+    if (optind + 1 >= argc) {
+        std::cerr << argv[0]
+            << ": control and base peer endpoints required" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
 
     if (!init_libTMCG()) {
-        log(
-            Bridge::LogLevel::FATAL,
+        log(Bridge::LogLevel::FATAL,
             "Failed to initialize LibTMCG. Exiting.");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
+    return CardServerApp {zmqctx, argv[optind], argv[optind+1]};
+}
+
+int bridge_main(int argc, char* argv[])
+{
     zmq::context_t zmqctx;
-    CardServerApp {zmqctx, argv[1], argv[2]}.run();
+    createApp(zmqctx, argc, argv).run();
     return EXIT_SUCCESS;
 }

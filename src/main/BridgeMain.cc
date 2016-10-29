@@ -501,6 +501,8 @@ BridgeMain::BridgeMain(
     impl->startIfReady();
 }
 
+BridgeMain::BridgeMain(BridgeMain&&) = default;
+
 BridgeMain::~BridgeMain() = default;
 
 void BridgeMain::run()

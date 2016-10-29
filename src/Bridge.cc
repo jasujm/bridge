@@ -8,7 +8,6 @@
 #include "Signals.hh"
 
 #include <zmq.hpp>
-
 #include <getopt.h>
 
 #include <array>
@@ -51,6 +50,8 @@ public:
         startHandlingSignals(signalHandler);
         log(Bridge::LogLevel::INFO, "Startup completed");
     }
+
+    BridgeApp(BridgeApp&&) = default;
 
     ~BridgeApp()
     {
@@ -119,13 +120,7 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    auto logging_level = Bridge::LogLevel::WARNING;
-    if (verbosity == 1) {
-        logging_level = Bridge::LogLevel::INFO;
-    } else if (verbosity >= 2) {
-        logging_level = Bridge::LogLevel::DEBUG;
-    }
-    setupLogging(logging_level, std::cerr);
+    setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
 
     return BridgeApp {
         zmqctx, argv[optind], positions, peerEndpoints,

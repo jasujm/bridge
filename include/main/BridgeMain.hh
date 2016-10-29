@@ -74,6 +74,14 @@ public:
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
+    /** \brief Move construct bridge backend
+     *
+     * \note This constructor definition is required to allow returning
+     * BridgeMain by value from a factory function. No method may be invoked on
+     * the moved‐from BridgeMain object.
+     */
+    BridgeMain(BridgeMain&&);
+
     ~BridgeMain();
 
     /** \brief Run the backend message queue

@@ -61,3 +61,10 @@ TEST_F(LoggingTest, testHexFormatting)
     log(Bridge::LogLevel::WARNING, "%s"s, Bridge::asHex(data));
     EXPECT_NE(std::string::npos, stream.str().find("0123456789abcdef"));
 }
+
+TEST_F(LoggingTest, testVerbosity)
+{
+    EXPECT_EQ(Bridge::LogLevel::WARNING, Bridge::getLogLevel(0));
+    EXPECT_EQ(Bridge::LogLevel::INFO, Bridge::getLogLevel(1));
+    EXPECT_EQ(Bridge::LogLevel::DEBUG, Bridge::getLogLevel(2));
+}

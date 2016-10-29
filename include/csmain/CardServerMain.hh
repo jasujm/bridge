@@ -6,7 +6,6 @@
 #ifndef CARDSERVER_CARDSERVERMAIN_HH_
 #define CARDSERVER_CARDSERVERMAIN_HH_
 
-#include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
 
 #include <memory>
@@ -51,6 +50,14 @@ public:
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& basePeerEndpoint);
 
+    /** \brief Move construct card server
+     *
+     * \note This constructor definition is required to allow returning
+     * CardServerMain by value from a factory function. No method may be invoked
+     * on the moved‐from CardServerMain object.
+     */
+    CardServerMain(CardServerMain&&);
+
     ~CardServerMain();
 
     /** \brief Run the card server
@@ -69,7 +76,7 @@ public:
 private:
 
     class Impl;
-    const std::unique_ptr<Impl> impl;
+    std::unique_ptr<Impl> impl;
 };
 
 

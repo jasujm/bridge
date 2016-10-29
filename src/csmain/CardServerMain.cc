@@ -473,6 +473,8 @@ CardServerMain::CardServerMain(
 {
 }
 
+CardServerMain::CardServerMain(CardServerMain&&) = default;
+
 CardServerMain::~CardServerMain() = default;
 
 void CardServerMain::run()
