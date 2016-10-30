@@ -9,7 +9,7 @@ add_subdirectory(messaging)
 add_subdirectory(cardserver)
 add_subdirectory(engine)
 add_subdirectory(scoring)
-add_subdirectory(bridge_)
+add_subdirectory(bridge)
 
 add_library(bridge-common STATIC Signals.cc Logging.cc Boilerplate.cc)
 target_compile_features(bridge-common PUBLIC ${BRIDGE_COMPILE_FEATURES})

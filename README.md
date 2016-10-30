@@ -50,7 +50,7 @@ To build and run unit tests for the backend
 
 ## Usage
 
-Run the backend (server) located in the top level build directory
+Run the backend (server):
 
     $ bridge --positions=positions --connect=peer‐endpoints   \
     >   --cs-cntl=cardserver‐control‐endpoint                 \
