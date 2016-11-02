@@ -14,39 +14,69 @@
  *
  * \section bridgeprotocolintro Introduction
  *
- * Two kinds of entities can connect to the control socket: peers and
- * clients. Peers are equal backends, each keeping its own state of the game,
- * with peers exchanging only necessary information, such as calls and cards
- * played, to make the game possible. Clients are frontends that receive
- * processed state from one peer and relying on the peer to convey commands
- * for the player they control. A program implementing the client protocol is
- * typically the one the user interacts with.
+ * This document describes network protocol for playing contract bridge. The
+ * protocol allows either client‐server or peer‐to‐peer network topologies. It
+ * allows several methods of exchanging cards between peers: this document
+ * defines a clear text protocol between trusted parties and, together with the
+ * \ref cardserverprotocol, a secure mental card game protocol where lower level
+ * of trust is required.
  *
- * Bridge protocol uses ZMTP 3.0 over TCP (http://rfc.zeromq.org/spec:23). Each
- * peer MUST open control socket (ROUTER) for communicating commands and game
- * state with clients, and SHOULD open event socket (PUB) for publishing
- * events. Clients and other peers wishing to interact with the peer MUST
- * connect to the control socket using a socket compatible with ROUTER. In
- * addition they MAY connect to the event socket to subscribe to one or more
- * events. A client SHOULD set its identity to a unique value (such as UUID
- * generated for the specific session). If a client disconnects and reconnects,
- * a peer MUST handover the connection to the new client.
+ * \section bridgeprotocoltransport Transport
  *
- * The communication with the control socket is based on requests and
- * replies. The peer or client connecting to the control socket sends a
- * command (possibly with arguments) and receives a reply indicating whether
- * or not the command was successful. The command is a string identifier. The
- * parameters are command specific data structures serialized into JSON. The
- * control socket accepts same commands from both peers and clients, but the
- * way they react to the command differs.
+ * Bridge protocol uses ZMTP 3.0 over TCP (http://rfc.zeromq.org/spec:23).
  *
- * Clients typically also connect to the event socket, from which they receive
- * asynchronously information about events coming from other peers and clients.
+ * \section bridgeprotocolroles Roles
+ *
+ * There are two kinds of roles: clients and peers. This section describes the
+ * requirements clients and peers (collectively known as nodes) must satisfy.
+ *
+ * \subsection bridgeprotocolpeer Peers
+ *
+ * - MUST open a control socket (ROUTER) to which nodes connect to
+ * - SHOULD open an event socket (PUB) to which other nodes can subscribe for
+ *   events
+ * - Are REQUIRED to keep record the full state of each game they take part in
+ * - MAY represent multiple players in each came they take part in
+ * - MAY accept connections from clients
+ * - SHOULD delegate the control of the players it represents to the accepted
+ *   clients
+ * - For each accepted client, MUST handle commands specified in \ref
+ *   bridgeprotocolcontrolmessage
+ * - MAY accept connections from other peers
+ * - MUST agree with all peers taking part in a game about the players each
+ *   represents
+ * - MUST co‐operate with each other peer that takes part in the same games by
+ *   sending commands required in \ref bridgeprotocolcontrolmessage
+ * - SHOULD hand over connection to nodes that connect with the same identity as
+ *   previously connected node
+ *
+ * \subsection bridgeprotocolclients Clients
+ *
+ * - SHOULD connect to one peer (control and event sockets) at a time to control
+ *   one of the players it represents
+ * - MAY rely on the peer to track the full state of the game
+ * - SHOULD set identity to a value that is unique with high probability (such
+ *   as binary presentation of UUID it generates)
+ *
+ * \subsection bridgeprotocolplayers Players
+ *
+ * In the bridge protocol a \e player is an uniquely identified entity that
+ * takes actions in a bridge game subject to the rules of contract bridge. In
+ * each game, a peer represents one or more players with the intention of
+ * delegating control of the to the clients connecting to the peer. A peer
+ * representing a player, or a client controlling a player represented by the
+ * peer itself, is said to be allowed to act for that player.
+ *
+ * The bridge protocol allows multiple network topologies. In pure client‐server
+ * model a single peer represents all players and all clients connect to the
+ * single peer. In pure peer‐to‐peer model each peer only represents one
+ * player. In peer‐to‐peer model the peer can be considered a backend and the
+ * client a frontend of a single bridge application.
  *
  * \section bridgeprotocolcontrolmessage Control messages
  *
- * All ZMTP messages sent to the control socket of a peer MUST consist of an
- * empty frame, the command frame and command dependent arguments consisting of
+ * All messages sent to the control socket of a peer MUST consist of an empty
+ * frame, the command frame and command dependent arguments consisting of
  * alternating key and value frames. The command and argument key parts MUST
  * consist of printable ASCII characters. The argument values MUST be JSON
  * documents encoded in UTF‐8.
@@ -66,17 +96,18 @@
  * Commands with additional unspecified arguments MUST be accepted. Unrecognized
  * arguments SHOULD be ignored.
  *
- * In the following sections when describing the commands, the empty frame and
- * the serialization are ignored. Links to the pages describing the JSON
+ * \note In the following sections when describing the commands, the empty frame
+ * and the serialization are ignored. Links to the pages describing the JSON
  * representation of the parameters are presented instead.
  *
- * The reply to the command MUST consist of an empty frame, status frame, frame
- * identifying the command and command dependent number of reply arguments
- * consisting of alternating key and value frames. The status MUST be either
- * success or failure depending on whether or not the command was successfully
- * handled. The identification frame MUST be the same as the command frame of
- * the message it replies to. The arguments MUST be JSON documents encoded in
- * UTF‐8. A failed reply MUST NOT be accompanied by parameters.
+ * The peer MUST reply to properly formatted messages. The reply to the command
+ * MUST consist of an empty frame, status frame, frame identifying the command
+ * and command dependent number of reply arguments consisting of alternating key
+ * and value frames. The status MUST be either success or failure depending on
+ * whether or not the command was successfully handled. The identification frame
+ * MUST be the same as the command frame of the message it replies to. The
+ * arguments MUST be JSON documents encoded in UTF‐8. A failed reply MUST NOT be
+ * accompanied by parameters.
  *
  * \b Example. A successful reply to the bridgehlo command consists of the
  * following three frames:
@@ -93,8 +124,8 @@
  * does not recognize or commands from peers and clients it has not
  * accepted. The reply to any of the previous MUST be failure.
  *
- * The backend MUST NOT send any messages through the control socket except
- * replies to the commands received.
+ * A peer MUST NOT send any messages through the control socket except replies
+ * to the commands received.
  *
  * \section bridgeprotocoleventmessage Event messages
  *
@@ -125,17 +156,19 @@
  * - \b Reply: \e none
  *
  * Each peer MUST send the bridgerp command to each other peer before sending
- * anything else. The command consists of the list of positions the peer
- * intends to control. If card server is intended to be used as card exchange
- * protocol, the cardServer parameter MUST contain the base endpoint for the
- * card server used by the peers.
+ * anything else. The command consists of the list of positions of the players
+ * the peer intends to represent. If card server is intended to be used as card
+ * exchange protocol, the cardServer parameter MUST contain the base endpoint
+ * for the card server used by the peers.
  *
  * A successful reply means that the peer is accepted and is allowed to
- * control the positions it announces. If cardServer parameter is present, it
- * also means that the peer will establish connection to the card server.
+ * represent the players at the positions it announces. If cardServer parameter
+ * is present, it also means that the peer will establish connection to the card
+ * server.
  *
- * A peer MUST reply failure if the peer or any other peer it has accepted
- * already controls any of the positions.
+ * A peer MAY reject the request. It MUST reply failure if the peer itself or
+ * any other peer it has accepted already represents the player at any of the
+ * positions.
  *
  * \subsection bridgeprotocolcontrolbridgehlo bridgehlo
  *
@@ -147,11 +180,15 @@
  * Each client MUST send bridgehlo to one of the peers before sending anything
  * else. A successful reply to the command consists of the position the peer
  * assigns to the client. The peer MUST assign one of the positions it
- * controls itself. It MUST assign different position to each client.
+ * represents for the client to control. It MUST assign different position to
+ * each client.
  *
  * If a client (or a new client with the same identity as the original client)
  * sends the command again, the peer MUST send the previously assigned position
  * back to the client.
+ *
+ * A peer MAY reject the request. It MUST reject the request if there are no
+ * more players the client could control.
  *
  * \note The requirement to accept multiple bridgehlo commands from the clients
  * with the same identity enables handling over the state to new client or
@@ -180,16 +217,16 @@
  * Get commands returns one or multiple values corresponding to the keys
  * specified. The keys parameter is a array of keys to be retrieved. The reply
  * MUST contain the values corresponding to the keys. Keys that are not
- * recognized SHOULD be igrored.
+ * recognized SHOULD be ignored.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game
  * themselves, and in fact it is not possible for a peer to know what a player
- * controlled by another peer is supposed to see (in particular their
+ * represented by another peer is supposed to see (in particular their
  * cards). Therefore, the result of this command is unspecified if it comes from
  * another peer. In particular, get command from peer MAY be ignored with
  * failure message. In any case any information about hidden cards of a player
- * MUST NOT be revealed to peer or client not controlling that player.
+ * MUST NOT be revealed to a node not controlling or representing that player.
  *
  * The \b positionInTurn parameter contains the position of the player that has
  * the turn to act next. If no player has turn (e.g. because deal has ended and
@@ -255,9 +292,9 @@
  * - \b Reply: \e none
  *
  * If the simple card exchange protocol is used, the leader, i.e. the peer
- * controlling the north position, MUST send this command to all the other
- * peers at the beginning of each deal to announce the cards dealt to the
- * players. The parameter MUST consist of a random permutation of the 52
+ * representing the player at the north position, MUST send this command to all
+ * the other peers at the beginning of each deal to announce the cards dealt to
+ * the players. The parameter MUST consist of a random permutation of the 52
  * playing cards. Cards in the first 13 positions are dealt to north, the
  * following 13 cards to east, the following 13 cards to south and the last 13
  * cards to west. In each hand, the order of the cards in the list establishes
@@ -281,18 +318,16 @@
  *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
  *
- * Peers and clients use this command to announce that they want to make the
- * specified call during the bidding. The first argument is the position
- * calling and the second argument is the call.
+ * All nodes use this command to make the specified call during the bidding.
  *
- * If the call comes from a client, the peer MUST send the command to other
- * peers. Peers MUST ignore the command and reply failure unless the peer or
- * client controls the player in the position, the player in the position has
- * turn and the call is legal.
+ * Peers MUST ignore the command and reply failure unless the node is allowed to
+ * act for the player in the position, the player has turn and the call is
+ * legal. If a successful call command comes from a client, the peer MUST send
+ * the command to other peers taking part in the game.
  *
- * The position argument is optional. If omitted, the position of the unique
- * player controlled by the client or the peer is implied. If the peer
- * controls several players, the command MUST fail.
+ * The position argument MAY be omitted if the player the node is allowed to act
+ * for is unique. The command SHOULD fail if a peer representing multiple
+ * players omits the position.
  *
  * \subsection bridgeprotocolcontrolplay play
  *
@@ -303,29 +338,27 @@
  *   - \e index: integer
  * - \b Reply: \e none
  *
- * Peers and clients use this command to announce that they want to play the
- * specified card during the playing phase. The first argument is the position
- * playing and the second argument is reference to the card played. The card can
- * be identified either by card type or index. If index (an integer between
- * 0–12) is used, it refers to the index established during the shuffling
- * phase. The index of each card remains the same throughout the whole deal and
- * does not change when cards are played.
+ * All nodes use this command to play the specified card during the playing
+ * phase. The card can be identified either by card type or index. If index (an
+ * integer between 0–12) is used, it refers to the index established during the
+ * shuffling phase. The index of each card remains the same throughout the whole
+ * deal and does not change when cards are played.
  *
  * \note To disambiguate this index concept from the related concepts of
  * indexing cards (most notably the \e deck index determined during the
  * shuffling), the index used to refer to the place of the card in the hand is
  * called the \e hand index.
  *
- * If the play comes from a client, the peer MUST send the command to other
- * peers. The index variant of referring to the card MUST be used if the card
- * is unknown to the peer. Peers MUST ignore the command and reply failure
- * unless the peer or client controls the player in the position (or if
- * position is the dummy, controls the declarer), the player in the position
- * has turn and it is legal to play the card.
+ * Peers MUST ignore the command and reply failure unless the node is allowed to
+ * act for the player in the position, the player in the position has turn and
+ * it is legal to play the card. Declarer plays the hand of the dummy. If the
+ * play command comes from a client, the peer MUST send the command to other
+ * peers. The index variant of referring to the card MUST be used if the card is
+ * unknown to the peer.
  *
- * The position argument is optional. If omitted, the position of the unique
- * player controlled by the client or the peer is implied. If the peer
- * controls several players, the command MUST fail.
+ * The position argument MAY be omitted if the player the node is allowed to act
+ * for is unique. The command SHOULD fail if a peer representing multiple
+ * players omits the position.
  *
  * \section bridgeprotocoleventcommands Event commands
  *

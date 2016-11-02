@@ -1,6 +1,11 @@
 /** \file
  *
  * \brief Definition of JSON serializer for Bridge::Position
+ *
+ * \page jsonposition Position JSON representation
+ *
+ * A Bridge::Position enumeration is represented by a JSON string that is either
+ * "north", "east", "south" or "west".
  */
 
 #ifndef MESSAGING_POSITIONJSONSERIALIZER_HH_
