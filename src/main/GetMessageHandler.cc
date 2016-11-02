@@ -12,7 +12,7 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
-#include "main/PeerClientControl.hh"
+#include "main/NodeControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
@@ -159,10 +159,10 @@ std::string getScore(const DuplicateGameManager& gameManager)
 GetMessageHandler::GetMessageHandler(
     std::shared_ptr<const DuplicateGameManager> gameManager,
     std::shared_ptr<const BridgeEngine> engine,
-    std::shared_ptr<const PeerClientControl> peerClientControl) :
+    std::shared_ptr<const NodeControl> nodeControl) :
     gameManager {std::move(gameManager)},
     engine {std::move(engine)},
-    peerClientControl {std::move(peerClientControl)}
+    nodeControl {std::move(nodeControl)}
 {
 }
 
@@ -172,7 +172,7 @@ bool GetMessageHandler::doHandle(
 {
     const auto keys = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
-    const auto player = dereference(peerClientControl).getPlayer(identity);
+    const auto player = dereference(nodeControl).getPlayer(identity);
     if (keys && player) {
         const auto& engine_ = dereference(engine);
         for (const auto& key : *keys) {

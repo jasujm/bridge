@@ -13,7 +13,7 @@
 #include "engine/SimpleCardManager.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
-#include "main/PeerClientControl.hh"
+#include "main/NodeControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
@@ -86,10 +86,10 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        peerClientControl->addClient(PLAYER1);
-        peerClientControl->addClient(PLAYER2);
-        peerClientControl->addClient(PLAYER3);
-        peerClientControl->addClient(PLAYER4);
+        nodeControl->addClient(PLAYER1);
+        nodeControl->addClient(PLAYER2);
+        nodeControl->addClient(PLAYER3);
+        nodeControl->addClient(PLAYER4);
         engine->initiate();
     }
 
@@ -142,11 +142,11 @@ protected:
     std::shared_ptr<BridgeEngine> engine {
         std::make_shared<BridgeEngine>(
             cardManager, gameManager, players.begin(), players.end())};
-    std::shared_ptr<PeerClientControl> peerClientControl {
-        std::make_shared<PeerClientControl>(
+    std::shared_ptr<NodeControl> nodeControl {
+        std::make_shared<NodeControl>(
             boost::make_indirect_iterator(players.begin()),
             boost::make_indirect_iterator(players.end()))};
-    GetMessageHandler handler {gameManager, engine, peerClientControl};
+    GetMessageHandler handler {gameManager, engine, nodeControl};
     std::vector<std::string> reply;
 };
 

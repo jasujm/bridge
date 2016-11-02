@@ -11,7 +11,7 @@
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
-#include "main/PeerClientControl.hh"
+#include "main/NodeControl.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -138,7 +138,7 @@ private:
         {Position::EAST, std::make_shared<BasicPlayer>()},
         {Position::SOUTH, std::make_shared<BasicPlayer>()},
         {Position::WEST, std::make_shared<BasicPlayer>()}};
-    std::shared_ptr<PeerClientControl> peerClientControl;
+    std::shared_ptr<NodeControl> nodeControl;
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
     std::unique_ptr<CardProtocol> cardProtocol;
@@ -180,8 +180,8 @@ BridgeMain::Impl::Impl(
     const PositionVector& positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
-    peerClientControl {
-        std::make_shared<PeerClientControl>(
+    nodeControl {
+        std::make_shared<NodeControl>(
             positionPlayerIterator(positions.begin()),
             positionPlayerIterator(positions.end()))},
     cardProtocol {
@@ -211,7 +211,7 @@ BridgeMain::Impl::Impl(
         {
             GET_COMMAND,
             std::make_shared<GetMessageHandler>(
-                gameManager, engine, peerClientControl)
+                gameManager, engine, nodeControl)
         },
         {
             CALL_COMMAND,
@@ -261,8 +261,8 @@ void BridgeMain::Impl::terminate()
 
 bool BridgeMain::Impl::readyToStart() const
 {
-    assert(peerClientControl);
-    return peerClientControl->arePlayersControlled(
+    assert(nodeControl);
+    return nodeControl->arePlayersRepresented(
         boost::make_indirect_iterator(secondIterator(players.begin())),
         boost::make_indirect_iterator(secondIterator(players.end())));
 }
@@ -308,8 +308,8 @@ template<typename... Args>
 void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
     const Player& player, const std::string& command, Args&&... args)
 {
-    assert(peerClientControl);
-    if (peerClientControl->isSelfControlledPlayer(player)) {
+    assert(nodeControl);
+    if (nodeControl->isSelfRepresentedPlayer(player)) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
 }
@@ -379,22 +379,22 @@ void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
 const Player* BridgeMain::Impl::getPlayerFor(
     const std::string& identity, const boost::optional<Position>& position)
 {
-    assert(peerClientControl);
+    assert(nodeControl);
     if (position) {
         assert(engine);
         const auto& player = engine->getPlayer(*position);
-        if (peerClientControl->isAllowedToAct(identity, player)) {
+        if (nodeControl->isAllowedToAct(identity, player)) {
             return &player;
         }
         return nullptr;
     }
-    return peerClientControl->getPlayer(identity);
+    return nodeControl->getPlayer(identity);
 }
 
 Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 {
-    assert(peerClientControl);
-    if (const auto player = peerClientControl->addClient(identity)) {
+    assert(nodeControl);
+    if (const auto player = nodeControl->addClient(identity)) {
         assert(engine);
         const auto position = engine->getPosition(*player);
         log(LogLevel::DEBUG, "Client accepted: %s. Position: %s",
@@ -408,8 +408,8 @@ Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
 CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
     const std::string& identity, const CardProtocol::PositionVector& positions)
 {
-    assert(peerClientControl);
-    const auto success = peerClientControl->addPeer(
+    assert(nodeControl);
+    const auto success = nodeControl->addPeer(
         identity,
         positionPlayerIterator(positions.begin()),
         positionPlayerIterator(positions.end()));

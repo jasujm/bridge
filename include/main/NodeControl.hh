@@ -1,10 +1,10 @@
 /** \file
  *
- * \brief Definition of Bridge::Main::PeerClientControl
+ * \brief Definition of Bridge::Main::NodeControl
  */
 
-#ifndef MAIN_PEERCLIENTCONTROL_HH_
-#define MAIN_PEERCLIENTCONTROL_HH_
+#ifndef MAIN_NODECONTROL_HH_
+#define MAIN_NODECONTROL_HH_
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/variant/variant.hpp>
@@ -21,35 +21,41 @@ class Player;
 
 namespace Main {
 
-/** \brief Class for interacting with peers and clients
+/** \brief Utility class for access control of nodes
+ *
+ * NodeControl can be used to establish relationship between clients and peers
+ * (collectively known as nodes), and the players they control or
+ * represent. Each peer (including the application itself) may \e represent
+ * multiple players. Each client may \e control one of the players that the
+ * application represents.
  */
-class PeerClientControl : private boost::noncopyable {
+class NodeControl : private boost::noncopyable {
 public:
 
-    /** \brief Create new peer client control object
+    /** \brief Create new node control object
      *
      * \tparam PlayerIterator An input iterator that, when dereferenced,
      * returns a constant reference to Player object.
      *
-     * \param first iterator to the first player controlled by the application
-     * \param last iterator one past the last player controlled by the
+     * \param first iterator to the first player represented by the application
+     * \param last iterator one past the last player represented by the
      * application
      */
     template<typename PlayerIterator>
-    PeerClientControl(PlayerIterator first, PlayerIterator last);
+    NodeControl(PlayerIterator first, PlayerIterator last);
 
     /** \brief Add new client
      *
-     * This method maps a client to one of the players controlled by this
-     * application. Clients are assigned players to control in the order they
-     * were in the range given as parameter to the constructor. If there are no
-     * more players that the client could be assigned to, the client cannot be
-     * added.
+     * This method maps a client to one of the players represented by this
+     * application. The method assigns one player for the client to control in
+     * the order they were in the range given as parameter to the
+     * constructor. If there are no more players that could be assigned, no
+     * client may be added.
      *
      * If \p identity is the identity of an already added client, the player
      * already assigned to the client is returned.
      *
-     * \param identity identity string of the client
+     * \param identity identity of the client
      *
      * \return pointer to the player the newly created or existing client is
      * allowed to control, or nullptr if adding the client was not successful
@@ -58,18 +64,18 @@ public:
 
     /** \brief Add new peer
      *
-     * A peer is another bridge application that controls some players that the
-     * application itself or no other peer controls. If the peer tries to assume
-     * control of a player either this application or another peer added
-     * previously controls, the peer cannot be added.
+     * A peer is another bridge application that represents some players that
+     * the application itself or no other peer represents. If the peer requests
+     * representation of a player either this application or another peer added
+     * represents, the peer cannot be added.
      *
      * \tparam PlayerIterator An input iterator that, when dereferenced,
      * returns a reference to Player object.
      *
-     * \param identity identity string of the peer
-     * \param first iterator to the first player controlled by the application
-     * \param last iterator one past the last player controlled by the
-     * application
+     * \param identity identity of the peer
+     * \param first iterator to the first player represented by the peer
+     * \param last iterator one past the last player represented by the
+     * peer
      *
      * \return true if adding the peer was successful, false otherwise
      */
@@ -77,34 +83,39 @@ public:
     bool addPeer(
         std::string identity, PlayerIterator first, PlayerIterator last);
 
-    /** \brief Get the unique player controlled by peer or client
+    /** \brief Get the unique player controlled by the given node
      *
-     * \param identity the identifier of the client or the peer
+     * \param identity identity of the node
      *
-     * \return pointer to a player uniquely controlled by a peer or a client
-     * with \p identity. If \p identity is unrecognized or is a peer
-     * controlling multiple players, nullptr is returned.
+     * \return pointer to a player uniquely controlled by the node with \p
+     * identity. If \p identity is unrecognized or is a peer representing
+     * multiple players, nullptr is returned.
      */
     const Player* getPlayer(const std::string& identity) const;
 
-    /** \brief Determine if a given peer or client controls a player
+    /** \brief Determine if a given peer or client is allowed to act for the
+     * given player
      *
-     * \param identity the identifier of the client or peer
-     * \param player the player that the peer or the client tries to control
+     * \param identity identity of the node
+     * \param player the player supposedly controlled or represented by the node
+     *
+     * \return true if the node with identity is allowed to act for the player,
+     * i.e. either is a peer representing the player or a client to whom the
+     * control of the player is assigned to
      */
     bool isAllowedToAct(
         const std::string& identity, const Player& player) const;
 
-    /** \brief Determine if the itself controls a player
+    /** \brief Determine if the application itself represents a player
      *
      * \param player the player
      *
-     * \return true if the player belongs to the application itself, i.e. one
-     * of clients is allowed to act for it
+     * \return true if the player is represented by \e this application itself,
+     * false otherwise
      */
-    bool isSelfControlledPlayer(const Player& player) const;
+    bool isSelfRepresentedPlayer(const Player& player) const;
 
-    /** \brief Determine if all given players are controlled by a peer or self
+    /** \brief Determine if all given players are represented
      *
      * \tparam PlayerIterator A forward iterator that, when dereferenced,
      * returns a constant reference to a Player object.
@@ -112,12 +123,12 @@ public:
      * \param first iterator to the first player
      * \param last iterator one past the last player
      *
-     * \return True if all players in the range are either self controlled of
-     * controlled by a peer. It is not necessary that the self controlled
-     * clients are already controlled by clients.
+     * \return true if all players in the range are represented either by self
+     * or another client, false otherwise. It is not necessary that the self
+     * represented players are already controlled by a client.
      */
     template<typename PlayerIterator>
-    bool arePlayersControlled(PlayerIterator first, PlayerIterator last) const;
+    bool arePlayersRepresented(PlayerIterator first, PlayerIterator last) const;
 
 private:
 
@@ -133,7 +144,7 @@ private:
         std::reference_wrapper<const Player> player;
     };
 
-    using PeerClient = boost::variant<Peer, Client>;
+    using Node = boost::variant<Peer, Client>;
 
     class GetPlayerVisitor;
     class IsAllowedToActVisitor;
@@ -143,14 +154,14 @@ private:
 
     bool internalAddPeer(std::string identity, PlayerVector players);
 
-    std::map<std::string, PeerClient> others;
+    std::map<std::string, Node> others;
     std::size_t nClients {0u};
     PlayerVector allPlayers;
     const std::size_t nSelfPlayers;
 };
 
 template<typename PlayerIterator>
-auto PeerClientControl::makePlayerVector(
+auto NodeControl::makePlayerVector(
     PlayerIterator first, PlayerIterator last)
 {
     PlayerVector ret;
@@ -161,7 +172,7 @@ auto PeerClientControl::makePlayerVector(
 }
 
 template<typename PlayerIterator>
-PeerClientControl::PeerClientControl(
+NodeControl::NodeControl(
     PlayerIterator first, PlayerIterator last) :
     allPlayers(makePlayerVector(first, last)),
     nSelfPlayers {allPlayers.size()}
@@ -169,14 +180,14 @@ PeerClientControl::PeerClientControl(
 }
 
 template<typename PlayerIterator>
-bool PeerClientControl::addPeer(
+bool NodeControl::addPeer(
     std::string identity, PlayerIterator first, PlayerIterator last)
 {
     return internalAddPeer(std::move(identity), PlayerVector(first, last));
 }
 
 template<typename PlayerIterator>
-bool PeerClientControl::arePlayersControlled(
+bool NodeControl::arePlayersRepresented(
     PlayerIterator first, PlayerIterator last) const
 {
     return std::is_permutation(
@@ -191,4 +202,4 @@ bool PeerClientControl::arePlayersControlled(
 }
 }
 
-#endif // MAIN_PEERCLIENTCONTROL_HH_
+#endif // MAIN_NODECONTROL_HH_

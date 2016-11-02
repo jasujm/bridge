@@ -1,4 +1,4 @@
-#include "main/PeerClientControl.hh"
+#include "main/NodeControl.hh"
 
 #include "bridge/BridgeConstants.hh"
 #include "Utility.hh"
@@ -24,7 +24,7 @@ auto callIfFound(Map&& map, const Key& key, Function&& func)
 
 }
 
-class PeerClientControl::GetPlayerVisitor {
+class NodeControl::GetPlayerVisitor {
 public:
     const Player* operator()(const Peer& peer) const
     {
@@ -41,7 +41,7 @@ public:
     }
 };
 
-class PeerClientControl::IsAllowedToActVisitor {
+class NodeControl::IsAllowedToActVisitor {
 public:
     IsAllowedToActVisitor(const Player& player) :
         player {player}
@@ -66,7 +66,7 @@ private:
     const Player& player;
 };
 
-const Player* PeerClientControl::addClient(const std::string& identity)
+const Player* NodeControl::addClient(const std::string& identity)
 {
     if (const auto player = getPlayer(identity)) {
         return player;
@@ -84,7 +84,7 @@ const Player* PeerClientControl::addClient(const std::string& identity)
     return nullptr;
 }
 
-const Player* PeerClientControl::getPlayer(const std::string& identity) const
+const Player* NodeControl::getPlayer(const std::string& identity) const
 {
     return callIfFound(
         others, identity,
@@ -93,7 +93,7 @@ const Player* PeerClientControl::getPlayer(const std::string& identity) const
         });
 }
 
-bool PeerClientControl::isAllowedToAct(
+bool NodeControl::isAllowedToAct(
     const std::string& identity, const Player& player) const
 {
     return callIfFound(
@@ -104,14 +104,14 @@ bool PeerClientControl::isAllowedToAct(
         });
 }
 
-bool PeerClientControl::isSelfControlledPlayer(const Player& player) const
+bool NodeControl::isSelfRepresentedPlayer(const Player& player) const
 {
     const auto first = allPlayers.begin();
     const auto last = std::next(first, nSelfPlayers);
     return std::find_if(first, last, compareAddress(player)) != last;
 }
 
-bool PeerClientControl::internalAddPeer(
+bool NodeControl::internalAddPeer(
     std::string identity, PlayerVector players)
 {
     for (const auto& player : allPlayers) {
@@ -136,12 +136,12 @@ bool PeerClientControl::internalAddPeer(
     }
 }
 
-PeerClientControl::Peer::Peer(PlayerVector players) :
+NodeControl::Peer::Peer(PlayerVector players) :
     players(std::move(players))
 {
 }
 
-PeerClientControl::Client::Client(const Player& player) :
+NodeControl::Client::Client(const Player& player) :
     player {player}
 {
 }
