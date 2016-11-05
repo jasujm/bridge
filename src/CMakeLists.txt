@@ -4,6 +4,8 @@ macro(add_bridge_library target)
   target_compile_features(${target} PUBLIC ${BRIDGE_COMPILE_FEATURES})
 endmacro()
 
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+
 add_subdirectory(main)
 add_subdirectory(messaging)
 add_subdirectory(cardserver)
