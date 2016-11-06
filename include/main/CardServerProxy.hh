@@ -1,3 +1,5 @@
+#if 0
+
 /** \file
  *
  * \brief Definition of Bridge::Main::CardServerProxy
@@ -62,3 +64,5 @@ private:
 }
 
 #endif // MAIN_CARDSERVERPROXY_HH_
+
+#endif

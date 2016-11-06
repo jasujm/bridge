@@ -1,3 +1,5 @@
+#if 0
+
 #include "main/CardServerProxy.hh"
 
 #include "bridge/BasicHand.hh"
@@ -187,7 +189,7 @@ private:
 
     const MessageHandlerVector messageHandlers {{
          {
-             PEER_COMMAND,
+             /*PEER_COMMAND*/ "bridgerp",
              makeMessageHandler(
                  *this, &Impl::peer, JsonSerializer {},
                  std::make_tuple(POSITIONS_COMMAND, CARD_SERVER_COMMAND))
@@ -695,3 +697,5 @@ std::shared_ptr<CardManager> CardServerProxy::handleGetCardManager()
 
 }
 }
+
+#endif

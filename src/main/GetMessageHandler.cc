@@ -46,6 +46,11 @@ using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
 using Messaging::toJson;
 
+std::string getPosition(const BridgeEngine& engine, const Player& player)
+{
+    return JsonSerializer::serialize(engine.getPosition(player));
+}
+
 std::string getPositionInTurn(const BridgeEngine& engine)
 {
     const auto player_in_turn = engine.getPlayerInTurn();
@@ -176,7 +181,9 @@ bool GetMessageHandler::doHandle(
     if (keys && player) {
         const auto& engine_ = dereference(engine);
         for (const auto& key : *keys) {
-            if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
+            if (internalContainsKey(key, POSITION_COMMAND, sink)) {
+                sink(getPosition(engine_, *player));
+            } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
                 sink(getPositionInTurn(engine_));
             } else if (internalContainsKey(key, DECLARER_COMMAND, sink)) {
                 sink(getBiddingResult(engine_, &Bidding::getDeclarerPosition));

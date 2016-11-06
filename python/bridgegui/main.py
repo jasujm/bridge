@@ -20,10 +20,12 @@ import bridgegui.cards as cards
 import bridgegui.config as config
 import bridgegui.messaging as messaging
 from bridgegui.messaging import sendCommand
+from bridgegui.positions import POSITION_TAGS
 import bridgegui.score as score
 import bridgegui.tricks as tricks
 
 HELLO_COMMAND = b'bridgehlo'
+GAME_COMMAND = b'game'
 GET_COMMAND = b'get'
 DEAL_COMMAND = b'deal'
 CALL_COMMAND = b'call'
@@ -33,6 +35,8 @@ DUMMY_COMMAND = b'dummy'
 TRICK_COMMAND = b'trick'
 DEALEND_COMMAND = b'dealend'
 
+CLIENT_TAG = "client"
+POSITION_TAG = "position"
 POSITION_IN_TURN_TAG = "positionInTurn"
 ALLOWED_CALLS_TAG = "allowedCalls"
 CALLS_TAG = "calls"
@@ -76,6 +80,7 @@ class BridgeWindow(QMainWindow):
             messaging.REPLY_SUCCESS_PREFIX,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
+                GAME_COMMAND: self._handle_game_reply,
                 GET_COMMAND: self._handle_get_reply,
                 CALL_COMMAND: self._handle_call_reply,
                 PLAY_COMMAND: self._handle_play_reply,
@@ -95,7 +100,7 @@ class BridgeWindow(QMainWindow):
                 DEALEND_COMMAND: self._handle_dealend_event,
             })
         self._connect_socket_to_notifier(event_socket, self._event_socket_queue)
-        sendCommand(control_socket, HELLO_COMMAND)
+        sendCommand(control_socket, HELLO_COMMAND, version=[0], role=CLIENT_TAG)
 
     def _init_widgets(self):
         logging.info("Initializing widgets")
@@ -142,20 +147,24 @@ class BridgeWindow(QMainWindow):
     def _send_play_command(self, card):
         sendCommand(self._control_socket, PLAY_COMMAND, card=card._asdict())
 
-    def _handle_hello_reply(self, position=None, **kwargs):
-        if not position:
-            raise messaging.ProtocolError("Expected server to assign position")
-        logging.info("Handshake successful. Position assigned: %r", position)
-        self._position = position
-        self._card_area.setPlayerPosition(position)
+    def _handle_hello_reply(self, **kwargs):
+        logging.info("Handshake successful")
+        sendCommand(self._control_socket, GAME_COMMAND, positions=POSITION_TAGS)
+
+    def _handle_game_reply(self, **kwargs):
+        logging.info("Joined game")
         self._request(
-            POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
+            POSITION_TAG, POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
             DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
             TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
 
     def _handle_get_reply(
-            self, allowedCalls=None, calls=None, allowedCards=None, cards=None,
-            trick=None, tricksWon=None, score=None, **kwargs):
+            self, position=None, allowedCalls=None, calls=None,
+            allowedCards=None, cards=None, trick=None, tricksWon=None,
+            score=None, **kwargs):
+        if position:
+            self._position = position
+            self._card_area.setPlayerPosition(position)
         if POSITION_IN_TURN_TAG in kwargs:
             self._card_area.setPositionInTurn(kwargs[POSITION_IN_TURN_TAG])
         if allowedCalls is not None:

@@ -1,17 +1,19 @@
 #include "main/CardProtocol.hh"
 
-#include "bridge/Position.hh"
-
-#include <utility>
-
 namespace Bridge {
 namespace Main {
 
 CardProtocol::~CardProtocol() = default;
 
-void CardProtocol::setAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
+bool CardProtocol::acceptPeer(
+    const std::string& identity, const PositionVector& positions)
 {
-    handleSetAcceptor(std::move(acceptor));
+    return handleAcceptPeer(identity, positions);
+}
+
+void CardProtocol::initialize()
+{
+    handleInitialize();
 }
 
 CardProtocol::MessageHandlerVector CardProtocol::getMessageHandlers()
@@ -28,8 +30,6 @@ std::shared_ptr<Engine::CardManager> CardProtocol::getCardManager()
 {
     return handleGetCardManager();
 }
-
-CardProtocol::PeerAcceptor::~PeerAcceptor() = default;
 
 }
 }

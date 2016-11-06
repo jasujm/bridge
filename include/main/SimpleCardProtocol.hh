@@ -35,7 +35,10 @@ public:
 
 private:
 
-    void handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor) override;
+    bool handleAcceptPeer(
+        const std::string& identity, const PositionVector& positions) override;
+
+    void handleInitialize() override;
 
     MessageHandlerVector handleGetMessageHandlers() override;
 

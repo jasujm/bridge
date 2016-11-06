@@ -32,6 +32,7 @@
 #include <boost/optional/optional_io.hpp>
 #include <zmq.hpp>
 
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -51,6 +52,7 @@ using Messaging::success;
 namespace {
 
 using StringVector = std::vector<std::string>;
+using VersionVector = std::vector<int>;
 
 template<typename PairIterator>
 auto secondIterator(PairIterator iter)
@@ -59,10 +61,12 @@ auto secondIterator(PairIterator iter)
         iter, [](auto&& pair) -> decltype(auto) { return pair.second; });
 }
 
+const std::string PEER_ROLE {"peer"};
+const std::string CLIENT_ROLE {"client"};
+
 }
 
 class BridgeMain::Impl :
-    public CardProtocol::PeerAcceptor,
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
@@ -108,9 +112,6 @@ private:
     void sendToPeersIfSelfControlledPlayer(
         const Player& player, const std::string& command, Args&&... args);
 
-    CardProtocol::PeerAcceptState acceptPeer(
-        const std::string& identity,
-        const CardProtocol::PositionVector& positions) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
@@ -122,7 +123,10 @@ private:
     const Player* getPlayerFor(
         const std::string& identity, const boost::optional<Position>& position);
 
-    Reply<Position> hello(const std::string& indentity);
+    Reply<> hello(
+        const std::string& identity, const VersionVector& version,
+        const std::string& role);
+    Reply<> game(const std::string& identity, const PositionVector& positions);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
@@ -138,6 +142,8 @@ private:
         {Position::EAST, std::make_shared<BasicPlayer>()},
         {Position::SOUTH, std::make_shared<BasicPlayer>()},
         {Position::WEST, std::make_shared<BasicPlayer>()}};
+    std::set<std::string> peers;
+    std::set<std::string> clients;
     std::shared_ptr<NodeControl> nodeControl;
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
@@ -161,16 +167,11 @@ auto BridgeMain::Impl::positionPlayerIterator(PositionIterator iter)
 }
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
-    zmq::context_t& context,
-    const std::string& cardServerControlEndpoint,
-    const std::string& cardServerBasePeerEndpoint)
+    zmq::context_t& /*context*/,
+    const std::string& /*cardServerControlEndpoint*/,
+    const std::string& /*cardServerBasePeerEndpoint*/)
 {
-    if (!cardServerControlEndpoint.empty() &&
-        !cardServerBasePeerEndpoint.empty()) {
-        log(LogLevel::DEBUG, "Card exchange protocol: card server");
-        return std::make_unique<CardServerProxy>(
-            context, cardServerControlEndpoint);
-    }
+    // TODO: Use card server proxy if applicable
     log(LogLevel::DEBUG, "Card exchange protocol: simple");
     return std::make_unique<SimpleCardProtocol>(peerCommandSender);
 }
@@ -205,8 +206,13 @@ BridgeMain::Impl::Impl(
             HELLO_COMMAND,
             makeMessageHandler(
                 *this, &Impl::hello, JsonSerializer {},
-                std::make_tuple(),
-                std::make_tuple(POSITION_COMMAND))
+                std::make_tuple(VERSION_COMMAND, ROLE_COMMAND))
+        },
+        {
+            GAME_COMMAND,
+            makeMessageHandler(
+                *this, &Impl::game, JsonSerializer {},
+                std::make_tuple(POSITIONS_COMMAND))
         },
         {
             GET_COMMAND,
@@ -243,10 +249,11 @@ BridgeMain::Impl::Impl(
     for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
+    const auto version = VersionVector {0};
     sendToPeers(
-        PEER_COMMAND,
-        std::tie(POSITIONS_COMMAND, positions),
-        std::tie(CARD_SERVER_COMMAND, cardServerBasePeerEndpoint));
+        HELLO_COMMAND,
+        std::tie(VERSION_COMMAND, version), std::tie(ROLE_COMMAND, PEER_ROLE));
+    sendToPeers(GAME_COMMAND, std::tie(POSITIONS_COMMAND, positions));
 }
 
 void BridgeMain::Impl::run()
@@ -272,6 +279,7 @@ void BridgeMain::Impl::startIfReady()
     if (readyToStart()) {
         assert(engine);
         log(LogLevel::DEBUG, "Starting bridge engine");
+        cardProtocol->initialize();
         engine->initiate();
     }
 }
@@ -391,42 +399,50 @@ const Player* BridgeMain::Impl::getPlayerFor(
     return nodeControl->getPlayer(identity);
 }
 
-Reply<Position> BridgeMain::Impl::hello(const std::string& identity)
+Reply<> BridgeMain::Impl::hello(
+    const std::string& identity, const VersionVector& version,
+    const std::string& role)
 {
-    assert(nodeControl);
-    if (const auto player = nodeControl->addClient(identity)) {
-        assert(engine);
-        const auto position = engine->getPosition(*player);
-        log(LogLevel::DEBUG, "Client accepted: %s. Position: %s",
-            asHex(identity), position);
-        return success(position);
+    log(LogLevel::DEBUG, "Hello command from %s. Version: %d. Role: %s",
+        asHex(identity), version.empty() ? -1 : version.front(), role);
+    if (version.empty() || version.front() > 0) {
+        return failure();
+    } else if (role == PEER_ROLE) {
+        log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
+        peers.insert(identity);
+        return success();
+    } else if (role == CLIENT_ROLE) {
+        log(LogLevel::DEBUG, "Client accepted: %s", asHex(identity));
+        clients.insert(identity);
+        return success();
     }
-    log(LogLevel::DEBUG, "Client rejected: %s", asHex(identity));
     return failure();
 }
 
-CardProtocol::PeerAcceptState BridgeMain::Impl::acceptPeer(
-    const std::string& identity, const CardProtocol::PositionVector& positions)
+Reply<> BridgeMain::Impl::game(
+    const std::string& identity, const PositionVector& positions)
 {
+    log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
     assert(nodeControl);
-    const auto success = nodeControl->addPeer(
-        identity,
-        positionPlayerIterator(positions.begin()),
-        positionPlayerIterator(positions.end()));
-    if (success) {
-        log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
-        if (readyToStart()) {
-            // Engine initialization is deferred to give the card protocol
-            // opportunity to initialize before cards are requested
-            assert(engine);
-            messageLoop.callOnce(
-                [&engine = *this->engine]() { engine.initiate(); });
-            return CardProtocol::PeerAcceptState::ALL_ACCEPTED;
+    if (peers.find(identity) != peers.end()) {
+        const auto success_ = nodeControl->addPeer(
+            identity,
+            positionPlayerIterator(positions.begin()),
+            positionPlayerIterator(positions.end()));
+        if (success_) {
+            assert(cardProtocol);
+            // TODO: Handle error if node control accepts and protocol rejects
+            static_cast<void>(cardProtocol->acceptPeer(identity, positions));
+            startIfReady();
+            return success();
         }
-        return CardProtocol::PeerAcceptState::ACCEPTED;
+    } else if (clients.find(identity) != clients.end()) {
+        // TODO: Give the player a preferred position
+        if (nodeControl->addClient(identity)) {
+            return success();
+        }
     }
-    log(LogLevel::DEBUG, "Peer rejected: %s", identity);
-    return CardProtocol::PeerAcceptState::REJECTED;
+    return failure();
 }
 
 Reply<> BridgeMain::Impl::call(
@@ -489,7 +505,6 @@ BridgeMain::BridgeMain(
             cardServerBasePeerEndpoint)}
 {
     auto& card_protocol = impl->getCardProtocol();
-    card_protocol.setAcceptor(impl);
     auto& engine = impl->getEngine();
     engine.subscribeToCallMade(impl);
     engine.subscribeToBiddingCompleted(impl);

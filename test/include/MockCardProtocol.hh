@@ -8,18 +8,12 @@ namespace Main {
 
 class MockCardProtocol : public CardProtocol {
 public:
-    MOCK_METHOD1(handleSetAcceptor, void(std::weak_ptr<PeerAcceptor>));
+    MOCK_METHOD2(handleAcceptPeer,
+        bool(const std::string& identity, const PositionVector&));
+    MOCK_METHOD0(handleInitialize, void());
     MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerVector());
     MOCK_METHOD0(handleGetSockets, SocketVector());
     MOCK_METHOD0(handleGetCardManager, std::shared_ptr<Engine::CardManager>());
-};
-
-class MockPeerAcceptor : public CardProtocol::PeerAcceptor {
-public:
-    MOCK_METHOD2(
-        acceptPeer,
-        CardProtocol::PeerAcceptState(
-            const std::string&, const CardProtocol::PositionVector&));
 };
 
 }

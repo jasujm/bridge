@@ -12,7 +12,6 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
-#include "MockCardProtocol.hh"
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -30,8 +29,6 @@ using namespace Bridge::Main;
 using namespace Bridge::Messaging;
 
 using testing::ElementsAre;
-using testing::IsEmpty;
-using testing::Return;
 
 using namespace std::string_literals;
 
@@ -77,24 +74,9 @@ protected:
     {
         backSocket.bind(ENDPOINT);
         frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
-        protocol.setAcceptor(peerAcceptor);
         for (auto&& handler : protocol.getMessageHandlers()) {
             messageHandlers.emplace(handler);
         }
-    }
-
-    bool peerCommand(
-        const std::string& identity,
-        const CardProtocol::PositionVector& positions)
-    {
-        const auto args = {
-            POSITIONS_COMMAND, JsonSerializer::serialize(positions)};
-        auto reply = std::vector<std::string> {};
-        const auto success =
-            dereference(messageHandlers.at(PEER_COMMAND)).handle(
-                identity, args.begin(), args.end(), std::back_inserter(reply));
-        EXPECT_TRUE(reply.empty());
-        return success;
     }
 
     bool dealCommand(const std::string& identity)
@@ -117,25 +99,13 @@ protected:
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
     SimpleCardProtocol protocol {peerCommandSender};
-    std::shared_ptr<MockPeerAcceptor> peerAcceptor {
-        std::make_shared<MockPeerAcceptor>()};
     MessageQueue::HandlerMap messageHandlers;
 };
 
-TEST_F(SimpleCardProtocolTest, testRejectPeer)
-{
-    EXPECT_CALL(*peerAcceptor, acceptPeer(PEER, IsEmpty()))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::REJECTED));
-    EXPECT_FALSE(peerCommand(PEER, {}));
-}
-
 TEST_F(SimpleCardProtocolTest, testLeader)
 {
-    EXPECT_CALL(
-        *peerAcceptor,
-        acceptPeer(PEER, ElementsAre(Position::SOUTH, Position::WEST)))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
-    EXPECT_TRUE(peerCommand(PEER, {Position::SOUTH, Position::WEST}));
+    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH, Position::WEST}));
+    protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();
     ASSERT_TRUE(card_manager);
@@ -153,17 +123,9 @@ TEST_F(SimpleCardProtocolTest, testLeader)
 
 TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
-    EXPECT_CALL(
-        *peerAcceptor,
-        acceptPeer(LEADER, ElementsAre(Position::NORTH, Position::EAST)))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
-    EXPECT_CALL(
-        *peerAcceptor,
-        acceptPeer(PEER, ElementsAre(Position::SOUTH)))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED));
-
-    EXPECT_TRUE(peerCommand(LEADER, {Position::NORTH, Position::EAST}));
-    EXPECT_TRUE(peerCommand(PEER, {Position::SOUTH}));
+    EXPECT_TRUE(protocol.acceptPeer(LEADER, {Position::NORTH, Position::EAST}));
+    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}));
+    protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();
     ASSERT_TRUE(card_manager);

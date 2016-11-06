@@ -4,11 +4,13 @@ namespace Bridge {
 namespace Main {
 
 const std::string HELLO_COMMAND {"bridgehlo"};
-const std::string POSITION_COMMAND {"position"};
-const std::string PEER_COMMAND {"bridgerp"};
-const std::string POSITIONS_COMMAND {"positions"};
+const std::string VERSION_COMMAND {"version"};
+const std::string ROLE_COMMAND {"role"};
 const std::string CARD_SERVER_COMMAND {"cardserver"};
+const std::string POSITIONS_COMMAND {"positions"};
+const std::string GAME_COMMAND {"game"};
 const std::string GET_COMMAND {"get"};
+const std::string POSITION_COMMAND {"position"};
 const std::string KEYS_COMMAND {"keys"};
 const std::string POSITION_IN_TURN_COMMAND {"positionInTurn"};
 const std::string ALLOWED_CALLS_COMMAND {"allowedCalls"};

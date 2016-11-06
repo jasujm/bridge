@@ -1,3 +1,5 @@
+#if 0
+
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardsForPosition.hh"
 #include "bridge/CardTypeIterator.hh"
@@ -107,7 +109,7 @@ protected:
             JsonSerializer::serialize(cardServerBasePeerEndpoint)};
         auto reply = std::vector<std::string> {};
         const auto success =
-            dereference(messageHandlers.at(PEER_COMMAND)).handle(
+            dereference(messageHandlers.at(/*PEER_COMMAND*/ "bridgerp")).handle(
                 identity, args.begin(), args.end(), std::back_inserter(reply));
         EXPECT_TRUE(reply.empty());
         return success;
@@ -284,3 +286,5 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     manager->requestShuffle();
     EXPECT_FALSE(manager->isShuffleCompleted());
 }
+
+#endif

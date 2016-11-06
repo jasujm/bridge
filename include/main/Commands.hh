@@ -146,53 +146,51 @@
  *
  * \section bridgeprotocolcontrolcommands Control commands
  *
- * \subsection bridgeprotocolcontrolbridgerp bridgerp
- *
- * - \b Command: bridgerp
- * - \b Parameters:
- *   - \e positions: an array consisting of positions
- *      i.e. "north", "east", "south", "west"
- *   - \e cardServer: card server base endpoint (optional)
- * - \b Reply: \e none
- *
- * Each peer MUST send the bridgerp command to each other peer before sending
- * anything else. The command consists of the list of positions of the players
- * the peer intends to represent. If card server is intended to be used as card
- * exchange protocol, the cardServer parameter MUST contain the base endpoint
- * for the card server used by the peers.
- *
- * A successful reply means that the peer is accepted and is allowed to
- * represent the players at the positions it announces. If cardServer parameter
- * is present, it also means that the peer will establish connection to the card
- * server.
- *
- * A peer MAY reject the request. It MUST reply failure if the peer itself or
- * any other peer it has accepted already represents the player at any of the
- * positions.
- *
  * \subsection bridgeprotocolcontrolbridgehlo bridgehlo
  *
  * - \b Command: bridgehlo
- * - \b Parameters: \e none
- * - \b Reply:
- *   - \e position: the position client is allowed to act for
+ * - \b Parameters:
+ *   - \e version: an array of integers describing the version of the protocol
+ *   - \e role: a string, either "peer" or "client"
+ * - \b Reply: \e none
  *
- * Each client MUST send bridgehlo to one of the peers before sending anything
- * else. A successful reply to the command consists of the position the peer
- * assigns to the client. The peer MUST assign one of the positions it
- * represents for the client to control. It MUST assign different position to
- * each client.
+ * Each node MUST start the communication with this command before sending any
+ * other command.
  *
- * If a client (or a new client with the same identity as the original client)
- * sends the command again, the peer MUST send the previously assigned position
- * back to the client.
+ * The version MUST be an array of integers containing at least one element (the
+ * major version). The version MAY contain further elements describing minor,
+ * patch etc. versions.
  *
- * A peer MAY reject the request. It MUST reject the request if there are no
- * more players the client could control.
+ * The role MUST be either "peer" or "client". The roles are described in \ref
+ * bridgeprotocolroles.
  *
- * \note The requirement to accept multiple bridgehlo commands from the clients
- * with the same identity enables handling over the state to new client or
- * recovering from disconnection.
+ * The peer MAY accept a node if it is compatible with the major version of the
+ * protocol. The peer MUST reject the peer if it is not compatible with the
+ * version. If rejected, the other peer MAY try to send another bridgehlo
+ * command with downgraded version. The development protocol is denoted by major
+ * version 0.
+ *
+ * \subsection bridgeprotocolgame game
+ *
+ * - \b Command: game
+ * - \b Parameters:
+ *   - \e positions: an array consisting of positions, see \ref jsonposition
+ * - \b Reply: \e none
+ *
+ * Nodes use this command to join a bridge game. The interpretation of the
+ * positions argument depends on the role of the node.
+ *
+ * If the node is a peer, the argument MUST be present and contain the positions
+ * of all the players the node requests to represent. The command MUST fail
+ * without effect if at least one of the positions in the list is represented by
+ * the peer itself or any other peer it has accepted.
+ *
+ * If the node is a client, the argument is optional. If present, it MUST
+ * contain the preferred positions for the player that the client controls, in
+ * descending order of preference. The command MUST fail if none of the
+ * positions is available (that is, either not represented by the peer or
+ * already controlled by another client). Otherwise the peer SHOULD assign the
+ * highest available position in the list for the client to control.
  *
  * \subsection bridgeprotocolcontrolget get
  *
@@ -200,6 +198,7 @@
  * - \b Parameters:
  *   - \e keys: array of keys for the values to be retrieved
  * - \b Reply:
+ *   - \e position: the position of the controlled player
  *   - \e positionInTurn: the position of the player who is in turn to act
  *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  *   - \e calls: array of \e calls that have been made in the current deal
@@ -227,6 +226,9 @@
  * another peer. In particular, get command from peer MAY be ignored with
  * failure message. In any case any information about hidden cards of a player
  * MUST NOT be revealed to a node not controlling or representing that player.
+ *
+ * The \b position parameter contains the position of the player that the client
+ * controls.
  *
  * The \b positionInTurn parameter contains the position of the player that has
  * the turn to act next. If no player has turn (e.g. because deal has ended and
@@ -433,23 +435,31 @@ extern const std::string HELLO_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolbridgehlo
  */
-extern const std::string POSITION_COMMAND;
+extern const std::string VERSION_COMMAND;
 
-/** \brief See \ref bridgeprotocolcontrolbridgerp
+/** \brief See \ref bridgeprotocolcontrolbridgehlo
  */
-extern const std::string PEER_COMMAND;
-
-/** \brief See \ref bridgeprotocolcontrolbridgerp
- */
-extern const std::string POSITIONS_COMMAND;
+extern const std::string ROLE_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolbridgerp
  */
 extern const std::string CARD_SERVER_COMMAND;
 
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
+extern const std::string GAME_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
+extern const std::string POSITIONS_COMMAND;
+
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string GET_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string POSITION_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

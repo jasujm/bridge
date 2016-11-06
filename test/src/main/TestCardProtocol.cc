@@ -1,10 +1,10 @@
 #include "bridge/Hand.hh"
+#include "bridge/Position.hh"
 #include "main/CardProtocol.hh"
 #include "MockCardManager.hh"
 #include "MockCardProtocol.hh"
 #include "MockMessageHandler.hh"
 #include "MockMessageLoopCallback.hh"
-#include "TestUtility.hh"
 
 #include <gtest/gtest.h>
 
@@ -13,20 +13,32 @@
 
 using Bridge::Main::CardProtocol;
 
+using testing::Bool;
 using testing::Ref;
 using testing::Return;
 
-class CardProtocolTest : public testing::Test {
+class CardProtocolTest : public testing::TestWithParam<bool> {
 protected:
     zmq::context_t context;
     Bridge::Main::MockCardProtocol protocol;
 };
 
-TEST_F(CardProtocolTest, testSetAcceptor)
+TEST_P(CardProtocolTest, testAcceptPeer)
 {
-    const auto acceptor = std::make_shared<Bridge::Main::MockPeerAcceptor>();
-    EXPECT_CALL(protocol, handleSetAcceptor(Bridge::WeaklyPointsTo(acceptor)));
-    protocol.setAcceptor(acceptor);
+    const auto success = GetParam();
+    const auto identity = std::string {"identity"};
+    const auto positions = CardProtocol::PositionVector {
+        Bridge::Position::NORTH, Bridge::Position::SOUTH};
+    EXPECT_CALL(
+        protocol,
+        handleAcceptPeer(identity, positions)).WillOnce(Return(success));
+    EXPECT_EQ(success, protocol.acceptPeer(identity, positions));
+}
+
+TEST_F(CardProtocolTest, testInitialize)
+{
+    EXPECT_CALL(protocol, handleInitialize());
+    protocol.initialize();
 }
 
 TEST_F(CardProtocolTest, testGetMessageHandlers)
@@ -68,3 +80,5 @@ TEST_F(CardProtocolTest, testGetCardManager)
         .WillOnce(Return(card_manager));
     EXPECT_EQ(card_manager, protocol.getCardManager());
 }
+
+INSTANTIATE_TEST_CASE_P(SamplingBools, CardProtocolTest, Bool());

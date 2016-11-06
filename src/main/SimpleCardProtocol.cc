@@ -39,18 +39,13 @@ public:
 
     Impl(std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-    void setAcceptor(std::weak_ptr<PeerAcceptor> acceptor);
+    bool acceptPeer(
+        const std::string& identity, const PositionVector& positions);
 
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
 
     const std::vector<MessageHandlerVector::value_type> messageHandlers {{
-        {
-            PEER_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::peer, JsonSerializer {},
-                std::make_tuple(POSITIONS_COMMAND))
-        },
         {
             DEAL_COMMAND,
             Messaging::makeMessageHandler(
@@ -63,12 +58,10 @@ private:
 
     void handleNotify(const CardManager::ShufflingState& state) override;
 
-    Reply<> peer(const std::string& identity, const PositionVector& positions);
     Reply<> deal(const std::string& identity, const CardVector& cards);
 
     bool expectingCards {false};
     boost::optional<std::string> leaderIdentity;
-    std::weak_ptr<PeerAcceptor> peerAcceptor;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
     std::mt19937 randomEngine;
 };
@@ -80,11 +73,6 @@ SimpleCardProtocol::Impl::Impl(
 {
 }
 
-void SimpleCardProtocol::Impl::setAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
-{
-    peerAcceptor = std::move(acceptor);
-}
-
 void SimpleCardProtocol::Impl::handleNotify(
     const CardManager::ShufflingState& state)
 {
@@ -93,15 +81,13 @@ void SimpleCardProtocol::Impl::handleNotify(
             log(LogLevel::DEBUG,
                 "Simple card protocol: Generating deck");
             auto cards = CardVector(
-                cardTypeIterator(0),
-                cardTypeIterator(N_CARDS));
+                cardTypeIterator(0), cardTypeIterator(N_CARDS));
             std::shuffle(cards.begin(), cards.end(), randomEngine);
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
                 JsonSerializer {},
-                DEAL_COMMAND,
-                std::tie(CARDS_COMMAND, cards));
+                DEAL_COMMAND, std::tie(CARDS_COMMAND, cards));
         } else {
             log(LogLevel::DEBUG,
                 "Simple card protocol: Expecting deck");
@@ -110,27 +96,20 @@ void SimpleCardProtocol::Impl::handleNotify(
     }
 }
 
-Reply<> SimpleCardProtocol::Impl::peer(
+bool SimpleCardProtocol::Impl::acceptPeer(
     const std::string& identity, const PositionVector& positions)
 {
-    log(LogLevel::DEBUG, "Peer command from %s", asHex(identity));
-    const auto acceptor = std::shared_ptr<PeerAcceptor>(peerAcceptor);
-    const auto accept_state = acceptor->acceptPeer(identity, positions);
-    if (accept_state != PeerAcceptState::REJECTED) {
-        if (std::find(
-                positions.begin(), positions.end(), Position::NORTH) !=
-            positions.end()) {
-            leaderIdentity = identity;
-        }
-        return success();
+    if (std::find(positions.begin(), positions.end(), Position::NORTH) !=
+        positions.end()) {
+        leaderIdentity = identity;
     }
-    return failure();
+    return true;
 }
 
 Reply<> SimpleCardProtocol::Impl::deal(
     const std::string& identity, const CardVector& cards)
 {
-    log(LogLevel::DEBUG, "Deal command from %s", identity);
+    log(LogLevel::DEBUG, "Deal command from %s", asHex(identity));
     if (expectingCards && leaderIdentity == identity) {
         cardManager->shuffle(cards.begin(), cards.end());
         expectingCards = false;
@@ -148,10 +127,15 @@ SimpleCardProtocol::SimpleCardProtocol(
     impl->cardManager->subscribe(impl);
 }
 
-void SimpleCardProtocol::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
+bool SimpleCardProtocol::handleAcceptPeer(
+    const std::string& identity, const PositionVector& positions)
 {
     assert(impl);
-    impl->setAcceptor(std::move(acceptor));
+    return impl->acceptPeer(identity, positions);
+}
+
+void SimpleCardProtocol::handleInitialize()
+{
 }
 
 CardProtocol::MessageHandlerVector
