@@ -28,13 +28,13 @@ using EnumerateIteratorValue =
 /** \brief Iterator for simultaneously accessing position and value
  *
  * EnumerateIterator is an iterator that is used to simultaneously access the
- * position and value of an underlying iterator. When dereferenced, the
- * underlying iterator is dereferenced and the value is returned in an
- * EnumerateIteratorValue object along with the index of the element. More
- * specifically, index is the number of times the iterator has been
- * incremented. If the underlying iterator does not initially point to the
- * beginning of its container, and the iterator can thus be decremented, the
- * index may be negative.
+ * index and value of an underlying iterator. The reference type of
+ * EnumerateIterator is a pair consisting of index and whatever is returned when
+ * dereferencing the underlying iterator.  More specifically, index is the
+ * number of times the iterator has been incremented. If the iterator is
+ * decremented beyond its initial position (possible e.g. if an iterator not
+ * pointing to the beginning of a range is wrapped), the index may also be
+ * negative.
  *
  * \tparam Iterator the type of the underlying iterator
  *
@@ -93,11 +93,11 @@ private:
 
 /** \brief Make enumerate iterator
  *
- * Helper for creating an EnumerateIterator object for given iterator
+ * Helper for wrapping an iterator to EnumerateIterator
  *
- * \param iter the iterator for which the EnumerateIterator object is created
+ * \param iter the iterator to be wrapped
  *
- * \return EnumerateIterator object for \p iter
+ * \return EnumerateIterator object wrapping \p iter
  */
 template<typename Iterator>
 auto makeEnumerateIterator(const Iterator& iter)
@@ -105,7 +105,7 @@ auto makeEnumerateIterator(const Iterator& iter)
     return EnumerateIterator<Iterator> {iter};
 }
 
-/** \brief Wrapper for turning a range into an enumerable range
+/** \brief Enumerable range
  *
  * An EnumerateRange object can be used in range‐based for loop to
  * simultaneously iterate index and value of an underlying
@@ -132,18 +132,18 @@ public:
     {
     }
 
-    /** \brief Iterator to the beginning of the range
+    /** \brief The beginning of the range
      *
-     * \return enumerate iterator to the first element of the underlying range
+     * \return EnumerateIterator to the first element of the underlying range
      */
     auto begin()
     {
         return makeEnumerateIterator(std::begin(range));
     }
 
-    /** \brief Iterator to the end of the range
+    /** \brief The end of the range
      *
-     * \return enumerate iterator to the last element of the underlying range
+     * \return EnumerateIterator to the last element of the underlying range
      */
     auto end()
     {
@@ -155,24 +155,24 @@ private:
     Range range;
 };
 
-/** \brief Simultaneously iterate index and values of a range
+/** \brief Simultaneously iterate index and value of a range
  *
- * This function is inspired by the enumerate function in Python. It is used
- * to simultaneously access position and values of an underlying range in an
- * range‐based for loop. The iterated elements are std::pair objects
- * containing index as the first and element from the underlying range as the
- * second element.
+ * This function is inspired by the enumerate function in Python. It is used to
+ * simultaneously access the position and the value of an underlying range in a
+ * range‐based for loop. The elements are std::pair objects containing index as
+ * the first and the element from the underlying range as the second element.
+ *
+ * Example printing the elements of a vector as an ordered list:
  *
  * \code{.cc}
  * int array[] { 111, 222, 333 };
  * for (auto&& e : enumerate(array)) {
- *     std::cout << e.first << " " << e.second << std::endl;
+ *     std::cout << e.first + 1 << ". " << e.second << std::endl;
  * }
  * \endcode
  *
- * std::begin() and std::end() must return valid iterators for the range.
- *
- * \param range the range to iterate over
+ * \param range The range to iterate over. It is required that when std::begin()
+ * and std::end() are applied to \p range, a valid iterator is returned.
  *
  * \return EnumerateRange for iterating index and value of the underlying \p
  * range
