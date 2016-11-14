@@ -86,6 +86,9 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
+        for (const auto t : zip(POSITIONS, players)) {
+            engine->setPlayer(t.get<0>(), t.get<1>());
+        }
         nodeControl->addClient(PLAYER1);
         nodeControl->addClient(PLAYER2);
         nodeControl->addClient(PLAYER3);
@@ -140,8 +143,7 @@ protected:
         std::make_shared<MockPlayer>(),
         std::make_shared<MockPlayer>()}};
     std::shared_ptr<BridgeEngine> engine {
-        std::make_shared<BridgeEngine>(
-            cardManager, gameManager, players.begin(), players.end())};
+        std::make_shared<BridgeEngine>(cardManager, gameManager)};
     std::shared_ptr<NodeControl> nodeControl {
         std::make_shared<NodeControl>(
             boost::make_indirect_iterator(players.begin()),

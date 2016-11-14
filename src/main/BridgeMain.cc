@@ -189,11 +189,12 @@ BridgeMain::Impl::Impl(
             context, cardServerControlEndpoint, cardServerBasePeerEndpoint)},
     engine {
         std::make_shared<BridgeEngine>(
-            cardProtocol->getCardManager(), gameManager,
-            secondIterator(players.begin()),
-            secondIterator(players.end()))},
+            cardProtocol->getCardManager(), gameManager)},
     eventSocket {context, zmq::socket_type::pub}
 {
+    for (const auto p : players) {
+        engine->setPlayer(p.first, p.second);
+    }
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);

@@ -16,7 +16,6 @@
 #include <cstddef>
 #include <memory>
 #include <utility>
-#include <vector>
 
 namespace Bridge {
 
@@ -44,6 +43,10 @@ class GameManager;
  * The responsibility of BridgeEngine is to orchestrate a game according to
  * the contract bridge rules. Some of the input and output of the engine is
  * handled by delegating to managers.
+ *
+ * Players can be added to the game and replaced with other players at any
+ * point. A game can proceed even if all players are not seated, although only
+ * player seated to a position that has turn can make calls and play cards.
  */
 class BridgeEngine : private boost::noncopyable {
 public:
@@ -114,21 +117,14 @@ public:
      * the two-stage initialization is to allow the client to subscribe to the
      * desired notifications before the engine actually starts.
      *
-     * \tparam PlayerIterator an input iterator which must return a shared_ptr
-     * to a player when dereferenced
-     *
      * \param cardManager the card manager used to manage playing cards
      * \param gameManager the game manager used to manage the rules of the game
-     * \param firstPlayer iterator to the first player in the game
-     * \param lastPlayer iterator one past the last player in the game
      *
      * \throw std::invalid_argument unless there is exactly four players
      */
-    template<typename PlayerIterator>
     BridgeEngine(
         std::shared_ptr<CardManager> cardManager,
-        std::shared_ptr<GameManager> gameManager,
-        PlayerIterator firstPlayer, PlayerIterator lastPlayer);
+        std::shared_ptr<GameManager> gameManager);
 
     ~BridgeEngine();
 
@@ -201,6 +197,16 @@ public:
      * the card manager.
      */
     void initiate();
+
+    /** \brief Add player to the game
+     *
+     * Make \p player seated in given \p position. If a player already exists in
+     * the position, he is replaced with the new player.
+     *
+     * \param position the position to seat the \p player in
+     * \param player the player
+     */
+    void setPlayer(Position position, std::shared_ptr<Player> player);
 
     /** \brief Make call
      *
@@ -357,26 +363,8 @@ public:
 
 private:
 
-    static std::shared_ptr<Impl> makeImpl(
-        std::shared_ptr<CardManager> cardManager,
-        std::shared_ptr<GameManager> gameManager,
-        std::vector<std::shared_ptr<Player>> players);
-
     const std::shared_ptr<Impl> impl;
 };
-
-template<typename PlayerIterator>
-BridgeEngine::BridgeEngine(
-    std::shared_ptr<CardManager> cardManager,
-    std::shared_ptr<GameManager> gameManager,
-    PlayerIterator first, PlayerIterator last) :
-    impl {
-        makeImpl(
-            std::move(cardManager),
-            std::move(gameManager),
-            std::vector<std::shared_ptr<Player>>(first, last))}
-{
-}
 
 /** \brief Equality operator for call made events
  */

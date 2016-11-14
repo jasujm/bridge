@@ -28,6 +28,7 @@
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
+#include <vector>
 
 namespace sc = boost::statechart;
 
@@ -54,10 +55,9 @@ template<template<typename...> class PtrType, typename RightType>
 auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
 {
     using MapType = boost::bimaps::bimap<Position, RightType*>;
-    auto func = [](const auto& t)
+    auto func = [](const auto& t) -> typename MapType::value_type
     {
-        return typename MapType::value_type {
-            t.template get<0>(), t.template get<1>().get()};
+        return {t.template get<0>(), t.template get<1>().get()};
     };
     auto&& z = zip(POSITIONS, values);
     return MapType(
@@ -152,8 +152,9 @@ class BridgeEngine::Impl :
 public:
     Impl(
         std::shared_ptr<CardManager> cardManager,
-        std::shared_ptr<GameManager> gameManager,
-        std::vector<std::shared_ptr<Player>> players);
+        std::shared_ptr<GameManager> gameManager);
+
+    void setPlayer(Position position, std::shared_ptr<Player> player);
 
     void lockHand(std::shared_ptr<Hand> hand);
 
@@ -218,8 +219,8 @@ private:
 
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
-    const std::vector<std::shared_ptr<Player>> players;
-    const boost::bimaps::bimap<Position, Player*> playersMap;
+    std::vector<std::shared_ptr<Player>> players;
+    boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
     Observable<ShufflingCompleted> shufflingCompletedNotifier;
     Observable<CallMade> callMadeNotifier;
@@ -232,12 +233,9 @@ private:
 
 BridgeEngine::Impl::Impl(
     std::shared_ptr<CardManager> cardManager,
-    std::shared_ptr<GameManager> gameManager,
-    std::vector<std::shared_ptr<Player>> players) :
+    std::shared_ptr<GameManager> gameManager) :
     cardManager {std::move(cardManager)},
-    gameManager {std::move(gameManager)},
-    players(std::move(players)),
-    playersMap {internalMakePositionMapping(this->players)}
+    gameManager {std::move(gameManager)}
 {
 }
 
@@ -895,6 +893,13 @@ auto BridgeEngine::Impl::internalCallIfInState(
     return typename Helper::ReturnType {};
 }
 
+void BridgeEngine::Impl::setPlayer(
+    const Position position, std::shared_ptr<Player> player)
+{
+    players.push_back(std::move(player));
+    playersMap.insert({position, players.back().get()});
+}
+
 boost::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
 {
     return dereference(gameManager).getVulnerability();
@@ -983,16 +988,12 @@ void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
 // BridgeEngine
 ////////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
+BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
-    std::shared_ptr<GameManager> gameManager,
-    std::vector<std::shared_ptr<Player>> players)
+    std::shared_ptr<GameManager> gameManager) :
+    impl {
+        std::make_shared<Impl>(std::move(cardManager), std::move(gameManager))}
 {
-    auto impl = std::make_shared<Impl>(
-        std::move(cardManager),
-        std::move(gameManager),
-        std::move(players));
-    return impl;
 }
 
 BridgeEngine::~BridgeEngine() = default;
@@ -1055,6 +1056,13 @@ void BridgeEngine::initiate()
         {
             impl.initiate();
         });
+}
+
+void BridgeEngine::setPlayer(
+    const Position position, std::shared_ptr<Player> player)
+{
+    assert(impl);
+    impl->setPlayer(position, std::move(player));
 }
 
 bool BridgeEngine::call(const Player& player, const Call& call)

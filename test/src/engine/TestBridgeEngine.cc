@@ -23,6 +23,7 @@
 #include "MockObserver.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
+#include "Zip.hh"
 
 #include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
@@ -68,8 +69,10 @@ private:
 protected:
     virtual void SetUp()
     {
-        for (const auto e : enumerate(cards))
-        {
+        for (const auto t : zip(POSITIONS, players)) {
+            engine.setPlayer(t.get<0>(), t.get<1>());
+        }
+        for (const auto e : enumerate(cards)) {
             ON_CALL(e.second, handleGetType())
                 .WillByDefault(Return(enumerateCardType(e.first)));
             ON_CALL(e.second, handleIsKnown()).WillByDefault(Return(true));
@@ -236,8 +239,7 @@ protected:
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>(),
         std::make_shared<BasicPlayer>()}};
-    BridgeEngine engine {
-        cardManager, gameManager, players.begin(), players.end()};
+    BridgeEngine engine {cardManager, gameManager};
     Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
     std::map<std::size_t, std::reference_wrapper<BasicHand>> hands;
     std::shared_ptr<NiceMock<MockCardRevealStateObserver>>
@@ -245,14 +247,6 @@ protected:
         std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
     DealState expectedState;
 };
-
-TEST_F(BridgeEngineTest, testInvalidConstruction)
-{
-    EXPECT_THROW(
-        (BridgeEngine {
-            cardManager, gameManager, players.begin(), players.end() - 1}),
-        std::invalid_argument);
-}
 
 TEST_F(BridgeEngineTest, testPlayers)
 {
