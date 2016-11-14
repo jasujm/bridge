@@ -159,6 +159,10 @@ public:
 
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
+    Observable<ShufflingCompleted>& getShufflingCompletedNotifier()
+    {
+        return shufflingCompletedNotifier;
+    }
     Observable<CallMade>& getCallMadeNotifier()
     {
         return callMadeNotifier;
@@ -217,6 +221,7 @@ private:
     const std::vector<std::shared_ptr<Player>> players;
     const boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
+    Observable<ShufflingCompleted> shufflingCompletedNotifier;
     Observable<CallMade> callMadeNotifier;
     Observable<BiddingCompleted> biddingCompletedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
@@ -378,6 +383,8 @@ InDeal::InDeal(my_context ctx) :
     hands {internalMakeHands()},
     handsMap {internalMakePositionMapping(hands)}
 {
+    outermost_context().getShufflingCompletedNotifier().notifyAll(
+        BridgeEngine::ShufflingCompleted {});
 }
 
 void InDeal::exit()
@@ -989,6 +996,13 @@ std::shared_ptr<BridgeEngine::Impl> BridgeEngine::makeImpl(
 }
 
 BridgeEngine::~BridgeEngine() = default;
+
+void BridgeEngine::subscribeToShufflingCompleted(
+    std::weak_ptr<Observer<ShufflingCompleted>> observer)
+{
+    assert(impl);
+    impl->getShufflingCompletedNotifier().subscribe(std::move(observer));
+}
 
 void BridgeEngine::subscribeToCallMade(
     std::weak_ptr<Observer<CallMade>> observer)

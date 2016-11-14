@@ -67,13 +67,13 @@ const std::string CLIENT_ROLE {"client"};
 }
 
 class BridgeMain::Impl :
+    public Observer<BridgeEngine::ShufflingCompleted>,
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::TrickCompleted>,
     public Observer<BridgeEngine::DummyRevealed>,
-    public Observer<BridgeEngine::DealEnded>,
-    public Observer<CardManager::ShufflingState> {
+    public Observer<BridgeEngine::DealEnded> {
 public:
 
     Impl(
@@ -86,7 +86,6 @@ public:
 
     void terminate();
 
-    CardProtocol& getCardProtocol();
     BridgeEngine& getEngine();
 
     template<typename PositionIterator>
@@ -112,13 +111,13 @@ private:
     void sendToPeersIfSelfControlledPlayer(
         const Player& player, const std::string& command, Args&&... args);
 
+    void handleNotify(const BridgeEngine::ShufflingCompleted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
     void handleNotify(const BridgeEngine::TrickCompleted&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
-    void handleNotify(const CardManager::ShufflingState& state) override;
 
     const Player* getPlayerFor(
         const std::string& identity, const boost::optional<Position>& position);
@@ -284,12 +283,6 @@ void BridgeMain::Impl::startIfReady()
     }
 }
 
-CardProtocol& BridgeMain::Impl::getCardProtocol()
-{
-    assert(cardProtocol);
-    return *cardProtocol;
-}
-
 BridgeEngine& BridgeMain::Impl::getEngine()
 {
     assert(engine);
@@ -320,6 +313,12 @@ void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
     if (nodeControl->isSelfRepresentedPlayer(player)) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
+}
+
+void BridgeMain::Impl::handleNotify(const BridgeEngine::ShufflingCompleted&)
+{
+    log(LogLevel::DEBUG, "Shuffling completed");
+    publish(DEAL_COMMAND);
 }
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
@@ -374,14 +373,6 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
 {
     log(LogLevel::DEBUG, "Deal ended");
     publish(DEAL_END_COMMAND);
-}
-
-void BridgeMain::Impl::handleNotify(const CardManager::ShufflingState& state)
-{
-    if (state == CardManager::ShufflingState::COMPLETED) {
-        log(LogLevel::DEBUG, "Shuffling completed");
-        publish(DEAL_COMMAND);
-    }
 }
 
 const Player* BridgeMain::Impl::getPlayerFor(
@@ -504,15 +495,14 @@ BridgeMain::BridgeMain(
             std::move(peerEndpoints), cardServerControlEndpoint,
             cardServerBasePeerEndpoint)}
 {
-    auto& card_protocol = impl->getCardProtocol();
     auto& engine = impl->getEngine();
+    engine.subscribeToShufflingCompleted(impl);
     engine.subscribeToCallMade(impl);
     engine.subscribeToBiddingCompleted(impl);
     engine.subscribeToCardPlayed(impl);
     engine.subscribeToTrickCompleted(impl);
     engine.subscribeToDummyRevealed(impl);
     engine.subscribeToDealEnded(impl);
-    dereference(card_protocol.getCardManager()).subscribe(impl);
     impl->startIfReady();
 }
 

@@ -282,7 +282,14 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     assertNoHands();
 
     // Shuffling
-    shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
+    {
+        auto observer = std::make_shared<
+            MockObserver<BridgeEngine::ShufflingCompleted>>();
+        EXPECT_CALL(*observer, handleNotify(_));
+        engine.subscribeToShufflingCompleted(observer);
+        shuffledNotifier.notifyAll(
+            Engine::CardManager::ShufflingState::COMPLETED);
+    }
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Position::NORTH;
     expectedState.cards.emplace();

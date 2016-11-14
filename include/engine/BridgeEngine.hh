@@ -48,6 +48,10 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
+    /** \brief Event for announcing that shuffling is completed dealt
+     */
+    struct ShufflingCompleted {};
+
     /** \brief Event for announcing that a call was made
      */
     struct CallMade : private boost::equality_comparable<CallMade> {
@@ -127,6 +131,14 @@ public:
         PlayerIterator firstPlayer, PlayerIterator lastPlayer);
 
     ~BridgeEngine();
+
+    /** \brief Subscribe to notifications about shuffling being completed
+     *
+     * The notification takes place after hands have become visible but before
+     * bidding has started.
+     */
+    void subscribeToShufflingCompleted(
+        std::weak_ptr<Observer<ShufflingCompleted>> observer);
 
     /** \brief Subscribe to notifications about call being made
      *
