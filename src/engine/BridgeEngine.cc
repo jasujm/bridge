@@ -193,7 +193,7 @@ public:
     const Player* getPlayerInTurn() const;
     const Hand* getHandInTurn() const;
     const Player& getPlayer(Position position) const;
-    Position getPosition(const Player& player) const;
+    boost::optional<Position> getPosition(const Player& player) const;
     const Hand* getHand(Position position) const;
     boost::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
@@ -494,8 +494,8 @@ public:
 sc::result InBidding::react(const CallEvent& event)
 {
     auto& bidding = context<InDeal>().getBidding();
-    const auto bidder_position = outermost_context().getPosition(event.player);
-    if (bidding.call(bidder_position, event.call)) {
+    const auto position = outermost_context().getPosition(event.player);
+    if (position && bidding.call(*position, event.call)) {
         event.ret = true;
         auto& context = outermost_context();
         context.getCallMadeNotifier().notifyAll(
@@ -927,10 +927,15 @@ const Player& BridgeEngine::Impl::getPlayer(const Position position) const
     return dereference(player);
 }
 
-Position BridgeEngine::Impl::getPosition(const Player& player) const
+boost::optional<Position> BridgeEngine::Impl::getPosition(
+    const Player& player) const
 {
     // This const_cast is safe as the player is only used as key
-    return playersMap.right.at(const_cast<Player*>(&player));
+    const auto iter = playersMap.right.find(const_cast<Player*>(&player));
+    if (iter != playersMap.right.end()) {
+        return iter->second;
+    }
+    return boost::none;
 }
 
 const Hand* BridgeEngine::Impl::getHand(const Position position) const
@@ -1122,10 +1127,11 @@ bool BridgeEngine::isVisible(const Hand& hand, const Player& player) const
 {
     assert(impl);
     const auto position = getPosition(player);
-    return &hand == getHand(position) || &hand == impl->getDummyHandIfVisible();
+    return (position && &hand == getHand(*position)) ||
+        &hand == impl->getDummyHandIfVisible();
 }
 
-Position BridgeEngine::getPosition(const Player& player) const
+boost::optional<Position> BridgeEngine::getPosition(const Player& player) const
 {
     assert(impl);
     return impl->getPosition(player);

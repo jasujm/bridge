@@ -115,7 +115,7 @@ protected:
 
     void updateExpectedStateAfterPlay(const Player& player)
     {
-        const auto position = engine.getPosition(player);
+        const auto position = dereference(engine.getPosition(player));
         auto& cards = expectedState.cards->at(position);
         const auto new_position = clockwise(position);
         expectedState.positionInTurn = new_position;
@@ -127,7 +127,7 @@ protected:
         const Player& player, std::size_t card, bool revealDummy = false,
         bool completeTrick = false)
     {
-        const auto position = engine.getPosition(player);
+        const auto position = dereference(engine.getPosition(player));
         const auto partner_position = partnerFor(position);
         const auto& partner = engine.getPlayer(partner_position);
         const auto& hand = dereference(engine.getHand(position));
@@ -222,6 +222,12 @@ protected:
                     engine.isVisible(hand, player));
             }
         }
+        if (dummy) {
+            const auto& hand = dereference(
+                engine.getHand(dereference(engine.getPosition(*dummy))));
+            const BasicPlayer other_player;
+            EXPECT_TRUE(engine.isVisible(hand, other_player));
+        }
     }
 
     void addTrickToNorthSouth()
@@ -300,6 +306,12 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         expectedState.cards->emplace(position, std::move(card_types));
     }
 
+    // No bidding by someone not taking part in the the game
+    {
+        const BasicPlayer other_player;
+        EXPECT_FALSE(engine.call(other_player, BID));
+    }
+
     // Bidding
     const auto calls = {
         Call {Pass {}}, Call {BID}, Call {Double {}}, Call {Redouble {}},
@@ -309,7 +321,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         assertDealState();
         assertHandsVisible();
         const auto& player = *players[e.first % players.size()];
-        const auto position = engine.getPosition(player);
+        const auto position = dereference(engine.getPosition(player));
         auto observer = std::make_shared<
             MockObserver<BridgeEngine::BiddingCompleted>>();
         EXPECT_CALL(*observer, handleNotify(_)).Times(

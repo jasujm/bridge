@@ -221,8 +221,6 @@ public:
      * \param call the call to be made
      *
      * \return true if the call is successful, false otherwise
-     *
-     * \throw std::out_of_range if \p player is not in the game
      */
     bool call(const Player& player, const Call& call);
 
@@ -244,6 +242,8 @@ public:
      * \return true if the play is successful, false otherwise
      *
      * \throw std::out_of_range if \p player or \p hand is not in the game
+     *
+     * \todo Fail graciously if the player is not in the game.
      */
     bool play(const Player& player, const Hand& hand, std::size_t card);
 
@@ -287,11 +287,10 @@ public:
      *
      * \param player the player
      *
-     * \return the position of the player
-     *
-     * \throw std::out_of_range if the player is not in the current game
+     * \return the position of the player, or none if the player is not in the
+     * game
      */
-    Position getPosition(const Player& player) const;
+    boost::optional<Position> getPosition(const Player& player) const;
 
     /** \brief Retrieve the hand of the player seated at the given position
      *
@@ -304,17 +303,16 @@ public:
 
     /** \brief Determine whether the given player is allowed to see the hand
      *
-     * If a deal is ongoing, each player sees his own hand. If the opening lead
-     * has been played, each player also sees the hand of the dummy. This method
-     * can be used to determine whether \p player can see \p hand according to
-     * those rules.
+     * If a deal is ongoing, each player taking part in the game sees his own
+     * hand. If the opening lead has been played, each player (whether or not
+     * taking part in the game) also sees the hand of the dummy. This method can
+     * be used to determine whether \p player can see \p hand according to those
+     * rules.
      *
      * \param hand the hand \p player is interested in
      * \param player the player interested in \p hand
      *
      * \return true if \p player is allowed to see \p hand, false otherwise
-     *
-     * \throw std::out_of_range if the player is not in the current game
      */
     bool isVisible(const Hand& hand, const Player& player) const;
 
@@ -326,6 +324,8 @@ public:
      * not in the deal phase
      *
      * \throw std::out_of_range if the hand is not in the current deal
+     *
+     * \todo Return none if the hand is not in the game
      */
     boost::optional<Position> getPosition(const Hand& hand) const;
 
