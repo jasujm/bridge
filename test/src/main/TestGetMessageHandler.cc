@@ -328,7 +328,7 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
 {
     shuffle();
     makeBidding();
-    const auto& hand = dereference(engine->getHand(*players[1]));
+    const auto& hand = dereference(engine->getHand(Position::EAST));
     const auto expected = std::make_pair(
         Position::EAST,
         dereference(dereference(hand.getCard(0)).getType()));

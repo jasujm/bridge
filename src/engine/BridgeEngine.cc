@@ -194,7 +194,7 @@ public:
     const Hand* getHandInTurn() const;
     const Player& getPlayer(Position position) const;
     Position getPosition(const Player& player) const;
-    const Hand* getHand(const Player& player) const;
+    const Hand* getHand(Position position) const;
     boost::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
@@ -933,9 +933,8 @@ Position BridgeEngine::Impl::getPosition(const Player& player) const
     return playersMap.right.at(const_cast<Player*>(&player));
 }
 
-const Hand* BridgeEngine::Impl::getHand(const Player& player) const
+const Hand* BridgeEngine::Impl::getHand(const Position position) const
 {
-    const auto position = getPosition(player);
     return internalCallIfInState(&InDeal::getHand, position);
 }
 
@@ -1122,7 +1121,8 @@ const Player& BridgeEngine::getPlayer(const Position position) const
 bool BridgeEngine::isVisible(const Hand& hand, const Player& player) const
 {
     assert(impl);
-    return &hand == getHand(player) || &hand == impl->getDummyHandIfVisible();
+    const auto position = getPosition(player);
+    return &hand == getHand(position) || &hand == impl->getDummyHandIfVisible();
 }
 
 Position BridgeEngine::getPosition(const Player& player) const
@@ -1131,10 +1131,10 @@ Position BridgeEngine::getPosition(const Player& player) const
     return impl->getPosition(player);
 }
 
-const Hand* BridgeEngine::getHand(const Player& player) const
+const Hand* BridgeEngine::getHand(const Position position) const
 {
     assert(impl);
-    return impl->getHand(player);
+    return impl->getHand(position);
 }
 
 boost::optional<Position> BridgeEngine::getPosition(const Hand& hand) const

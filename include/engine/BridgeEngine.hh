@@ -293,18 +293,16 @@ public:
      */
     Position getPosition(const Player& player) const;
 
-    /** \brief Retrieve the hand of a given player
+    /** \brief Retrieve the hand of the player seated at the given position
      *
-     * \param player the player
+     * \param position the position
      *
-     * \return pointer the hand of the given player, or nullptr if the game is
-     * not in the deal phase
-     *
-     * \throw std::out_of_range if the player is not in the current game
+     * \return pointer the hand of the player at the given position, or nullptr
+     * if the game is not in the deal phase
      */
-    const Hand* getHand(const Player& player) const;
+    const Hand* getHand(Position position) const;
 
-    /** \brief Determine whether a player is allowed to se ea hand
+    /** \brief Determine whether the given player is allowed to see the hand
      *
      * If a deal is ongoing, each player sees his own hand. If the opening lead
      * has been played, each player also sees the hand of the dummy. This method

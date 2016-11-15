@@ -127,10 +127,11 @@ protected:
         const Player& player, std::size_t card, bool revealDummy = false,
         bool completeTrick = false)
     {
-        const auto& partner = engine.getPlayer(
-            partnerFor(engine.getPosition(player)));
-        const auto& hand = dereference(engine.getHand(player));
-        const auto& partner_hand = dereference(engine.getHand(partner));
+        const auto position = engine.getPosition(player);
+        const auto partner_position = partnerFor(position);
+        const auto& partner = engine.getPlayer(partner_position);
+        const auto& hand = dereference(engine.getHand(position));
+        const auto& partner_hand = dereference(engine.getHand(partner_position));
 
         EXPECT_CALL(
             *cardRevealStateObserver,
@@ -205,7 +206,7 @@ protected:
     void assertNoHands()
     {
         for (const auto position : POSITIONS) {
-            EXPECT_FALSE(engine.getHand(engine.getPlayer(position)));
+            EXPECT_FALSE(engine.getHand(position));
         }
     }
 
@@ -215,7 +216,7 @@ protected:
             const auto& player = engine.getPlayer(player_position);
             for (const auto hand_position : POSITIONS) {
                 const auto& hand_player = engine.getPlayer(hand_position);
-                const auto& hand = dereference(engine.getHand(hand_player));
+                const auto& hand = dereference(engine.getHand(hand_position));
                 EXPECT_EQ(
                     player_position == hand_position || dummy == &hand_player,
                     engine.isVisible(hand, player));
@@ -290,7 +291,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.calls.emplace();
     for (const auto position : POSITIONS) {
         // TODO: Make this prettier
-        const auto hand = engine.getHand(engine.getPlayer(position));
+        const auto hand = engine.getHand(position);
         ASSERT_TRUE(hand);
         auto card_types = std::vector<CardType> {};
         for (const auto& card : *hand) {

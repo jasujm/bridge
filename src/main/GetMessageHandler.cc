@@ -112,7 +112,7 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
     using CardTypeVector = std::vector<boost::optional<CardType>>;
     auto cards = nlohmann::json::object();
     for (const auto position : POSITIONS) {
-        if (const auto hand = engine.getHand(engine.getPlayer(position))) {
+        if (const auto hand = engine.getHand(position)) {
             auto type_func = [](const auto& card) { return card.getType(); };
             const auto cards_in_hand = engine.isVisible(*hand, player) ?
                 CardTypeVector(
