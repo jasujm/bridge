@@ -9,7 +9,6 @@
 #include <boost/core/noncopyable.hpp>
 #include <boost/variant/variant.hpp>
 
-#include <algorithm>
 #include <functional>
 #include <map>
 #include <string>
@@ -115,21 +114,6 @@ public:
      */
     bool isSelfRepresentedPlayer(const Player& player) const;
 
-    /** \brief Determine if all given players are represented
-     *
-     * \tparam PlayerIterator A forward iterator that, when dereferenced,
-     * returns a constant reference to a Player object.
-     *
-     * \param first iterator to the first player
-     * \param last iterator one past the last player
-     *
-     * \return true if all players in the range are represented either by self
-     * or another client, false otherwise. It is not necessary that the self
-     * represented players are already controlled by a client.
-     */
-    template<typename PlayerIterator>
-    bool arePlayersRepresented(PlayerIterator first, PlayerIterator last) const;
-
 private:
 
     using PlayerVector = std::vector<std::reference_wrapper<const Player>>;
@@ -184,19 +168,6 @@ bool NodeControl::addPeer(
     std::string identity, PlayerIterator first, PlayerIterator last)
 {
     return internalAddPeer(std::move(identity), PlayerVector(first, last));
-}
-
-template<typename PlayerIterator>
-bool NodeControl::arePlayersRepresented(
-    PlayerIterator first, PlayerIterator last) const
-{
-    return std::is_permutation(
-        first, last,
-        allPlayers.begin(), allPlayers.end(),
-        [](const Player& player1, const Player& player2)
-        {
-            return &player1 == &player2;
-        });
 }
 
 }

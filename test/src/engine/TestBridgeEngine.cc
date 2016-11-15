@@ -129,7 +129,7 @@ protected:
     {
         const auto position = dereference(engine.getPosition(player));
         const auto partner_position = partnerFor(position);
-        const auto& partner = engine.getPlayer(partner_position);
+        const auto& partner = dereference(engine.getPlayer(partner_position));
         const auto& hand = dereference(engine.getHand(position));
         const auto& partner_hand = dereference(engine.getHand(partner_position));
 
@@ -199,7 +199,8 @@ protected:
                 state.positionInTurn = partnerFor(*dummy);
             }
             EXPECT_EQ(
-                state, makeDealState(engine, engine.getPlayer(position)));
+                state,
+                makeDealState(engine, dereference(engine.getPlayer(position))));
         }
     }
 
@@ -213,12 +214,12 @@ protected:
     void assertHandsVisible(const Player* dummy = nullptr)
     {
         for (const auto player_position : POSITIONS) {
-            const auto& player = engine.getPlayer(player_position);
+            const auto& player = dereference(engine.getPlayer(player_position));
             for (const auto hand_position : POSITIONS) {
                 const auto& hand_player = engine.getPlayer(hand_position);
                 const auto& hand = dereference(engine.getHand(hand_position));
                 EXPECT_EQ(
-                    player_position == hand_position || dummy == &hand_player,
+                    player_position == hand_position || dummy == hand_player,
                     engine.isVisible(hand, player));
             }
         }
@@ -254,13 +255,6 @@ protected:
         std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
     DealState expectedState;
 };
-
-TEST_F(BridgeEngineTest, testPlayers)
-{
-    for (const auto position : POSITIONS) {
-        EXPECT_EQ(position, engine.getPosition(engine.getPlayer(position)));
-    }
-}
 
 TEST_F(BridgeEngineTest, testBridgeEngine)
 {
@@ -346,7 +340,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         auto& player = *players[turn_i % players.size()];
         playCard(player, 0, i == 0, i == players.size() - 1);
         updateExpectedStateAfterPlay(player);
-        assertHandsVisible(&engine.getPlayer(Position::WEST));
+        assertHandsVisible(engine.getPlayer(Position::WEST));
     }
 
     expectedState.positionInTurn = Position::NORTH;
@@ -361,7 +355,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 1 : 0;
             EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
             assertDealState(Position::WEST);
-            assertHandsVisible(&engine.getPlayer(Position::WEST));
+            assertHandsVisible(engine.getPlayer(Position::WEST));
 
             engine.subscribeToDealEnded(observer);
             playCard(*player, i, false, last_card_in_trick);

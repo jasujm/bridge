@@ -26,12 +26,15 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "Logging.hh"
 #include "Observer.hh"
+#include "Zip.hh"
 
 #include <boost/iterator/indirect_iterator.hpp>
+#include <boost/iterator/function_input_iterator.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
 #include <zmq.hpp>
 
+#include <iterator>
 #include <set>
 #include <string>
 #include <tuple>
@@ -53,12 +56,17 @@ namespace {
 
 using StringVector = std::vector<std::string>;
 using VersionVector = std::vector<int>;
+using PlayerVector = std::vector<std::shared_ptr<Player>>;
 
-template<typename PairIterator>
-auto secondIterator(PairIterator iter)
+auto makePlayers(const std::size_t n)
 {
-    return boost::make_transform_iterator(
-        iter, [](auto&& pair) -> decltype(auto) { return pair.second; });
+    struct Generator {
+        using result_type = PlayerVector::value_type;
+        auto operator()() const { return std::make_shared<BasicPlayer>(); }
+    } generator;
+    return PlayerVector(
+        boost::make_function_input_iterator(generator, std::size_t {}),
+        boost::make_function_input_iterator(generator, n));
 }
 
 const std::string PEER_ROLE {"peer"};
@@ -88,15 +96,11 @@ public:
 
     BridgeEngine& getEngine();
 
-    template<typename PositionIterator>
-    auto positionPlayerIterator(PositionIterator iter);
-
     std::unique_ptr<CardProtocol> makeCardProtocol(
         zmq::context_t& context,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
-    bool readyToStart() const;
     void startIfReady();
 
 private:
@@ -134,13 +138,13 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
+    void internalAddPlayers(
+        const PositionVector& positions, const PlayerVector& players);
+    bool internalArePositionsFree(const PositionVector& positions) const;
+
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
-    std::map<Position, std::shared_ptr<BasicPlayer>> players {
-        {Position::NORTH, std::make_shared<BasicPlayer>()},
-        {Position::EAST, std::make_shared<BasicPlayer>()},
-        {Position::SOUTH, std::make_shared<BasicPlayer>()},
-        {Position::WEST, std::make_shared<BasicPlayer>()}};
+    PlayerVector players;
     std::set<std::string> peers;
     std::set<std::string> clients;
     std::shared_ptr<NodeControl> nodeControl;
@@ -151,19 +155,6 @@ private:
     zmq::socket_t eventSocket;
     Messaging::MessageLoop messageLoop;
 };
-
-template<typename PositionIterator>
-auto BridgeMain::Impl::positionPlayerIterator(PositionIterator iter)
-{
-    return boost::make_transform_iterator(
-        iter,
-        [&players = this->players](const auto position) -> const Player&
-        {
-            const auto& player = players.at(position);
-            assert(player);
-            return *player;
-        });
-}
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
     zmq::context_t& /*context*/,
@@ -180,10 +171,11 @@ BridgeMain::Impl::Impl(
     const PositionVector& positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
+    players {makePlayers(positions.size())},
     nodeControl {
         std::make_shared<NodeControl>(
-            positionPlayerIterator(positions.begin()),
-            positionPlayerIterator(positions.end()))},
+            boost::make_indirect_iterator(players.begin()),
+            boost::make_indirect_iterator(players.end()))},
     cardProtocol {
         makeCardProtocol(
             context, cardServerControlEndpoint, cardServerBasePeerEndpoint)},
@@ -192,9 +184,7 @@ BridgeMain::Impl::Impl(
             cardProtocol->getCardManager(), gameManager)},
     eventSocket {context, zmq::socket_type::pub}
 {
-    for (const auto p : players) {
-        engine->setPlayer(p.first, p.second);
-    }
+    internalAddPlayers(positions, players);
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
@@ -266,17 +256,9 @@ void BridgeMain::Impl::terminate()
     messageLoop.terminate();
 }
 
-bool BridgeMain::Impl::readyToStart() const
-{
-    assert(nodeControl);
-    return nodeControl->arePlayersRepresented(
-        boost::make_indirect_iterator(secondIterator(players.begin())),
-        boost::make_indirect_iterator(secondIterator(players.end())));
-}
-
 void BridgeMain::Impl::startIfReady()
 {
-    if (readyToStart()) {
+    if (players.size() == N_PLAYERS) {
         assert(engine);
         log(LogLevel::DEBUG, "Starting bridge engine");
         cardProtocol->initialize();
@@ -382,9 +364,9 @@ const Player* BridgeMain::Impl::getPlayerFor(
     assert(nodeControl);
     if (position) {
         assert(engine);
-        const auto& player = engine->getPlayer(*position);
-        if (nodeControl->isAllowedToAct(identity, player)) {
-            return &player;
+        const auto player = engine->getPlayer(*position);
+        if (player && nodeControl->isAllowedToAct(identity, *player)) {
+            return player;
         }
         return nullptr;
     }
@@ -416,17 +398,24 @@ Reply<> BridgeMain::Impl::game(
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
     assert(nodeControl);
-    if (peers.find(identity) != peers.end()) {
+
+    if (peers.find(identity) != peers.end() &&
+        internalArePositionsFree(positions)) {
+        auto new_players = makePlayers(positions.size());
         const auto success_ = nodeControl->addPeer(
             identity,
-            positionPlayerIterator(positions.begin()),
-            positionPlayerIterator(positions.end()));
+            boost::make_indirect_iterator(new_players.begin()),
+            boost::make_indirect_iterator(new_players.end()));
         if (success_) {
             assert(cardProtocol);
-            // TODO: Handle error if node control accepts and protocol rejects
-            static_cast<void>(cardProtocol->acceptPeer(identity, positions));
-            startIfReady();
-            return success();
+            if (cardProtocol->acceptPeer(identity, positions)) {
+                internalAddPlayers(positions, new_players);
+                std::move(
+                    new_players.begin(), new_players.end(),
+                    std::back_inserter(players));
+                startIfReady();
+                return success();
+            }
         }
     } else if (clients.find(identity) != clients.end()) {
         // TODO: Give the player a preferred position
@@ -483,6 +472,28 @@ Reply<> BridgeMain::Impl::play(
         }
     }
     return failure();
+}
+
+void BridgeMain::Impl::internalAddPlayers(
+    const PositionVector& positions, const PlayerVector& players)
+{
+    assert(engine);
+    for (const auto t : zip(positions, players)) {
+        engine->setPlayer(t.get<0>(), t.get<1>());
+    }
+
+}
+
+bool BridgeMain::Impl::internalArePositionsFree(
+    const PositionVector& positions) const
+{
+    assert(engine);
+    return std::none_of(
+        positions.begin(), positions.end(),
+        [&engine = *this->engine](const auto position)
+        {
+            return engine.getPlayer(position);
+        });
 }
 
 BridgeMain::BridgeMain(

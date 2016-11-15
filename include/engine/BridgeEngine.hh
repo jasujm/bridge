@@ -262,8 +262,9 @@ public:
 
     /** \brief Retrieve the player currently in turn
      *
-     * \return Pointer to the player who is next to act, or nullptr if the
-     * game is not in a phase where anyone would have turn. During the playing
+     * \return Pointer to the player who is next to act. The method returns
+     * nullptr if the game is not in a phase where anyone would have turn, or no
+     * player is seated at the position that would have turn. During the playing
      * phase declarer takes turns instead of dummy.
      */
     const Player* getPlayerInTurn() const;
@@ -279,9 +280,10 @@ public:
      *
      * \param position the position
      *
-     * \return the player sitting at the position
+     * \return the player seated at the position, or nullptr if there is no
+     * player in the position
      */
-    const Player& getPlayer(Position position) const;
+    const Player* getPlayer(Position position) const;
 
     /** \brief Determine the position of a given player
      *

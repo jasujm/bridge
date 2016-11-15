@@ -153,16 +153,3 @@ TEST_F(NodeControlTest, testPlayersNotBelongingToSelf)
     EXPECT_FALSE(nodeControl.isSelfRepresentedPlayer(players[2]));
     EXPECT_FALSE(nodeControl.isSelfRepresentedPlayer(players[3]));
 }
-
-TEST_F(NodeControlTest, testAllPlayersNotRepresented)
-{
-    EXPECT_FALSE(
-        nodeControl.arePlayersRepresented(players.begin(), players.end()));
-}
-
-TEST_F(NodeControlTest, testAllPlayersRepresented)
-{
-    addPeer();
-    EXPECT_TRUE(
-        nodeControl.arePlayersRepresented(players.begin(), players.end()));
-}

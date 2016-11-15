@@ -192,7 +192,7 @@ public:
     boost::optional<Vulnerability> getVulnerability() const;
     const Player* getPlayerInTurn() const;
     const Hand* getHandInTurn() const;
-    const Player& getPlayer(Position position) const;
+    const Player* getPlayer(Position position) const;
     boost::optional<Position> getPosition(const Player& player) const;
     const Hand* getHand(Position position) const;
     boost::optional<Position> getPosition(const Hand& hand) const;
@@ -701,7 +701,8 @@ const Player& PlayingTrick::getPlayerInTurn() const
     if (position == context<Playing>().getDummyPosition()) {
         position = partnerFor(position);
     }
-    return outermost_context().getPlayer(position);
+    // TODO: It should no longer be assumed that getPlayer() return valid player
+    return dereference(outermost_context().getPlayer(position));
 }
 
 const Hand& PlayingTrick::getHandInTurn() const
@@ -909,7 +910,7 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
 {
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
-        return &getPlayer(dereference(bidding.getPositionInTurn()));
+        return getPlayer(dereference(bidding.getPositionInTurn()));
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
         return &state->getPlayerInTurn();
     }
@@ -921,10 +922,10 @@ const Hand* BridgeEngine::Impl::getHandInTurn() const
     return internalCallIfInState(&PlayingTrick::getHandInTurn);
 }
 
-const Player& BridgeEngine::Impl::getPlayer(const Position position) const
+const Player* BridgeEngine::Impl::getPlayer(const Position position) const
 {
-    const auto& player = playersMap.left.at(position);
-    return dereference(player);
+    const auto iter = playersMap.left.find(position);
+    return (iter != playersMap.left.end()) ? iter->second : nullptr;
 }
 
 boost::optional<Position> BridgeEngine::Impl::getPosition(
@@ -1117,7 +1118,7 @@ const Hand* BridgeEngine::getHandInTurn() const
     return impl->getHandInTurn();
 }
 
-const Player& BridgeEngine::getPlayer(const Position position) const
+const Player* BridgeEngine::getPlayer(const Position position) const
 {
     assert(impl);
     return impl->getPlayer(position);
