@@ -646,7 +646,7 @@ public:
     void play();
 
     const Trick& getTrick() const;
-    const Player& getPlayerInTurn() const;
+    const Player* getPlayerInTurn() const;
     const Hand& getHandInTurn() const;
     Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
     const auto& getNextPlay();
@@ -674,12 +674,11 @@ void PlayingTrick::play()
 {
     assert(playInfo);
     assert(trick);
-    const auto& player_in_turn = getPlayerInTurn();
     const auto& card = dereference(playInfo->hand.getCard(playInfo->card));
     if (trick->play(playInfo->hand, card)) {
         playInfo->hand.markPlayed(playInfo->card);
         outermost_context().getCardPlayedNotifier().notifyAll(
-            BridgeEngine::CardPlayed { player_in_turn, playInfo->hand, card });
+            BridgeEngine::CardPlayed { playInfo->hand, card });
         if (trick->isCompleted()) {
             context<Playing>().addTrick(std::move(trick));
         }
@@ -693,7 +692,7 @@ const Trick& PlayingTrick::getTrick() const
     return *trick;
 }
 
-const Player& PlayingTrick::getPlayerInTurn() const
+const Player* PlayingTrick::getPlayerInTurn() const
 {
     const auto& hand = getHandInTurn();
     auto position = context<InDeal>().getPosition(hand);
@@ -701,8 +700,7 @@ const Player& PlayingTrick::getPlayerInTurn() const
     if (position == context<Playing>().getDummyPosition()) {
         position = partnerFor(position);
     }
-    // TODO: It should no longer be assumed that getPlayer() return valid player
-    return dereference(outermost_context().getPlayer(position));
+    return outermost_context().getPlayer(position);
 }
 
 const Hand& PlayingTrick::getHandInTurn() const
@@ -713,7 +711,7 @@ const Hand& PlayingTrick::getHandInTurn() const
 
 Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
 {
-    if (&player == &getPlayerInTurn() && &hand == &getHandInTurn()) {
+    if (&player == getPlayerInTurn() && &hand == &getHandInTurn()) {
         auto& in_deal = context<InDeal>();
         const auto position = in_deal.getPosition(hand);
         auto& hand = in_deal.getHand(position);
@@ -912,7 +910,7 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
         const auto& bidding = state_cast<const InDeal&>().getBidding();
         return getPlayer(dereference(bidding.getPositionInTurn()));
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
-        return &state->getPlayerInTurn();
+        return state->getPlayerInTurn();
     }
     return nullptr;
 }
@@ -1181,9 +1179,7 @@ BridgeEngine::CallMade::CallMade(
 {
 }
 
-BridgeEngine::CardPlayed::CardPlayed(
-    const Player& player, const Hand& hand, const Card& card) :
-    player {player},
+BridgeEngine::CardPlayed::CardPlayed(const Hand& hand, const Card& card) :
     hand {hand},
     card {card}
 {
@@ -1206,8 +1202,7 @@ bool operator==(
 bool operator==(
     const BridgeEngine::CardPlayed& lhs, const BridgeEngine::CardPlayed& rhs)
 {
-    return &lhs.player == &rhs.player &&
-        &lhs.hand == &rhs.hand &&
+    return &lhs.hand == &rhs.hand &&
         &lhs.card == &rhs.card;
 }
 

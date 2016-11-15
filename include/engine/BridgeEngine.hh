@@ -78,13 +78,11 @@ public:
     struct CardPlayed : private boost::equality_comparable<CardPlayed> {
         /** \brief Create new card played event
          *
-         * \param player see \ref player
          * \param hand see \ref hand
          * \param card see \ref card
          */
-        CardPlayed(const Player& player, const Hand& hand, const Card& card);
+        CardPlayed(const Hand& hand, const Card& card);
 
-        const Player& player; ///< \brief The player that played the card
         const Hand& hand;     ///< \brief The hand the card was played from
         const Card& card;     ///< \brief The card played
     };
@@ -119,8 +117,6 @@ public:
      *
      * \param cardManager the card manager used to manage playing cards
      * \param gameManager the game manager used to manage the rules of the game
-     *
-     * \throw std::invalid_argument unless there is exactly four players
      */
     BridgeEngine(
         std::shared_ptr<CardManager> cardManager,

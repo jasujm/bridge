@@ -434,8 +434,7 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
     EXPECT_CALL(
         *observer,
         handleNotify(
-            BridgeEngine::CardPlayed {
-                *players[1], hand, dereference(hand.getCard(0))}));
+            BridgeEngine::CardPlayed { hand, dereference(hand.getCard(0))}));
     engine.subscribeToCardPlayed(observer);
     ASSERT_TRUE(
         engine.play(*players[1], hand, 0));
