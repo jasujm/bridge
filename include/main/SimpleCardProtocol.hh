@@ -36,7 +36,8 @@ public:
 private:
 
     bool handleAcceptPeer(
-        const std::string& identity, const PositionVector& positions) override;
+        const std::string& identity, const PositionVector& positions,
+        const OptionalArgs& args) override;
 
     void handleInitialize() override;
 

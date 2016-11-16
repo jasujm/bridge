@@ -131,10 +131,9 @@
  *
  * \note The bridge peers is responsible for providing the correct base
  * endpoints to he controlled card server (which it learns from the \ref
- * bridgeprotocolcontrolbridgerp command). The bridge peer is also responsible
- * for omitting the endpoint from the card server entry of the high order peers
- * in order to comply with the connection rules described in \ref
- * cardserverorder.
+ * bridgeprotocolcontrolgame command). The bridge peer is also responsible for
+ * omitting the endpoint from the card server entry of the high order peers in
+ * order to comply with the connection rules described in \ref cardserverorder.
  *
  * \b Example: The order of thee card servers is A, B, C. The base peer endpoint
  * for card server A is tcp://peerA.example.com:5600. The base peer endpoint for

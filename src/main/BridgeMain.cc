@@ -136,7 +136,9 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<> game(
-        const std::string& identity, boost::optional<PositionVector> positions);
+        const std::string& identity,
+        boost::optional<PositionVector> positions,
+        const boost::optional<nlohmann::json>& args);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
@@ -166,13 +168,18 @@ private:
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
-    zmq::context_t& /*context*/,
-    const std::string& /*cardServerControlEndpoint*/,
-    const std::string& /*cardServerBasePeerEndpoint*/)
+    zmq::context_t& context,
+    const std::string& cardServerControlEndpoint,
+    const std::string& cardServerBasePeerEndpoint)
 {
-    // TODO: Use card server proxy if applicable
-    log(LogLevel::DEBUG, "Card exchange protocol: simple");
-    return std::make_unique<SimpleCardProtocol>(peerCommandSender);
+    if (cardServerControlEndpoint.empty() &&
+        cardServerBasePeerEndpoint.empty()) {
+        log(LogLevel::DEBUG, "Card exchange protocol: simple");
+        return std::make_unique<SimpleCardProtocol>(peerCommandSender);
+    }
+    log(LogLevel::DEBUG, "Card exchange protocol: card server");
+    return std::make_unique<CardServerProxy>(
+        context, cardServerControlEndpoint);
 }
 
 BridgeMain::Impl::Impl(
@@ -211,7 +218,7 @@ BridgeMain::Impl::Impl(
             GAME_COMMAND,
             makeMessageHandler(
                 *this, &Impl::game, JsonSerializer {},
-                std::make_tuple(POSITIONS_COMMAND))
+                std::make_tuple(POSITIONS_COMMAND, ARGS_COMMAND))
         },
         {
             GET_COMMAND,
@@ -252,7 +259,12 @@ BridgeMain::Impl::Impl(
     sendToPeers(
         HELLO_COMMAND,
         std::tie(VERSION_COMMAND, version), std::tie(ROLE_COMMAND, PEER_ROLE));
-    sendToPeers(GAME_COMMAND, std::tie(POSITIONS_COMMAND, positions));
+    sendToPeers(
+        GAME_COMMAND,
+        std::tie(POSITIONS_COMMAND, positions),
+        std::make_pair(
+            std::cref(ARGS_COMMAND),
+            makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
 }
 
 
@@ -404,7 +416,8 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, boost::optional<PositionVector> positions)
+    const std::string& identity, boost::optional<PositionVector> positions,
+    const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
     assert(nodeControl);
@@ -418,7 +431,7 @@ Reply<> BridgeMain::Impl::game(
             boost::make_indirect_iterator(new_players.end()));
         if (success_) {
             assert(cardProtocol);
-            if (cardProtocol->acceptPeer(identity, *positions)) {
+            if (cardProtocol->acceptPeer(identity, *positions, args)) {
                 internalAddPlayers(*positions, new_players);
                 std::move(
                     new_players.begin(), new_players.end(),

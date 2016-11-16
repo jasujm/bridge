@@ -128,7 +128,8 @@ SimpleCardProtocol::SimpleCardProtocol(
 }
 
 bool SimpleCardProtocol::handleAcceptPeer(
-    const std::string& identity, const PositionVector& positions)
+    const std::string& identity, const PositionVector& positions,
+    const OptionalArgs&)
 {
     assert(impl);
     return impl->acceptPeer(identity, positions);

@@ -1,5 +1,3 @@
-#if 0
-
 #include "main/CardServerProxy.hh"
 
 #include "bridge/BasicHand.hh"
@@ -76,8 +74,8 @@ struct DrawEventBase : public sc::event<EventType> {
     const CardTypeVector& cards;
 };
 
-struct PeerEvent : public sc::event<PeerEvent> {
-    PeerEvent(
+struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
+    AcceptPeerEvent(
         const std::string& identity,
         CardProtocol::PositionVector& positions,
         std::string& cardServerBasePeerEndpoint,
@@ -94,6 +92,7 @@ struct PeerEvent : public sc::event<PeerEvent> {
     std::string& cardServerBasePeerEndpoint;
     bool& ret;
 };
+struct InitializeEvent : public sc::event<InitializeEvent> {};
 struct RequestShuffleEvent : public sc::event<RequestShuffleEvent> {};
 struct ShuffleSuccessfulEvent : public sc::event<ShuffleSuccessfulEvent> {};
 struct RevealSuccessfulEvent : public sc::event<RevealSuccessfulEvent> {};
@@ -141,6 +140,11 @@ public:
 
     Impl(zmq::context_t& context, const std::string& controlEndpoint);
 
+    bool acceptPeer(
+        const std::string& identity, PositionVector positions,
+        std::string endpoint);
+    void initializeProtocol();
+
     template<typename Event, typename ParamIterator>
     void enqueueIfHasCardsParam(
         ParamIterator first, ParamIterator last);
@@ -151,16 +155,12 @@ public:
     void doRequestShuffle(const RequestShuffleEvent&);
     void doNotifyShuffleCompleted(const NotifyShuffleCompletedEvent&);
 
-    void setAcceptor(std::weak_ptr<PeerAcceptor> acceptor);
-
     template<typename... Args>
     void emplacePeer(Args&&... args);
 
     template<typename CardIterator>
     bool revealCards(CardIterator first, CardIterator last);
 
-    auto getAcceptor() const;
-    auto getMessageHandlers() const;
     auto getSockets() const;
     auto getNumberOfPeers() const;
 
@@ -170,10 +170,6 @@ public:
     FunctionQueue functionQueue;
 
 private:
-
-    Reply<> peer(
-        const std::string& identity, PositionVector positions,
-        std::string endpoint);
 
     void handleSubscribe(
         std::weak_ptr<Observer<ShufflingState>> observer) override;
@@ -187,17 +183,9 @@ private:
         const IndexVector& deckNs, const IndexVector& handNs);
     void internalHandleCardServerMessage(zmq::socket_t& socket);
 
-    const MessageHandlerVector messageHandlers {{
-         {
-             /*PEER_COMMAND*/ "bridgerp",
-             makeMessageHandler(
-                 *this, &Impl::peer, JsonSerializer {},
-                 std::make_tuple(POSITIONS_COMMAND, CARD_SERVER_COMMAND))
-        },
-    }};
+    const MessageHandlerVector messageHandlers;
     const SocketVector sockets;
     zmq::socket_t& controlSocket;
-    std::weak_ptr<PeerAcceptor> peerAcceptor;
     std::vector<PeerPosition> peerPositions;
     CardVector cards;
     Observable<ShufflingState> shufflingStateNotifier;
@@ -219,6 +207,26 @@ Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
     cards(N_CARDS)
 {
     controlSocket.connect(controlEndpoint);
+}
+
+bool Impl::acceptPeer(
+    const std::string& identity, PositionVector positions,
+    std::string cardServerBasePeerEndpoint)
+{
+    auto ret = true;
+    functionQueue(
+        [this, &identity, &positions, &cardServerBasePeerEndpoint, &ret]()
+        {
+            process_event(
+                AcceptPeerEvent {
+                    identity, positions, cardServerBasePeerEndpoint, ret});
+        });
+    return ret;
+}
+
+void Impl::initializeProtocol()
+{
+    functionQueue([this]() { process_event(InitializeEvent {}); });
 }
 
 template<typename Event, typename ParamIterator>
@@ -275,11 +283,6 @@ void Impl::doNotifyShuffleCompleted(const NotifyShuffleCompletedEvent&)
     shufflingStateNotifier.notifyAll(ShufflingState::COMPLETED);
 }
 
-void Impl::setAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
-{
-    peerAcceptor = std::move(acceptor);
-}
-
 template<typename... Args>
 void Impl::emplacePeer(Args&&... args)
 {
@@ -301,16 +304,6 @@ bool Impl::revealCards(CardIterator first, CardIterator last)
     return n == N_CARDS;
 }
 
-auto Impl::getAcceptor() const
-{
-    return std::shared_ptr<PeerAcceptor> {peerAcceptor};
-}
-
-auto Impl::getMessageHandlers() const
-{
-    return messageHandlers;
-}
-
 auto Impl::getSockets() const
 {
     return sockets;
@@ -325,25 +318,6 @@ template<typename IndexIterator>
 auto Impl::cardIterator(IndexIterator iter) const
 {
     return containerAccessIterator(iter, cards);
-}
-
-Reply<> Impl::peer(
-    const std::string& identity, PositionVector positions,
-    std::string cardServerBasePeerEndpoint)
-{
-    log(LogLevel::DEBUG, "Peer command from %s", asHex(identity));
-    auto ret = true;
-    functionQueue(
-        [this, &identity, &positions, &cardServerBasePeerEndpoint, &ret]()
-        {
-            process_event(
-                PeerEvent {
-                    identity, positions, cardServerBasePeerEndpoint, ret});
-        });
-    if (ret) {
-        return success();
-    }
-    return failure();
 }
 
 void Impl::handleSubscribe(
@@ -443,11 +417,14 @@ namespace {
 
 class Initializing : public sc::simple_state<Initializing, Impl> {
 public:
-    using reactions = sc::custom_reaction<PeerEvent>;
+    using reactions = boost::mpl::list<
+        sc::custom_reaction<AcceptPeerEvent>,
+        sc::custom_reaction<InitializeEvent>>;
 
     Initializing();
 
-    sc::result react(const PeerEvent&);
+    sc::result react(const AcceptPeerEvent&);
+    sc::result react(const InitializeEvent&);
 
 private:
     bool internalAddPeer(
@@ -464,24 +441,18 @@ Initializing::Initializing() :
 {
 }
 
-sc::result Initializing::react(const PeerEvent& event)
+sc::result Initializing::react(const AcceptPeerEvent& event)
 {
-    const auto acceptor = outermost_context().getAcceptor();
-    const auto accept_state =
-        acceptor->acceptPeer(event.identity, event.positions);
-    if (accept_state != CardProtocol::PeerAcceptState::REJECTED) {
-        event.ret = true;
-        internalAddPeer(
-            event.identity, std::move(event.positions),
-            std::move(event.cardServerBasePeerEndpoint));
-        if (accept_state == CardProtocol::PeerAcceptState::ALL_ACCEPTED) {
-            internalInitCardServer();
-            return transit<Idle>();
-        }
-    } else {
-        event.ret = false;
-    }
+    event.ret = internalAddPeer(
+        event.identity, std::move(event.positions),
+        std::move(event.cardServerBasePeerEndpoint));
     return discard_event();
+}
+
+sc::result Initializing::react(const InitializeEvent&)
+{
+    internalInitCardServer();
+    return transit<Idle>();
 }
 
 bool Initializing::internalAddPeer(
@@ -671,17 +642,30 @@ CardServerProxy::CardServerProxy(
     impl->initiate();
 }
 
-void CardServerProxy::handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor)
+bool CardServerProxy::handleAcceptPeer(
+    const std::string& identity, const PositionVector& positions,
+    const OptionalArgs& args)
+{
+    if (args) {
+        const auto iter = args->find(ENDPOINT_COMMAND);
+        if (iter != args->end() && iter->is_string()) {
+            assert(impl);
+            return impl->acceptPeer(identity, positions, *iter);
+        }
+    }
+    return false;
+}
+
+void CardServerProxy::handleInitialize()
 {
     assert(impl);
-    impl->setAcceptor(std::move(acceptor));
+    impl->initializeProtocol();
 }
 
 CardProtocol::MessageHandlerVector
 CardServerProxy::handleGetMessageHandlers()
 {
-    assert(impl);
-    return impl->getMessageHandlers();
+    return {};
 }
 
 CardServerProxy::SocketVector CardServerProxy::handleGetSockets()
@@ -695,7 +679,10 @@ std::shared_ptr<CardManager> CardServerProxy::handleGetCardManager()
     return impl;
 }
 
-}
+nlohmann::json makePeerArgsForCardServerProxy(const std::string& endpoint)
+{
+    return {{ ENDPOINT_COMMAND, endpoint }};
 }
 
-#endif
+}
+}

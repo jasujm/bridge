@@ -6,8 +6,9 @@ namespace Main {
 const std::string HELLO_COMMAND {"bridgehlo"};
 const std::string VERSION_COMMAND {"version"};
 const std::string ROLE_COMMAND {"role"};
-const std::string CARD_SERVER_COMMAND {"cardserver"};
 const std::string POSITIONS_COMMAND {"positions"};
+const std::string ARGS_COMMAND {"args"};
+const std::string ENDPOINT_COMMAND {"endpoint"};
 const std::string GAME_COMMAND {"game"};
 const std::string GET_COMMAND {"get"};
 const std::string POSITION_COMMAND {"position"};

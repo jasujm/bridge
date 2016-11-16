@@ -170,11 +170,12 @@
  * command with downgraded version. The development protocol is denoted by major
  * version 0.
  *
- * \subsection bridgeprotocolgame game
+ * \subsection bridgeprotocolcontrolgame game
  *
  * - \b Command: game
  * - \b Parameters:
  *   - \e positions: an array consisting of positions, see \ref jsonposition
+ *   - \e args: additonal protocol specific arguments
  * - \b Reply: \e none
  *
  * Nodes use this command to join a bridge game. The interpretation of the
@@ -185,9 +186,24 @@
  * without effect if at least one of the positions in the list is represented by
  * the peer itself or any other peer it has accepted.
  *
- * If the node is a client, the argument is optional. If present, it MUST
- * contain the preferred positions for the player that the client controls, in
- * descending order of preference. The command MUST fail if none of the
+ * The args parameter is reserved for additional card exchange protocol specific
+ * information needed by the peers. If the card server protocol is used, args
+ * MUST be a JSON object containing the base peer endpoint of the card server
+ * the peer uses. For instance, if the base peer endpoint is
+ * tcp://example.com:5555, the object would be the following:
+ *
+ * \code{.json}
+ * {
+ *     "endpoint": "tcp://example.com:5555",
+ * }
+ * \endcode
+ *
+ * \todo The card exchange protocol is now fixed per instance. It should instead
+ * be negotiable on game basis.
+ *
+ * If the node is a client, the positions parameter is optional. If present, it
+ * MUST contain the preferred positions for the player that the client controls,
+ * in descending order of preference. The command MUST fail if none of the
  * positions is available (that is, either not represented by the peer or
  * already controlled by another client). Otherwise the peer SHOULD assign the
  * highest available position in the list for the client to control.
@@ -444,10 +460,6 @@ extern const std::string VERSION_COMMAND;
  */
 extern const std::string ROLE_COMMAND;
 
-/** \brief See \ref bridgeprotocolcontrolbridgerp
- */
-extern const std::string CARD_SERVER_COMMAND;
-
 /** \brief See \ref bridgeprotocolcontrolgame
  */
 extern const std::string GAME_COMMAND;
@@ -455,6 +467,14 @@ extern const std::string GAME_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolgame
  */
 extern const std::string POSITIONS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
+extern const std::string ARGS_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
+extern const std::string ENDPOINT_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

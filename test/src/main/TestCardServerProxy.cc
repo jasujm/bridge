@@ -1,5 +1,3 @@
-#if 0
-
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardsForPosition.hh"
 #include "bridge/CardTypeIterator.hh"
@@ -13,7 +11,6 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/MessageUtility.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
@@ -30,7 +27,6 @@
 #include <zmq.hpp>
 
 #include <algorithm>
-#include <initializer_list>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -91,28 +87,7 @@ protected:
     virtual void SetUp()
     {
         proxySocket.bind(CONTROL_ENDPOINT);
-        protocol.setAcceptor(peerAcceptor);
-        for (auto&& handler : protocol.getMessageHandlers()) {
-            messageHandlers.emplace(handler);
-        }
         allCards.resize(N_CARDS);
-    }
-
-    bool peerCommand(
-        const std::string& identity,
-        const CardProtocol::PositionVector& positions,
-        const std::string& cardServerBasePeerEndpoint)
-    {
-        const auto args = {
-            POSITIONS_COMMAND, JsonSerializer::serialize(positions),
-            CARD_SERVER_COMMAND,
-            JsonSerializer::serialize(cardServerBasePeerEndpoint)};
-        auto reply = std::vector<std::string> {};
-        const auto success =
-            dereference(messageHandlers.at(/*PEER_COMMAND*/ "bridgerp")).handle(
-                identity, args.begin(), args.end(), std::back_inserter(reply));
-        EXPECT_TRUE(reply.empty());
-        return success;
     }
 
     template<typename... Matchers>
@@ -149,30 +124,48 @@ protected:
     zmq::context_t context;
     zmq::socket_t proxySocket {context, zmq::socket_type::pair};
     CardServerProxy protocol {context, CONTROL_ENDPOINT};
-    std::shared_ptr<MockPeerAcceptor> peerAcceptor {
-        std::make_shared<MockPeerAcceptor>()};
-    MessageQueue::HandlerMap messageHandlers;
     std::vector<boost::optional<CardType>> allCards;
 };
 
-TEST_F(CardServerProxyTest, testRejectPeer)
+TEST_F(CardServerProxyTest, testNoMessageHandlers)
 {
-    EXPECT_CALL(*peerAcceptor, acceptPeer(PEER, IsEmpty()))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::REJECTED));
-    EXPECT_FALSE(peerCommand(PEER, {}, CARD_SERVER_ENDPOINT));
+    EXPECT_TRUE(protocol.getMessageHandlers().empty());
+}
+
+TEST_F(CardServerProxyTest, testAcceptPeerMissingArgs)
+{
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, boost::none));
+}
+
+TEST_F(CardServerProxyTest, testAcceptPeerInvalidArgs)
+{
+    const auto args = nlohmann::json::array();
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, args));
+}
+
+TEST_F(CardServerProxyTest, testAcceptPeerWithInvalidEndpoint)
+{
+    const auto args = nlohmann::json {{ENDPOINT_COMMAND, nullptr}};
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, args));
+}
+
+TEST_F(CardServerProxyTest, testAcceptPeerMissingPosition)
+{
+    const auto args = makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT);
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {}, args));
 }
 
 TEST_F(CardServerProxyTest, testCardServerProxy)
 {
-    EXPECT_CALL(*peerAcceptor, acceptPeer(_, _))
-        .Times(2)
-        .WillOnce(Return(CardProtocol::PeerAcceptState::ACCEPTED))
-        .WillOnce(Return(CardProtocol::PeerAcceptState::ALL_ACCEPTED));
     EXPECT_TRUE(
-        peerCommand(PEER, {Position::SOUTH}, CARD_SERVER_ENDPOINT));
+        protocol.acceptPeer(
+            PEER, {Position::SOUTH},
+            makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT)));
     EXPECT_TRUE(
-        peerCommand(
-            PEER2, {Position::NORTH, Position::WEST}, CARD_SERVER_ENDPOINT2));
+        protocol.acceptPeer(
+            PEER2, {Position::NORTH, Position::WEST},
+            makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT2)));
+    protocol.initialize();
 
     assertMessage(
         INIT_COMMAND, ORDER_COMMAND, IsSerialized(1), PEERS_COMMAND,
@@ -286,5 +279,3 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     manager->requestShuffle();
     EXPECT_FALSE(manager->isShuffleCompleted());
 }
-
-#endif

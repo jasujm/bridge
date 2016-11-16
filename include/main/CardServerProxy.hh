@@ -1,5 +1,3 @@
-#if 0
-
 /** \file
  *
  * \brief Definition of Bridge::Main::CardServerProxy
@@ -30,9 +28,11 @@ namespace Main {
  * cheating.
  *
  * CardServerProxy requires that all the peers have joined and are accepted
- * before proceeding to the first shuffle.
+ * before proceeding to the first shuffle. In addition, each peer is required to
+ * provide the base endpoint for its card server peers. See \ref
+ * cardserverprotocol and \ref bridgeprotocol for details.
  *
- * \sa CardServer
+ * \sa CardServer, makePeerArgsForCardServerProxy()
  */
 class CardServerProxy : public CardProtocol, private boost::noncopyable {
 public:
@@ -49,7 +49,11 @@ public:
 
 private:
 
-    void handleSetAcceptor(std::weak_ptr<PeerAcceptor> acceptor) override;
+    bool handleAcceptPeer(
+        const std::string& identity, const PositionVector& positions,
+        const OptionalArgs& args) override;
+
+    void handleInitialize() override;
 
     MessageHandlerVector handleGetMessageHandlers() override;
 
@@ -60,9 +64,19 @@ private:
     const std::shared_ptr<Impl> impl;
 };
 
+/** \brief Make required additional arguments for CardServerProxy::acceptPeer()
+ *
+ * This function creates the necessary additional arguments that CardServerProxy
+ * needs when accepting a peer. The arguments contain the base endpoint for the
+ * card server peers.
+ *
+ * \param endpoint the base peer endpoint of the card server the peer uses
+ *
+ * \return the additional arguments as JSON object
+ */
+nlohmann::json makePeerArgsForCardServerProxy(const std::string& endpoint);
+
 }
 }
 
 #endif // MAIN_CARDSERVERPROXY_HH_
-
-#endif

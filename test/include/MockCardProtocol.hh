@@ -8,8 +8,11 @@ namespace Main {
 
 class MockCardProtocol : public CardProtocol {
 public:
-    MOCK_METHOD2(handleAcceptPeer,
-        bool(const std::string& identity, const PositionVector&));
+    MOCK_METHOD3(
+        handleAcceptPeer,
+        bool(
+            const std::string& identity, const PositionVector&,
+            const boost::optional<nlohmann::json>&));
     MOCK_METHOD0(handleInitialize, void());
     MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerVector());
     MOCK_METHOD0(handleGetSockets, SocketVector());

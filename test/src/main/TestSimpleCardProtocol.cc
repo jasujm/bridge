@@ -15,6 +15,7 @@
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/optional/optional.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <zmq.hpp>
@@ -104,7 +105,9 @@ protected:
 
 TEST_F(SimpleCardProtocolTest, testLeader)
 {
-    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH, Position::WEST}));
+    EXPECT_TRUE(
+        protocol.acceptPeer(
+            PEER, {Position::SOUTH, Position::WEST}, boost::none));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();
@@ -123,8 +126,10 @@ TEST_F(SimpleCardProtocolTest, testLeader)
 
 TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
-    EXPECT_TRUE(protocol.acceptPeer(LEADER, {Position::NORTH, Position::EAST}));
-    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}));
+    EXPECT_TRUE(
+        protocol.acceptPeer(
+            LEADER, {Position::NORTH, Position::EAST}, boost::none));
+    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}, boost::none));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();

@@ -9,6 +9,8 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 
+#include <boost/optional/optional.hpp>
+#include <json.hpp>
 #include <zmq.hpp>
 
 #include <memory>
@@ -38,6 +40,12 @@ namespace Main {
 class CardProtocol {
 public:
 
+    /** \brief Additional arguments from peer
+     *
+     * \sa acceptPeer()
+     */
+    using OptionalArgs = boost::optional<nlohmann::json>;
+
     /** \brief Vector containing positions
      */
     using PositionVector = std::vector<Position>;
@@ -63,13 +71,19 @@ public:
      * accepted, this method returns true. If the peer is rejected, this method
      * returns false, in which case the method call has no effect.
      *
+     * Each card protocol may need protocol specific additional arguments in
+     * order to deal with the peer. These arguments are passed in the \p args
+     * argument and interpreted in protocol defined manner.
+     *
      * \param identity the identity of the peer
      * \param positions the positions the peer requests to represent
+     * \param args additional arguments for the card protocol
      *
      * \return true if the peer is accepted, false if rejected
      */
     bool acceptPeer(
-        const std::string& identity, const PositionVector& positions);
+        const std::string& identity, const PositionVector& positions,
+        const OptionalArgs& args);
 
     /** \brief Initialize the protocol
      *
@@ -117,7 +131,8 @@ private:
      * \sa acceptPeer()
      */
     virtual bool handleAcceptPeer(
-        const std::string& identity, const PositionVector& positions) = 0;
+        const std::string& identity, const PositionVector& positions,
+        const OptionalArgs& args) = 0;
 
     /** \brief Handle initializing the protocol
      *
