@@ -53,7 +53,7 @@ SCORE_TAG = "score"
 class BridgeWindow(QMainWindow):
     """The main window of the birdge frontend"""
 
-    def __init__(self, control_socket, event_socket):
+    def __init__(self, control_socket, event_socket, position):
         """Initialize BridgeWindow
 
         Keyword Arguments:
@@ -62,6 +62,7 @@ class BridgeWindow(QMainWindow):
         """
         super().__init__()
         self._position = None
+        self._preferred_positions = self._make_preferred_positions(position)
         self._timer = QTimer(self)
         self._timer.setInterval(1000)
         self._init_sockets(control_socket, event_socket)
@@ -69,6 +70,14 @@ class BridgeWindow(QMainWindow):
         self.setWindowTitle("Bridge") # TODO: Localization
         self.show()
         self._timer.start()
+
+    def _make_preferred_positions(self, position):
+        all_positions = list(POSITION_TAGS)
+        try:
+            n = all_positions.index(position)
+            return [position] + all_positions[:n] + all_positions[n+1:]
+        except ValueError:
+            return all_positions
 
     def _init_sockets(self, control_socket, event_socket):
         logging.info("Initializing message handlers")
@@ -149,7 +158,9 @@ class BridgeWindow(QMainWindow):
 
     def _handle_hello_reply(self, **kwargs):
         logging.info("Handshake successful")
-        sendCommand(self._control_socket, GAME_COMMAND, positions=POSITION_TAGS)
+        sendCommand(
+            self._control_socket, GAME_COMMAND,
+            positions=self._preferred_positions)
 
     def _handle_game_reply(self, **kwargs):
         logging.info("Joined game")
@@ -244,6 +255,11 @@ def main():
              identity. It is possible to play without config file but in that
              case preserving the session is not possible.""")
     parser.add_argument(
+        '--position',
+        help="""If provided, the application requests the server to assign the
+             given position. If the position is not available (or if the option
+             is not given), any position is requested.""")
+    parser.add_argument(
         "--verbose", "-v", action="count", default=0,
         help="""Increase logging levels. Repeat for even more logging.""")
     args = parser.parse_args()
@@ -275,7 +291,7 @@ def main():
 
     logging.info("Starting main window")
     app = QApplication(sys.argv)
-    window = BridgeWindow(control_socket, event_socket)
+    window = BridgeWindow(control_socket, event_socket, args.position)
     code = app.exec_()
 
     logging.info("Main window closed. Closing sockets.")

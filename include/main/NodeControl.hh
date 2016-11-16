@@ -46,20 +46,21 @@ public:
     /** \brief Add new client
      *
      * This method maps a client to one of the players represented by this
-     * application. The method assigns one player for the client to control in
-     * the order they were in the range given as parameter to the
-     * constructor. If there are no more players that could be assigned, no
-     * client may be added.
+     * application. The method assigns the \p player for the client to
+     * control. If \p player is not represented by the application, or already
+     * assigned to some other client, the player may not be added.
      *
-     * If \p identity is the identity of an already added client, the player
-     * already assigned to the client is returned.
+     * This method is idempotent. In particular, if \p identity is the identity
+     * of an already added client, the \p player argument is ignored and the
+     * already controlled player returned.
      *
      * \param identity identity of the client
+     * \param player the suggested player
      *
      * \return pointer to the player the newly created or existing client is
      * allowed to control, or nullptr if adding the client was not successful
      */
-    const Player* addClient(const std::string& identity);
+    const Player* addClient(const std::string& identity, const Player& player);
 
     /** \brief Add new peer
      *

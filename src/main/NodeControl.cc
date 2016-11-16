@@ -3,6 +3,8 @@
 #include "bridge/BridgeConstants.hh"
 #include "Utility.hh"
 
+#include <boost/variant/get.hpp>
+
 #include <cassert>
 #include <iterator>
 #include <utility>
@@ -66,20 +68,36 @@ private:
     const Player& player;
 };
 
-const Player* NodeControl::addClient(const std::string& identity)
+const Player* NodeControl::addClient(
+    const std::string& identity, const Player& player)
 {
-    if (const auto player = getPlayer(identity)) {
-        return player;
-    } else if (nClients >= nSelfPlayers) {
-        return nullptr;
+    const auto node_iter = others.find(identity);
+    if (node_iter != others.end()) {
+        if (const auto client = boost::get<Client>(&node_iter->second)) {
+            return &client->player.get();
+        }
     }
 
-    assert(nClients < allPlayers.size());
-    const auto& player = allPlayers[nClients].get();
-    const auto entry = others.emplace(identity, Client {player});
-    if (entry.second) {
-        ++nClients;
-        return &player;
+    // Find the player among the players that are controlled by the application
+    // itself (range [0, nSelfPlayers)) but not yet controlled by any client
+    // (range [0, nClients))
+    assert(nClients <= nSelfPlayers);
+    assert(nClients <= allPlayers.size());
+    assert(nSelfPlayers <= allPlayers.size());
+    const auto first_free = allPlayers.begin() + nClients;
+    const auto last_free = allPlayers.begin() + nSelfPlayers;
+    const auto iter = std::find_if(
+        first_free, last_free, compareAddress(player));
+
+    // If found, try to add the new client and move her new player to the
+    // already controlled range [0, nClients)
+    if (iter != last_free) {
+        const auto entry = others.emplace(identity, Client {player});
+        if (entry.second) {
+            std::rotate(first_free, iter, last_free);
+            ++nClients;
+            return &player;
+        }
     }
     return nullptr;
 }

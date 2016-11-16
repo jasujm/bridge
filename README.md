@@ -60,7 +60,7 @@ The backend opens two sockets into two consequtive ports. The first one is
 used to receive commands from the frontend and peers. The second one is for
 publishing events to the clients.
 
-Arguments to the options are:
+The options are:
 
     endpoint   The endpoint for control socket. The endpoint for event socket
                has the same interface but one greater port, i.e. if the
@@ -87,7 +87,7 @@ logging, respectively.
 
 Run the four frontend (client) instances
 
-    $ bridgegui --config=bridge-config endpoint
+    $ bridgegui --config=bridge-config --position=position endpoint
 
 where endpoint is the control endpoint of the backend application. Exactly one
 frontend must connect for each position the backend controls. The backend
@@ -98,6 +98,13 @@ useful. It remembers the frontend to remember its identity. If the client quits
 (or worse, crashes), the old session can be recovered by specifying the same
 configuration file and backend. The file can be any file to which the used has
 write access.
+
+The optional position argument is one of the positions (north, east, south,
+west). If provided, it is the preferred position requested for the backend. If
+the position is already taken (or it is controlled by another peer), the backend
+assigns any position.
+
+### Examples
 
 By adjusting the positions and peers arguments in the backend application,
 different kinds of network topologies can be made. In the pure client‐server

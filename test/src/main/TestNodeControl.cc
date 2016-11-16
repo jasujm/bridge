@@ -22,8 +22,8 @@ class NodeControlTest : public testing::Test {
 protected:
     void addClients()
     {
-        nodeControl.addClient(CLIENT1);
-        nodeControl.addClient(CLIENT2);
+        nodeControl.addClient(CLIENT1, players[0]);
+        nodeControl.addClient(CLIENT2, players[1]);
     }
 
     void addPeer()
@@ -39,21 +39,28 @@ protected:
 
 TEST_F(NodeControlTest, testAddClient)
 {
-    EXPECT_EQ(&players[0], nodeControl.addClient(CLIENT1));
-    EXPECT_EQ(&players[1], nodeControl.addClient(CLIENT2));
+    EXPECT_EQ(&players[0], nodeControl.addClient(CLIENT1, players[0]));
+    EXPECT_EQ(&players[1], nodeControl.addClient(CLIENT2, players[1]));
+}
+
+TEST_F(NodeControlTest, testAddClientsInOtherOrder)
+{
+    EXPECT_EQ(&players[1], nodeControl.addClient(CLIENT2, players[1]));
+    EXPECT_EQ(&players[0], nodeControl.addClient(CLIENT1, players[0]));
 }
 
 TEST_F(NodeControlTest, testAddExistingClient)
 {
-    const auto player = nodeControl.addClient(CLIENT1);
-    EXPECT_EQ(player, nodeControl.addClient(CLIENT1));
+    const auto player = nodeControl.addClient(CLIENT1, players[0]);
+    EXPECT_EQ(player, nodeControl.addClient(CLIENT1, players[0]));
+    EXPECT_EQ(player, nodeControl.addClient(CLIENT1, players[1]));
 }
 
 TEST_F(
     NodeControlTest, testOnlyOneClientClientCanBeAddedPerPlayerRepresented)
 {
     addClients();
-    EXPECT_FALSE(nodeControl.addClient("extra_client"));
+    EXPECT_FALSE(nodeControl.addClient("extra_client", players[0]));
 }
 
 TEST_F(NodeControlTest, testClientIsAllowedToActForTheirPlayer)
@@ -100,6 +107,13 @@ TEST_F(NodeControlTest, testTwoPeersCannotHaveSameIdentity)
     EXPECT_FALSE(
         nodeControl.addPeer(
             PEER1, std::next(players.begin(), 3), players.end()));
+}
+
+TEST_F(NodeControlTest, testClientCannotHaveSameIdentityAsPeer)
+{
+    nodeControl.addPeer(
+        PEER1, std::next(players.begin(), 2), std::next(players.begin(), 3));
+    EXPECT_FALSE(nodeControl.addClient(PEER1, players[0]));
 }
 
 TEST_F(NodeControlTest, testGetPlayerUnrecognizedIdentity)

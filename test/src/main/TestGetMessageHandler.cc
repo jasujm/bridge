@@ -89,10 +89,10 @@ protected:
         for (const auto t : zip(POSITIONS, players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
-        nodeControl->addClient(PLAYER1);
-        nodeControl->addClient(PLAYER2);
-        nodeControl->addClient(PLAYER3);
-        nodeControl->addClient(PLAYER4);
+        nodeControl->addClient(PLAYER1, *players[0]);
+        nodeControl->addClient(PLAYER2, *players[1]);
+        nodeControl->addClient(PLAYER3, *players[2]);
+        nodeControl->addClient(PLAYER4, *players[3]);
         engine->initiate();
     }
 
