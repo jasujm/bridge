@@ -51,9 +51,10 @@ public:
      * \param context the ZeroMQ context for the game
      * \param baseEndpoint the base endpoint for control and event sockets
      * \param positionsControlled the positions controlled by the application
+     *   (empty vector implies all positions)
      * \param peerEndpoints the base endpoints of the peers
      * \param cardServerControlEndpoint the control endpoint of a card server
-     * the application connects
+     *   the application connects
      * \param cardServerBasePeerEndpoint the base endpoint used by the peers
      * to establish the peer connection
      *
@@ -69,7 +70,7 @@ public:
     BridgeMain(
         zmq::context_t& context,
         const std::string& baseEndpoint,
-        const PositionVector& positionsControlled,
+        PositionVector positionsControlled,
         const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);

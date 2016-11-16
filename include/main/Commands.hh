@@ -192,6 +192,9 @@
  * already controlled by another client). Otherwise the peer SHOULD assign the
  * highest available position in the list for the client to control.
  *
+ * The positions argument SHOULD not contain duplicates. A peer MAY either
+ * ignore duplicates or fail the command if duplicate values are present.
+ *
  * \subsection bridgeprotocolcontrolget get
  *
  * - \b Command: get

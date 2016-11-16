@@ -38,12 +38,12 @@ public:
     BridgeApp(
         zmq::context_t& zmqctx,
         const std::string& baseEndpoint,
-        const BridgeMain::PositionVector& positions,
+        BridgeMain::PositionVector positions,
         const BridgeMain::EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint) :
         app {
-            zmqctx, baseEndpoint, positions, peerEndpoints,
+            zmqctx, baseEndpoint, std::move(positions), peerEndpoints,
             cardServerControlEndpoint, cardServerBasePeerEndpoint}
     {
         appObserver = &app;
@@ -123,7 +123,7 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
 
     return BridgeApp {
-        zmqctx, argv[optind], positions, peerEndpoints,
+        zmqctx, argv[optind], std::move(positions), peerEndpoints,
         cardServerControlEndpoint, cardServerBasePeerEndpoint};
 }
 

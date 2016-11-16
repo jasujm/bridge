@@ -58,15 +58,21 @@ using StringVector = std::vector<std::string>;
 using VersionVector = std::vector<int>;
 using PlayerVector = std::vector<std::shared_ptr<Player>>;
 
-auto makePlayers(const std::size_t n)
+auto makePlayers(BridgeMain::PositionVector& positions)
 {
+    std::sort(positions.begin(), positions.end());
+    const auto last = std::unique(positions.begin(), positions.end());
+    if (last != positions.end()) {
+        log(LogLevel::DEBUG, "Removing duplicates from position vector");
+        positions.erase(last, positions.end());
+    }
     struct Generator {
         using result_type = PlayerVector::value_type;
         auto operator()() const { return std::make_shared<BasicPlayer>(); }
     } generator;
     return PlayerVector(
-        boost::make_function_input_iterator(generator, std::size_t {}),
-        boost::make_function_input_iterator(generator, n));
+        boost::make_function_input_iterator(generator, std::size_t {0u}),
+        boost::make_function_input_iterator(generator, positions.size()));
 }
 
 const std::string PEER_ROLE {"peer"};
@@ -86,7 +92,7 @@ public:
 
     Impl(
         zmq::context_t& context, const std::string& baseEndpoint,
-        const PositionVector& positions, const EndpointVector& peerEndpoints,
+        PositionVector positions, const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
@@ -129,7 +135,7 @@ private:
     Reply<> hello(
         const std::string& identity, const VersionVector& version,
         const std::string& role);
-    Reply<> game(const std::string& identity, const PositionVector& positions);
+    Reply<> game(const std::string& identity, PositionVector positions);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
@@ -168,10 +174,10 @@ std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
 
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& baseEndpoint,
-    const PositionVector& positions, const EndpointVector& peerEndpoints,
+    PositionVector positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
-    players {makePlayers(positions.size())},
+    players {makePlayers(positions)},
     nodeControl {
         std::make_shared<NodeControl>(
             boost::make_indirect_iterator(players.begin()),
@@ -394,14 +400,14 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, const PositionVector& positions)
+    const std::string& identity, PositionVector positions)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
     assert(nodeControl);
 
     if (peers.find(identity) != peers.end() &&
         internalArePositionsFree(positions)) {
-        auto new_players = makePlayers(positions.size());
+        auto new_players = makePlayers(positions);
         const auto success_ = nodeControl->addPeer(
             identity,
             boost::make_indirect_iterator(new_players.begin()),
@@ -498,7 +504,7 @@ bool BridgeMain::Impl::internalArePositionsFree(
 
 BridgeMain::BridgeMain(
     zmq::context_t& context, const std::string& baseEndpoint,
-    const PositionVector& positions, const EndpointVector& peerEndpoints,
+    PositionVector positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     impl {
