@@ -58,13 +58,20 @@ using StringVector = std::vector<std::string>;
 using VersionVector = std::vector<int>;
 using PlayerVector = std::vector<std::shared_ptr<Player>>;
 
-auto makePlayers(BridgeMain::PositionVector& positions)
+auto makePlayers(BridgeMain::PositionVector& positions, bool peerMode = true)
 {
-    std::sort(positions.begin(), positions.end());
-    const auto last = std::unique(positions.begin(), positions.end());
-    if (last != positions.end()) {
-        log(LogLevel::DEBUG, "Removing duplicates from position vector");
-        positions.erase(last, positions.end());
+    if (peerMode) {
+        std::sort(positions.begin(), positions.end());
+        const auto last = std::unique(positions.begin(), positions.end());
+        if (last != positions.end()) {
+            log(LogLevel::DEBUG, "Ignoring duplicates from positions vector");
+            positions.erase(last, positions.end());
+        }
+    } else {
+        if (!positions.empty()) {
+            log(LogLevel::INFO, "No peers, ignoring positions argument");
+        }
+        positions.assign(POSITIONS.begin(), POSITIONS.end());
     }
     struct Generator {
         using result_type = PlayerVector::value_type;
@@ -147,6 +154,10 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
+    void internalInitializePeers(
+        zmq::context_t& context, const EndpointVector& peerEndpoints,
+        const PositionVector& positions,
+        const std::string& cardServerBasePeerEndpoint);
     void internalAddPlayers(
         const PositionVector& positions, const PlayerVector& players);
     bool internalArePositionsFree(const PositionVector& positions) const;
@@ -155,9 +166,10 @@ private:
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
-    PlayerVector players;
     std::set<std::string> peers;
     std::set<std::string> clients;
+    bool peerMode;
+    PlayerVector players;
     std::shared_ptr<NodeControl> nodeControl;
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
@@ -187,7 +199,8 @@ BridgeMain::Impl::Impl(
     PositionVector positions, const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
-    players {makePlayers(positions)},
+    peerMode {!peerEndpoints.empty()},
+    players {makePlayers(positions, peerMode)},
     nodeControl {
         std::make_shared<NodeControl>(
             boost::make_indirect_iterator(players.begin()),
@@ -243,28 +256,13 @@ BridgeMain::Impl::Impl(
     }
     messageLoop.addSocket(
         std::move(controlSocket), MessageQueue { std::move(handlers) });
-    for (const auto& endpoint : peerEndpoints) {
-        messageLoop.addSocket(
-            peerCommandSender->addPeer(context, endpoint),
-            [&sender = *this->peerCommandSender](zmq::socket_t& socket)
-            {
-                sender.processReply(socket);
-                return true;
-            });
-    }
     for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
-    const auto version = VersionVector {0};
-    sendToPeers(
-        HELLO_COMMAND,
-        std::tie(VERSION_COMMAND, version), std::tie(ROLE_COMMAND, PEER_ROLE));
-    sendToPeers(
-        GAME_COMMAND,
-        std::tie(POSITIONS_COMMAND, positions),
-        std::make_pair(
-            std::cref(ARGS_COMMAND),
-            makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
+    if (peerMode) {
+        internalInitializePeers(
+            context, peerEndpoints, positions, cardServerBasePeerEndpoint);
+    }
 }
 
 
@@ -403,7 +401,7 @@ Reply<> BridgeMain::Impl::hello(
         asHex(identity), version.empty() ? -1 : version.front(), role);
     if (version.empty() || version.front() > 0) {
         return failure();
-    } else if (role == PEER_ROLE) {
+    } else if (role == PEER_ROLE && peerMode) {
         log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
         peers.insert(identity);
         return success();
@@ -497,6 +495,32 @@ Reply<> BridgeMain::Impl::play(
         }
     }
     return failure();
+}
+
+void BridgeMain::Impl::internalInitializePeers(
+    zmq::context_t& context, const EndpointVector& peerEndpoints,
+    const PositionVector& positions,
+    const std::string& cardServerBasePeerEndpoint)
+{
+    for (const auto& endpoint : peerEndpoints) {
+        messageLoop.addSocket(
+            peerCommandSender->addPeer(context, endpoint),
+            [&sender = *this->peerCommandSender](zmq::socket_t& socket)
+            {
+                sender.processReply(socket);
+                return true;
+            });
+    }
+    sendToPeers(
+        HELLO_COMMAND,
+        std::make_pair(std::cref(VERSION_COMMAND), VersionVector {0}),
+        std::tie(ROLE_COMMAND, PEER_ROLE));
+    sendToPeers(
+        GAME_COMMAND,
+        std::tie(POSITIONS_COMMAND, positions),
+        std::make_pair(
+            std::cref(ARGS_COMMAND),
+            makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
 }
 
 void BridgeMain::Impl::internalAddPlayers(

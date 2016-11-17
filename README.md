@@ -68,19 +68,23 @@ The options are:
                for event socket is tcp://*:5556.
     positions  JSON list containing positions the backend instance controls.
                E.g. ["north"]. If omitted, all positions are controlled.
-    connect    JSON list containing ZMQ endpoints for the control sockects of
+    connect    JSON list containing ZMQ endpoints of the control sockects of
                the peers the backend connects to. E.g.
                ["tcp://peer1.example.com:5555", "tcp://peer2.example.com:5555"].
                If omitted, the backend connects to no peers.
     cs-cntl    Card server control endpoint.
     cs-peer    Base endpoint for peer card servers.
 
-When connecting peers to each other, no position can be controlled by two
-peers and each position must be controlled by some peer.
+Positions option is only significant if connect option is specified. When
+connecting peers to each other, no position can be controlled by two peers and
+each position must be controlled by some peer. If there are no peers (and thus
+the backend acts purely as server), it always controls all players. See the
+Examples section for more information.
 
 If the last two parameters are present, card server is used for secure card
-exchange between the peers. Otherwise plaintext simple card exchange protocol
-is used, so no peeking the network traffic :innocent:
+exchange between the peers. See the Card server section for more information. If
+they are not present, plaintext simple card exchange protocol is used, so no
+peeking the network traffic :innocent:
 
 To increase logging level, -v and -vv flags can be used for INFO and DEBUG level
 logging, respectively.
@@ -127,7 +131,7 @@ position is bolded has turn to call (during auction) or play a card to the trick
 (during playing).
 
 Note! The application does not yet correctly handle peers leaving and rejoining
-the game. If a peer or a card server crashes, the session is likely lost.
+the game. If a peer or a card server crashes, the session is lost.
 
 ### Score
 

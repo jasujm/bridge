@@ -79,8 +79,7 @@ T parseArgument(const char* arg)
 
 BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    auto positions = BridgeMain::PositionVector(
-        POSITIONS.begin(), POSITIONS.end());
+    auto positions = BridgeMain::PositionVector {};
     auto peerEndpoints = BridgeMain::EndpointVector {};
     auto cardServerControlEndpoint = std::string {};
     auto cardServerBasePeerEndpoint = std::string {};
