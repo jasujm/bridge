@@ -237,9 +237,6 @@ bool TMCG::shuffle()
 
 bool TMCG::reveal(const std::string& identity, const IndexVector& ns)
 {
-    auto p_vtmf = vtmf.get_ptr();
-    assert(p_vtmf);
-
     const auto iter = std::find_if(
         peers.begin(), peers.end(),
         [&identity](const auto& peer)
@@ -255,9 +252,6 @@ bool TMCG::reveal(const std::string& identity, const IndexVector& ns)
 
 bool TMCG::revealAll(const IndexVector& ns)
 {
-    auto p_vtmf = vtmf.get_ptr();
-    assert(p_vtmf);
-
     for (auto&& peer : peers) {
         auto success = true;
         if (peer) {

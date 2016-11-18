@@ -136,9 +136,6 @@ private:
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
 
-    const Player* getPlayerFor(
-        const std::string& identity, const boost::optional<Position>& position);
-
     Reply<> hello(
         const std::string& identity, const VersionVector& version,
         const std::string& role);
@@ -154,6 +151,8 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
+    const Player* internalGetPlayerFor(
+        const std::string& identity, const boost::optional<Position>& position);
     void internalInitializePeers(
         zmq::context_t& context, const EndpointVector& peerEndpoints,
         const PositionVector& positions,
@@ -378,21 +377,6 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
     publish(DEAL_END_COMMAND);
 }
 
-const Player* BridgeMain::Impl::getPlayerFor(
-    const std::string& identity, const boost::optional<Position>& position)
-{
-    assert(nodeControl);
-    if (position) {
-        assert(engine);
-        const auto player = engine->getPlayer(*position);
-        if (player && nodeControl->isAllowedToAct(identity, *player)) {
-            return player;
-        }
-        return nullptr;
-    }
-    return nodeControl->getPlayer(identity);
-}
-
 Reply<> BridgeMain::Impl::hello(
     const std::string& identity, const VersionVector& version,
     const std::string& role)
@@ -455,7 +439,7 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Position: %s. Call: %s",
         asHex(identity), position, call);
-    if (const auto player = getPlayerFor(identity, position)) {
+    if (const auto player = internalGetPlayerFor(identity, position)) {
         assert(engine);
         if (engine->call(*player, call)) {
             return success();
@@ -477,7 +461,7 @@ Reply<> BridgeMain::Impl::play(
         return failure();
     }
 
-    if (const auto player = getPlayerFor(identity, position)) {
+    if (const auto player = internalGetPlayerFor(identity, position)) {
         assert(engine);
         if (const auto hand = engine->getHandInTurn()) {
             const auto n_card = index ? index : findFromHand(*hand, *card);
@@ -521,6 +505,21 @@ void BridgeMain::Impl::internalInitializePeers(
         std::make_pair(
             std::cref(ARGS_COMMAND),
             makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
+}
+
+const Player* BridgeMain::Impl::internalGetPlayerFor(
+    const std::string& identity, const boost::optional<Position>& position)
+{
+    assert(nodeControl);
+    if (position) {
+        assert(engine);
+        const auto player = engine->getPlayer(*position);
+        if (player && nodeControl->isAllowedToAct(identity, *player)) {
+            return player;
+        }
+        return nullptr;
+    }
+    return nodeControl->getPlayer(identity);
 }
 
 void BridgeMain::Impl::internalAddPlayers(
