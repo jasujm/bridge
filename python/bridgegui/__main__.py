@@ -297,3 +297,7 @@ def main():
     logging.info("Main window closed. Closing sockets.")
     zmqctx.destroy(linger=0)
     return code
+
+
+if __name__ == "__main__":
+    main()
