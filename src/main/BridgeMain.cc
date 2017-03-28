@@ -26,12 +26,12 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "Logging.hh"
 #include "Observer.hh"
-#include "Zip.hh"
 
 #include <boost/iterator/indirect_iterator.hpp>
 #include <boost/iterator/function_input_iterator.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
+#include <boost/range/combine.hpp>
 #include <zmq.hpp>
 
 #include <iterator>
@@ -526,7 +526,7 @@ void BridgeMain::Impl::internalAddPlayers(
     const PositionVector& positions, const PlayerVector& players)
 {
     assert(engine);
-    for (const auto t : zip(positions, players)) {
+    for (const auto t : boost::combine(positions, players)) {
         engine->setPlayer(t.get<0>(), t.get<1>());
     }
 

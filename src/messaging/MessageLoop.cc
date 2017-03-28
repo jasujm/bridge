@@ -1,6 +1,7 @@
 #include "messaging/MessageLoop.hh"
 #include "Utility.hh"
-#include "Zip.hh"
+
+#include <boost/range/combine.hpp>
 
 #include <atomic>
 #include <cassert>
@@ -55,7 +56,7 @@ bool MessageLoop::Impl::run()
         return false;
     }
     static_cast<void>(zmq::poll(pollitems));
-    for (auto&& t : zip(pollitems, callbacks)) {
+    for (auto&& t : boost::combine(pollitems, callbacks)) {
         const auto& item = t.get<0>();
         auto& callback = t.get<1>();
         if (item.revents & ZMQ_POLLIN) {

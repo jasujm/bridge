@@ -23,9 +23,9 @@
 #include "MockObserver.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
-#include "Zip.hh"
 
 #include <boost/optional/optional.hpp>
+#include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -69,7 +69,7 @@ private:
 protected:
     virtual void SetUp()
     {
-        for (const auto t : zip(POSITIONS, players)) {
+        for (const auto t : boost::combine(POSITIONS, players)) {
             engine.setPlayer(t.get<0>(), t.get<1>());
         }
         for (const auto e : enumerate(cards)) {

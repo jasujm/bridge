@@ -14,11 +14,11 @@
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
 #include "Utility.hh"
-#include "Zip.hh"
 
 #include <boost/bimap/bimap.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional/optional.hpp>
+#include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
 #include <boost/statechart/simple_state.hpp>
@@ -59,7 +59,7 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
     {
         return {t.template get<0>(), t.template get<1>().get()};
     };
-    auto&& z = zip(POSITIONS, values);
+    auto&& z = boost::combine(POSITIONS, values);
     return MapType(
         boost::make_transform_iterator(z.begin(), func),
         boost::make_transform_iterator(z.end(),   func));

@@ -1,10 +1,10 @@
 #include "bridge/BasicTrick.hh"
 #include "bridge/CardType.hh"
 #include "Enumerate.hh"
-#include "Zip.hh"
 #include "MockCard.hh"
 #include "MockHand.hh"
 
+#include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -22,7 +22,7 @@ class BasicTrickTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (auto&& e : enumerate(zip(hands, cards))) {
+        for (auto&& e : enumerate(boost::combine(hands, cards))) {
             ON_CALL(e.second.get<0>(), handleIsOutOfSuit(_))
                 .WillByDefault(Return(false));
             ON_CALL(e.second.get<1>(), handleGetType())
@@ -40,7 +40,7 @@ protected:
 
 TEST_F(BasicTrickTest, testTurns)
 {
-    for (auto&& e : zip(hands, cards)) {
+    for (auto&& e : boost::combine(hands, cards)) {
         EXPECT_EQ(&e.get<0>(), trick.getHandInTurn());
         EXPECT_TRUE(trick.play(e.get<0>(), e.get<1>()));
     }
@@ -49,7 +49,7 @@ TEST_F(BasicTrickTest, testTurns)
 
 TEST_F(BasicTrickTest, testCardsPlayed)
 {
-    for (auto&& e : zip(hands, cards)) {
+    for (auto&& e : boost::combine(hands, cards)) {
         EXPECT_FALSE(trick.getCard(e.get<0>()));
         EXPECT_TRUE(trick.play(e.get<0>(), e.get<1>()));
         EXPECT_EQ(&e.get<1>(), trick.getCard(e.get<0>()));

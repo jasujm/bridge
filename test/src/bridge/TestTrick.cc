@@ -4,8 +4,8 @@
 #include "MockTrick.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
-#include "Zip.hh"
 
+#include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -29,7 +29,7 @@ class TrickTest : public testing::TestWithParam<std::size_t> {
 protected:
     virtual void SetUp()
     {
-        for (auto&& e : enumerate(zip(cards, hands))) {
+        for (auto&& e : enumerate(boost::combine(cards, hands))) {
             ON_CALL(trick, handleGetCard(e.first))
                 .WillByDefault(ReturnRef(e.second.get<0>()));
             ON_CALL(trick, handleGetHand(e.first))
@@ -301,7 +301,7 @@ TEST_P(TrickTest, testGetCardWhenTrickIsCompleted)
 
 TEST_F(TrickTest, testCardIterators)
 {
-    auto&& z = zip(hands, cards);
+    auto&& z = boost::combine(hands, cards);
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Trick::N_CARDS_IN_TRICK));
     EXPECT_TRUE(

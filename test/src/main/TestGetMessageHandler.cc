@@ -24,10 +24,10 @@
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "MockPlayer.hh"
-#include "Zip.hh"
 
-#include <gtest/gtest.h>
 #include <boost/iterator/indirect_iterator.hpp>
+#include <boost/range/combine.hpp>
+#include <gtest/gtest.h>
 
 #include <array>
 #include <iterator>
@@ -86,7 +86,7 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (const auto t : zip(POSITIONS, players)) {
+        for (const auto t : boost::combine(POSITIONS, players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
         nodeControl->addClient(PLAYER1, *players[0]);
@@ -104,7 +104,7 @@ protected:
 
     void makeBidding()
     {
-        for (auto&& t : zip(players, CALLS)) {
+        for (auto&& t : boost::combine(players, CALLS)) {
             engine->call(*t.get<0>(), t.get<1>());
         }
     }
@@ -225,7 +225,7 @@ TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(CALLS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
-    for (auto&& t : zip(j, POSITIONS, CALLS)) {
+    for (auto&& t : boost::combine(j, POSITIONS, CALLS)) {
         const auto position = fromJson<Position>(
             t.get<0>().at(POSITION_COMMAND));
         EXPECT_EQ(t.get<1>(), position);

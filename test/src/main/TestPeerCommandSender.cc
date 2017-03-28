@@ -1,9 +1,9 @@
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
 #include "main/PeerCommandSender.hh"
-#include "Zip.hh"
 #include "MockSerializationPolicy.hh"
 
+#include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 #include <zmq.hpp>
 
@@ -15,7 +15,6 @@ using Bridge::Main::PeerCommandSender;
 using Bridge::Messaging::MockSerializationPolicy;
 using Bridge::Messaging::recvMessage;
 using Bridge::Messaging::sendMessage;
-using Bridge::zip;
 
 namespace {
 using namespace std::string_literals;
@@ -30,7 +29,7 @@ class PeerCommandSenderTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (auto&& t : zip(endpoints, frontSockets, backSockets))
+        for (auto&& t : boost::combine(endpoints, frontSockets, backSockets))
         {
             t.get<1>().bind(t.get<0>());
             t.get<2>() = sender.addPeer(context, t.get<0>());
@@ -63,7 +62,7 @@ protected:
             {static_cast<void*>(frontSockets[1]), 0, ZMQ_POLLIN, 0},
         }};
         static_cast<void>(zmq::poll(pollitems.data(), N_SOCKETS, 0));
-        for (auto&& t : zip(expect_recv, pollitems, frontSockets)) {
+        for (auto&& t : boost::combine(expect_recv, pollitems, frontSockets)) {
             const auto recv = t.get<1>().revents & ZMQ_POLLIN;
             EXPECT_EQ(t.get<0>(), recv);
             if (recv) {
@@ -112,7 +111,7 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive();
     sendCommand(NEXT);
     checkReceive(false, false);
-    for (auto&& t : zip(frontSockets, backSockets)) {
+    for (auto&& t : boost::combine(frontSockets, backSockets)) {
         sendMessage(t.get<0>(), SUCCESS_MESSAGE.begin(), SUCCESS_MESSAGE.end());
         sender.processReply(*t.get<1>());
     }

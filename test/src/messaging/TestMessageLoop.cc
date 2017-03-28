@@ -1,8 +1,8 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageUtility.hh"
 #include "MockMessageLoopCallback.hh"
-#include "Zip.hh"
 
+#include <boost/range/combine.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <zmq.hpp>
@@ -28,7 +28,7 @@ class MessageLoopTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (auto&& t : Bridge::zip(endpoints, frontSockets, backSockets, callbacks)) {
+        for (auto&& t : boost::combine(endpoints, frontSockets, backSockets, callbacks)) {
             ON_CALL(t.get<3>(), call(_)).WillByDefault(
                 Invoke(
                     [this](auto& socket)
