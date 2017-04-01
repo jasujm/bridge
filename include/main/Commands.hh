@@ -60,12 +60,11 @@
  *
  * \subsection bridgeprotocolplayers Players
  *
- * In the bridge protocol a \e player is an uniquely identified entity that
- * takes actions in a bridge game subject to the rules of contract bridge. In
- * each game, a peer represents one or more players with the intention of
- * delegating control of the to the clients connecting to the peer. A peer
- * representing a player, or a client controlling a player represented by the
- * peer itself, is said to be allowed to act for that player.
+ * In each game, a peer represents one or more players with the intention of
+ * delegating control of the to the clients connecting to the peer. Before the
+ * game the peers which players each one represents. A peer representing a
+ * player or a client to whom the control of a player is delegated to is said to
+ * be allowed to act for that player.
  *
  * The bridge protocol allows multiple network topologies. In pure client‐server
  * model a single peer represents all players and all clients connect to the
