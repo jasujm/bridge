@@ -12,7 +12,7 @@ endfunction()
 
 ExternalProject_Add(googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG ec44c6c1675c25b9827aacd08c02433cccde7780
+  GIT_TAG aa148eb2b7f70ede0eb10de34b6254826bfb34f4
   INSTALL_COMMAND "")
 add_googlemock_library(gmock)
 ExternalProject_Get_Property(googletest SOURCE_DIR)
