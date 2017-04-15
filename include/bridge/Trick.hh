@@ -13,7 +13,6 @@
 #include <boost/optional/optional.hpp>
 
 #include <cstddef>
-#include <functional>
 #include <utility>
 
 namespace Bridge {
@@ -163,9 +162,8 @@ inline auto Trick::trickCardIterator(std::size_t n) const
         boost::make_counting_iterator(n),
         [this](const std::size_t n)
         {
-            return std::make_pair(
-                std::ref(handleGetHand(n)),
-                std::ref(handleGetCard(n)));
+            return std::pair<const Hand&, const Card&>(
+                handleGetHand(n), handleGetCard(n));
         });
 }
 
