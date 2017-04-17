@@ -72,9 +72,9 @@ protected:
     }
 
     const std::array<std::string, 3u> FAILURE_MESSAGE {{
-        ""s, Bridge::Messaging::REPLY_FAILURE, DEFAULT}};
+        ""s, std::string(4, '\xff'), DEFAULT}};
     const std::array<std::string, 3u> SUCCESS_MESSAGE {{
-        ""s, Bridge::Messaging::REPLY_SUCCESS, DEFAULT}};
+        ""s, std::string(4, '\0'), DEFAULT}};
 
     zmq::context_t context;
     std::array<std::string, N_SOCKETS> endpoints {{

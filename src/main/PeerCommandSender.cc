@@ -44,9 +44,8 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
     }
     const auto& current_message = messages.front();
     assert(!current_message.empty());
-    if (
-        isSuccessfulReply(
-            message.begin(), message.end(), current_message.front())) {
+    const auto reply_iter = isSuccessfulReply(message.begin(), message.end());
+    if (reply_iter != message.end() && *reply_iter == current_message.front()) {
         success = true;
         if (
             std::all_of(

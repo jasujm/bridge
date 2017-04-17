@@ -12,6 +12,7 @@
 #ifndef MESSAGING_MESSAGEUTILITY_HH_
 #define MESSAGING_MESSAGEUTILITY_HH_
 
+#include <boost/endian/conversion.hpp>
 #include <zmq.hpp>
 
 #include <iterator>
@@ -55,6 +56,28 @@ void sendMessage(
         sendMessage(socket, *first, more || tmp != last);
         first = tmp;
     }
+}
+
+/** \brief Send binary value
+ *
+ * This function can be used to send binary representation of a value directly
+ * to the wire. The value is not serialized but rather the bytes are converted
+ * to big endian order and sent as is.
+ *
+ * \tparam EndianReversible see
+ * http://www.boost.org/doc/libs/1_63_0/libs/endian/doc/conversion.html#EndianReversible
+ *
+ * \param socket socket used for sending the message
+ * \param v the value to send
+ * \param more true if there are more parts in the message, false otherwise
+ */
+template<typename EndianReversible>
+void sendValue(
+    zmq::socket_t& socket, const EndianReversible& v, bool more = false)
+{
+    const auto big_endian_v = boost::endian::native_to_big(v);
+    const auto flags = more ? ZMQ_SNDMORE : 0;
+    socket.send(std::addressof(big_endian_v), sizeof(big_endian_v), flags);
 }
 
 /** \brief Helper for sending empty frame for router and dealer socket

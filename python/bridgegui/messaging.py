@@ -2,6 +2,7 @@
 
 import re
 import logging
+import struct
 
 import json
 import zmq
@@ -10,6 +11,14 @@ EMPTY_FRAME = b''
 REPLY_SUCCESS_PREFIX = [EMPTY_FRAME, b'success']
 
 ENDPOINT_REGEX = re.compile(r"tcp://(.+):(\d+)")
+
+
+def _failed_status_code(code):
+    PACK_FMT = '>l'
+    if len(code) != struct.calcsize(PACK_FMT):
+        return False
+    code = struct.unpack(PACK_FMT, code)
+    return code[0] < 0
 
 
 def endpoints(base):
@@ -46,6 +55,31 @@ def sendCommand(socket, command, **kwargs):
             "Error %d while sending message %r: %s", e.errno, parts, str(e))
 
 
+def validateControlReply(parts):
+    """Validate control message reply
+
+    The function checks if the parts given as argument contain one empty frame
+    and successful (nonnegative) status code. If yes, the prefix is stripped and
+    the rest of the parts returned. Otherwise None is returned.
+
+    Keyword Arguments:
+    parts -- the message frames (list of bytes)
+    """
+    if (len(parts) < 2 or parts[0] != EMPTY_FRAME or
+        _failed_status_code(parts[1])):
+        return None
+    return parts[2:]
+
+
+def validateEventMessage(parts):
+    """Validate event message
+
+    This function just returns its arguments as is (there is nothing to validate
+    about event message).
+    """
+    return parts
+
+
 class ProtocolError(Exception):
     """Error indicating unexpected message from bridge server"""
     pass
@@ -54,7 +88,7 @@ class ProtocolError(Exception):
 class MessageQueue:
     """Object for handling messages coming from the bridge server"""
 
-    def __init__(self, socket, name, prefix, handlers):
+    def __init__(self, socket, name, validator, handlers):
         """Initialize message queue
 
         Message queue keeps a reference to the given socket and wraps it into a
@@ -66,20 +100,20 @@ class MessageQueue:
         protocol specification for more information about the command and
         argument concepts.
 
-        When message is received, the first frames are first compared to the
-        expected prefix. The prefix is different e.g. for control message
-        replies and published event. Only if the prefix is correct, the handling
-        proceeds to deserializing the arguments.
+        When message is received, it is first validated using the validator
+        given as argument. Replies to control messages can be validated using
+        validateControlReply and events can be validated using the (trivial)
+        validateEventMessage.
 
         Keyword Arguments:
-        socket   -- the ZMQ socket the message queue is backed by
-        name     -- the name of the queue (for logging)
-        prefix   -- expected prefix for successful message
-        handlers -- mapping between commands and message handlers
+        socket    -- the ZMQ socket the message queue is backed by
+        name      -- the name of the queue (for logging)
+        validator -- Function for validating successful message
+        handlers  -- mapping between commands and message handlers
         """
         self._socket = socket
         self._name = str(name)
-        self._prefix = list(prefix)
+        self._validator = validator
         self._handlers = dict(handlers)
 
     def handleMessages(self):
@@ -113,20 +147,14 @@ class MessageQueue:
 
     def _handle_message(self, parts):
         logging.debug("Received message: %r", parts)
-        n_prefix = len(self._prefix)
-        if parts[:n_prefix] != self._prefix:
-            raise ProtocolError(
-                "Unexpected message prefix in %r. Expected: %r" % (
-                parts, self._prefix))
-        if len(parts) < n_prefix + 1:
-            raise ProtocolError(
-                "Message too short: %r. Expected at least %d parts" % (
-                    parts, n_prefix + 1))
-        command = self._handlers.get(parts[n_prefix], None)
+        parts = self._validator(parts)
+        if not parts:
+            raise ProtocolError("Invalid message parts: %r" % parts)
+        command = self._handlers.get(parts[0], None)
         if not command:
-            raise ProtocolError("Unrecognized command: %r" % parts[n_prefix])
+            raise ProtocolError("Unrecognized command: %r" % parts[0])
         kwargs = {}
-        for n in range(n_prefix+1, len(parts)-1, 2):
+        for n in range(1, len(parts)-1, 2):
             key = parts[n].decode()
             value = parts[n+1].decode()
             try:

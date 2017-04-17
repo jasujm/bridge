@@ -5,10 +5,13 @@ import zmq.decorators
 import zmq
 
 from bridgegui.messaging import (
-    endpoints, sendCommand, MessageQueue, REPLY_SUCCESS_PREFIX)
+    endpoints, sendCommand, MessageQueue, validateControlReply)
 
 ENDPOINT = 'inproc://testing'
 COMMAND = b'command'
+
+EMPTY_FRAME = b''
+REPLY_SUCCESS_PREFIX = [EMPTY_FRAME, b'\0\0\0\0']
 
 
 class MessagingTest(unittest.TestCase):
@@ -31,7 +34,7 @@ class MessageQueueTest(unittest.TestCase):
         self._front_socket.connect(ENDPOINT)
         self._message_queue = MessageQueue(
             self._back_socket, "test message queue",
-            REPLY_SUCCESS_PREFIX, { COMMAND: self._handle_command })
+            validateControlReply, { COMMAND: self._handle_command })
         self._command_handled = False
 
     def tearDown(self):
@@ -45,6 +48,11 @@ class MessageQueueTest(unittest.TestCase):
 
     def testIncorrectPrefix(self):
         self._front_socket.send_multipart((b'this', b'is', b'incorrect'))
+        self.assertFalse(self._message_queue.handleMessages())
+
+    def testFailedStatusCode(self):
+        self._front_socket.send_multipart(
+            (b'', b'\xff\xff\xff\xff', COMMAND, b'arg', b'123'))
         self.assertFalse(self._message_queue.handleMessages())
 
     def testMissingCommand(self):

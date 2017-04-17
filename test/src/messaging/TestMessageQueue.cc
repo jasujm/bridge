@@ -38,10 +38,17 @@ protected:
         frontSocket.connect(ENDPOINT);
     }
 
-    void assertReply(const std::string& reply)
+    void assertReply(
+        bool success, boost::optional<std::string> command, bool more = false)
     {
-        ASSERT_EQ(std::make_pair(reply, true), recvMessage(frontSocket));
-        ASSERT_EQ(std::make_pair(COMMAND, false), recvMessage(frontSocket));
+        const auto status = recvMessage(frontSocket);
+        EXPECT_EQ(success, isSuccessful(getStatusCode(status.first)));
+        if (command) {
+            ASSERT_TRUE(status.second);
+            EXPECT_EQ(std::make_pair(*command, more), recvMessage(frontSocket));
+        } else {
+            ASSERT_FALSE(status.second);
+        }
     }
 
     zmq::context_t context;
@@ -66,7 +73,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     sendMessage(frontSocket, p2);
 
     messageQueue(backSocket);
-    assertReply(REPLY_SUCCESS);
+    assertReply(true, COMMAND);
 }
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
@@ -82,7 +89,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     sendMessage(frontSocket, p2);
 
     messageQueue(backSocket);
-    assertReply(REPLY_FAILURE);
+    assertReply(false, COMMAND);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
@@ -92,9 +99,7 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 
     messageQueue(backSocket);
 
-    EXPECT_EQ(
-        std::make_pair(REPLY_FAILURE, false),
-        recvMessage(frontSocket));
+    assertReply(false, boost::none);
 }
 
 TEST_F(MessageQueueTest, testReply)
@@ -111,10 +116,7 @@ TEST_F(MessageQueueTest, testReply)
 
     messageQueue(backSocket);
 
-    EXPECT_EQ(
-        std::make_pair(REPLY_SUCCESS, true),
-        recvMessage(frontSocket));
-    ASSERT_EQ(std::make_pair(COMMAND, true), recvMessage(frontSocket));
+    assertReply(true, COMMAND, true);
     EXPECT_EQ(
         std::make_pair(outputs.begin()[0], true), recvMessage(frontSocket));
     EXPECT_EQ(
@@ -134,5 +136,5 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
 
     sendMessage(frontSocket, COMMAND, false);
     messageQueue(repSocket);
-    assertReply(REPLY_SUCCESS);
+    assertReply(true, COMMAND);
 }

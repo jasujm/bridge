@@ -99,25 +99,36 @@
  * and the serialization are ignored. Links to the pages describing the JSON
  * representation of the parameters are presented instead.
  *
+ * \section bridgeprotocolreplymessage Reply messages
+ *
  * The peer MUST reply to properly formatted messages. The reply to the command
  * MUST consist of an empty frame, status frame, frame identifying the command
  * and command dependent number of reply arguments consisting of alternating key
- * and value frames. The status MUST be either success or failure depending on
- * whether or not the command was successfully handled. The identification frame
- * MUST be the same as the command frame of the message it replies to. The
- * arguments MUST be JSON documents encoded in UTF‐8. A failed reply MUST NOT be
- * accompanied by parameters.
+ * and value frames. The status MUST be a four byte big endian integer which is
+ * equal or greater than zero if the command was successfully handled, or less
+ * than zero otherwise. The identification frame MUST be the same as the command
+ * frame of the message it replies to. The arguments MUST be JSON documents
+ * encoded in UTF‐8. A failed reply MUST NOT be accompanied by parameters.
  *
  * \b Example. A successful reply to the bridgehlo command consists of the
- * following three frames:
+ * following five frames:
  *
- * | N | Content                        | Notes                        |
- * |---|--------------------------------|------------------------------|
- * | 1 |                                | Empty frame                  |
- * | 2 | success                        |                              |
- * | 3 | bridgehlo                      |                              |
- * | 4 | position                       |                              |
- * | 5 | "north"                        |                              |
+ * | N | Content                        | Notes                          |
+ * |---|--------------------------------|--------------------------------|
+ * | 1 |                                | Empty frame                    |
+ * | 2 | \\0\\0\\0\\0                   | Four byte representation of 0  |
+ * | 3 | bridgehlo                      |                                |
+ * | 4 | position                       |                                |
+ * | 5 | "north"                        |                                |
+ *
+ * \b Example. A failed reply to the bridgehlo command consists of the following
+ * three frames:
+ *
+ * | N | Content                        | Notes                          |
+ * |---|--------------------------------|--------------------------------|
+ * | 1 |                                | Empty frame                    |
+ * | 2 | \\xff\\xff\\xff\\xff           | Four byte representation of -1 |
+ * | 3 | bridgehlo                      |                                |
  *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not

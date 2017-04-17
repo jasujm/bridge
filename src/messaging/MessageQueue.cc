@@ -50,7 +50,7 @@ void sendReplyHelper(
 {
     sendIdentityIfRouter(identity, socket);
     sendEmptyFrameIfNecessary(socket);
-    sendMessage(
+    sendValue(
         socket,
         success ? REPLY_SUCCESS : REPLY_FAILURE,
         !output.empty());

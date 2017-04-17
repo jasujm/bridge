@@ -86,7 +86,7 @@ class BridgeWindow(QMainWindow):
         self._control_socket = control_socket
         self._control_socket_queue = messaging.MessageQueue(
             control_socket, "control socket queue",
-            messaging.REPLY_SUCCESS_PREFIX,
+            messaging.validateControlReply,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
                 GAME_COMMAND: self._handle_game_reply,
@@ -98,7 +98,7 @@ class BridgeWindow(QMainWindow):
             control_socket, self._control_socket_queue)
         self._event_socket = event_socket
         self._event_socket_queue = messaging.MessageQueue(
-            event_socket, "event socket queue", [],
+            event_socket, "event socket queue", messaging.validateEventMessage,
             {
                 DEAL_COMMAND: self._handle_deal_event,
                 CALL_COMMAND: self._handle_call_event,

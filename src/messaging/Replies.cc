@@ -3,8 +3,10 @@
 namespace Bridge {
 namespace Messaging {
 
-const std::string REPLY_SUCCESS {"success"};
-const std::string REPLY_FAILURE {"failure"};
+bool isSuccessful(boost::optional<StatusCode> code)
+{
+    return code && *code >= 0;
+}
 
 }
 }

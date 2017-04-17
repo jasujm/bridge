@@ -103,7 +103,7 @@ protected:
     template<typename... Args>
     void reply(Args&&... args)
     {
-        sendMessage(proxySocket, REPLY_SUCCESS, true);
+        sendValue(proxySocket, REPLY_SUCCESS, true);
         sendCommand(
             proxySocket, JsonSerializer {}, std::forward<Args>(args)...);
         const auto sockets = protocol.getSockets();
