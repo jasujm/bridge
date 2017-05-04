@@ -140,9 +140,10 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<> game(
-        const std::string& identity,
-        boost::optional<PositionVector> positions,
+        const std::string& identity, PositionVector positions,
         const boost::optional<nlohmann::json>& args);
+    Reply<> join(
+        const std::string& identity, boost::optional<PositionVector> positions);
     Reply<> call(
         const std::string& identity, const boost::optional<Position>& position,
         const Call& call);
@@ -231,6 +232,12 @@ BridgeMain::Impl::Impl(
             makeMessageHandler(
                 *this, &Impl::game, JsonSerializer {},
                 std::make_tuple(POSITIONS_COMMAND, ARGS_COMMAND))
+        },
+        {
+            JOIN_COMMAND,
+            makeMessageHandler(
+                *this, &Impl::join, JsonSerializer {},
+                std::make_tuple(POSITIONS_COMMAND))
         },
         {
             GET_COMMAND,
@@ -398,23 +405,23 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, boost::optional<PositionVector> positions,
+    const std::string& identity, PositionVector positions,
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
     assert(nodeControl);
 
-    if (peers.find(identity) != peers.end() && positions &&
-        internalArePositionsFree(*positions)) {
-        auto new_players = makePlayers(*positions);
+    if (peers.find(identity) != peers.end() &&
+        internalArePositionsFree(positions)) {
+        auto new_players = makePlayers(positions);
         const auto success_ = nodeControl->addPeer(
             identity,
             boost::make_indirect_iterator(new_players.begin()),
             boost::make_indirect_iterator(new_players.end()));
         if (success_) {
             assert(cardProtocol);
-            if (cardProtocol->acceptPeer(identity, *positions, args)) {
-                internalAddPlayers(*positions, new_players);
+            if (cardProtocol->acceptPeer(identity, positions, args)) {
+                internalAddPlayers(positions, new_players);
                 std::move(
                     new_players.begin(), new_players.end(),
                     std::back_inserter(players));
@@ -422,7 +429,16 @@ Reply<> BridgeMain::Impl::game(
                 return success();
             }
         }
-    } else if (clients.find(identity) != clients.end()) {
+    }
+    return failure();
+}
+
+Reply<> BridgeMain::Impl::join(
+    const std::string& identity, boost::optional<PositionVector> positions)
+{
+    log(LogLevel::DEBUG, "Join command from %s", asHex(identity));
+
+    if (clients.find(identity) != clients.end()) {
         if (!positions) {
             positions.emplace(POSITIONS.begin(), POSITIONS.end());
         }

@@ -10,6 +10,7 @@ const std::string POSITIONS_COMMAND {"positions"};
 const std::string ARGS_COMMAND {"args"};
 const std::string ENDPOINT_COMMAND {"endpoint"};
 const std::string GAME_COMMAND {"game"};
+const std::string JOIN_COMMAND {"join"};
 const std::string GET_COMMAND {"get"};
 const std::string POSITION_COMMAND {"position"};
 const std::string KEYS_COMMAND {"keys"};

@@ -25,7 +25,7 @@ import bridgegui.score as score
 import bridgegui.tricks as tricks
 
 HELLO_COMMAND = b'bridgehlo'
-GAME_COMMAND = b'game'
+JOIN_COMMAND = b'join'
 GET_COMMAND = b'get'
 DEAL_COMMAND = b'deal'
 CALL_COMMAND = b'call'
@@ -89,7 +89,7 @@ class BridgeWindow(QMainWindow):
             messaging.validateControlReply,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
-                GAME_COMMAND: self._handle_game_reply,
+                JOIN_COMMAND: self._handle_join_reply,
                 GET_COMMAND: self._handle_get_reply,
                 CALL_COMMAND: self._handle_call_reply,
                 PLAY_COMMAND: self._handle_play_reply,
@@ -159,10 +159,10 @@ class BridgeWindow(QMainWindow):
     def _handle_hello_reply(self, **kwargs):
         logging.info("Handshake successful")
         sendCommand(
-            self._control_socket, GAME_COMMAND,
+            self._control_socket, JOIN_COMMAND,
             positions=self._preferred_positions)
 
-    def _handle_game_reply(self, **kwargs):
+    def _handle_join_reply(self, **kwargs):
         logging.info("Joined game")
         self._request(
             POSITION_TAG, POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,

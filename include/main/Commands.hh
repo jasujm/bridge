@@ -188,13 +188,12 @@
  *   - \e args: additonal protocol specific arguments
  * - \b Reply: \e none
  *
- * Nodes use this command to join a bridge game. The interpretation of the
- * positions argument depends on the role of the node.
+ * Peers use this command to coordinate setting up a bridge game.
  *
- * If the node is a peer, the argument MUST be present and contain the positions
- * of all the players the node requests to represent. The command MUST fail
- * without effect if at least one of the positions in the list is represented by
- * the peer itself or any other peer it has accepted.
+ * The position argument MUST contain the positions of all the players the node
+ * requests to represent. The command MUST fail without effect if at least one
+ * of the positions in the list is represented by the peer itself or any other
+ * peer it has accepted.
  *
  * The args parameter is reserved for additional card exchange protocol specific
  * information needed by the peers. If the card server protocol is used, args
@@ -211,12 +210,24 @@
  * \todo The card exchange protocol is now fixed per instance. It should instead
  * be negotiable on game basis.
  *
- * If the node is a client, the positions parameter is optional. If present, it
- * MUST contain the preferred positions for the player that the client controls,
- * in descending order of preference. The command MUST fail if none of the
- * positions is available (that is, either not represented by the peer or
- * already controlled by another client). Otherwise the peer SHOULD assign the
- * highest available position in the list for the client to control.
+ * The positions argument SHOULD not contain duplicates. A peer MAY either
+ * ignore duplicates or fail the command if duplicate values are present.
+ *
+ * \subsection bridgeprotocolcontroljoin join
+ *
+ * - \b Command: join
+ * - \b Parameters:
+ *   - \e positions: an array consisting of positions, see \ref jsonposition
+ * - \b Reply: \e none
+ *
+ * Clients use this command to join a bridge game.
+ *
+ * The positions parameter is optional. If present, it MUST contain the
+ * preferred positions for the player that the client controls, in descending
+ * order of preference. The command MUST fail if none of the positions is
+ * available (that is, either not represented by the peer or already controlled
+ * by another client). Otherwise the peer SHOULD assign the highest available
+ * position in the list for the client to control.
  *
  * The positions argument SHOULD not contain duplicates. A peer MAY either
  * ignore duplicates or fail the command if duplicate values are present.
@@ -473,6 +484,10 @@ extern const std::string ROLE_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolgame
  */
 extern const std::string GAME_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontroljoin
+ */
+extern const std::string JOIN_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
