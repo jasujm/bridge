@@ -17,9 +17,12 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "scoring/DuplicateScoreSheet.hh"
 
+#include <boost/uuid/string_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <json.hpp>
 #include <gtest/gtest.h>
 
@@ -471,4 +474,25 @@ TEST_F(JsonSerializerTest, testPeerEntryEndpointInvalid)
         }
     };
     testFailedDeserializationHelper<CardServer::PeerEntry>(j);
+}
+
+TEST_F(JsonSerializerTest, testUuid)
+{
+    const auto uuid_string = "a3cc5805-544f-415b-ba86-31f6237bf122";
+    boost::uuids::string_generator gen;
+    const auto uuid = gen(uuid_string);
+    const auto j = json(uuid_string);
+    testHelper(uuid, j);
+}
+
+TEST_F(JsonSerializerTest, testUuidInvalidType)
+{
+    const auto j = json(5);
+    testFailedDeserializationHelper<Uuid>(j);
+}
+
+TEST_F(JsonSerializerTest, testUuidInvalidFormat)
+{
+    const auto j = json("invalid");
+    testFailedDeserializationHelper<Uuid>(j);
 }
