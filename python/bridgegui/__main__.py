@@ -62,7 +62,7 @@ class BridgeWindow(QMainWindow):
         """
         super().__init__()
         self._position = None
-        self._preferred_positions = self._make_preferred_positions(position)
+        self._preferred_position = position
         self._timer = QTimer(self)
         self._timer.setInterval(1000)
         self._init_sockets(control_socket, event_socket)
@@ -70,14 +70,6 @@ class BridgeWindow(QMainWindow):
         self.setWindowTitle("Bridge") # TODO: Localization
         self.show()
         self._timer.start()
-
-    def _make_preferred_positions(self, position):
-        all_positions = list(POSITION_TAGS)
-        try:
-            n = all_positions.index(position)
-            return [position] + all_positions[:n] + all_positions[n+1:]
-        except ValueError:
-            return all_positions
 
     def _init_sockets(self, control_socket, event_socket):
         logging.info("Initializing message handlers")
@@ -158,9 +150,12 @@ class BridgeWindow(QMainWindow):
 
     def _handle_hello_reply(self, **kwargs):
         logging.info("Handshake successful")
-        sendCommand(
-            self._control_socket, JOIN_COMMAND,
-            positions=self._preferred_positions)
+        if self._preferred_position:
+            sendCommand(
+                self._control_socket, JOIN_COMMAND,
+                position=self._preferred_position)
+        else:
+            sendCommand(self._control_socket, JOIN_COMMAND)
 
     def _handle_join_reply(self, **kwargs):
         logging.info("Joined game")

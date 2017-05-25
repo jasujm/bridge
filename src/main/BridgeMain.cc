@@ -11,7 +11,7 @@
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
-#include "main/NodeControl.hh"
+#include "main/NodePlayerControl.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -24,14 +24,13 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"
 #include "Observer.hh"
 
-#include <boost/iterator/indirect_iterator.hpp>
-#include <boost/iterator/function_input_iterator.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
-#include <boost/range/combine.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <zmq.hpp>
 
 #include <iterator>
@@ -44,7 +43,6 @@ namespace Bridge {
 namespace Main {
 
 using Engine::BridgeEngine;
-using Engine::CardManager;
 using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
@@ -56,34 +54,18 @@ namespace {
 
 using StringVector = std::vector<std::string>;
 using VersionVector = std::vector<int>;
-using PlayerVector = std::vector<std::shared_ptr<Player>>;
-
-auto makePlayers(BridgeMain::PositionVector& positions, bool peerMode = true)
-{
-    if (peerMode) {
-        std::sort(positions.begin(), positions.end());
-        const auto last = std::unique(positions.begin(), positions.end());
-        if (last != positions.end()) {
-            log(LogLevel::DEBUG, "Ignoring duplicates from positions vector");
-            positions.erase(last, positions.end());
-        }
-    } else {
-        if (!positions.empty()) {
-            log(LogLevel::INFO, "No peers, ignoring positions argument");
-        }
-        positions.assign(POSITIONS.begin(), POSITIONS.end());
-    }
-    struct Generator {
-        using result_type = PlayerVector::value_type;
-        auto operator()() const { return std::make_shared<BasicPlayer>(); }
-    } generator;
-    return PlayerVector(
-        boost::make_function_input_iterator(generator, std::size_t {0u}),
-        boost::make_function_input_iterator(generator, positions.size()));
-}
+using PositionSet = std::set<Position>;
 
 const std::string PEER_ROLE {"peer"};
 const std::string CLIENT_ROLE {"client"};
+
+auto generatePositionsControlled(const BridgeMain::PositionVector& positions)
+{
+    if (positions.empty()) {
+        return PositionSet(POSITIONS.begin(), POSITIONS.end());
+    }
+    return PositionSet(positions.begin(), positions.end());
+}
 
 }
 
@@ -125,8 +107,9 @@ private:
     void sendToPeers(const std::string& command, Args&&... args);
 
     template<typename... Args>
-    void sendToPeersIfSelfControlledPlayer(
-        const Player& player, const std::string& command, Args&&... args);
+    void sendToPeersIfClient(
+        const std::string& identity, const std::string& command,
+        Args&&... args);
 
     void handleNotify(const BridgeEngine::ShufflingCompleted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
@@ -143,34 +126,34 @@ private:
         const std::string& identity, PositionVector positions,
         const boost::optional<nlohmann::json>& args);
     Reply<> join(
-        const std::string& identity, boost::optional<PositionVector> positions);
+        const std::string& identity, const boost::optional<Uuid>& playerUuid,
+        boost::optional<Position> positions);
     Reply<> call(
-        const std::string& identity, const boost::optional<Position>& position,
+        const std::string& identity, const boost::optional<Uuid>& playerUuid,
         const Call& call);
     Reply<> play(
-        const std::string& identity, const boost::optional<Position>& position,
+        const std::string& identity, const boost::optional<Uuid>& playerUuid,
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
+    boost::optional<Position> internalGetPositionForPlayer(
+        boost::optional<Position> preferredPosition) const;
     const Player* internalGetPlayerFor(
-        const std::string& identity, const boost::optional<Position>& position);
+        const std::string& identity, const boost::optional<Uuid>& playerUuid);
     void internalInitializePeers(
         zmq::context_t& context, const EndpointVector& peerEndpoints,
         const PositionVector& positions,
         const std::string& cardServerBasePeerEndpoint);
-    void internalAddPlayers(
-        const PositionVector& positions, const PlayerVector& players);
     bool internalArePositionsFree(const PositionVector& positions) const;
-    bool internalAddClientToPosition(
-        const std::string& identity, const PositionVector& positions);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager {
         std::make_shared<Engine::DuplicateGameManager>()};
-    std::set<std::string> peers;
+    std::map<std::string, PositionVector> peers;
     std::set<std::string> clients;
     bool peerMode;
-    PlayerVector players;
-    std::shared_ptr<NodeControl> nodeControl;
+    const PositionSet positionsControlled;
+    PositionSet positionsInUse;
+    std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>()};
     std::unique_ptr<CardProtocol> cardProtocol;
@@ -200,11 +183,9 @@ BridgeMain::Impl::Impl(
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     peerMode {!peerEndpoints.empty()},
-    players {makePlayers(positions, peerMode)},
-    nodeControl {
-        std::make_shared<NodeControl>(
-            boost::make_indirect_iterator(players.begin()),
-            boost::make_indirect_iterator(players.end()))},
+    positionsControlled {generatePositionsControlled(positions)},
+    positionsInUse {positionsControlled},
+    nodePlayerControl(std::make_shared<NodePlayerControl>()),
     cardProtocol {
         makeCardProtocol(
             context, cardServerControlEndpoint, cardServerBasePeerEndpoint)},
@@ -213,7 +194,6 @@ BridgeMain::Impl::Impl(
             cardProtocol->getCardManager(), gameManager)},
     eventSocket {context, zmq::socket_type::pub}
 {
-    internalAddPlayers(positions, players);
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
@@ -237,24 +217,24 @@ BridgeMain::Impl::Impl(
             JOIN_COMMAND,
             makeMessageHandler(
                 *this, &Impl::join, JsonSerializer {},
-                std::make_tuple(POSITIONS_COMMAND))
+                std::make_tuple(PLAYER_COMMAND, POSITION_COMMAND))
         },
         {
             GET_COMMAND,
             std::make_shared<GetMessageHandler>(
-                gameManager, engine, nodeControl)
+                gameManager, engine, nodePlayerControl)
         },
         {
             CALL_COMMAND,
             makeMessageHandler(
                 *this, &Impl::call, JsonSerializer {},
-                std::make_tuple(POSITION_COMMAND, CALL_COMMAND))
+                std::make_tuple(PLAYER_COMMAND, CALL_COMMAND))
         },
         {
             PLAY_COMMAND,
             makeMessageHandler(
                 *this, &Impl::play, JsonSerializer {},
-                std::make_tuple(POSITION_COMMAND, CARD_COMMAND, INDEX_COMMAND))
+                std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
         }
     };
     for (auto&& handler : cardProtocol->getMessageHandlers()) {
@@ -284,7 +264,7 @@ void BridgeMain::Impl::terminate()
 
 void BridgeMain::Impl::startIfReady()
 {
-    if (players.size() == N_PLAYERS) {
+    if (positionsInUse.size() == N_POSITIONS) {
         assert(engine);
         log(LogLevel::DEBUG, "Starting bridge engine");
         cardProtocol->initialize();
@@ -315,11 +295,10 @@ void BridgeMain::Impl::sendToPeers(
 }
 
 template<typename... Args>
-void BridgeMain::Impl::sendToPeersIfSelfControlledPlayer(
-    const Player& player, const std::string& command, Args&&... args)
+void BridgeMain::Impl::sendToPeersIfClient(
+    const std::string& identity, const std::string& command, Args&&... args)
 {
-    assert(nodeControl);
-    if (nodeControl->isSelfRepresentedPlayer(player)) {
+    if (clients.find(identity) != clients.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
 }
@@ -336,11 +315,6 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
     const auto position = engine->getPosition(event.player);
     log(LogLevel::DEBUG, "Call made. Position: %s. Call: %s", position, event.call);
     publish(
-        CALL_COMMAND,
-        std::tie(POSITION_COMMAND, position),
-        std::tie(CALL_COMMAND, event.call));
-    sendToPeersIfSelfControlledPlayer(
-        event.player,
         CALL_COMMAND,
         std::tie(POSITION_COMMAND, position),
         std::tie(CALL_COMMAND, event.call));
@@ -394,7 +368,7 @@ Reply<> BridgeMain::Impl::hello(
         return failure();
     } else if (role == PEER_ROLE && peerMode) {
         log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
-        peers.insert(identity);
+        peers.emplace(identity, PositionVector {});
         return success();
     } else if (role == CLIENT_ROLE) {
         log(LogLevel::DEBUG, "Client accepted: %s", asHex(identity));
@@ -409,85 +383,106 @@ Reply<> BridgeMain::Impl::game(
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
-    assert(nodeControl);
 
     if (peers.find(identity) != peers.end() &&
         internalArePositionsFree(positions)) {
-        auto new_players = makePlayers(positions);
-        const auto success_ = nodeControl->addPeer(
-            identity,
-            boost::make_indirect_iterator(new_players.begin()),
-            boost::make_indirect_iterator(new_players.end()));
-        if (success_) {
-            assert(cardProtocol);
-            if (cardProtocol->acceptPeer(identity, positions, args)) {
-                internalAddPlayers(positions, new_players);
-                std::move(
-                    new_players.begin(), new_players.end(),
-                    std::back_inserter(players));
-                startIfReady();
-                return success();
-            }
+        peers[identity] = positions;
+        for (const auto position : positions) {
+            positionsInUse.insert(position);
+        }
+        assert(cardProtocol);
+        if (cardProtocol->acceptPeer(identity, positions, args)) {
+            startIfReady();
+            return success();
         }
     }
     return failure();
 }
 
 Reply<> BridgeMain::Impl::join(
-    const std::string& identity, boost::optional<PositionVector> positions)
+    const std::string& identity, const boost::optional<Uuid>& playerUuid,
+    boost::optional<Position> position)
 {
-    log(LogLevel::DEBUG, "Join command from %s", asHex(identity));
+    log(LogLevel::DEBUG, "Join command from %s. Player: %s. Position: %s",
+        asHex(identity), playerUuid, position);
 
-    if (clients.find(identity) != clients.end()) {
-        if (!positions) {
-            positions.emplace(POSITIONS.begin(), POSITIONS.end());
+    const auto iter = peers.find(identity);
+    if (iter != peers.end()) {
+        if (!playerUuid) {
+            return failure();
         }
-        if (internalAddClientToPosition(identity, *positions)) {
-            return success();
+        const auto& controlled_positions = iter->second;
+        const auto peer_controls_position = position && std::find(
+            controlled_positions.begin(), controlled_positions.end(), *position)
+            != controlled_positions.end();
+        if (!peer_controls_position) {
+            return failure();
         }
     }
-    return failure();
+
+    assert(engine);
+    position = internalGetPositionForPlayer(position);
+    if (!position) {
+        return failure();
+    }
+
+    assert(nodePlayerControl);
+    auto player = nodePlayerControl->createPlayer(identity, playerUuid);
+    sendToPeersIfClient(
+        identity, JOIN_COMMAND,
+        std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
+        std::tie(POSITION_COMMAND, position.get()));
+
+    assert(position);
+    engine->setPlayer(*position, std::move(player));
+
+    return success();
 }
 
 Reply<> BridgeMain::Impl::call(
-    const std::string& identity, const boost::optional<Position>& position,
+    const std::string& identity, const boost::optional<Uuid>& playerUuid,
     const Call& call)
 {
-    log(LogLevel::DEBUG, "Call command from %s. Position: %s. Call: %s",
-        asHex(identity), position, call);
-    if (const auto player = internalGetPlayerFor(identity, position)) {
+    log(LogLevel::DEBUG, "Call command from %s. Player: %s. Call: %s",
+        asHex(identity), playerUuid, call);
+    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         assert(engine);
         if (engine->call(*player, call)) {
-            return success();
+            sendToPeersIfClient(
+                identity,
+                CALL_COMMAND,
+                std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
+                std::tie(CALL_COMMAND, call));
+           return success();
         }
     }
     return failure();
 }
 
 Reply<> BridgeMain::Impl::play(
-    const std::string& identity, const boost::optional<Position>& position,
+    const std::string& identity, const boost::optional<Uuid>& playerUuid,
     const boost::optional<CardType>& card,
     const boost::optional<std::size_t>& index)
 {
-    log(LogLevel::DEBUG, "Play command from %s. Position: %s. Card: %s. Index: %d",
-        asHex(identity), position, card, index);
+    log(LogLevel::DEBUG, "Play command from %s. Player: %s. Card: %s. Index: %d",
+        asHex(identity), playerUuid, card, index);
 
     // Either card or index - but not both - needs to be provided
     if (bool(card) == bool(index)) {
         return failure();
     }
 
-    if (const auto player = internalGetPlayerFor(identity, position)) {
+    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         assert(engine);
         if (const auto hand = engine->getHandInTurn()) {
             const auto n_card = index ? index : findFromHand(*hand, *card);
             if (n_card) {
                 if (engine->play(*player, *hand, *n_card)) {
                     const auto player_position = engine->getPosition(*player);
-                    sendToPeersIfSelfControlledPlayer(
-                        *player,
+                    sendToPeersIfClient(
+                        identity,
                         PLAY_COMMAND,
-                        std::tie(POSITION_COMMAND, player_position),
+                        std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
                         std::tie(INDEX_COMMAND, *n_card));
                     return success();
                 }
@@ -523,54 +518,38 @@ void BridgeMain::Impl::internalInitializePeers(
             makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
 }
 
-const Player* BridgeMain::Impl::internalGetPlayerFor(
-    const std::string& identity, const boost::optional<Position>& position)
-{
-    assert(nodeControl);
-    if (position) {
-        assert(engine);
-        const auto player = engine->getPlayer(*position);
-        if (player && nodeControl->isAllowedToAct(identity, *player)) {
-            return player;
-        }
-        return nullptr;
-    }
-    return nodeControl->getPlayer(identity);
-}
-
-void BridgeMain::Impl::internalAddPlayers(
-    const PositionVector& positions, const PlayerVector& players)
+boost::optional<Position> BridgeMain::Impl::internalGetPositionForPlayer(
+    boost::optional<Position> preferredPosition) const
 {
     assert(engine);
-    for (const auto t : boost::combine(positions, players)) {
-        engine->setPlayer(t.get<0>(), t.get<1>());
+    if (preferredPosition) {
+        return engine->getPlayer(*preferredPosition) ?
+            boost::none : preferredPosition;
     }
+    for (const auto position : positionsControlled) {
+        if (!engine->getPlayer(position)) {
+            return position;
+        }
+    }
+    return boost::none;
+}
 
+const Player* BridgeMain::Impl::internalGetPlayerFor(
+    const std::string& identity, const boost::optional<Uuid>& playerUuid)
+{
+    assert(nodePlayerControl);
+    return nodePlayerControl->getPlayer(identity, playerUuid).get();
 }
 
 bool BridgeMain::Impl::internalArePositionsFree(
     const PositionVector& positions) const
 {
-    assert(engine);
-    return std::none_of(
+    return std::all_of(
         positions.begin(), positions.end(),
-        [&engine = *this->engine](const auto position)
+        [this](const auto p)
         {
-            return engine.getPlayer(position);
+            return positionsInUse.find(p) == positionsInUse.end();
         });
-}
-
-bool BridgeMain::Impl::internalAddClientToPosition(
-    const std::string& identity, const PositionVector& positions)
-{
-    for (const auto position : positions) {
-        if (const auto player = engine->getPlayer(position)) {
-            if (nodeControl->addClient(identity, *player)) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 BridgeMain::BridgeMain(

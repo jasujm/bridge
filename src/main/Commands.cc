@@ -12,6 +12,7 @@ const std::string ENDPOINT_COMMAND {"endpoint"};
 const std::string GAME_COMMAND {"game"};
 const std::string JOIN_COMMAND {"join"};
 const std::string GET_COMMAND {"get"};
+const std::string PLAYER_COMMAND {"player"};
 const std::string POSITION_COMMAND {"position"};
 const std::string KEYS_COMMAND {"keys"};
 const std::string POSITION_IN_TURN_COMMAND {"positionInTurn"};

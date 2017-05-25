@@ -21,7 +21,7 @@ class DuplicateGameManager;
 
 namespace Main {
 
-class NodeControl;
+class NodePlayerControl;
 
 /** \brief Message handler for the get command
  *
@@ -36,13 +36,13 @@ public:
      *
      * \param gameManager Game manager managing the game being played
      * \param engine The engine for the game being played
-     * \param nodeControl The peer client control object used to manage
-     * identities of the players
+     * \param nodePlayerControl The node player control object used to identify
+     * the node
      */
     GetMessageHandler(
         std::shared_ptr<const Engine::DuplicateGameManager> gameManager,
         std::shared_ptr<const Engine::BridgeEngine> engine,
-        std::shared_ptr<const NodeControl> nodeControl);
+        std::shared_ptr<const NodePlayerControl> nodePlayerControl);
 
 private:
 
@@ -56,7 +56,7 @@ private:
 
     const std::shared_ptr<const Engine::DuplicateGameManager> gameManager;
     const std::shared_ptr<const Engine::BridgeEngine> engine;
-    const std::shared_ptr<const NodeControl> nodeControl;
+    const std::shared_ptr<const NodePlayerControl> nodePlayerControl;
 };
 
 }

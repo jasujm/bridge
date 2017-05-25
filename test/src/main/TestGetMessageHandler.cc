@@ -5,6 +5,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
+#include "bridge/Player.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "scoring/DuplicateScoreSheet.hh"
@@ -13,7 +14,7 @@
 #include "engine/SimpleCardManager.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
-#include "main/NodeControl.hh"
+#include "main/NodePlayerControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
@@ -23,9 +24,7 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
-#include "MockPlayer.hh"
 
-#include <boost/iterator/indirect_iterator.hpp>
 #include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 
@@ -41,8 +40,8 @@ namespace {
 using Bridge::Call;
 using Bridge::CardType;
 using Bridge::cardTypeIterator;
-using Bridge::MockPlayer;
 using Bridge::N_CARDS_PER_PLAYER;
+using Bridge::Player;
 using Bridge::Position;
 using Bridge::POSITIONS;
 using Bridge::POSITION_TO_STRING_MAP;
@@ -52,8 +51,6 @@ using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::JsonSerializer;
 using Bridge::Messaging::fromJson;
 using Bridge::Scoring::DuplicateScoreSheet;
-
-using testing::Return;
 
 using namespace Bridge::Main;
 using namespace std::string_literals;
@@ -86,13 +83,13 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
+        players[0] = nodePlayerControl->createPlayer(PLAYER1, boost::none);
+        players[1] = nodePlayerControl->createPlayer(PLAYER2, boost::none);
+        players[2] = nodePlayerControl->createPlayer(PLAYER3, boost::none);
+        players[3] = nodePlayerControl->createPlayer(PLAYER4, boost::none);
         for (const auto t : boost::combine(POSITIONS, players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
-        nodeControl->addClient(PLAYER1, *players[0]);
-        nodeControl->addClient(PLAYER2, *players[1]);
-        nodeControl->addClient(PLAYER3, *players[2]);
-        nodeControl->addClient(PLAYER4, *players[3]);
         engine->initiate();
     }
 
@@ -137,18 +134,12 @@ protected:
         std::make_shared<SimpleCardManager>()};
     std::shared_ptr<DuplicateGameManager> gameManager {
         std::make_shared<DuplicateGameManager>()};
-    std::array<std::shared_ptr<MockPlayer>, 4> players {{
-        std::make_shared<MockPlayer>(),
-        std::make_shared<MockPlayer>(),
-        std::make_shared<MockPlayer>(),
-        std::make_shared<MockPlayer>()}};
+    std::array<std::shared_ptr<Player>, 4> players;
     std::shared_ptr<BridgeEngine> engine {
         std::make_shared<BridgeEngine>(cardManager, gameManager)};
-    std::shared_ptr<NodeControl> nodeControl {
-        std::make_shared<NodeControl>(
-            boost::make_indirect_iterator(players.begin()),
-            boost::make_indirect_iterator(players.end()))};
-    GetMessageHandler handler {gameManager, engine, nodeControl};
+    std::shared_ptr<NodePlayerControl> nodePlayerControl {
+        std::make_shared<NodePlayerControl>()};
+    GetMessageHandler handler {gameManager, engine, nodePlayerControl};
     std::vector<std::string> reply;
 };
 

@@ -83,14 +83,14 @@
  * \b Example. A valid command to play seven of diamonds from the south hand
  * would consist of the following four frames:
  *
- * | N | Content                        | Notes                        |
- * |---|--------------------------------|------------------------------|
- * | 1 |                                | Empty frame                  |
- * | 2 | play                           | No quotes (not JSON)         |
- * | 3 | position                       | Key for position argument    |
- * | 4 | "south"                        | Quotes required (valid JSON) |
- * | 5 | card                           | Key for card argument        |
- * | 6 | {"rank":"7","suit":"diamonds"} |                              |
+ * | N | Content                                | Notes                        |
+ * |---|----------------------------------------|------------------------------|
+ * | 1 |                                        | Empty frame                  |
+ * | 2 | play                                   | No quotes (not JSON)         |
+ * | 3 | player                                 | Key for player argument      |
+ * | 4 | "8bc7c6ca-1f19-440c-b5e2-88dc049bca53" | Quotes required (valid JSON) |
+ * | 5 | card                                   | Key for card argument        |
+ * | 6 | {"rank":"7","suit":"diamonds"}         |                              |
  *
  * Commands with additional unspecified arguments MUST be accepted. Unrecognized
  * arguments SHOULD be ignored.
@@ -190,7 +190,7 @@
  *
  * Peers use this command to coordinate setting up a bridge game.
  *
- * The position argument MUST contain the positions of all the players the node
+ * The positions argument MUST contain the positions of all the players the node
  * requests to represent. The command MUST fail without effect if at least one
  * of the positions in the list is represented by the peer itself or any other
  * peer it has accepted.
@@ -217,20 +217,29 @@
  *
  * - \b Command: join
  * - \b Parameters:
- *   - \e positions: an array consisting of positions, see \ref jsonposition
+ *   - \e player: the UUID of the player (optional for clients)
+ *   - \e position: the preferred position (optional for clients)
  * - \b Reply: \e none
  *
- * Clients use this command to join a bridge game.
+ * Both clients and peers use this command to join a player in a bridge game.
  *
- * The positions parameter is optional. If present, it MUST contain the
- * preferred positions for the player that the client controls, in descending
- * order of preference. The command MUST fail if none of the positions is
- * available (that is, either not represented by the peer or already controlled
- * by another client). Otherwise the peer SHOULD assign the highest available
- * position in the list for the client to control.
+ * Clients SHOULD only join once per game and a peer MAY reject multiple join
+ * commands from a single client. A client MAY omit the player argument. If
+ * omitted, the peer MUST generate UUID for the player. A client MAY use
+ * position argument to announce the preferred position in the game. If not
+ * present, the peer MUST choose any free position for the client.
  *
- * The positions argument SHOULD not contain duplicates. A peer MAY either
- * ignore duplicates or fail the command if duplicate values are present.
+ * Peers MUST provide both player and position arguments. The position MUST be
+ * one of the positions the peer has reserved in the previous game command. The
+ * player MUST be UUID of the represented player in the position.
+ *
+ * If a successful join command comes from a client, the peer MUST send the
+ * command to other peers taking part in the game.
+ *
+ * The command MUST fail without an effect if the player is already in the game,
+ * the position is occupied by some other player, the command is coming from a
+ * peer who has not reserved the position, or the command is coming from a peer
+ * requesting a position the peer itself has not reserved.
  *
  * \subsection bridgeprotocolcontrolget get
  *
@@ -356,26 +365,26 @@
  *
  * - \b Command: call
  * - \b Parameters:
- *   - \e position (optional)
+ *   - \e player
  *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
  *
  * All nodes use this command to make the specified call during the bidding.
  *
  * Peers MUST ignore the command and reply failure unless the node is allowed to
- * act for the player in the position, the player has turn and the call is
- * legal. If a successful call command comes from a client, the peer MUST send
- * the command to other peers taking part in the game.
+ * act for the player, the player has turn and the call is legal. If a
+ * successful call command comes from a client, the peer MUST send the command
+ * to other peers taking part in the game.
  *
- * The position argument MAY be omitted if the player the node is allowed to act
+ * The player argument MAY be omitted if the player the node is allowed to act
  * for is unique. The command SHOULD fail if a peer representing multiple
- * players omits the position.
+ * players omits the player argument.
  *
  * \subsection bridgeprotocolcontrolplay play
  *
  * - \b Command: play
  * - \b Parameters:
- *   - \e position (optional)
+ *   - \e player
  *   - \e card: see \ref jsoncardtype (alternative)
  *   - \e index: integer
  * - \b Reply: \e none
@@ -392,15 +401,14 @@
  * called the \e hand index.
  *
  * Peers MUST ignore the command and reply failure unless the node is allowed to
- * act for the player in the position, the player in the position has turn and
- * it is legal to play the card. Declarer plays the hand of the dummy. If the
- * play command comes from a client, the peer MUST send the command to other
- * peers. The index variant of referring to the card MUST be used if the card is
- * unknown to the peer.
+ * act for the player, the player has turn and it is legal to play the
+ * card. Declarer plays the hand of the dummy. If the play command comes from a
+ * client, the peer MUST send the command to other peers. The index variant of
+ * referring to the card MUST be used if the card is unknown to the peer.
  *
- * The position argument MAY be omitted if the player the node is allowed to act
+ * The player argument MAY be omitted if the player the node is allowed to act
  * for is unique. The command SHOULD fail if a peer representing multiple
- * players omits the position.
+ * players omits the player argument.
  *
  * \section bridgeprotocoleventcommands Event commands
  *
@@ -504,6 +512,10 @@ extern const std::string ENDPOINT_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string GET_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+extern const std::string PLAYER_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
