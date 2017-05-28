@@ -32,20 +32,20 @@
  *
  * \subsection bridgeprotocolpeer Peers
  *
- * - MUST open a control socket (ROUTER) to which nodes connect to
- * - SHOULD open an event socket (PUB) to which other nodes can subscribe for
- *   events
- * - Are REQUIRED to keep record the full state of each game they take part in
- * - MAY represent multiple players in each came they take part in
+ * - MUST open a control socket (ROUTER) other nodes connect to
+ * - SHOULD open an event socket (PUB) other nodes can subscribe for events
+ * - Are REQUIRED to keep record of the full state of each game they take part
+ *   in
+ * - MAY represent multiple players in each game they take part in
  * - MAY accept connections from clients
  * - SHOULD delegate the control of the players it represents to the accepted
  *   clients
  * - For each accepted client, MUST handle commands specified in \ref
  *   bridgeprotocolcontrolmessage
  * - MAY accept connections from other peers
- * - MUST agree with all peers taking part in a game about the players each
- *   represents
- * - MUST co‐operate with each other peer that takes part in the same games by
+ * - MUST agree with all peers taking part in a game about the positions each
+ *   one controls
+ * - MUST co‐operate with the other peers that takes part in the same games by
  *   sending commands required in \ref bridgeprotocolcontrolmessage
  * - SHOULD hand over connection to nodes that connect with the same identity as
  *   previously connected node
@@ -110,25 +110,25 @@
  * frame of the message it replies to. The arguments MUST be JSON documents
  * encoded in UTF‐8. A failed reply MUST NOT be accompanied by parameters.
  *
- * \b Example. A successful reply to the bridgehlo command consists of the
- * following five frames:
+ * \b Example. A successful reply to a get command requesting the position of
+ * the current player consists of the following five frames:
  *
  * | N | Content                        | Notes                          |
  * |---|--------------------------------|--------------------------------|
  * | 1 |                                | Empty frame                    |
  * | 2 | \\0\\0\\0\\0                   | Four byte representation of 0  |
- * | 3 | bridgehlo                      |                                |
+ * | 3 | get                            |                                |
  * | 4 | position                       |                                |
  * | 5 | "north"                        |                                |
  *
- * \b Example. A failed reply to the bridgehlo command consists of the following
- * three frames:
+ * \b Example. A failed reply to the get command consists of the following three
+ * frames:
  *
  * | N | Content                        | Notes                          |
  * |---|--------------------------------|--------------------------------|
  * | 1 |                                | Empty frame                    |
  * | 2 | \\xff\\xff\\xff\\xff           | Four byte representation of -1 |
- * | 3 | bridgehlo                      |                                |
+ * | 3 | get                            |                                |
  *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not
@@ -161,7 +161,7 @@
  * - \b Command: bridgehlo
  * - \b Parameters:
  *   - \e version: an array of integers describing the version of the protocol
- *   - \e role: a string, either "peer" or "client"
+ *   - \e role: a string, either “peer” or “client”
  * - \b Reply: \e none
  *
  * Each node MUST start the communication with this command before sending any
