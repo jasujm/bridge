@@ -9,6 +9,7 @@ namespace Bridge {
 
 class MockPlayer : public Player {
 public:
+    MOCK_CONST_METHOD0(handleGetUuid, Uuid());
 };
 
 }

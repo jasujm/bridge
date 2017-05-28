@@ -15,6 +15,19 @@ namespace Bridge {
 /** \brief Concrete implementation of the Player interface
  */
 class BasicPlayer : public Player, private boost::noncopyable {
+public:
+
+    /** \brief Create player
+     *
+     * \param uuid The UUID identifying the player
+     */
+    BasicPlayer(const Uuid& uuid);
+
+private:
+
+    Uuid handleGetUuid() const override;
+
+    Uuid uuid;
 };
 
 }

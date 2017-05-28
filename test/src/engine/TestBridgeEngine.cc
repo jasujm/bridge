@@ -1,5 +1,4 @@
 #include "bridge/BasicHand.hh"
-#include "bridge/BasicPlayer.hh"
 #include "bridge/Bid.hh"
 #include "bridge/BidIterator.hh"
 #include "bridge/BridgeConstants.hh"
@@ -21,6 +20,7 @@
 #include "MockGameManager.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
+#include "MockPlayer.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
 
@@ -226,7 +226,7 @@ protected:
         if (dummy) {
             const auto& hand = dereference(
                 engine.getHand(dereference(engine.getPosition(*dummy))));
-            const BasicPlayer other_player;
+            const MockPlayer other_player;
             EXPECT_TRUE(engine.isVisible(hand, other_player));
         }
     }
@@ -243,10 +243,10 @@ protected:
     const std::shared_ptr<Engine::MockGameManager> gameManager {
         std::make_shared<NiceMock<Engine::MockGameManager>>()};
     std::array<std::shared_ptr<Player>, N_PLAYERS> players {{
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>(),
-        std::make_shared<BasicPlayer>()}};
+        std::make_shared<MockPlayer>(),
+        std::make_shared<MockPlayer>(),
+        std::make_shared<MockPlayer>(),
+        std::make_shared<MockPlayer>()}};
     BridgeEngine engine {cardManager, gameManager};
     Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
     std::map<std::size_t, std::reference_wrapper<BasicHand>> hands;
@@ -302,7 +302,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
     // No bidding by someone not taking part in the the game
     {
-        const BasicPlayer other_player;
+        const MockPlayer other_player;
         EXPECT_FALSE(engine.call(other_player, BID));
     }
 
