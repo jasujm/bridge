@@ -1,6 +1,9 @@
 from setuptools import setup
 setup(
     name="Bridge GUI",
+    author="Jaakko Moisio",
+    author_email="jaakko@moisio.fi",
+    url="https://github.com/jasujm/bridge",
     packages=["bridgegui"],
     package_dir={"": "${CMAKE_CURRENT_SOURCE_DIR}"},
     entry_points={
