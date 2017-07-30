@@ -8,6 +8,7 @@
 #include "engine/DuplicateGameManager.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/CardManager.hh"
+#include "main/BridgeGame.hh"
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
@@ -91,11 +92,6 @@ public:
 
     BridgeEngine& getEngine();
 
-    std::unique_ptr<CardProtocol> makeCardProtocol(
-        zmq::context_t& context,
-        const std::string& cardServerControlEndpoint,
-        const std::string& cardServerBasePeerEndpoint);
-
     void startIfReady();
 
 private:
@@ -146,60 +142,31 @@ private:
         const std::string& cardServerBasePeerEndpoint);
     bool internalArePositionsFree(const PositionVector& positions) const;
 
-    std::shared_ptr<Engine::DuplicateGameManager> gameManager {
-        std::make_shared<Engine::DuplicateGameManager>()};
-    std::map<std::string, PositionVector> peers;
-    std::set<std::string> clients;
     bool peerMode;
-    const PositionSet positionsControlled;
-    PositionSet positionsInUse;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
-    std::shared_ptr<PeerCommandSender> peerCommandSender {
-        std::make_shared<PeerCommandSender>()};
-    std::unique_ptr<CardProtocol> cardProtocol;
-    std::shared_ptr<BridgeEngine> engine;
-    zmq::socket_t eventSocket;
+    std::shared_ptr<zmq::socket_t> eventSocket;
+    BridgeGame bridgeGame;
     Messaging::MessageLoop messageLoop;
 };
-
-std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
-    zmq::context_t& context,
-    const std::string& cardServerControlEndpoint,
-    const std::string& cardServerBasePeerEndpoint)
-{
-    if (cardServerControlEndpoint.empty() &&
-        cardServerBasePeerEndpoint.empty()) {
-        log(LogLevel::DEBUG, "Card exchange protocol: simple");
-        return std::make_unique<SimpleCardProtocol>(peerCommandSender);
-    }
-    log(LogLevel::DEBUG, "Card exchange protocol: card server");
-    return std::make_unique<CardServerProxy>(
-        context, cardServerControlEndpoint);
-}
 
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& baseEndpoint,
     PositionVector positions, const EndpointVector& peerEndpoints,
-    const std::string& cardServerControlEndpoint,
-    const std::string& cardServerBasePeerEndpoint) :
+    // TODO: Restore support for card server protocol
+    const std::string& /*cardServerControlEndpoint*/,
+    const std::string& /*cardServerBasePeerEndpoint*/) :
     peerMode {!peerEndpoints.empty()},
-    positionsControlled {generatePositionsControlled(positions)},
-    positionsInUse {positionsControlled},
     nodePlayerControl(std::make_shared<NodePlayerControl>()),
-    cardProtocol {
-        makeCardProtocol(
-            context, cardServerControlEndpoint, cardServerBasePeerEndpoint)},
-    engine {
-        std::make_shared<BridgeEngine>(
-            cardProtocol->getCardManager(), gameManager)},
-    eventSocket {context, zmq::socket_type::pub}
+    eventSocket {
+        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
+    bridgeGame {generatePositionsControlled(positions), eventSocket}
 {
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     controlSocket->bind(*endpointIterator++);
-    eventSocket.bind(*endpointIterator);
+    eventSocket->bind(*endpointIterator);
     auto handlers = MessageQueue::HandlerMap {
         {
             HELLO_COMMAND,
@@ -222,7 +189,7 @@ BridgeMain::Impl::Impl(
         {
             GET_COMMAND,
             std::make_shared<GetMessageHandler>(
-                gameManager, engine, nodePlayerControl)
+                bridgeGame.gameManager, bridgeGame.engine, nodePlayerControl)
         },
         {
             CALL_COMMAND,
@@ -237,17 +204,18 @@ BridgeMain::Impl::Impl(
                 std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
         }
     };
-    for (auto&& handler : cardProtocol->getMessageHandlers()) {
+    for (auto&& handler : bridgeGame.cardProtocol->getMessageHandlers()) {
         handlers.emplace(handler);
     }
     messageLoop.addSocket(
         std::move(controlSocket), MessageQueue { std::move(handlers) });
-    for (auto&& socket : cardProtocol->getSockets()) {
+    for (auto&& socket : bridgeGame.cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
     if (peerMode) {
+        // TODO: Restore card server protocol support
         internalInitializePeers(
-            context, peerEndpoints, positions, cardServerBasePeerEndpoint);
+            context, peerEndpoints, positions, "" /*cardServerBasePeerEndpoint*/);
     }
 }
 
@@ -264,33 +232,34 @@ void BridgeMain::Impl::terminate()
 
 void BridgeMain::Impl::startIfReady()
 {
-    if (positionsInUse.size() == N_POSITIONS) {
-        assert(engine);
+    if (bridgeGame.positionsInUse.size() == N_POSITIONS) {
+        assert(bridgeGame.engine);
         log(LogLevel::DEBUG, "Starting bridge engine");
-        cardProtocol->initialize();
-        engine->initiate();
+        bridgeGame.cardProtocol->initialize();
+        bridgeGame.engine->initiate();
     }
 }
 
 BridgeEngine& BridgeMain::Impl::getEngine()
 {
-    assert(engine);
-    return *engine;
+    assert(bridgeGame.engine);
+    return *bridgeGame.engine;
 }
 
 template<typename... Args>
 void BridgeMain::Impl::publish(const std::string& command, Args&&... args)
 {
     sendCommand(
-        eventSocket, JsonSerializer {}, command, std::forward<Args>(args)...);
+        dereference(eventSocket), JsonSerializer {}, command,
+        std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void BridgeMain::Impl::sendToPeers(
     const std::string& command, Args&&... args)
 {
-    assert(peerCommandSender);
-    peerCommandSender->sendCommand(
+    assert(bridgeGame.peerCommandSender);
+    bridgeGame.peerCommandSender->sendCommand(
         JsonSerializer {}, command, std::forward<Args>(args)...);
 }
 
@@ -298,7 +267,7 @@ template<typename... Args>
 void BridgeMain::Impl::sendToPeersIfClient(
     const std::string& identity, const std::string& command, Args&&... args)
 {
-    if (clients.find(identity) != clients.end()) {
+    if (bridgeGame.clients.find(identity) != bridgeGame.clients.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
 }
@@ -311,8 +280,8 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::ShufflingCompleted&)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
-    assert(engine);
-    const auto position = engine->getPosition(event.player);
+    assert(bridgeGame.engine);
+    const auto position = bridgeGame.engine->getPosition(event.player);
     log(LogLevel::DEBUG, "Call made. Position: %s. Call: %s", position, event.call);
     publish(
         CALL_COMMAND,
@@ -328,8 +297,8 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
-    assert(engine);
-    const auto hand_position = dereference(engine->getPosition(event.hand));
+    assert(bridgeGame.engine);
+    const auto hand_position = dereference(bridgeGame.engine->getPosition(event.hand));
     const auto card_type = event.card.getType().get();
     log(LogLevel::DEBUG, "Card played. Position: %s. Card: %s", hand_position,
         card_type);
@@ -341,7 +310,7 @@ void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 
 void BridgeMain::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
 {
-    const auto position = dereference(engine->getPosition(event.winner));
+    const auto position = dereference(bridgeGame.engine->getPosition(event.winner));
     log(LogLevel::DEBUG, "Trick completed. Winner: %s", position);
     publish(TRICK_COMMAND, std::tie(WINNER_COMMAND, position));
 }
@@ -368,11 +337,11 @@ Reply<> BridgeMain::Impl::hello(
         return failure();
     } else if (role == PEER_ROLE && peerMode) {
         log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
-        peers.emplace(identity, PositionVector {});
+        bridgeGame.peers.emplace(identity, PositionVector {});
         return success();
     } else if (role == CLIENT_ROLE) {
         log(LogLevel::DEBUG, "Client accepted: %s", asHex(identity));
-        clients.insert(identity);
+        bridgeGame.clients.insert(identity);
         return success();
     }
     return failure();
@@ -384,14 +353,14 @@ Reply<> BridgeMain::Impl::game(
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
 
-    if (peers.find(identity) != peers.end() &&
+    if (bridgeGame.peers.find(identity) != bridgeGame.peers.end() &&
         internalArePositionsFree(positions)) {
-        peers[identity] = positions;
+        bridgeGame.peers[identity] = positions;
         for (const auto position : positions) {
-            positionsInUse.insert(position);
+            bridgeGame.positionsInUse.insert(position);
         }
-        assert(cardProtocol);
-        if (cardProtocol->acceptPeer(identity, positions, args)) {
+        assert(bridgeGame.cardProtocol);
+        if (bridgeGame.cardProtocol->acceptPeer(identity, positions, args)) {
             startIfReady();
             return success();
         }
@@ -406,8 +375,8 @@ Reply<> BridgeMain::Impl::join(
     log(LogLevel::DEBUG, "Join command from %s. Player: %s. Position: %s",
         asHex(identity), playerUuid, position);
 
-    const auto iter = peers.find(identity);
-    if (iter != peers.end()) {
+    const auto iter = bridgeGame.peers.find(identity);
+    if (iter != bridgeGame.peers.end()) {
         if (!playerUuid) {
             return failure();
         }
@@ -420,7 +389,7 @@ Reply<> BridgeMain::Impl::join(
         }
     }
 
-    assert(engine);
+    assert(bridgeGame.engine);
     position = internalGetPositionForPlayer(position);
     if (!position) {
         return failure();
@@ -434,7 +403,7 @@ Reply<> BridgeMain::Impl::join(
         std::tie(POSITION_COMMAND, position.get()));
 
     assert(position);
-    engine->setPlayer(*position, std::move(player));
+    bridgeGame.engine->setPlayer(*position, std::move(player));
 
     return success();
 }
@@ -446,8 +415,8 @@ Reply<> BridgeMain::Impl::call(
     log(LogLevel::DEBUG, "Call command from %s. Player: %s. Call: %s",
         asHex(identity), playerUuid, call);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
-        assert(engine);
-        if (engine->call(*player, call)) {
+        assert(bridgeGame.engine);
+        if (bridgeGame.engine->call(*player, call)) {
             sendToPeersIfClient(
                 identity,
                 CALL_COMMAND,
@@ -473,12 +442,12 @@ Reply<> BridgeMain::Impl::play(
     }
 
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
-        assert(engine);
-        if (const auto hand = engine->getHandInTurn()) {
+        assert(bridgeGame.engine);
+        if (const auto hand = bridgeGame.engine->getHandInTurn()) {
             const auto n_card = index ? index : findFromHand(*hand, *card);
             if (n_card) {
-                if (engine->play(*player, *hand, *n_card)) {
-                    const auto player_position = engine->getPosition(*player);
+                if (bridgeGame.engine->play(*player, *hand, *n_card)) {
+                    const auto player_position = bridgeGame.engine->getPosition(*player);
                     sendToPeersIfClient(
                         identity,
                         PLAY_COMMAND,
@@ -499,8 +468,8 @@ void BridgeMain::Impl::internalInitializePeers(
 {
     for (const auto& endpoint : peerEndpoints) {
         messageLoop.addSocket(
-            peerCommandSender->addPeer(context, endpoint),
-            [&sender = *this->peerCommandSender](zmq::socket_t& socket)
+            bridgeGame.peerCommandSender->addPeer(context, endpoint),
+            [&sender = *bridgeGame.peerCommandSender](zmq::socket_t& socket)
             {
                 sender.processReply(socket);
                 return true;
@@ -521,13 +490,13 @@ void BridgeMain::Impl::internalInitializePeers(
 boost::optional<Position> BridgeMain::Impl::internalGetPositionForPlayer(
     boost::optional<Position> preferredPosition) const
 {
-    assert(engine);
+    assert(bridgeGame.engine);
     if (preferredPosition) {
-        return engine->getPlayer(*preferredPosition) ?
+        return bridgeGame.engine->getPlayer(*preferredPosition) ?
             boost::none : preferredPosition;
     }
-    for (const auto position : positionsControlled) {
-        if (!engine->getPlayer(position)) {
+    for (const auto position : bridgeGame.positionsControlled) {
+        if (!bridgeGame.engine->getPlayer(position)) {
             return position;
         }
     }
@@ -548,7 +517,7 @@ bool BridgeMain::Impl::internalArePositionsFree(
         positions.begin(), positions.end(),
         [this](const auto p)
         {
-            return positionsInUse.find(p) == positionsInUse.end();
+            return bridgeGame.positionsInUse.find(p) == bridgeGame.positionsInUse.end();
         });
 }
 
