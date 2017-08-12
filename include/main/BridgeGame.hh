@@ -2,6 +2,7 @@
 #define MAIN_BRIDGEGAME_HH_
 
 #include "bridge/Position.hh"
+#include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
@@ -32,7 +33,7 @@ class PeerCommandSender;
  * game, including state of the game and list of all nodes taking part in the
  * game.
  */
-class BridgeGame : boost::noncopyable {
+class BridgeGame : public BridgeGameInfo, private boost::noncopyable {
 public:
 
     using PositionVector = std::vector<Position>;
@@ -43,6 +44,10 @@ public:
         std::shared_ptr<zmq::socket_t> eventSocket);
 
 //private:
+
+    const Engine::BridgeEngine& handleGetEngine() const override;
+
+    const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
     std::map<std::string, PositionVector> peers;

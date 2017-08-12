@@ -13,14 +13,9 @@
 #include <memory>
 
 namespace Bridge {
-
-namespace Engine {
-class BridgeEngine;
-class DuplicateGameManager;
-}
-
 namespace Main {
 
+class BridgeGameInfo;
 class NodePlayerControl;
 
 /** \brief Message handler for the get command
@@ -34,14 +29,13 @@ public:
 
     /** \brief Create new get message handler
      *
-     * \param gameManager Game manager managing the game being played
-     * \param engine The engine for the game being played
+     * \param gameInfo The bridge game info object used to query information
+     * about the game
      * \param nodePlayerControl The node player control object used to identify
      * the node
      */
     GetMessageHandler(
-        std::shared_ptr<const Engine::DuplicateGameManager> gameManager,
-        std::shared_ptr<const Engine::BridgeEngine> engine,
+        std::shared_ptr<const BridgeGameInfo> gameInfo,
         std::shared_ptr<const NodePlayerControl> nodePlayerControl);
 
 private:
@@ -54,8 +48,7 @@ private:
         const std::string& key, const std::string& expected,
         OutputSink& sink) const;
 
-    const std::shared_ptr<const Engine::DuplicateGameManager> gameManager;
-    const std::shared_ptr<const Engine::BridgeEngine> engine;
+    const std::shared_ptr<const BridgeGameInfo> gameInfo;
     const std::shared_ptr<const NodePlayerControl> nodePlayerControl;
 };
 

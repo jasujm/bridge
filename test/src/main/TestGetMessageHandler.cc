@@ -24,6 +24,7 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
+#include "MockBridgeGameInfo.hh"
 
 #include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
@@ -51,6 +52,8 @@ using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::JsonSerializer;
 using Bridge::Messaging::fromJson;
 using Bridge::Scoring::DuplicateScoreSheet;
+
+using testing::ReturnPointee;
 
 using namespace Bridge::Main;
 using namespace std::string_literals;
@@ -83,6 +86,10 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
+        ON_CALL(*gameInfo, handleGetEngine())
+            .WillByDefault(ReturnPointee(engine));
+        ON_CALL(*gameInfo, handleGetGameManager())
+            .WillByDefault(ReturnPointee(gameManager));
         players[0] = nodePlayerControl->createPlayer(PLAYER1, boost::none);
         players[1] = nodePlayerControl->createPlayer(PLAYER2, boost::none);
         players[2] = nodePlayerControl->createPlayer(PLAYER3, boost::none);
@@ -137,9 +144,11 @@ protected:
     std::array<std::shared_ptr<Player>, 4> players;
     std::shared_ptr<BridgeEngine> engine {
         std::make_shared<BridgeEngine>(cardManager, gameManager)};
+    std::shared_ptr<MockBridgeGameInfo> gameInfo {
+        std::make_shared<testing::NiceMock<MockBridgeGameInfo>>()};
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
-    GetMessageHandler handler {gameManager, engine, nodePlayerControl};
+    GetMessageHandler handler {gameInfo, nodePlayerControl};
     std::vector<std::string> reply;
 };
 

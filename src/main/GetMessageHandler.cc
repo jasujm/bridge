@@ -12,6 +12,7 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
+#include "main/BridgeGameInfo.hh"
 #include "main/NodePlayerControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
@@ -162,11 +163,9 @@ std::string getScore(const DuplicateGameManager& gameManager)
 }
 
 GetMessageHandler::GetMessageHandler(
-    std::shared_ptr<const DuplicateGameManager> gameManager,
-    std::shared_ptr<const BridgeEngine> engine,
+    std::shared_ptr<const BridgeGameInfo> gameInfo,
     std::shared_ptr<const NodePlayerControl> nodePlayerControl) :
-    gameManager {std::move(gameManager)},
-    engine {std::move(engine)},
+    gameInfo {std::move(gameInfo)},
     nodePlayerControl {std::move(nodePlayerControl)}
 {
 }
@@ -179,32 +178,32 @@ bool GetMessageHandler::doHandle(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
     const auto player = dereference(nodePlayerControl).getPlayer(identity);
     if (keys && player) {
-        const auto& engine_ = dereference(engine);
+        const auto& engine = dereference(gameInfo).getEngine();
         for (const auto& key : *keys) {
             if (internalContainsKey(key, POSITION_COMMAND, sink)) {
-                sink(getPosition(engine_, *player));
+                sink(getPosition(engine, *player));
             } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
-                sink(getPositionInTurn(engine_));
+                sink(getPositionInTurn(engine));
             } else if (internalContainsKey(key, DECLARER_COMMAND, sink)) {
-                sink(getBiddingResult(engine_, &Bidding::getDeclarerPosition));
+                sink(getBiddingResult(engine, &Bidding::getDeclarerPosition));
             } else if (internalContainsKey(key, CONTRACT_COMMAND, sink)) {
-                sink(getBiddingResult(engine_, &Bidding::getContract));
+                sink(getBiddingResult(engine, &Bidding::getContract));
             } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
-                sink(getAllowedCalls(engine_, *player));
+                sink(getAllowedCalls(engine, *player));
             } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
-                sink(getCalls(engine_));
+                sink(getCalls(engine));
             } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
-                sink(getAllowedCards(engine_, *player));
+                sink(getAllowedCards(engine, *player));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
-                sink(getCards(*player, engine_));
+                sink(getCards(*player, engine));
             } else if (internalContainsKey(key, TRICK_COMMAND, sink)) {
-                sink(getTrick(engine_));
+                sink(getTrick(engine));
             } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
-                sink(getTricksWon(engine_));
+                sink(getTricksWon(engine));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
-                sink(getVulnerability(dereference(gameManager)));
+                sink(getVulnerability(dereference(gameInfo).getGameManager()));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
-                sink(getScore(dereference(gameManager)));
+                sink(getScore(dereference(gameInfo).getGameManager()));
             }
         }
         return true;

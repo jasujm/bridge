@@ -25,5 +25,15 @@ BridgeGame::BridgeGame(
 {
 }
 
+const Engine::BridgeEngine& BridgeGame::handleGetEngine() const
+{
+    return dereference(engine);
+}
+
+const Engine::DuplicateGameManager& BridgeGame::handleGetGameManager() const
+{
+    return dereference(gameManager);
+}
+
 }
 }
