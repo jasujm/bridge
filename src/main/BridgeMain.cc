@@ -90,6 +90,12 @@ public:
 
     void terminate();
 
+    std::unique_ptr<CardProtocol> makeCardProtocol(
+        zmq::context_t& context,
+        const std::string& cardServerControlEndpoint,
+        const std::string& cardServerBasePeerEndpoint,
+        std::shared_ptr<PeerCommandSender> peerCommandSender);
+
     BridgeEngine& getEngine();
 
     void startIfReady();
@@ -149,12 +155,27 @@ private:
     Messaging::MessageLoop messageLoop;
 };
 
+std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
+    zmq::context_t& context,
+    const std::string& cardServerControlEndpoint,
+    const std::string& cardServerBasePeerEndpoint,
+    std::shared_ptr<PeerCommandSender> peerCommandSender)
+{
+    if (cardServerControlEndpoint.empty() &&
+        cardServerBasePeerEndpoint.empty()) {
+        log(LogLevel::DEBUG, "Card exchange protocol: simple");
+        return std::make_unique<SimpleCardProtocol>(peerCommandSender);
+    }
+    log(LogLevel::DEBUG, "Card exchange protocol: card server");
+    return std::make_unique<CardServerProxy>(
+        context, cardServerControlEndpoint);
+}
+
 BridgeMain::Impl::Impl(
     zmq::context_t& context, const std::string& baseEndpoint,
     PositionVector positions, const EndpointVector& peerEndpoints,
-    // TODO: Restore support for card server protocol
-    const std::string& /*cardServerControlEndpoint*/,
-    const std::string& /*cardServerBasePeerEndpoint*/) :
+    const std::string& cardServerControlEndpoint,
+    const std::string& cardServerBasePeerEndpoint) :
     peerMode {!peerEndpoints.empty()},
     nodePlayerControl(std::make_shared<NodePlayerControl>()),
     eventSocket {
@@ -204,19 +225,22 @@ BridgeMain::Impl::Impl(
                 std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
         }
     };
-    for (auto&& handler : bridgeGame->cardProtocol->getMessageHandlers()) {
+    auto cardProtocol = makeCardProtocol(
+        context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
+        bridgeGame->peerCommandSender);
+    for (auto&& handler : cardProtocol->getMessageHandlers()) {
         handlers.emplace(handler);
     }
     messageLoop.addSocket(
         std::move(controlSocket), MessageQueue { std::move(handlers) });
-    for (auto&& socket : bridgeGame->cardProtocol->getSockets()) {
+    for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
     if (peerMode) {
-        // TODO: Restore card server protocol support
         internalInitializePeers(
-            context, peerEndpoints, positions, "" /*cardServerBasePeerEndpoint*/);
+            context, peerEndpoints, positions, cardServerBasePeerEndpoint);
     }
+    bridgeGame->initializeCardProtocol(std::move(cardProtocol));
 }
 
 

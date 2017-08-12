@@ -17,12 +17,16 @@ BridgeGame::BridgeGame(
     positionsControlled {positionsControlled},
     positionsInUse {std::move(positionsControlled)},
     peerCommandSender {std::make_shared<PeerCommandSender>()},
-    cardProtocol {std::make_unique<SimpleCardProtocol>(peerCommandSender)},
-    engine {
-        std::make_shared<Engine::BridgeEngine>(
-            dereference(this->cardProtocol).getCardManager(), gameManager)},
     eventSocket {std::move(eventSocket)}
 {
+}
+
+void BridgeGame::initializeCardProtocol(
+    std::unique_ptr<CardProtocol> cardProtocol)
+{
+    engine = std::make_shared<Engine::BridgeEngine>(
+        dereference(cardProtocol).getCardManager(), gameManager);
+    this->cardProtocol = std::move(cardProtocol);
 }
 
 const Engine::BridgeEngine& BridgeGame::handleGetEngine() const

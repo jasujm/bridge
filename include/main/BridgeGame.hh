@@ -43,6 +43,14 @@ public:
         PositionSet positionsControlled,
         std::shared_ptr<zmq::socket_t> eventSocket);
 
+    /** \brief Initialize card protocol
+     *
+     * \todo Ideally BridgeGame shouldn’t rely on two‐step
+     * initialization. However, there are currently two way dependencies between
+     * message handlers and game object requiring this.
+     */
+    void initializeCardProtocol(std::unique_ptr<CardProtocol> cardProtocol);
+
 //private:
 
     const Engine::BridgeEngine& handleGetEngine() const override;
