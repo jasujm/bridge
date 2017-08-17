@@ -57,6 +57,8 @@ public:
 
     const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
+    void startIfReady();
+
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
     std::map<std::string, PositionVector> peers;
     std::set<std::string> clients;
@@ -66,6 +68,9 @@ public:
     std::unique_ptr<CardProtocol> cardProtocol;
     std::shared_ptr<Engine::BridgeEngine> engine;
     std::shared_ptr<zmq::socket_t> eventSocket;
+
+    class Impl;
+    std::shared_ptr<Impl> impl;
 };
 
 }

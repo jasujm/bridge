@@ -2,7 +2,6 @@
 
 #include "bridge/BasicPlayer.hh"
 #include "bridge/Call.hh"
-#include "bridge/Card.hh"
 #include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -17,7 +16,6 @@
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
-#include "messaging/CommandUtility.hh"
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
@@ -27,7 +25,6 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"
-#include "Observer.hh"
 
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
@@ -43,7 +40,6 @@
 namespace Bridge {
 namespace Main {
 
-using Engine::BridgeEngine;
 using Messaging::failure;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
@@ -70,14 +66,7 @@ auto generatePositionsControlled(const BridgeMain::PositionVector& positions)
 
 }
 
-class BridgeMain::Impl :
-    public Observer<BridgeEngine::ShufflingCompleted>,
-    public Observer<BridgeEngine::CallMade>,
-    public Observer<BridgeEngine::BiddingCompleted>,
-    public Observer<BridgeEngine::CardPlayed>,
-    public Observer<BridgeEngine::TrickCompleted>,
-    public Observer<BridgeEngine::DummyRevealed>,
-    public Observer<BridgeEngine::DealEnded> {
+class BridgeMain::Impl {
 public:
 
     Impl(
@@ -96,14 +85,7 @@ public:
         const std::string& cardServerBasePeerEndpoint,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-    BridgeEngine& getEngine();
-
-    void startIfReady();
-
 private:
-
-    template<typename... Args>
-    void publish(const std::string& command, Args&&... args);
 
     template<typename... Args>
     void sendToPeers(const std::string& command, Args&&... args);
@@ -112,14 +94,6 @@ private:
     void sendToPeersIfClient(
         const std::string& identity, const std::string& command,
         Args&&... args);
-
-    void handleNotify(const BridgeEngine::ShufflingCompleted&) override;
-    void handleNotify(const BridgeEngine::CallMade&) override;
-    void handleNotify(const BridgeEngine::BiddingCompleted&) override;
-    void handleNotify(const BridgeEngine::CardPlayed&) override;
-    void handleNotify(const BridgeEngine::TrickCompleted&) override;
-    void handleNotify(const BridgeEngine::DummyRevealed&) override;
-    void handleNotify(const BridgeEngine::DealEnded&) override;
 
     Reply<> hello(
         const std::string& identity, const VersionVector& version,
@@ -254,32 +228,6 @@ void BridgeMain::Impl::terminate()
     messageLoop.terminate();
 }
 
-void BridgeMain::Impl::startIfReady()
-{
-    assert(bridgeGame);
-    if (bridgeGame->positionsInUse.size() == N_POSITIONS) {
-        assert(bridgeGame->engine);
-        log(LogLevel::DEBUG, "Starting bridge engine");
-        bridgeGame->cardProtocol->initialize();
-        bridgeGame->engine->initiate();
-    }
-}
-
-BridgeEngine& BridgeMain::Impl::getEngine()
-{
-    assert(bridgeGame);
-    assert(bridgeGame->engine);
-    return *bridgeGame->engine;
-}
-
-template<typename... Args>
-void BridgeMain::Impl::publish(const std::string& command, Args&&... args)
-{
-    sendCommand(
-        dereference(eventSocket), JsonSerializer {}, command,
-        std::forward<Args>(args)...);
-}
-
 template<typename... Args>
 void BridgeMain::Impl::sendToPeers(
     const std::string& command, Args&&... args)
@@ -298,65 +246,6 @@ void BridgeMain::Impl::sendToPeersIfClient(
     if (bridgeGame->clients.find(identity) != bridgeGame->clients.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::ShufflingCompleted&)
-{
-    log(LogLevel::DEBUG, "Shuffling completed");
-    publish(DEAL_COMMAND);
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::CallMade& event)
-{
-    assert(bridgeGame);
-    assert(bridgeGame->engine);
-    const auto position = bridgeGame->engine->getPosition(event.player);
-    log(LogLevel::DEBUG, "Call made. Position: %s. Call: %s", position, event.call);
-    publish(
-        CALL_COMMAND,
-        std::tie(POSITION_COMMAND, position),
-        std::tie(CALL_COMMAND, event.call));
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
-{
-    log(LogLevel::DEBUG, "Bidding completed");
-    publish(BIDDING_COMMAND);
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
-{
-    assert(bridgeGame);
-    assert(bridgeGame->engine);
-    const auto hand_position = dereference(bridgeGame->engine->getPosition(event.hand));
-    const auto card_type = event.card.getType().get();
-    log(LogLevel::DEBUG, "Card played. Position: %s. Card: %s", hand_position,
-        card_type);
-    publish(
-        PLAY_COMMAND,
-        std::tie(POSITION_COMMAND, hand_position),
-        std::tie(CARD_COMMAND, card_type));
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
-{
-    assert(bridgeGame);
-    assert(bridgeGame->engine);
-    const auto position = dereference(bridgeGame->engine->getPosition(event.winner));
-    log(LogLevel::DEBUG, "Trick completed. Winner: %s", position);
-    publish(TRICK_COMMAND, std::tie(WINNER_COMMAND, position));
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
-{
-    log(LogLevel::DEBUG, "Dummy hand revealed");
-    publish(DUMMY_COMMAND);
-}
-
-void BridgeMain::Impl::handleNotify(const BridgeEngine::DealEnded&)
-{
-    log(LogLevel::DEBUG, "Deal ended");
-    publish(DEAL_END_COMMAND);
 }
 
 Reply<> BridgeMain::Impl::hello(
@@ -396,7 +285,7 @@ Reply<> BridgeMain::Impl::game(
         }
         assert(bridgeGame->cardProtocol);
         if (bridgeGame->cardProtocol->acceptPeer(identity, positions, args)) {
-            startIfReady();
+            bridgeGame->startIfReady();
             return success();
         }
     }
@@ -572,15 +461,6 @@ BridgeMain::BridgeMain(
             std::move(peerEndpoints), cardServerControlEndpoint,
             cardServerBasePeerEndpoint)}
 {
-    auto& engine = impl->getEngine();
-    engine.subscribeToShufflingCompleted(impl);
-    engine.subscribeToCallMade(impl);
-    engine.subscribeToBiddingCompleted(impl);
-    engine.subscribeToCardPlayed(impl);
-    engine.subscribeToTrickCompleted(impl);
-    engine.subscribeToDummyRevealed(impl);
-    engine.subscribeToDealEnded(impl);
-    impl->startIfReady();
 }
 
 BridgeMain::BridgeMain(BridgeMain&&) = default;
