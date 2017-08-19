@@ -49,7 +49,6 @@ using Messaging::success;
 
 namespace {
 
-using StringVector = std::vector<std::string>;
 using VersionVector = std::vector<int>;
 using PositionSet = std::set<Position>;
 
@@ -86,14 +85,6 @@ public:
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
 private:
-
-    template<typename... Args>
-    void sendToPeers(const std::string& command, Args&&... args);
-
-    template<typename... Args>
-    void sendToPeersIfClient(
-        const std::string& identity, const std::string& command,
-        Args&&... args);
 
     Reply<> hello(
         const std::string& identity, const VersionVector& version,
@@ -228,26 +219,6 @@ void BridgeMain::Impl::terminate()
     messageLoop.terminate();
 }
 
-template<typename... Args>
-void BridgeMain::Impl::sendToPeers(
-    const std::string& command, Args&&... args)
-{
-    assert(bridgeGame);
-    assert(bridgeGame->peerCommandSender);
-    bridgeGame->peerCommandSender->sendCommand(
-        JsonSerializer {}, command, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void BridgeMain::Impl::sendToPeersIfClient(
-    const std::string& identity, const std::string& command, Args&&... args)
-{
-    assert(bridgeGame);
-    if (bridgeGame->clients.find(identity) != bridgeGame->clients.end()) {
-        sendToPeers(command, std::forward<Args>(args)...);
-    }
-}
-
 Reply<> BridgeMain::Impl::hello(
     const std::string& identity, const VersionVector& version,
     const std::string& role)
@@ -322,7 +293,7 @@ Reply<> BridgeMain::Impl::join(
 
     assert(nodePlayerControl);
     auto player = nodePlayerControl->createPlayer(identity, playerUuid);
-    sendToPeersIfClient(
+    bridgeGame->sendToPeersIfClient(
         identity, JOIN_COMMAND,
         std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
         std::tie(POSITION_COMMAND, position.get()));
@@ -341,14 +312,9 @@ Reply<> BridgeMain::Impl::call(
         asHex(identity), playerUuid, call);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         assert(bridgeGame);
-        assert(bridgeGame->engine);
-        if (bridgeGame->engine->call(*player, call)) {
-            sendToPeersIfClient(
-                identity,
-                CALL_COMMAND,
-                std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
-                std::tie(CALL_COMMAND, call));
-           return success();
+        const auto result = bridgeGame->call(identity, *player, call);
+        if (result) {
+            return success();
         }
     }
     return failure();
@@ -361,28 +327,11 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Player: %s. Card: %s. Index: %d",
         asHex(identity), playerUuid, card, index);
-
-    // Either card or index - but not both - needs to be provided
-    if (bool(card) == bool(index)) {
-        return failure();
-    }
-
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         assert(bridgeGame);
-        assert(bridgeGame->engine);
-        if (const auto hand = bridgeGame->engine->getHandInTurn()) {
-            const auto n_card = index ? index : findFromHand(*hand, *card);
-            if (n_card) {
-                if (bridgeGame->engine->play(*player, *hand, *n_card)) {
-                    const auto player_position = bridgeGame->engine->getPosition(*player);
-                    sendToPeersIfClient(
-                        identity,
-                        PLAY_COMMAND,
-                        std::make_pair(std::cref(PLAYER_COMMAND), player->getUuid()),
-                        std::tie(INDEX_COMMAND, *n_card));
-                    return success();
-                }
-            }
+        const auto result = bridgeGame->play(identity, *player, card, index);
+        if (result) {
+            return success();
         }
     }
     return failure();
@@ -403,11 +352,11 @@ void BridgeMain::Impl::internalInitializePeers(
                 return true;
             });
     }
-    sendToPeers(
+    bridgeGame->sendToPeers(
         HELLO_COMMAND,
         std::make_pair(std::cref(VERSION_COMMAND), VersionVector {0}),
         std::tie(ROLE_COMMAND, PEER_ROLE));
-    sendToPeers(
+    bridgeGame->sendToPeers(
         GAME_COMMAND,
         std::tie(POSITIONS_COMMAND, positions),
         std::make_pair(

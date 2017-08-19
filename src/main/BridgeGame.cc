@@ -2,6 +2,8 @@
 
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Hand.hh"
+#include "bridge/Player.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/CardProtocol.hh"
@@ -18,7 +20,13 @@
 #include "Observer.hh"
 #include "Utility.hh"
 
+#include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+#include <cassert>
+#include <set>
+#include <vector>
 
 namespace Bridge {
 namespace Main {
@@ -165,6 +173,49 @@ void BridgeGame::startIfReady()
         cardProtocol->initialize();
         engine->initiate();
     }
+}
+
+bool BridgeGame::call(
+    const std::string& identity, const Player& player, const Call& call)
+{
+    assert(engine);
+    if (engine->call(player, call)) {
+        sendToPeersIfClient(
+            identity,
+            CALL_COMMAND,
+            std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
+            std::tie(CALL_COMMAND, call));
+        return true;
+    }
+    return false;
+}
+
+bool BridgeGame::play(
+    const std::string& identity, const Player& player,
+    const boost::optional<CardType>& card,
+    const boost::optional<std::size_t>& index)
+{
+    // Either card or index - but not both - needs to be provided
+    if (bool(card) == bool(index)) {
+        return false;
+    }
+
+    assert(engine);
+    if (const auto hand = engine->getHandInTurn()) {
+        const auto n_card = index ? index : findFromHand(*hand, *card);
+        if (n_card) {
+            if (engine->play(player, *hand, *n_card)) {
+                const auto player_position = engine->getPosition(player);
+                sendToPeersIfClient(
+                    identity,
+                    PLAY_COMMAND,
+                    std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
+                    std::tie(INDEX_COMMAND, *n_card));
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 }
