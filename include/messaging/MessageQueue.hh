@@ -57,6 +57,18 @@ public:
 
     ~MessageQueue();
 
+    /** \brief Try to set handler for a command
+     *
+     * If there is no handler for \p command, or \p handler points to the same
+     * MessageHandler that is already assigned for \p command, the handler is
+     * assigned and the call returns true. Otherwise the call has no effect and
+     * returns false.
+     *
+     * \return true if successful, false otherwise
+     */
+    bool trySetHandler(
+        const std::string& command, std::shared_ptr<MessageHandler> handler);
+
     /** \brief Receive and reply the next message
      *
      * When called, the method receives a message from \p socket, dispatchesq
@@ -84,7 +96,7 @@ public:
 
 private:
 
-    const HandlerMap handlers;
+    HandlerMap handlers;
 };
 
 }

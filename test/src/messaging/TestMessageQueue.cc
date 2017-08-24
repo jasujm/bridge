@@ -27,6 +27,7 @@ namespace {
 const auto IDENTITY = "identity"s;
 const auto ENDPOINT = "inproc://testing"s;
 const auto COMMAND = "command"s;
+const auto OTHER_COMMAND = "other"s;
 }
 
 class MessageQueueTest : public testing::Test {
@@ -137,4 +138,32 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     sendMessage(frontSocket, COMMAND, false);
     messageQueue(repSocket);
     assertReply(true, COMMAND);
+}
+
+TEST_F(MessageQueueTest, testTrySetNewHandlerForNewCommand)
+{
+    const auto other_handler = std::make_shared<MockMessageHandler>();
+    EXPECT_TRUE(messageQueue.trySetHandler(OTHER_COMMAND, other_handler));
+    EXPECT_CALL(*other_handler, doHandle(IDENTITY, _, _))
+        .WillOnce(Return(true));
+    sendMessage(frontSocket, OTHER_COMMAND);
+    messageQueue(backSocket);
+    assertReply(true, OTHER_COMMAND);
+}
+
+TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
+{
+    EXPECT_FALSE(
+        messageQueue.trySetHandler(
+            COMMAND, std::make_shared<MockMessageHandler>()));
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, _, _))
+        .WillOnce(Return(true));
+    sendMessage(frontSocket, COMMAND);
+    messageQueue(backSocket);
+    assertReply(true, COMMAND);
+}
+
+TEST_F(MessageQueueTest, testTrySetOldHandlerForOldCommand)
+{
+    EXPECT_TRUE(messageQueue.trySetHandler(COMMAND, handlers.at(COMMAND)));
 }

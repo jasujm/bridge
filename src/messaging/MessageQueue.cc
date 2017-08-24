@@ -66,6 +66,17 @@ MessageQueue::MessageQueue(HandlerMap handlers) :
 
 MessageQueue::~MessageQueue() = default;
 
+bool MessageQueue::trySetHandler(
+    const std::string& command, std::shared_ptr<MessageHandler> handler)
+{
+    const auto iter = handlers.find(command);
+    if (iter != handlers.end()) {
+        return iter->second == handler;
+    }
+    handlers.emplace(command, std::move(handler));
+    return true;
+}
+
 void MessageQueue::operator()(zmq::socket_t& socket)
 {
     auto message = std::vector<std::string> {};
