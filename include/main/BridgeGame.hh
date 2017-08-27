@@ -66,6 +66,17 @@ public:
 
     const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
+    bool addPeer(
+        const std::string& identity, const PositionVector& positions,
+        const boost::optional<nlohmann::json>& args);
+
+    boost::optional<Position> getPositionForPlayerToJoin(
+        const std::string& identity, const boost::optional<Position>& position);
+
+    void join(
+        const std::string& identity, Position position,
+        std::shared_ptr<Player> player);
+
     void startIfReady();
 
     template<typename... Args>
@@ -85,7 +96,6 @@ public:
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
     std::map<std::string, PositionVector> peers;
-    std::set<std::string> clients;
     const PositionSet positionsControlled;
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
@@ -113,7 +123,7 @@ template<typename... Args>
 void BridgeGame::sendToPeersIfClient(
     const std::string& identity, const std::string& command, Args&&... args)
 {
-    if (clients.find(identity) != clients.end()) {
+    if (peers.find(identity) == peers.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
     }
 }

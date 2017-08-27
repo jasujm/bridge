@@ -160,6 +160,68 @@ const Engine::DuplicateGameManager& BridgeGame::handleGetGameManager() const
     return dereference(gameManager);
 }
 
+bool BridgeGame::addPeer(
+    const std::string& identity, const PositionVector& positions,
+    const boost::optional<nlohmann::json>& args)
+{
+    if (std::any_of(
+            positions.begin(), positions.end(),
+            [this](const auto p)
+            {
+                return positionsInUse.find(p) != positionsInUse.end();
+            })) {
+        return false;
+    }
+    peers[identity] = positions;
+    for (const auto position : positions) {
+        positionsInUse.insert(position);
+    }
+    if (dereference(cardProtocol).acceptPeer(identity, positions, args)) {
+        startIfReady();
+        return true;
+    }
+    return false;
+}
+
+boost::optional<Position> BridgeGame::getPositionForPlayerToJoin(
+    const std::string& identity, const boost::optional<Position>& position)
+{
+    const auto iter = peers.find(identity);
+    // For peers only controlled positions apply
+    if (iter != peers.end()) {
+        const auto& controlled_positions = iter->second;
+        const auto peer_controls_position = position && std::find(
+            controlled_positions.begin(), controlled_positions.end(), *position)
+            != controlled_positions.end();
+        if (!peer_controls_position) {
+            return boost::none;
+        }
+    }
+    // For clients try preferred position if given
+    if (position) {
+        return engine.getPlayer(*position) ? boost::none : position;
+    }
+    // Otherwise select any position (or none if none is free)
+    for (const auto p : positionsControlled) {
+        if (!engine.getPlayer(p)) {
+            return p;
+        }
+    }
+    return boost::none;
+}
+
+void BridgeGame::join(
+    const std::string& identity, Position position,
+    std::shared_ptr<Player> player)
+{
+    sendToPeersIfClient(
+        identity, JOIN_COMMAND,
+        std::make_pair(
+            std::cref(PLAYER_COMMAND), dereference(player).getUuid()),
+        std::tie(POSITION_COMMAND, position));
+    engine.setPlayer(position, std::move(player));
+}
+
 void BridgeGame::startIfReady()
 {
     if (positionsInUse.size() == N_POSITIONS) {
