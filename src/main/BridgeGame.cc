@@ -4,7 +4,6 @@
 #include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
-#include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
@@ -128,36 +127,32 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded&)
 
 BridgeGame::BridgeGame(
     PositionSet positionsControlled,
-    std::shared_ptr<zmq::socket_t> eventSocket) :
+    std::shared_ptr<zmq::socket_t> eventSocket,
+    std::unique_ptr<CardProtocol> cardProtocol,
+    std::shared_ptr<PeerCommandSender> peerCommandSender) :
     gameManager {std::make_shared<Engine::DuplicateGameManager>()},
     positionsControlled {positionsControlled},
     positionsInUse {std::move(positionsControlled)},
-    peerCommandSender {std::make_shared<PeerCommandSender>()},
-    eventSocket {std::move(eventSocket)}
+    peerCommandSender {std::move(peerCommandSender)},
+    eventSocket {std::move(eventSocket)},
+    engine {
+        dereference(cardProtocol).getCardManager(), gameManager},
+    cardProtocol {std::move(cardProtocol)}
 {
-}
-
-void BridgeGame::initializeCardProtocol(
-    std::unique_ptr<CardProtocol> cardProtocol)
-{
-    engine = std::make_shared<Engine::BridgeEngine>(
-        dereference(cardProtocol).getCardManager(), gameManager);
-    this->cardProtocol = std::move(cardProtocol);
-
-    impl = std::make_shared<Impl>(*engine, dereference(eventSocket));
-    engine->subscribeToShufflingCompleted(impl);
-    engine->subscribeToCallMade(impl);
-    engine->subscribeToBiddingCompleted(impl);
-    engine->subscribeToCardPlayed(impl);
-    engine->subscribeToTrickCompleted(impl);
-    engine->subscribeToDummyRevealed(impl);
-    engine->subscribeToDealEnded(impl);
+    impl = std::make_shared<Impl>(engine, dereference(this->eventSocket));
+    engine.subscribeToShufflingCompleted(impl);
+    engine.subscribeToCallMade(impl);
+    engine.subscribeToBiddingCompleted(impl);
+    engine.subscribeToCardPlayed(impl);
+    engine.subscribeToTrickCompleted(impl);
+    engine.subscribeToDummyRevealed(impl);
+    engine.subscribeToDealEnded(impl);
     startIfReady();
 }
 
 const BridgeEngine& BridgeGame::handleGetEngine() const
 {
-    return dereference(engine);
+    return engine;
 }
 
 const Engine::DuplicateGameManager& BridgeGame::handleGetGameManager() const
@@ -168,18 +163,16 @@ const Engine::DuplicateGameManager& BridgeGame::handleGetGameManager() const
 void BridgeGame::startIfReady()
 {
     if (positionsInUse.size() == N_POSITIONS) {
-        assert(engine);
         log(LogLevel::DEBUG, "Starting bridge engine");
         cardProtocol->initialize();
-        engine->initiate();
+        engine.initiate();
     }
 }
 
 bool BridgeGame::call(
     const std::string& identity, const Player& player, const Call& call)
 {
-    assert(engine);
-    if (engine->call(player, call)) {
+    if (engine.call(player, call)) {
         sendToPeersIfClient(
             identity,
             CALL_COMMAND,
@@ -200,12 +193,11 @@ bool BridgeGame::play(
         return false;
     }
 
-    assert(engine);
-    if (const auto hand = engine->getHandInTurn()) {
+    if (const auto hand = engine.getHandInTurn()) {
         const auto n_card = index ? index : findFromHand(*hand, *card);
         if (n_card) {
-            if (engine->play(player, *hand, *n_card)) {
-                const auto player_position = engine->getPosition(player);
+            if (engine.play(player, *hand, *n_card)) {
+                const auto player_position = engine.getPosition(player);
                 sendToPeersIfClient(
                     identity,
                     PLAY_COMMAND,

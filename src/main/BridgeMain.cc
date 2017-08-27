@@ -110,14 +110,16 @@ private:
     void internalInitializePeers(
         zmq::context_t& context, const EndpointVector& peerEndpoints,
         const PositionVector& positions,
-        const std::string& cardServerBasePeerEndpoint);
+        const std::string& cardServerBasePeerEndpoint,
+        PeerCommandSender& peerCommandSender);
     bool internalArePositionsFree(const PositionVector& positions) const;
 
     bool peerMode;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
-    std::shared_ptr<BridgeGame> bridgeGame;
+    Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
+    std::shared_ptr<BridgeGame> bridgeGame;
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
@@ -145,8 +147,39 @@ BridgeMain::Impl::Impl(
     nodePlayerControl(std::make_shared<NodePlayerControl>()),
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
-    bridgeGame {std::make_shared<BridgeGame>(
-            generatePositionsControlled(positions), eventSocket)}
+    messageQueue {
+        {
+            {
+                HELLO_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::hello, JsonSerializer {},
+                    std::make_tuple(VERSION_COMMAND, ROLE_COMMAND))
+            },
+            {
+                GAME_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::game, JsonSerializer {},
+                    std::make_tuple(POSITIONS_COMMAND, ARGS_COMMAND))
+            },
+            {
+                JOIN_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::join, JsonSerializer {},
+                    std::make_tuple(PLAYER_COMMAND, POSITION_COMMAND))
+            },
+            {
+                CALL_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::call, JsonSerializer {},
+                    std::make_tuple(PLAYER_COMMAND, CALL_COMMAND))
+            },
+            {
+                PLAY_COMMAND,
+                makeMessageHandler(
+                    *this, &Impl::play, JsonSerializer {},
+                    std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
+            }
+        }}
 {
     auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
     auto controlSocket = std::make_shared<zmq::socket_t>(
@@ -154,58 +187,30 @@ BridgeMain::Impl::Impl(
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     controlSocket->bind(*endpointIterator++);
     eventSocket->bind(*endpointIterator);
-    auto handlers = MessageQueue::HandlerMap {
-        {
-            HELLO_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::hello, JsonSerializer {},
-                std::make_tuple(VERSION_COMMAND, ROLE_COMMAND))
-        },
-        {
-            GAME_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::game, JsonSerializer {},
-                std::make_tuple(POSITIONS_COMMAND, ARGS_COMMAND))
-        },
-        {
-            JOIN_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::join, JsonSerializer {},
-                std::make_tuple(PLAYER_COMMAND, POSITION_COMMAND))
-        },
-        {
-            GET_COMMAND,
-            std::make_shared<GetMessageHandler>(bridgeGame, nodePlayerControl)
-        },
-        {
-            CALL_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::call, JsonSerializer {},
-                std::make_tuple(PLAYER_COMMAND, CALL_COMMAND))
-        },
-        {
-            PLAY_COMMAND,
-            makeMessageHandler(
-                *this, &Impl::play, JsonSerializer {},
-                std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
-        }
-    };
+    auto peerCommandSender = std::make_shared<PeerCommandSender>();
     auto cardProtocol = makeCardProtocol(
         context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
-        bridgeGame->peerCommandSender);
+        peerCommandSender);
     for (auto&& handler : cardProtocol->getMessageHandlers()) {
-        handlers.emplace(handler);
-    }
-    messageLoop.addSocket(
-        std::move(controlSocket), MessageQueue { std::move(handlers) });
-    for (auto&& socket : cardProtocol->getSockets()) {
-        messageLoop.addSocket(socket.first, socket.second);
+        messageQueue.trySetHandler(handler.first, handler.second);
     }
     if (peerMode) {
         internalInitializePeers(
-            context, peerEndpoints, positions, cardServerBasePeerEndpoint);
+            context, peerEndpoints, positions, cardServerBasePeerEndpoint,
+            *peerCommandSender);
     }
-    bridgeGame->initializeCardProtocol(std::move(cardProtocol));
+    for (auto&& socket : cardProtocol->getSockets()) {
+        messageLoop.addSocket(socket.first, socket.second);
+    }
+    bridgeGame = std::make_shared<BridgeGame>(
+        generatePositionsControlled(positions), eventSocket,
+        std::move(cardProtocol), std::move(peerCommandSender));
+    messageQueue.trySetHandler(
+        GET_COMMAND,
+        std::make_shared<GetMessageHandler>(bridgeGame, nodePlayerControl));
+    messageLoop.addSocket(
+        std::move(controlSocket),
+        [&queue = this->messageQueue](auto& socket) { queue(socket); });
 }
 
 
@@ -285,7 +290,6 @@ Reply<> BridgeMain::Impl::join(
         }
     }
 
-    assert(bridgeGame->engine);
     position = internalGetPositionForPlayer(position);
     if (!position) {
         return failure();
@@ -299,7 +303,7 @@ Reply<> BridgeMain::Impl::join(
         std::tie(POSITION_COMMAND, position.get()));
 
     assert(position);
-    bridgeGame->engine->setPlayer(*position, std::move(player));
+    bridgeGame->engine.setPlayer(*position, std::move(player));
 
     return success();
 }
@@ -340,23 +344,25 @@ Reply<> BridgeMain::Impl::play(
 void BridgeMain::Impl::internalInitializePeers(
     zmq::context_t& context, const EndpointVector& peerEndpoints,
     const PositionVector& positions,
-    const std::string& cardServerBasePeerEndpoint)
+    const std::string& cardServerBasePeerEndpoint,
+    PeerCommandSender& peerCommandSender)
 {
     for (const auto& endpoint : peerEndpoints) {
-        assert(bridgeGame);
         messageLoop.addSocket(
-            bridgeGame->peerCommandSender->addPeer(context, endpoint),
-            [&sender = *bridgeGame->peerCommandSender](zmq::socket_t& socket)
+            peerCommandSender.addPeer(context, endpoint),
+            [&sender = peerCommandSender](zmq::socket_t& socket)
             {
                 sender.processReply(socket);
                 return true;
             });
     }
-    bridgeGame->sendToPeers(
+    peerCommandSender.sendCommand(
+        JsonSerializer {},
         HELLO_COMMAND,
         std::make_pair(std::cref(VERSION_COMMAND), VersionVector {0}),
         std::tie(ROLE_COMMAND, PEER_ROLE));
-    bridgeGame->sendToPeers(
+    peerCommandSender.sendCommand(
+        JsonSerializer {},
         GAME_COMMAND,
         std::tie(POSITIONS_COMMAND, positions),
         std::make_pair(
@@ -368,13 +374,12 @@ boost::optional<Position> BridgeMain::Impl::internalGetPositionForPlayer(
     boost::optional<Position> preferredPosition) const
 {
     assert(bridgeGame);
-    assert(bridgeGame->engine);
     if (preferredPosition) {
-        return bridgeGame->engine->getPlayer(*preferredPosition) ?
+        return bridgeGame->engine.getPlayer(*preferredPosition) ?
             boost::none : preferredPosition;
     }
     for (const auto position : bridgeGame->positionsControlled) {
-        if (!bridgeGame->engine->getPlayer(position)) {
+        if (!bridgeGame->engine.getPlayer(position)) {
             return position;
         }
     }

@@ -3,6 +3,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Position.hh"
+#include "engine/BridgeEngine.hh"
 #include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -55,15 +56,9 @@ public:
 
     BridgeGame(
         PositionSet positionsControlled,
-        std::shared_ptr<zmq::socket_t> eventSocket);
-
-    /** \brief Initialize card protocol
-     *
-     * \todo Ideally BridgeGame shouldn’t rely on two‐step
-     * initialization. However, there are currently two way dependencies between
-     * message handlers and game object requiring this.
-     */
-    void initializeCardProtocol(std::unique_ptr<CardProtocol> cardProtocol);
+        std::shared_ptr<zmq::socket_t> eventSocket,
+        std::unique_ptr<CardProtocol> cardPrococol,
+        std::shared_ptr<PeerCommandSender> peerCommandSender);
 
 //private:
 
@@ -94,9 +89,9 @@ public:
     const PositionSet positionsControlled;
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
-    std::unique_ptr<CardProtocol> cardProtocol;
-    std::shared_ptr<Engine::BridgeEngine> engine;
     std::shared_ptr<zmq::socket_t> eventSocket;
+    Engine::BridgeEngine engine;
+    std::unique_ptr<CardProtocol> cardProtocol;
 
     class Impl;
     std::shared_ptr<Impl> impl;
