@@ -43,33 +43,134 @@ class PeerCommandSender;
 class BridgeGame : public BridgeGameInfo, private boost::noncopyable {
 public:
 
-    using EndpointVector = std::vector<std::string>;
-    using PositionVector = std::vector<Position>;
+    /** \brief Set of positions
+     *
+     * \sa BridgeGame()
+     */
     using PositionSet = std::set<Position>;
-    using VersionVector = std::vector<int>;
 
+    /** \brief Vector of positions
+     *
+     * \sa addPeer()
+     */
+    using PositionVector = std::vector<Position>;
+
+    /** \brief Create new bridge game
+     *
+     * The client who creates an instance of BridgeGame is responsible for
+     * setting up the infrastructure of the game — namely the card protocols and
+     * the peers that will take part in the game. More specifically, this
+     * information is provided by instances of CardProtocol and
+     * PeerCommandSender. It’s not necessary for the peers to have initiated
+     * their handshake and have been accepted.
+     *
+     * \param positionsControlled the positions controlled by the node
+     * \param eventSocket ZeroMQ socket used to publish events about the game
+     * \param cardProtocol the card protocol used to exchange cards between
+     * peers
+     * \param peerCommandSender the peer command sender object used to send
+     * commands to the peers taking part in the game
+     */
     BridgeGame(
         PositionSet positionsControlled,
         std::shared_ptr<zmq::socket_t> eventSocket,
-        std::unique_ptr<CardProtocol> cardPrococol,
+        std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-//private:
-
-    const Engine::BridgeEngine& handleGetEngine() const override;
-
-    const Engine::DuplicateGameManager& handleGetGameManager() const override;
-
+    /** \brief Handle handshake from a peer
+     *
+     * This method is intended to be used to handle \ref
+     * bridgeprotocolcontrolgame command in the bridge protocol. The call
+     * returns true if the peer is successfully accepted, or false if not, in
+     * which case the call has no effect.
+     *
+     * \param identity identity of the peer
+     * \param positions the positions the peer intends to control
+     * \param args optional arguments for initializing the card protocol
+     *
+     * \return true if the peer was successfully accepted, false otherwise
+     */
     bool addPeer(
         const std::string& identity, const PositionVector& positions,
         const boost::optional<nlohmann::json>& args);
 
+    /** \brief Get position that a player can join in
+     *
+     * Determine the position that a node with \p identity can join a player. A
+     * subsequent call to join() from the same node is guaranteed to be
+     * successful.
+     *
+     * If the node is a peer, \p position must be one of the unoccupied
+     * positions reserved for the players that the peer represents. If that
+     * condition is met, \p position is returned as is. Otherwise none is
+     * returned.
+     *
+     * If the node is a client, \p position may be the preferred position of the
+     * player. If \p position is none, any unoccupied position is selected for
+     * the player. If the player cannot be seated in the preferred position, or
+     * in case of no preferred position all positions are occupied, none is
+     * returned.
+     *
+     * \param identity the identity of the node
+     * \param position the preferred position, if any
+     *
+     * \return position that the player can join, or none in one of the
+     * conditions described earlier
+     */
     boost::optional<Position> getPositionForPlayerToJoin(
         const std::string& identity, const boost::optional<Position>& position);
 
+    /** \brief Join a player in the game
+     *
+     * This method is intended to implement the \ref bridgeprotocolcontroljoin
+     * command. If called with \p identity and \p position earlier returned by a
+     * call to getPositionForPlayerToJoin(), \p player controlled by the node is
+     * seated in that position.
+     *
+     * \param identity the identity of the node controlling the player
+     * \param position the position the player is seated in
+     * \param player the player to join the game
+     */
     void join(
         const std::string& identity, Position position,
         std::shared_ptr<Player> player);
+
+    /** \brief Make call
+     *
+     * This method is intended to implement the \ref bridgeprotocolcontrolcall
+     * command.
+     *
+     * \param identity the identity of the node controlling the player
+     * \param player the player making the call
+     * \param call the call to be made
+     *
+     * \return true if the call was successful, false otherwise
+     */
+    bool call(
+        const std::string& identity, const Player& player, const Call& call);
+
+    /** \brief Play a card
+     *
+     * This method is intended to implement the \ref bridgeprotocolcontrolplay
+     * command. Exactly one of \p card or \p index must be defined.
+     *
+     * \param identity the identity of the node controlling the player
+     * \param player the player playing the card
+     * \param card the type of the card to be played (optional)
+     * \param index the index of the card to be played (optional)
+     *
+     * \return true if the call was successful, false otherwise
+     */
+    bool play(
+        const std::string& identity, const Player& player,
+        const boost::optional<CardType>& card,
+        const boost::optional<std::size_t>& index);
+
+private:
+
+    const Engine::BridgeEngine& handleGetEngine() const override;
+
+    const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
     void startIfReady();
 
@@ -80,13 +181,6 @@ public:
     void sendToPeersIfClient(
         const std::string& identity, const std::string& command,
         Args&&... args);
-
-    bool call(
-        const std::string& identity, const Player& player, const Call& call);
-    bool play(
-        const std::string& identity, const Player& player,
-        const boost::optional<CardType>& card,
-        const boost::optional<std::size_t>& index);
 
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
     std::map<std::string, PositionVector> peers;
