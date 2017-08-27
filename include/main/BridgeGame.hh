@@ -17,12 +17,6 @@
 #include <string>
 #include <vector>
 
-// TODO: Only neded for sendToPeers() and sendToPeersIfClient() definitions.
-#include <algorithm>
-#include <cassert>
-#include "main/PeerCommandSender.hh"
-#include "messaging/JsonSerializer.hh"
-
 namespace Bridge {
 
 class CardType;
@@ -106,27 +100,6 @@ public:
     class Impl;
     std::shared_ptr<Impl> impl;
 };
-
-// TODO: Currently accessed both from BridgeMain and BridgeGame. Definition
-// could be removed from header once the dependency is removed.
-
-template<typename... Args>
-void BridgeGame::sendToPeers(
-    const std::string& command, Args&&... args)
-{
-    assert(peerCommandSender);
-    peerCommandSender->sendCommand(
-        Messaging::JsonSerializer {}, command, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-void BridgeGame::sendToPeersIfClient(
-    const std::string& identity, const std::string& command, Args&&... args)
-{
-    if (peers.find(identity) == peers.end()) {
-        sendToPeers(command, std::forward<Args>(args)...);
-    }
-}
 
 }
 }

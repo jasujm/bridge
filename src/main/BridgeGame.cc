@@ -23,6 +23,7 @@
 #include <boost/optional/optional_io.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <set>
 #include <vector>
@@ -32,6 +33,24 @@ namespace Main {
 
 using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
+
+template<typename... Args>
+void BridgeGame::sendToPeers(
+    const std::string& command, Args&&... args)
+{
+    assert(peerCommandSender);
+    peerCommandSender->sendCommand(
+        Messaging::JsonSerializer {}, command, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void BridgeGame::sendToPeersIfClient(
+    const std::string& identity, const std::string& command, Args&&... args)
+{
+    if (peers.find(identity) == peers.end()) {
+        sendToPeers(command, std::forward<Args>(args)...);
+    }
+}
 
 class BridgeGame::Impl  :
     public Observer<BridgeEngine::ShufflingCompleted>,
