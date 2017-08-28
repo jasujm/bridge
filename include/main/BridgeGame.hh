@@ -172,25 +172,6 @@ private:
 
     const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
-    void startIfReady();
-
-    template<typename... Args>
-    void sendToPeers(const std::string& command, Args&&... args);
-
-    template<typename... Args>
-    void sendToPeersIfClient(
-        const std::string& identity, const std::string& command,
-        Args&&... args);
-
-    std::shared_ptr<Engine::DuplicateGameManager> gameManager;
-    std::map<std::string, PositionVector> peers;
-    const PositionSet positionsControlled;
-    PositionSet positionsInUse;
-    std::shared_ptr<PeerCommandSender> peerCommandSender;
-    std::shared_ptr<zmq::socket_t> eventSocket;
-    Engine::BridgeEngine engine;
-    std::unique_ptr<CardProtocol> cardProtocol;
-
     class Impl;
     std::shared_ptr<Impl> impl;
 };
