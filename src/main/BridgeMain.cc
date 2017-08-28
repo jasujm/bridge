@@ -1,12 +1,8 @@
 #include "main/BridgeMain.hh"
 
-#include "bridge/BasicPlayer.hh"
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
-#include "bridge/Hand.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "engine/BridgeEngine.hh"
-#include "engine/CardManager.hh"
 #include "main/BridgeGame.hh"
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"

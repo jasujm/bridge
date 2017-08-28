@@ -4,11 +4,12 @@
 #include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
+#include "bridge/Position.hh"
+#include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
-#include "main/SimpleCardProtocol.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
@@ -25,6 +26,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <map>
 #include <set>
 #include <vector>
 

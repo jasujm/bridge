@@ -2,8 +2,6 @@
 #define MAIN_BRIDGEGAME_HH_
 
 #include "bridge/Call.hh"
-#include "bridge/Position.hh"
-#include "engine/BridgeEngine.hh"
 #include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -11,7 +9,6 @@
 #include <json.hpp>
 #include <zmq.hpp>
 
-#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -21,6 +18,7 @@ namespace Bridge {
 
 class CardType;
 class Player;
+enum class Position;
 
 namespace Engine {
 
