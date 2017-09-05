@@ -81,16 +81,18 @@
  * documents encoded in UTF‐8.
  *
  * \b Example. A valid command to play seven of diamonds from the south hand
- * would consist of the following four frames:
+ * would consist of the following eight frames:
  *
  * | N | Content                                | Notes                        |
  * |---|----------------------------------------|------------------------------|
  * | 1 |                                        | Empty frame                  |
  * | 2 | play                                   | No quotes (not JSON)         |
- * | 3 | player                                 | Key for player argument      |
- * | 4 | "8bc7c6ca-1f19-440c-b5e2-88dc049bca53" | Quotes required (valid JSON) |
- * | 5 | card                                   | Key for card argument        |
- * | 6 | {"rank":"7","suit":"diamonds"}         |                              |
+ * | 3 | game                                   | Key for game argument        |
+ * | 4 | "9c3fc66b-ab10-4006-8c15-3b4f7eb04846" | Quotes required (valid JSON) |
+ * | 5 | player                                 | Key for player argument      |
+ * | 6 | "8bc7c6ca-1f19-440c-b5e2-88dc049bca53" |                              |
+ * | 7 | card                                   | Key for card argument        |
+ * | 8 | {"rank":"7","suit":"diamonds"}         |                              |
  *
  * Commands with additional unspecified arguments MUST be accepted. Unrecognized
  * arguments SHOULD be ignored.
@@ -143,12 +145,17 @@
  * structure of the commands sent to the control socket, except that they MUST
  * NOT be prepended by the empty frame.
  *
+ * The first frame of an event MUST consist of UUID of the game, colon and event
+ * type identifier.
+ *
+ * \note This is to allow clients to subscribe to events by game.
+ *
  * \b Example. A notification about card being played would consist of the
  * following frames:
  *
  * | N | Content                                    | Notes
  * |---|--------------------------------------------|-----------------------
- * | 1 | play                                       | Event type
+ * | 1 | 9c3fc66b-ab10-4006-8c15-3b4f7eb04846:play  | Event type
  * | 2 | position                                   | Argument key
  * | 3 | "north"                                    | Argument value (JSON)
  * | 4 | card                                       | Argument key
@@ -184,11 +191,14 @@
  *
  * - \b Command: game
  * - \b Parameters:
+ *   - \e game
  *   - \e positions: an array consisting of positions, see \ref jsonposition
  *   - \e args: additonal protocol specific arguments
  * - \b Reply: \e none
  *
  * Peers use this command to coordinate setting up a bridge game.
+ *
+ * The game argument MUST contain the UUID of the game being set up.
  *
  * The positions argument MUST contain the positions of all the players the node
  * requests to represent. The command MUST fail without effect if at least one
@@ -217,11 +227,16 @@
  *
  * - \b Command: join
  * - \b Parameters:
+ *   - \e game: the UUID of the game (optional for clients)
  *   - \e player: the UUID of the player (optional for clients)
  *   - \e position: the preferred position (optional for clients)
- * - \b Reply: \e none
+ * - \b Reply:
+ *   - \e game: the game joined
  *
  * Both clients and peers use this command to join a player in a bridge game.
+ *
+ * The game argument is the UUID of the game being joined. Clients MAY omit it
+ * in which case the peer selects an available game for the client.
  *
  * Clients SHOULD only join once per game and a peer MAY reject multiple join
  * commands from a single client. A client MAY omit the player argument. If
@@ -245,6 +260,7 @@
  *
  * - \b Command: get
  * - \b Parameters:
+ *   - \e game: UUID of the game being queried
  *   - \e keys: array of keys for the values to be retrieved
  * - \b Reply:
  *   - \e position: the position of the controlled player
@@ -339,6 +355,7 @@
  *
  * - \b Command: deal
  * - \b Parameters:
+ *   - game: UUID of the game
  *   - cards: an array consisting of cards, see \ref jsoncardtype
  * - \b Reply: \e none
  *
@@ -365,6 +382,7 @@
  *
  * - \b Command: call
  * - \b Parameters:
+ *   - \e game: UUID of the game
  *   - \e player
  *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
@@ -384,6 +402,7 @@
  *
  * - \b Command: play
  * - \b Parameters:
+ *   - \e game: UUID of the game
  *   - \e player
  *   - \e card: see \ref jsoncardtype (alternative)
  *   - \e index: integer
