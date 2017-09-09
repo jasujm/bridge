@@ -6,15 +6,9 @@
 #ifndef PLAYER_HH_
 #define PLAYER_HH_
 
-#include <boost/uuid/uuid.hpp>
+#include "bridge/Uuid.hh"
 
 namespace Bridge {
-
-/** \brief Alias for boost::uuids::uuid
- *
- * Boost UUID is the preferred UUID implementation in the Bridge project
- */
-using Uuid = boost::uuids::uuid;
 
 /** \brief A bridge player
  */

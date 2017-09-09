@@ -6,7 +6,7 @@
 #ifndef MESSAGING_UUIDJSONSERIALIZER_HH_
 #define MESSAGING_UUIDJSONSERIALIZER_HH_
 
-#include "bridge/Player.hh" // For importing definition of Uuid
+#include "bridge/Uuid.hh"
 #include "messaging/JsonSerializer.hh"
 
 namespace Bridge {
