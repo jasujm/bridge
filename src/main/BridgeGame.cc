@@ -28,6 +28,7 @@
 #include <cassert>
 #include <map>
 #include <set>
+#include <sstream>
 #include <vector>
 
 namespace Bridge {
@@ -47,6 +48,7 @@ class BridgeGame::Impl  :
 public:
 
     Impl(
+        const Uuid& uuid,
         PositionSet positionsControlled,
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
@@ -98,6 +100,7 @@ private:
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
 
+    const Uuid uuid;
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
     std::map<std::string, PositionVector> peers;
     const PositionSet positionsControlled;
@@ -109,10 +112,12 @@ private:
 };
 
 BridgeGame::Impl::Impl(
+    const Uuid& uuid,
     PositionSet positionsControlled,
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
+    uuid {uuid},
     gameManager {std::make_shared<Engine::DuplicateGameManager>()},
     positionsControlled {positionsControlled},
     positionsInUse {std::move(positionsControlled)},
@@ -145,8 +150,10 @@ void BridgeGame::Impl::sendToPeersIfClient(
 template<typename... Args>
 void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
 {
+    std::ostringstream os;
+    os << uuid << ':' << command;
     sendCommand(
-        dereference(eventSocket), JsonSerializer {}, command,
+        dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...);
 }
 
@@ -327,13 +334,14 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded&)
 }
 
 BridgeGame::BridgeGame(
+    const Uuid& uuid,
     PositionSet positionsControlled,
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
     impl {
     std::make_shared<Impl>(
-        std::move(positionsControlled), std::move(eventSocket),
+        uuid, std::move(positionsControlled), std::move(eventSocket),
         std::move(cardProtocol), std::move(peerCommandSender))}
 {
     auto& engine = impl->getEngine();

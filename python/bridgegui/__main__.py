@@ -89,18 +89,7 @@ class BridgeWindow(QMainWindow):
         self._connect_socket_to_notifier(
             control_socket, self._control_socket_queue)
         self._event_socket = event_socket
-        self._event_socket_queue = messaging.MessageQueue(
-            event_socket, "event socket queue", messaging.validateEventMessage,
-            {
-                DEAL_COMMAND: self._handle_deal_event,
-                CALL_COMMAND: self._handle_call_event,
-                BIDDING_COMMAND: self._handle_bidding_event,
-                PLAY_COMMAND: self._handle_play_event,
-                DUMMY_COMMAND: self._handle_dummy_event,
-                TRICK_COMMAND: self._handle_trick_event,
-                DEALEND_COMMAND: self._handle_dealend_event,
-            })
-        self._connect_socket_to_notifier(event_socket, self._event_socket_queue)
+        self._game_uuid = None
         sendCommand(control_socket, HELLO_COMMAND, version=[0], role=CLIENT_TAG)
 
     def _init_widgets(self):
@@ -126,6 +115,26 @@ class BridgeWindow(QMainWindow):
         self._layout.addWidget(self._score_table)
         self.setCentralWidget(self._central_widget)
 
+    def _get_event_type(self, name):
+        return self._game_uuid.encode() + b':' + name
+
+    def _init_game(self, game_uuid):
+        self._game_uuid = game_uuid
+        self._event_socket.setsockopt(zmq.SUBSCRIBE, game_uuid.encode())
+        self._event_socket_queue = messaging.MessageQueue(
+            self._event_socket, "event socket queue", messaging.validateEventMessage,
+            {
+                self._get_event_type(DEAL_COMMAND): self._handle_deal_event,
+                self._get_event_type(CALL_COMMAND): self._handle_call_event,
+                self._get_event_type(BIDDING_COMMAND): self._handle_bidding_event,
+                self._get_event_type(PLAY_COMMAND): self._handle_play_event,
+                self._get_event_type(DUMMY_COMMAND): self._handle_dummy_event,
+                self._get_event_type(TRICK_COMMAND): self._handle_trick_event,
+                self._get_event_type(DEALEND_COMMAND): self._handle_dealend_event,
+            })
+        self._connect_socket_to_notifier(
+            self._event_socket, self._event_socket_queue)
+
     def _connect_socket_to_notifier(self, socket, message_queue):
         def _handle_message_to_queue():
             if not message_queue.handleMessages():
@@ -140,13 +149,17 @@ class BridgeWindow(QMainWindow):
         self._socket_notifiers.append(socket_notifier)
 
     def _request(self, *args):
-        sendCommand(self._control_socket, GET_COMMAND, keys=args)
+        sendCommand(
+            self._control_socket, GET_COMMAND, game=self._game_uuid, keys=args)
 
     def _send_call_command(self, call):
-        sendCommand(self._control_socket, CALL_COMMAND, call=call)
+        sendCommand(
+            self._control_socket, CALL_COMMAND, game=self._game_uuid, call=call)
 
     def _send_play_command(self, card):
-        sendCommand(self._control_socket, PLAY_COMMAND, card=card._asdict())
+        sendCommand(
+            self._control_socket, PLAY_COMMAND, game=self._game_uuid,
+            card=card._asdict())
 
     def _handle_hello_reply(self, **kwargs):
         logging.info("Handshake successful")
@@ -157,12 +170,16 @@ class BridgeWindow(QMainWindow):
         else:
             sendCommand(self._control_socket, JOIN_COMMAND)
 
-    def _handle_join_reply(self, **kwargs):
-        logging.info("Joined game")
-        self._request(
-            POSITION_TAG, POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
-            DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
-            TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
+    def _handle_join_reply(self, game=None, **kwargs):
+        logging.info("Joined game %r", game)
+        if game:
+            self._init_game(game)
+            self._request(
+                POSITION_TAG, POSITION_IN_TURN_TAG, ALLOWED_CALLS_TAG, CALLS_TAG,
+                DECLARER_TAG, CONTRACT_TAG, ALLOWED_CARDS_TAG, CARDS_TAG,
+                TRICK_TAG, TRICKS_WON_TAG, VULNERABILITY_TAG, SCORE_TAG)
+        else:
+            logging.error("Unable to join game")
 
     def _handle_get_reply(
             self, position=None, allowedCalls=None, calls=None,
@@ -275,13 +292,6 @@ def main():
     control_socket.identity = identity.bytes
     control_socket.connect(next(endpoint_generator))
     event_socket = zmqctx.socket(zmq.SUB)
-    event_socket.setsockopt(zmq.SUBSCRIBE, DEAL_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, CALL_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, BIDDING_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, PLAY_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, DUMMY_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, TRICK_COMMAND)
-    event_socket.setsockopt(zmq.SUBSCRIBE, DEALEND_COMMAND)
     event_socket.connect(next(endpoint_generator))
 
     logging.info("Starting main window")

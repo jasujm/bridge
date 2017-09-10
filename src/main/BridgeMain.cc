@@ -91,16 +91,18 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<> game(
-        const std::string& identity, PositionVector positions,
+        const std::string& identity, const Uuid& uuid, PositionVector positions,
         const boost::optional<nlohmann::json>& args);
-    Reply<> join(
-        const std::string& identity, const boost::optional<Uuid>& playerUuid,
+    Reply<Uuid> join(
+        const std::string& identity, const boost::optional<Uuid>& gameUuid,
+        const boost::optional<Uuid>& playerUuid,
         boost::optional<Position> positions);
     Reply<> call(
-        const std::string& identity, const boost::optional<Uuid>& playerUuid,
-        const Call& call);
+        const std::string& identity, const Uuid& gameUuid,
+        const boost::optional<Uuid>& playerUuid, const Call& call);
     Reply<> play(
-        const std::string& identity, const boost::optional<Uuid>& playerUuid,
+        const std::string& identity, const Uuid& gameUuid,
+        const boost::optional<Uuid>& playerUuid,
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
@@ -158,25 +160,30 @@ BridgeMain::Impl::Impl(
                 GAME_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::game, JsonSerializer {},
-                    std::make_tuple(POSITIONS_COMMAND, ARGS_COMMAND))
+                    std::make_tuple(
+                        GAME_COMMAND, POSITIONS_COMMAND, ARGS_COMMAND))
             },
             {
                 JOIN_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::join, JsonSerializer {},
-                    std::make_tuple(PLAYER_COMMAND, POSITION_COMMAND))
+                    std::make_tuple(
+                        GAME_COMMAND, PLAYER_COMMAND, POSITION_COMMAND),
+                    std::make_tuple(GAME_COMMAND))
             },
             {
                 CALL_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::call, JsonSerializer {},
-                    std::make_tuple(PLAYER_COMMAND, CALL_COMMAND))
+                    std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, CALL_COMMAND))
             },
             {
                 PLAY_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::play, JsonSerializer {},
-                    std::make_tuple(PLAYER_COMMAND, CARD_COMMAND, INDEX_COMMAND))
+                    std::make_tuple(
+                        GAME_COMMAND, PLAYER_COMMAND, CARD_COMMAND,
+                        INDEX_COMMAND))
             }
         }}
 {
@@ -202,7 +209,7 @@ BridgeMain::Impl::Impl(
         messageLoop.addSocket(socket.first, socket.second);
     }
     bridgeGame = std::make_shared<BridgeGame>(
-        generatePositionsControlled(positions), eventSocket,
+        Uuid{}, generatePositionsControlled(positions), eventSocket,
         std::move(cardProtocol), std::move(peerCommandSender));
     messageQueue.trySetHandler(
         GET_COMMAND,
@@ -245,7 +252,7 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, PositionVector positions,
+    const std::string& identity, const Uuid& /*game*/, PositionVector positions,
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
@@ -260,9 +267,9 @@ Reply<> BridgeMain::Impl::game(
     return failure();
 }
 
-Reply<> BridgeMain::Impl::join(
-    const std::string& identity, const boost::optional<Uuid>& playerUuid,
-    boost::optional<Position> position)
+Reply<Uuid> BridgeMain::Impl::join(
+    const std::string& identity, const boost::optional<Uuid>& /*game*/,
+    const boost::optional<Uuid>& playerUuid, boost::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Player: %s. Position: %s",
         asHex(identity), playerUuid, position);
@@ -278,15 +285,15 @@ Reply<> BridgeMain::Impl::join(
             assert(nodePlayerControl);
             auto player = nodePlayerControl->createPlayer(identity, playerUuid);
             bridgeGame->join(identity, *position, std::move(player));
-            return success();
+            return success(Uuid {});
         }
     }
     return failure();
 }
 
 Reply<> BridgeMain::Impl::call(
-    const std::string& identity, const boost::optional<Uuid>& playerUuid,
-    const Call& call)
+    const std::string& identity, const Uuid& /*game*/,
+    const boost::optional<Uuid>& playerUuid, const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Player: %s. Call: %s",
         asHex(identity), playerUuid, call);
@@ -300,7 +307,8 @@ Reply<> BridgeMain::Impl::call(
 }
 
 Reply<> BridgeMain::Impl::play(
-    const std::string& identity, const boost::optional<Uuid>& playerUuid,
+    const std::string& identity, const Uuid& /*game*/,
+    const boost::optional<Uuid>& playerUuid,
     const boost::optional<CardType>& card,
     const boost::optional<std::size_t>& index)
 {
@@ -338,6 +346,7 @@ void BridgeMain::Impl::internalInitializePeers(
     peerCommandSender.sendCommand(
         JsonSerializer {},
         GAME_COMMAND,
+        std::make_pair(std::cref(GAME_COMMAND), Uuid {}),
         std::tie(POSITIONS_COMMAND, positions),
         std::make_pair(
             std::cref(ARGS_COMMAND),

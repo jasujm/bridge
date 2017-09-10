@@ -2,6 +2,7 @@
 #define MAIN_BRIDGEGAME_HH_
 
 #include "bridge/Call.hh"
+#include "bridge/Uuid.hh"
 #include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -62,6 +63,7 @@ public:
      * PeerCommandSender. It’s not necessary for the peers to have initiated
      * their handshake and have been accepted.
      *
+     * \param uuid the UUID of the game
      * \param positionsControlled the positions controlled by the node
      * \param eventSocket ZeroMQ socket used to publish events about the game
      * \param cardProtocol the card protocol used to exchange cards between
@@ -70,6 +72,7 @@ public:
      * commands to the peers taking part in the game
      */
     BridgeGame(
+        const Uuid& uuid,
         PositionSet positionsControlled,
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
