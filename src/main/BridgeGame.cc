@@ -208,7 +208,7 @@ boost::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
 }
 
 void BridgeGame::Impl::join(
-    const std::string& identity, Position position,
+    const std::string& identity, const Position position,
     std::shared_ptr<Player> player)
 {
     sendToPeersIfClient(
@@ -371,7 +371,7 @@ boost::optional<Position> BridgeGame::getPositionForPlayerToJoin(
 }
 
 void BridgeGame::join(
-    const std::string& identity, Position position,
+    const std::string& identity, const Position position,
     std::shared_ptr<Player> player)
 {
     assert(impl);

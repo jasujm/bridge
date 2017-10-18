@@ -128,6 +128,11 @@ public:
      * call to getPositionForPlayerToJoin(), \p player controlled by the node is
      * seated in that position.
      *
+     * \pre
+     * - Position must be a valid position previously returned by
+     *   getPositionForPlayerToJoin()
+     * - \p player must not be nullptr
+     *
      * \param identity the identity of the node controlling the player
      * \param position the position the player is seated in
      * \param player the player to join the game
