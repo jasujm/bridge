@@ -283,9 +283,10 @@ Reply<Uuid> BridgeMain::Impl::join(
         position = bridgeGame->getPositionForPlayerToJoin(identity, position);
         if (position) {
             assert(nodePlayerControl);
-            auto player = nodePlayerControl->createPlayer(identity, playerUuid);
-            bridgeGame->join(identity, *position, std::move(player));
-            return success(Uuid {});
+            if (auto player = nodePlayerControl->createPlayer(identity, playerUuid)) {
+                bridgeGame->join(identity, *position, std::move(player));
+                return success(Uuid {});
+            }
         }
     }
     return failure();
