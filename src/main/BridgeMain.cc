@@ -24,6 +24,7 @@
 
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
+#include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <zmq.hpp>
 
@@ -91,7 +92,7 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<> game(
-        const std::string& identity, const Uuid& uuid,
+        const std::string& identity, const boost::optional<Uuid>& uuid,
         const boost::optional<nlohmann::json>& args);
     Reply<Uuid> join(
         const std::string& identity, const boost::optional<Uuid>& gameUuid,
@@ -115,6 +116,7 @@ private:
         const std::string& cardServerBasePeerEndpoint,
         PeerCommandSender& peerCommandSender);
 
+    boost::uuids::random_generator uuidGenerator;
     bool peerMode;
     std::map<std::string, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
@@ -146,7 +148,7 @@ BridgeMain::Impl::Impl(
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     peerMode {!peerEndpoints.empty()},
-    nodePlayerControl(std::make_shared<NodePlayerControl>()),
+    nodePlayerControl {std::make_shared<NodePlayerControl>()},
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
     messageQueue {
@@ -256,16 +258,33 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, const Uuid& gameUuid,
+    const std::string& identity, const boost::optional<Uuid>& gameUuid,
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
 
     const auto iter = nodes.find(identity);
-    if (iter != nodes.end() && iter->second == Role::PEER && args) {
-        const auto game = internalGetGame(gameUuid);
-        if (game && game->addPeer(identity, *args)) {
-            return success();
+    if (iter != nodes.end()) {
+        if (iter->second == Role::PEER && gameUuid && args) {
+            const auto game = internalGetGame(*gameUuid);
+            if (game && game->addPeer(identity, *args)) {
+                return success();
+            }
+        } else if (iter->second == Role::CLIENT) {
+            // TODO: There could be trivial card "protocol" for definitely
+            // peerless games
+            const auto uuid_for_game = gameUuid ? *gameUuid : uuidGenerator();
+            auto sender = std::make_shared<PeerCommandSender>();
+            auto card_protocol = std::make_unique<SimpleCardProtocol>(sender);
+            const auto game = games.emplace(
+                uuid_for_game,
+                std::make_shared<BridgeGame>(
+                    uuid_for_game,
+                    PositionSet(POSITIONS.begin(), POSITIONS.end()),
+                    eventSocket, std::move(card_protocol), std::move(sender)));
+            if (game.second) {
+                return success();
+            }
         }
     }
     return failure();
