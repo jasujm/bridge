@@ -106,6 +106,7 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
+    BridgeGame* internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
         const std::string& identity, const boost::optional<Uuid>& playerUuid);
     void internalInitializePeers(
@@ -120,7 +121,7 @@ private:
     std::shared_ptr<zmq::socket_t> eventSocket;
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
-    std::shared_ptr<BridgeGame> bridgeGame;
+    std::map<Uuid, std::shared_ptr<BridgeGame>> games;
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
@@ -207,12 +208,15 @@ BridgeMain::Impl::Impl(
     for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
-    bridgeGame = std::make_shared<BridgeGame>(
-        Uuid{}, generatePositionsControlled(positions), eventSocket,
-        std::move(cardProtocol), std::move(peerCommandSender));
+    const auto game = games.emplace(
+        Uuid {},
+        std::make_shared<BridgeGame>(
+            Uuid{}, generatePositionsControlled(positions), eventSocket,
+            std::move(cardProtocol), std::move(peerCommandSender)));
+    assert(game.first != games.end());
     messageQueue.trySetHandler(
         GET_COMMAND,
-        std::make_shared<GetMessageHandler>(bridgeGame, nodePlayerControl));
+        std::make_shared<GetMessageHandler>(game.first->second, nodePlayerControl));
     messageLoop.addSocket(
         std::move(controlSocket),
         [&queue = this->messageQueue](auto& socket) { queue(socket); });
@@ -251,15 +255,15 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, const Uuid& /*game*/,
+    const std::string& identity, const Uuid& gameUuid,
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end() && iter->second == Role::PEER && args) {
-        assert(bridgeGame);
-        if (bridgeGame->addPeer(identity, *args)) {
+        const auto game = internalGetGame(gameUuid);
+        if (game && game->addPeer(identity, *args)) {
             return success();
         }
     }
@@ -267,24 +271,25 @@ Reply<> BridgeMain::Impl::game(
 }
 
 Reply<Uuid> BridgeMain::Impl::join(
-    const std::string& identity, const boost::optional<Uuid>& /*game*/,
+    const std::string& identity, const boost::optional<Uuid>& gameUuid,
     const boost::optional<Uuid>& playerUuid, boost::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Player: %s. Position: %s",
         asHex(identity), playerUuid, position);
 
-    assert(bridgeGame);
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
-        if (iter->second == Role::PEER && !playerUuid) {
+        if (iter->second == Role::PEER && (!playerUuid || !gameUuid)) {
             return failure();
         }
-        position = bridgeGame->getPositionForPlayerToJoin(identity, position);
-        if (position) {
+        const auto uuid_for_game = gameUuid.value_or(Uuid {});
+        const auto game = internalGetGame(uuid_for_game);
+        if (game &&
+            (position = game->getPositionForPlayerToJoin(identity, position))) {
             assert(nodePlayerControl);
             if (auto player = nodePlayerControl->createPlayer(identity, playerUuid)) {
-                bridgeGame->join(identity, *position, std::move(player));
-                return success(Uuid {});
+                game->join(identity, *position, std::move(player));
+                return success(uuid_for_game);
             }
         }
     }
@@ -292,14 +297,14 @@ Reply<Uuid> BridgeMain::Impl::join(
 }
 
 Reply<> BridgeMain::Impl::call(
-    const std::string& identity, const Uuid& /*game*/,
+    const std::string& identity, const Uuid& gameUuid,
     const boost::optional<Uuid>& playerUuid, const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Player: %s. Call: %s",
         asHex(identity), playerUuid, call);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
-        assert(bridgeGame);
-        if (bridgeGame->call(identity, *player, call)) {
+        const auto game = internalGetGame(gameUuid);
+        if (game && game->call(identity, *player, call)) {
             return success();
         }
     }
@@ -307,7 +312,7 @@ Reply<> BridgeMain::Impl::call(
 }
 
 Reply<> BridgeMain::Impl::play(
-    const std::string& identity, const Uuid& /*game*/,
+    const std::string& identity, const Uuid& gameUuid,
     const boost::optional<Uuid>& playerUuid,
     const boost::optional<CardType>& card,
     const boost::optional<std::size_t>& index)
@@ -315,8 +320,8 @@ Reply<> BridgeMain::Impl::play(
     log(LogLevel::DEBUG, "Play command from %s. Player: %s. Card: %s. Index: %d",
         asHex(identity), playerUuid, card, index);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
-        assert(bridgeGame);
-        if (bridgeGame->play(identity, *player, card, index)) {
+        const auto game = internalGetGame(gameUuid);
+        if (game && game->play(identity, *player, card, index)) {
             return success();
         }
     }
@@ -350,6 +355,15 @@ void BridgeMain::Impl::internalInitializePeers(
         GAME_COMMAND,
         std::make_pair(std::cref(GAME_COMMAND), Uuid {}),
         std::make_pair(std::cref(ARGS_COMMAND), args));
+}
+
+BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
+{
+    const auto iter = games.find(gameUuid);
+    if (iter != games.end()) {
+        return iter->second.get();
+    }
+    return nullptr;
 }
 
 const Player* BridgeMain::Impl::internalGetPlayerFor(
