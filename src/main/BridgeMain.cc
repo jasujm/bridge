@@ -91,7 +91,7 @@ private:
     Reply<> hello(
         const std::string& identity, const VersionVector& version,
         const std::string& role);
-    Reply<> game(
+    Reply<Uuid> game(
         const std::string& identity, const boost::optional<Uuid>& uuid,
         const boost::optional<nlohmann::json>& args);
     Reply<Uuid> join(
@@ -163,7 +163,8 @@ BridgeMain::Impl::Impl(
                 GAME_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::game, JsonSerializer {},
-                    std::make_tuple(GAME_COMMAND, ARGS_COMMAND))
+                    std::make_tuple(GAME_COMMAND, ARGS_COMMAND),
+                    std::make_tuple(GAME_COMMAND))
             },
             {
                 JOIN_COMMAND,
@@ -258,7 +259,7 @@ Reply<> BridgeMain::Impl::hello(
     return failure();
 }
 
-Reply<> BridgeMain::Impl::game(
+Reply<Uuid> BridgeMain::Impl::game(
     const std::string& identity, const boost::optional<Uuid>& gameUuid,
     const boost::optional<nlohmann::json>& args)
 {
@@ -269,7 +270,7 @@ Reply<> BridgeMain::Impl::game(
         if (iter->second == Role::PEER && gameUuid && args) {
             const auto game = internalGetGame(*gameUuid);
             if (game && game->addPeer(identity, *args)) {
-                return success();
+                return success(*gameUuid);
             }
         } else if (iter->second == Role::CLIENT) {
             // TODO: There could be trivial card "protocol" for definitely
@@ -285,7 +286,7 @@ Reply<> BridgeMain::Impl::game(
                     PositionSet(POSITIONS.begin(), POSITIONS.end()),
                     eventSocket, std::move(card_protocol), std::move(sender)));
             if (game.second) {
-                return success();
+                return success(uuid_for_game);
             }
         }
     }

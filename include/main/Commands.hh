@@ -193,7 +193,8 @@
  * - \b Parameters:
  *   - \e game (optional for clients)
  *   - \e args: additonal protocol specific arguments (peers only)
- * - \b Reply: \e none
+ * - \b Reply:
+ *   - \e game: the game being set up
  *
  * Both peers and clients use this command to set up a new bridge game.
  *

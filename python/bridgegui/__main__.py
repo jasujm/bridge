@@ -161,6 +161,14 @@ class BridgeWindow(QMainWindow):
         sendCommand(
             self._control_socket, GET_COMMAND, game=self._game_uuid, keys=args)
 
+    def _send_join_command(self):
+        kwargs = {}
+        if self._preferred_position:
+            kwargs[POSITION_TAG] = self._preferred_position
+        if self._game_uuid:
+            kwargs[GAME_TAG] = self._game_uuid
+        sendCommand(self._control_socket, JOIN_COMMAND, **kwargs)
+
     def _send_call_command(self, call):
         sendCommand(
             self._control_socket, CALL_COMMAND, game=self._game_uuid, call=call)
@@ -175,15 +183,13 @@ class BridgeWindow(QMainWindow):
         if self._create_game and self._game_uuid:
             sendCommand(
                 self._control_socket, GAME_COMMAND, game=self._game_uuid)
-        kwargs = {}
-        if self._preferred_position:
-            kwargs[POSITION_TAG] = self._preferred_position
-        if self._game_uuid:
-            kwargs[GAME_TAG] = self._game_uuid
-        sendCommand(self._control_socket, JOIN_COMMAND, **kwargs)
+        else:
+            self._send_join_command()
 
-    def _handle_game_reply(self, **kwargs):
-        logging.info("Game created")
+    def _handle_game_reply(self, game=None, **kwargs):
+        logging.info("Created game %r", game)
+        self._game_uuid = game
+        self._send_join_command()
 
     def _handle_join_reply(self, game=None, **kwargs):
         logging.info("Joined game %r", game)
