@@ -213,6 +213,7 @@ void BridgeGame::Impl::join(
 {
     sendToPeersIfClient(
         identity, JOIN_COMMAND,
+        std::tie(GAME_COMMAND, uuid),
         std::make_pair(
             std::cref(PLAYER_COMMAND), dereference(player).getUuid()),
         std::tie(POSITION_COMMAND, position));
@@ -226,6 +227,7 @@ bool BridgeGame::Impl::call(
         sendToPeersIfClient(
             identity,
             CALL_COMMAND,
+            std::tie(GAME_COMMAND, uuid),
             std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
             std::tie(CALL_COMMAND, call));
         return true;
@@ -251,6 +253,7 @@ bool BridgeGame::Impl::play(
                 sendToPeersIfClient(
                     identity,
                     PLAY_COMMAND,
+                    std::tie(GAME_COMMAND, uuid),
                     std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
                     std::tie(INDEX_COMMAND, *n_card));
                 return true;
