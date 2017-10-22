@@ -34,6 +34,10 @@
 namespace Bridge {
 namespace Main {
 
+namespace {
+using PositionVector = std::vector<Position>;
+}
+
 using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
 
@@ -54,9 +58,7 @@ public:
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-    bool addPeer(
-        const std::string& identity, const PositionVector& positions,
-        const boost::optional<nlohmann::json>& args);
+    bool addPeer(const std::string& identity, const nlohmann::json& args);
 
     boost::optional<Position> getPositionForPlayerToJoin(
         const std::string& identity, const boost::optional<Position>& position);
@@ -158,22 +160,29 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
 }
 
 bool BridgeGame::Impl::addPeer(
-    const std::string& identity, const PositionVector& positions,
-    const boost::optional<nlohmann::json>& args)
+    const std::string& identity, const nlohmann::json& args)
 {
+    const auto iter = args.find(POSITIONS_COMMAND);
+    if (iter == args.end()) {
+        return false;
+    }
+    const auto positions = Messaging::tryFromJson<PositionVector>(*iter);
+    if (!positions) {
+        return false;
+    }
     if (std::any_of(
-            positions.begin(), positions.end(),
+            positions->begin(), positions->end(),
             [this](const auto p)
             {
                 return positionsInUse.find(p) != positionsInUse.end();
             })) {
         return false;
     }
-    peers[identity] = positions;
-    for (const auto position : positions) {
+    peers[identity] = *positions;
+    for (const auto position : *positions) {
         positionsInUse.insert(position);
     }
-    if (dereference(cardProtocol).acceptPeer(identity, positions, args)) {
+    if (dereference(cardProtocol).acceptPeer(identity, *positions, args)) {
         startIfReady();
         return true;
     }
@@ -359,11 +368,10 @@ BridgeGame::BridgeGame(
 }
 
 bool BridgeGame::addPeer(
-    const std::string& identity, const PositionVector& positions,
-    const boost::optional<nlohmann::json>& args)
+    const std::string& identity, const nlohmann::json& args)
 {
     assert(impl);
-    return impl->addPeer(identity, positions, args);
+    return impl->addPeer(identity, args);
 }
 
 boost::optional<Position> BridgeGame::getPositionForPlayerToJoin(

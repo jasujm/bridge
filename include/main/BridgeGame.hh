@@ -48,12 +48,6 @@ public:
      */
     using PositionSet = std::set<Position>;
 
-    /** \brief Vector of positions
-     *
-     * \sa addPeer()
-     */
-    using PositionVector = std::vector<Position>;
-
     /** \brief Create new bridge game
      *
      * The client who creates an instance of BridgeGame is responsible for
@@ -86,14 +80,12 @@ public:
      * which case the call has no effect.
      *
      * \param identity identity of the peer
-     * \param positions the positions the peer intends to control
-     * \param args optional arguments for initializing the card protocol
+     * \param args arguments for initializing the game (parameter to \ref
+     * bridgeprotocolcontrolgame command)
      *
      * \return true if the peer was successfully accepted, false otherwise
      */
-    bool addPeer(
-        const std::string& identity, const PositionVector& positions,
-        const boost::optional<nlohmann::json>& args);
+    bool addPeer(const std::string& identity, const nlohmann::json& args);
 
     /** \brief Get position that a player can join in
      *

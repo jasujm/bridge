@@ -91,7 +91,7 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<> game(
-        const std::string& identity, const Uuid& uuid, PositionVector positions,
+        const std::string& identity, const Uuid& uuid,
         const boost::optional<nlohmann::json>& args);
     Reply<Uuid> join(
         const std::string& identity, const boost::optional<Uuid>& gameUuid,
@@ -160,8 +160,7 @@ BridgeMain::Impl::Impl(
                 GAME_COMMAND,
                 makeMessageHandler(
                     *this, &Impl::game, JsonSerializer {},
-                    std::make_tuple(
-                        GAME_COMMAND, POSITIONS_COMMAND, ARGS_COMMAND))
+                    std::make_tuple(GAME_COMMAND, ARGS_COMMAND))
             },
             {
                 JOIN_COMMAND,
@@ -252,15 +251,15 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<> BridgeMain::Impl::game(
-    const std::string& identity, const Uuid& /*game*/, PositionVector positions,
+    const std::string& identity, const Uuid& /*game*/,
     const boost::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
 
     const auto iter = nodes.find(identity);
-    if (iter != nodes.end() && iter->second == Role::PEER) {
+    if (iter != nodes.end() && iter->second == Role::PEER && args) {
         assert(bridgeGame);
-        if (bridgeGame->addPeer(identity, std::move(positions), args)) {
+        if (bridgeGame->addPeer(identity, *args)) {
             return success();
         }
     }
@@ -344,14 +343,13 @@ void BridgeMain::Impl::internalInitializePeers(
         HELLO_COMMAND,
         std::make_pair(std::cref(VERSION_COMMAND), VersionVector {0}),
         std::tie(ROLE_COMMAND, PEER_ROLE));
+    auto args = makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint);
+    args[POSITIONS_COMMAND] = Messaging::toJson(positions);
     peerCommandSender.sendCommand(
         JsonSerializer {},
         GAME_COMMAND,
         std::make_pair(std::cref(GAME_COMMAND), Uuid {}),
-        std::tie(POSITIONS_COMMAND, positions),
-        std::make_pair(
-            std::cref(ARGS_COMMAND),
-            makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint)));
+        std::make_pair(std::cref(ARGS_COMMAND), args));
 }
 
 const Player* BridgeMain::Impl::internalGetPlayerFor(

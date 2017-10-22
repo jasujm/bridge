@@ -191,28 +191,30 @@
  *
  * - \b Command: game
  * - \b Parameters:
- *   - \e game
- *   - \e positions: an array consisting of positions, see \ref jsonposition
- *   - \e args: additonal protocol specific arguments
+ *   - \e game (optional for clients)
+ *   - \e args: additonal protocol specific arguments (peers only)
  * - \b Reply: \e none
  *
- * Peers use this command to coordinate setting up a bridge game.
+ * Both peers and clients use this command to set up a new bridge game.
  *
- * The game argument MUST contain the UUID of the game being set up.
+ * The game argument contains the UUID of the game being set up. A client
+ * setting up a new game MAY omit it in which case the peer SHOULD generate UUID
+ * for the new game.
  *
- * The positions argument MUST contain the positions of all the players the node
- * requests to represent. The command MUST fail without effect if at least one
- * of the positions in the list is represented by the peer itself or any other
- * peer it has accepted.
+ * The args parameter is a JSON object containing additional parameters needed
+ * by peers to set up the game. It MUST at least contain key “position”
+ * containing array of positions of all the players the node requests to
+ * represent. The command MUST fail without effect if at least one of the
+ * positions in the list is represented by the peer itself or any other peer it
+ * has accepted.
  *
- * The args parameter is reserved for additional card exchange protocol specific
- * information needed by the peers. If the card server protocol is used, args
- * MUST be a JSON object containing the base peer endpoint of the card server
- * the peer uses. For instance, if the base peer endpoint is
- * tcp://example.com:5555, the object would be the following:
+ * If the card server protocol is used, args MUST also contain the base peer
+ * endpoint of the card server the peer uses. For instance, if the base peer
+ * endpoint is tcp://example.com:5555, the object would be the following:
  *
  * \code{.json}
  * {
+ *     "positions": ["north", "east"],        // positions are example only
  *     "endpoint": "tcp://example.com:5555",
  * }
  * \endcode
@@ -236,13 +238,14 @@
  * Both clients and peers use this command to join a player in a bridge game.
  *
  * The game argument is the UUID of the game being joined. Clients MAY omit it
- * in which case the peer selects an available game for the client.
+ * in which case the peer SHOULD select an available game for the client.
  *
  * Clients SHOULD only join once per game and a peer MAY reject multiple join
  * commands from a single client. A client MAY omit the player argument. If
- * omitted, the peer MUST generate UUID for the player. A client MAY use
- * position argument to announce the preferred position in the game. If not
- * present, the peer MUST choose any free position for the client.
+ * omitted, the peer SHOULD generate UUID for the player controlled by a newly
+ * joining node. A client MAY use position argument to announce the preferred
+ * position in the game. If not present, the peer MUST choose any free position
+ * for the client.
  *
  * Peers MUST provide both player and position arguments. The position MUST be
  * one of the positions the peer has reserved in the previous game command. The
