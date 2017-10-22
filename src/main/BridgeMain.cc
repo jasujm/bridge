@@ -106,7 +106,7 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
-    BridgeGame* internalGetGame(const Uuid& gameUuid);
+    std::shared_ptr<BridgeGame> internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
         const std::string& identity, const boost::optional<Uuid>& playerUuid);
     void internalInitializePeers(
@@ -208,15 +208,16 @@ BridgeMain::Impl::Impl(
     for (auto&& socket : cardProtocol->getSockets()) {
         messageLoop.addSocket(socket.first, socket.second);
     }
-    const auto game = games.emplace(
+    games.emplace(
         Uuid {},
         std::make_shared<BridgeGame>(
             Uuid{}, generatePositionsControlled(positions), eventSocket,
             std::move(cardProtocol), std::move(peerCommandSender)));
-    assert(game.first != games.end());
     messageQueue.trySetHandler(
         GET_COMMAND,
-        std::make_shared<GetMessageHandler>(game.first->second, nodePlayerControl));
+        std::make_shared<GetMessageHandler>(
+            [this](const Uuid& uuid) { return internalGetGame(uuid); },
+            nodePlayerControl));
     messageLoop.addSocket(
         std::move(controlSocket),
         [&queue = this->messageQueue](auto& socket) { queue(socket); });
@@ -357,11 +358,12 @@ void BridgeMain::Impl::internalInitializePeers(
         std::make_pair(std::cref(ARGS_COMMAND), args));
 }
 
-BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
+std::shared_ptr<BridgeGame> BridgeMain::Impl::internalGetGame(
+    const Uuid& gameUuid)
 {
     const auto iter = games.find(gameUuid);
     if (iter != games.end()) {
-        return iter->second.get();
+        return iter->second;
     }
     return nullptr;
 }

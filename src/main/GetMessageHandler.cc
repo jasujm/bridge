@@ -1,5 +1,4 @@
 #include "main/GetMessageHandler.hh"
-
 #include "bridge/AllowedCalls.hh"
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
@@ -23,6 +22,7 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/SerializationUtility.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
@@ -163,9 +163,9 @@ std::string getScore(const DuplicateGameManager& gameManager)
 }
 
 GetMessageHandler::GetMessageHandler(
-    std::shared_ptr<const BridgeGameInfo> gameInfo,
+    GetGameFunction games,
     std::shared_ptr<const NodePlayerControl> nodePlayerControl) :
-    gameInfo {std::move(gameInfo)},
+    games {std::move(games)},
     nodePlayerControl {std::move(nodePlayerControl)}
 {
 }
@@ -174,11 +174,17 @@ bool GetMessageHandler::doHandle(
     const std::string& identity, const ParameterVector& params,
     OutputSink sink)
 {
+    const auto game_uuid = Messaging::deserializeParam<Uuid>(
+        JsonSerializer {}, params.begin(), params.end(), GAME_COMMAND);
+    if (!game_uuid) {
+        return false;
+    }
+    const auto game = games(*game_uuid);
     const auto keys = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
     const auto player = dereference(nodePlayerControl).getPlayer(identity);
-    if (keys && player) {
-        const auto& engine = dereference(gameInfo).getEngine();
+    if (game && keys && player) {
+        const auto& engine = game->getEngine();
         for (const auto& key : *keys) {
             if (internalContainsKey(key, POSITION_COMMAND, sink)) {
                 sink(getPosition(engine, *player));
@@ -201,9 +207,9 @@ bool GetMessageHandler::doHandle(
             } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
                 sink(getTricksWon(engine));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
-                sink(getVulnerability(dereference(gameInfo).getGameManager()));
+                sink(getVulnerability(game->getGameManager()));
             } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
-                sink(getScore(dereference(gameInfo).getGameManager()));
+                sink(getScore(game->getGameManager()));
             }
         }
         return true;

@@ -27,6 +27,7 @@
 #include "MockBridgeGameInfo.hh"
 
 #include <boost/range/combine.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -62,6 +63,12 @@ using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using OptionalCardVector = std::vector<boost::optional<Bridge::CardType>>;
+
+boost::uuids::string_generator STRING_GENERATOR;
+const auto VALID_GAME = STRING_GENERATOR(
+    "884b458d-1e8f-4734-b997-4bb206497d8d");
+const auto INVALID_GAME = STRING_GENERATOR(
+    "b4c36d82-a19c-488e-9ed7-36095dc90598");
 
 const auto PLAYER1 = "player1"s;
 const auto PLAYER2 = "player2"s;
@@ -119,8 +126,8 @@ protected:
     {
         const auto keys_ = StringVector {std::forward<String>(keys)...};
         const auto args = {
-            KEYS_COMMAND,
-            JsonSerializer::serialize(keys_),
+            GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
+            KEYS_COMMAND, JsonSerializer::serialize(keys_),
         };
         EXPECT_TRUE(
             handler.handle(
@@ -148,13 +155,49 @@ protected:
         std::make_shared<testing::NiceMock<MockBridgeGameInfo>>()};
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
-    GetMessageHandler handler {gameInfo, nodePlayerControl};
+    GetMessageHandler handler {
+        [this](const auto& uuid) -> std::shared_ptr<const BridgeGameInfo>
+        {
+            if (uuid == VALID_GAME) {
+                return gameInfo;
+            }
+            return nullptr;
+        }, nodePlayerControl};
     std::vector<std::string> reply;
 };
 
 TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
 {
-    std::array<std::string, 0> args;
+    const auto args = {
+        GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
+        KEYS_COMMAND,
+        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
+    };
+    EXPECT_FALSE(
+        handler.handle(
+            "unknown", args.begin(), args.end(), std::back_inserter(reply)));
+    EXPECT_TRUE(reply.empty());
+}
+
+TEST_F(GetMessageHandlerTest, testRequestWithoutGameIsRejected)
+{
+    const auto args = {
+        KEYS_COMMAND,
+        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
+    };
+    EXPECT_FALSE(
+        handler.handle(
+            PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
+    EXPECT_TRUE(reply.empty());
+}
+
+TEST_F(GetMessageHandlerTest, testRequestWithInvalidGameIsRejected)
+{
+    const auto args = {
+        GAME_COMMAND, JsonSerializer::serialize(INVALID_GAME),
+        KEYS_COMMAND,
+        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
+    };
     EXPECT_FALSE(
         handler.handle(
             PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
@@ -164,12 +207,11 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIsRejected)
 {
     const auto args = {
-        KEYS_COMMAND,
-        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
+        GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
     };
     EXPECT_FALSE(
         handler.handle(
-            "unknown", args.begin(), args.end(), std::back_inserter(reply)));
+            PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
     EXPECT_TRUE(reply.empty());
 }
 

@@ -6,10 +6,12 @@
 #ifndef MAIN_GETMESSAGEHANDLER_HH_
 #define MAIN_GETMESSAGEHANDLER_HH_
 
+#include "bridge/Uuid.hh"
 #include "messaging/MessageHandler.hh"
 
 #include <boost/core/noncopyable.hpp>
 
+#include <functional>
 #include <memory>
 
 namespace Bridge {
@@ -27,15 +29,25 @@ class GetMessageHandler :
     public Messaging::MessageHandler, private boost::noncopyable {
 public:
 
+    /** \brief Function used to retrieve game information
+     *
+     * The function is expected to accept UUID of the game and return
+     * BridgeGameInfo object for it, or nullptr if there is no game with the
+     * UUID.
+     *
+     * \sa GetMessageHandler()
+     */
+    using GetGameFunction = std::function<
+        std::shared_ptr<const BridgeGameInfo>(const Uuid&)>;
+
     /** \brief Create new get message handler
      *
-     * \param gameInfo The bridge game info object used to query information
-     * about the game
+     * \param games Function for retrieving BridgeGameInfo object
      * \param nodePlayerControl The node player control object used to identify
      * the node
      */
     GetMessageHandler(
-        std::shared_ptr<const BridgeGameInfo> gameInfo,
+        GetGameFunction games,
         std::shared_ptr<const NodePlayerControl> nodePlayerControl);
 
 private:
@@ -48,7 +60,7 @@ private:
         const std::string& key, const std::string& expected,
         OutputSink& sink) const;
 
-    const std::shared_ptr<const BridgeGameInfo> gameInfo;
+    const GetGameFunction games;
     const std::shared_ptr<const NodePlayerControl> nodePlayerControl;
 };
 
