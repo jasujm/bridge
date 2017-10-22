@@ -350,6 +350,26 @@ decltype(auto) validate(T&& t, Pred&& pred, Preds&&... rest)
 }
 /// \}
 
+/** \brief Convert JSON to object, ignoring errors
+ *
+ * This function works like fromJson(), except it catches any exceptions and
+ * returns empty value instead on error.
+ *
+ * \param j the JSON object to conert
+ *
+ * \return \p j converted to object of type \p T, or none if exception is thrown
+ * while converting
+ */
+template<typename T>
+boost::optional<T> tryFromJson(const nlohmann::json& j)
+{
+    try {
+        return fromJson<T>(j);
+    } catch (const std::exception&) {
+        return boost::none;
+    }
+}
+
 }
 }
 
