@@ -25,6 +25,7 @@ import bridgegui.score as score
 import bridgegui.tricks as tricks
 
 HELLO_COMMAND = b'bridgehlo'
+GAME_COMMAND = b'game'
 JOIN_COMMAND = b'join'
 GET_COMMAND = b'get'
 DEAL_COMMAND = b'deal'
@@ -37,6 +38,7 @@ DEALEND_COMMAND = b'dealend'
 
 CLIENT_TAG = "client"
 POSITION_TAG = "position"
+GAME_TAG = "game"
 POSITION_IN_TURN_TAG = "positionInTurn"
 ALLOWED_CALLS_TAG = "allowedCalls"
 CALLS_TAG = "calls"
@@ -53,16 +55,23 @@ SCORE_TAG = "score"
 class BridgeWindow(QMainWindow):
     """The main window of the birdge frontend"""
 
-    def __init__(self, control_socket, event_socket, position):
+    def __init__(
+            self, control_socket, event_socket, position, game_uuid,
+            create_game):
         """Initialize BridgeWindow
 
         Keyword Arguments:
         control_socket -- the control socket used to send commands
         event_socket   -- the event socket used to subscribe events
+        position       -- the preferred position
+        game_uuid      -- the UUID of the game to be joined (optional)
+        create_game    -- flag indicating whether the client should create a new game
         """
         super().__init__()
         self._position = None
         self._preferred_position = position
+        self._game_uuid = game_uuid
+        self._create_game = create_game
         self._timer = QTimer(self)
         self._timer.setInterval(1000)
         self._init_sockets(control_socket, event_socket)
@@ -81,6 +90,7 @@ class BridgeWindow(QMainWindow):
             messaging.validateControlReply,
             {
                 HELLO_COMMAND: self._handle_hello_reply,
+                GAME_COMMAND: self._handle_game_reply,
                 JOIN_COMMAND: self._handle_join_reply,
                 GET_COMMAND: self._handle_get_reply,
                 CALL_COMMAND: self._handle_call_reply,
@@ -89,7 +99,6 @@ class BridgeWindow(QMainWindow):
         self._connect_socket_to_notifier(
             control_socket, self._control_socket_queue)
         self._event_socket = event_socket
-        self._game_uuid = None
         sendCommand(control_socket, HELLO_COMMAND, version=[0], role=CLIENT_TAG)
 
     def _init_widgets(self):
@@ -163,12 +172,18 @@ class BridgeWindow(QMainWindow):
 
     def _handle_hello_reply(self, **kwargs):
         logging.info("Handshake successful")
-        if self._preferred_position:
+        if self._create_game and self._game_uuid:
             sendCommand(
-                self._control_socket, JOIN_COMMAND,
-                position=self._preferred_position)
-        else:
-            sendCommand(self._control_socket, JOIN_COMMAND)
+                self._control_socket, GAME_COMMAND, game=self._game_uuid)
+        kwargs = {}
+        if self._preferred_position:
+            kwargs[POSITION_TAG] = self._preferred_position
+        if self._game_uuid:
+            kwargs[GAME_TAG] = self._game_uuid
+        sendCommand(self._control_socket, JOIN_COMMAND, **kwargs)
+
+    def _handle_game_reply(self, **kwargs):
+        logging.info("Game created")
 
     def _handle_join_reply(self, game=None, **kwargs):
         logging.info("Joined game %r", game)
@@ -272,6 +287,14 @@ def main():
              given position. If the position is not available (or if the option
              is not given), any position is requested.""")
     parser.add_argument(
+        '--game',
+        help="""UUID of the game to be joined. The game is not created unless
+             --create-game option is also provided.""")
+    parser.add_argument(
+        '--create-game', action="store_true",
+        help="""If given, the application requests the backend to create new
+             game. UUID can be optionally given by providing --game option.""")
+    parser.add_argument(
         "--verbose", "-v", action="count", default=0,
         help="""Increase logging levels. Repeat for even more logging.""")
     args = parser.parse_args()
@@ -296,7 +319,9 @@ def main():
 
     logging.info("Starting main window")
     app = QApplication(sys.argv)
-    window = BridgeWindow(control_socket, event_socket, args.position)
+    window = BridgeWindow(
+        control_socket, event_socket, args.position, args.game,
+        args.create_game)
     code = app.exec_()
 
     logging.info("Main window closed. Closing sockets.")
