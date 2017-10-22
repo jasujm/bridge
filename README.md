@@ -191,15 +191,11 @@ person — the interesting network stuff comes first and the (in comparison)
 boring UX stuff comes later. In approximate order of importance the next goals
 for this project are:
 
-- Backend to host more games and similar features one would expect from server
-  software
+- More user friendly installation and configuration of the application
+- Persistent state for the backend (persistent sessions, keep records etc.)
+- Nicer user interface and other usability oriented features (claiming tricks,
+  canceling moves etc.)
 - Peer discovery
-- More user friendly configuration and installation
-  - This includes replacing the cumbersome command line configurations with
-    nicer mechanism
-- Nicer GUI
-- Persistent state for the backend (recover sessions after crash/restart, keep
-  records etc.)
 
 ## Acknowledgments
 
@@ -208,7 +204,7 @@ Byron Knoll is acknowledged for the playing card graphics:
 
 ## Copyright
 
-Copyright © 2015–2016 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2017 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
