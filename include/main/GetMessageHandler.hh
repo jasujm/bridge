@@ -31,14 +31,16 @@ public:
 
     /** \brief Function used to retrieve game information
      *
-     * The function is expected to accept UUID of the game and return
-     * BridgeGameInfo object for it, or nullptr if there is no game with the
-     * UUID.
+     * The function is expected to take UUID of the game as argument and return
+     * pointer BridgeGameInfo object for it, or nullptr if there is no game with
+     * the UUID.
+     *
+     * The pointer is not stored so the lifetime of the object does not need to
+     * extend after the caller has returned.
      *
      * \sa GetMessageHandler()
      */
-    using GetGameFunction = std::function<
-        std::shared_ptr<const BridgeGameInfo>(const Uuid&)>;
+    using GetGameFunction = std::function<const BridgeGameInfo*(const Uuid&)>;
 
     /** \brief Create new get message handler
      *

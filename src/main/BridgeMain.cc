@@ -107,7 +107,7 @@ private:
         const boost::optional<CardType>& card,
         const boost::optional<std::size_t>& index);
 
-    std::shared_ptr<BridgeGame> internalGetGame(const Uuid& gameUuid);
+    BridgeGame* internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
         const std::string& identity, const boost::optional<Uuid>& playerUuid);
     void internalInitializePeers(
@@ -123,7 +123,7 @@ private:
     std::shared_ptr<zmq::socket_t> eventSocket;
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
-    std::map<Uuid, std::shared_ptr<BridgeGame>> games;
+    std::map<Uuid, BridgeGame> games;
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
@@ -211,9 +211,10 @@ BridgeMain::Impl::Impl(
         messageLoop.addSocket(socket.first, socket.second);
     }
     games.emplace(
-        Uuid {},
-        std::make_shared<BridgeGame>(
-            Uuid{}, generatePositionsControlled(positions), eventSocket,
+        std::piecewise_construct,
+        std::make_tuple(Uuid {}),
+        std::make_tuple(
+            Uuid {}, generatePositionsControlled(positions), eventSocket,
             std::move(cardProtocol), std::move(peerCommandSender)));
     messageQueue.trySetHandler(
         GET_COMMAND,
@@ -277,8 +278,9 @@ Reply<> BridgeMain::Impl::game(
             auto sender = std::make_shared<PeerCommandSender>();
             auto card_protocol = std::make_unique<SimpleCardProtocol>(sender);
             const auto game = games.emplace(
-                uuid_for_game,
-                std::make_shared<BridgeGame>(
+                std::piecewise_construct,
+                std::make_tuple(uuid_for_game),
+                std::make_tuple(
                     uuid_for_game,
                     PositionSet(POSITIONS.begin(), POSITIONS.end()),
                     eventSocket, std::move(card_protocol), std::move(sender)));
@@ -377,12 +379,11 @@ void BridgeMain::Impl::internalInitializePeers(
         std::make_pair(std::cref(ARGS_COMMAND), args));
 }
 
-std::shared_ptr<BridgeGame> BridgeMain::Impl::internalGetGame(
-    const Uuid& gameUuid)
+BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
 {
     const auto iter = games.find(gameUuid);
     if (iter != games.end()) {
-        return iter->second;
+        return &iter->second;
     }
     return nullptr;
 }

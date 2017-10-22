@@ -93,9 +93,9 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        ON_CALL(*gameInfo, handleGetEngine())
+        ON_CALL(gameInfo, handleGetEngine())
             .WillByDefault(ReturnPointee(engine));
-        ON_CALL(*gameInfo, handleGetGameManager())
+        ON_CALL(gameInfo, handleGetGameManager())
             .WillByDefault(ReturnPointee(gameManager));
         players[0] = nodePlayerControl->createPlayer(PLAYER1, boost::none);
         players[1] = nodePlayerControl->createPlayer(PLAYER2, boost::none);
@@ -151,15 +151,14 @@ protected:
     std::array<std::shared_ptr<Player>, 4> players;
     std::shared_ptr<BridgeEngine> engine {
         std::make_shared<BridgeEngine>(cardManager, gameManager)};
-    std::shared_ptr<MockBridgeGameInfo> gameInfo {
-        std::make_shared<testing::NiceMock<MockBridgeGameInfo>>()};
+    testing::NiceMock<MockBridgeGameInfo> gameInfo;
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
     GetMessageHandler handler {
-        [this](const auto& uuid) -> std::shared_ptr<const BridgeGameInfo>
+        [this](const auto& uuid) -> const BridgeGameInfo*
         {
             if (uuid == VALID_GAME) {
-                return gameInfo;
+                return &gameInfo;
             }
             return nullptr;
         }, nodePlayerControl};
