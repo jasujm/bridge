@@ -10,8 +10,8 @@ bridge application for social games.
 
 - GUI for playing social bridge games
 - Multiple models of networking: client‐server and peer‐to‐peer
-- Cards can be echanged between peers by secure protocol preventing cheating
-- Duplicate scoring (but no support for duplicate deals)
+- Cards can be exchanged between peers by secure protocol preventing cheating
+- Duplicate scoring (but no support for duplicate deals yet…)
 
 ## Installing
 
