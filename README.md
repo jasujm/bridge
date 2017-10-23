@@ -34,11 +34,6 @@ tests. As recommended by the maintainers of the project, instead of relying on
 any version of googletest found on the local computer, it is downloaded when
 required.
 
-The GUI depends
-on [PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5)
-to provide the GUI framework
-and [PyZQM](https://github.com/zeromq/pyzmq) for messaging.
-
 To build and run unit tests for the backend
 
     $ mkdir /the/build/directory
@@ -47,6 +42,16 @@ To build and run unit tests for the backend
     $ make
     $ make test
     $ make install
+
+## Bridge GUI
+
+This repository only contains code for the backend. In order to play bridge,
+you’ll also need a frontend. A GUI written in Python can be found in my other
+repository at https://github.com/jasujm/bridge.
+
+The GUI depends on
+[PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5) to provide
+the GUI framework and [PyZQM](https://github.com/zeromq/pyzmq) for messaging.
 
 ## Usage
 
@@ -196,11 +201,6 @@ for this project are:
 - Nicer user interface and other usability oriented features (claiming tricks,
   canceling moves etc.)
 - Peer discovery
-
-## Acknowledgments
-
-Byron Knoll is acknowledged for the playing card graphics:
-<http://byronknoll.blogspot.com/2011/03/vector-playing-cards.html>
 
 ## Copyright
 

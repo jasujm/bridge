@@ -35,9 +35,6 @@ endif()
 
 add_subdirectory(src)
 add_subdirectory(test)
-if (${BRIDGE_PYTHON_AVAILABLE})
-  add_subdirectory(python)
-endif()
 
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
