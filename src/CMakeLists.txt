@@ -1,7 +1,7 @@
 macro(add_bridge_library target)
   file(GLOB src *.cc)
   add_library(${target} ${src})
-  target_compile_features(${target} PUBLIC ${BRIDGE_COMPILE_FEATURES})
+  set_property(TARGET ${target} PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 endmacro()
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -14,12 +14,13 @@ add_subdirectory(scoring)
 add_subdirectory(bridge)
 
 add_library(bridge-common STATIC Signals.cc Logging.cc Boilerplate.cc)
-target_compile_features(bridge-common PUBLIC ${BRIDGE_COMPILE_FEATURES})
+set_property(TARGET bridge-common PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
   bridge-engine bridge-scoring bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
   Threads::Threads)
+set_property(TARGET bridge PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 install(TARGETS bridge RUNTIME DESTINATION bin)
 
@@ -32,6 +33,7 @@ if(LibTMCG_FOUND)
     target_link_libraries(bridgecs bridge-csmain bridge-messaging
       bridge-cardserver bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
       ${TMCG_LIBRARIES} Threads::Threads)
+    set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
     install(TARGETS bridgecs RUNTIME DESTINATION bin)
   endif()
 endif()

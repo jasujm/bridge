@@ -35,6 +35,8 @@ function(add_bridge_test)
   add_executable(${BRIDGE_TEST_TARGET} ${src})
   target_link_libraries(${BRIDGE_TEST_TARGET} ${BRIDGE_TEST_DEPENDS}
     gmock test-common Threads::Threads)
+  set_property(TARGET ${BRIDGE_TEST_TARGET} PROPERTY CXX_STANDARD
+    ${BRIDGE_CXX_STANDARD})
   add_test(${BRIDGE_TEST_NAME} ${BRIDGE_TEST_TARGET})
 endfunction()
 
