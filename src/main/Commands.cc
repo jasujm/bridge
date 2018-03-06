@@ -31,6 +31,7 @@ const std::string PLAY_COMMAND {"play"};
 const std::string CARD_COMMAND {"card"};
 const std::string INDEX_COMMAND {"index"};
 const std::string DEAL_COMMAND {"deal"};
+const std::string TURN_COMMAND {"turn"};
 const std::string BIDDING_COMMAND {"bidding"};
 const std::string DUMMY_COMMAND {"dummy"};
 const std::string WINNER_COMMAND {"winner"};

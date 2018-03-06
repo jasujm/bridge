@@ -94,6 +94,8 @@ private:
     template<typename... Args>
     void publish(const std::string& command, Args&&... args);
 
+    void publishTurn();
+
     void handleNotify(const BridgeEngine::ShufflingCompleted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
@@ -157,6 +159,14 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
     sendCommand(
         dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...);
+}
+
+void BridgeGame::Impl::publishTurn()
+{
+    publish(
+        TURN_COMMAND,
+        std::make_pair(
+            std::cref(POSITION_COMMAND), engine.getPositionInTurn()));
 }
 
 bool BridgeGame::Impl::addPeer(
@@ -239,6 +249,7 @@ bool BridgeGame::Impl::call(
             std::tie(GAME_COMMAND, uuid),
             std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
             std::tie(CALL_COMMAND, call));
+        publishTurn();
         return true;
     }
     return false;
@@ -265,6 +276,7 @@ bool BridgeGame::Impl::play(
                     std::tie(GAME_COMMAND, uuid),
                     std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
                     std::tie(INDEX_COMMAND, *n_card));
+                publishTurn();
                 return true;
             }
         }
@@ -296,6 +308,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::ShufflingCompleted&)
 {
     log(LogLevel::DEBUG, "Shuffling completed");
     publish(DEAL_COMMAND);
+    publishTurn();
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::CallMade& event)

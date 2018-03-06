@@ -444,6 +444,15 @@
  *
  * This event is published whenever new cards are dealt.
  *
+ * \subsection bridgeprotocoleventturn turn
+ *
+ * - \b Command: turn
+ * - \b Parameters:
+ *   - \e position: the position of the player to act
+ *
+ * This event is published whenever a new player gets turn. Declarer plays for
+ * dummy during the playing phase.
+ *
  * \subsection bridgeprotocoleventcall call
  *
  * - \b Command: call
@@ -611,6 +620,10 @@ extern const std::string DEAL_COMMAND;
 /** \brief See \ref bridgeprotocolcontroldeal
  */
 extern const std::string CARDS_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventturn
+ */
+extern const std::string TURN_COMMAND;
 
 /** \brief See \ref bridgeprotocoleventbidding
  */
