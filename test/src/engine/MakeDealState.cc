@@ -68,10 +68,7 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     }
 
     state.vulnerability = engine.getVulnerability();
-
-    if (const auto player = engine.getPlayerInTurn()) {
-        state.positionInTurn = engine.getPosition(*player);
-    }
+    state.positionInTurn = engine.getPositionInTurn();
 
     // If no one has turn, assume shuffling
     if (!state.positionInTurn) {

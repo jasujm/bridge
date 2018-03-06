@@ -256,6 +256,15 @@ public:
      */
     boost::optional<Vulnerability> getVulnerability() const;
 
+    /** \brief Retrieve the position currently in turn
+     *
+     * \return Position of the player who is next to act, regardless if there is
+     * a player seated in the position. During the playing phase declarer takes
+     * turns instead of dummy. If the game is in state where no position has
+     * turn (e.g. before cards have been dealt), return none.
+     */
+    boost::optional<Position> getPositionInTurn() const;
+
     /** \brief Retrieve the player currently in turn
      *
      * \return Pointer to the player who is next to act. The method returns

@@ -190,6 +190,7 @@ public:
     }
 
     boost::optional<Vulnerability> getVulnerability() const;
+    boost::optional<Position> getPositionInTurn() const;
     const Player* getPlayerInTurn() const;
     const Hand* getHandInTurn() const;
     const Player* getPlayer(Position position) const;
@@ -646,7 +647,7 @@ public:
     void play();
 
     const Trick& getTrick() const;
-    const Player* getPlayerInTurn() const;
+    Position getPositionInTurn() const;
     const Hand& getHandInTurn() const;
     Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
     const auto& getNextPlay();
@@ -692,7 +693,7 @@ const Trick& PlayingTrick::getTrick() const
     return *trick;
 }
 
-const Player* PlayingTrick::getPlayerInTurn() const
+Position PlayingTrick::getPositionInTurn() const
 {
     const auto& hand = getHandInTurn();
     auto position = context<InDeal>().getPosition(hand);
@@ -700,7 +701,7 @@ const Player* PlayingTrick::getPlayerInTurn() const
     if (position == context<Playing>().getDummyPosition()) {
         position = partnerFor(position);
     }
-    return outermost_context().getPlayer(position);
+    return position;
 }
 
 const Hand& PlayingTrick::getHandInTurn() const
@@ -711,7 +712,8 @@ const Hand& PlayingTrick::getHandInTurn() const
 
 Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
 {
-    if (&player == getPlayerInTurn() && &hand == &getHandInTurn()) {
+    if (outermost_context().getPosition(player) == getPositionInTurn() &&
+        &hand == &getHandInTurn()) {
         auto& in_deal = context<InDeal>();
         const auto position = in_deal.getPosition(hand);
         auto& hand = in_deal.getHand(position);
@@ -904,13 +906,22 @@ boost::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
     return dereference(gameManager).getVulnerability();
 }
 
-const Player* BridgeEngine::Impl::getPlayerInTurn() const
+boost::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
 {
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
-        return getPlayer(dereference(bidding.getPositionInTurn()));
+        return bidding.getPositionInTurn();
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
-        return state->getPlayerInTurn();
+        return state->getPositionInTurn();
+    }
+    return boost::none;
+}
+
+const Player* BridgeEngine::Impl::getPlayerInTurn() const
+{
+    const auto position = getPositionInTurn();
+    if (position) {
+        return getPlayer(*position);
     }
     return nullptr;
 }
@@ -1108,6 +1119,12 @@ const Player* BridgeEngine::getPlayerInTurn() const
 {
     assert(impl);
     return impl->getPlayerInTurn();
+}
+
+boost::optional<Position> BridgeEngine::getPositionInTurn() const
+{
+    assert(impl);
+    return impl->getPositionInTurn();
 }
 
 const Hand* BridgeEngine::getHandInTurn() const

@@ -54,10 +54,7 @@ std::string getPosition(const BridgeEngine& engine, const Player& player)
 
 std::string getPositionInTurn(const BridgeEngine& engine)
 {
-    const auto player_in_turn = engine.getPlayerInTurn();
-    const auto position_in_turn = player_in_turn ?
-        boost::make_optional(engine.getPosition(*player_in_turn)) : boost::none;
-    return JsonSerializer::serialize(position_in_turn);
+    return JsonSerializer::serialize(engine.getPositionInTurn());
 }
 
 std::string getAllowedCalls(const BridgeEngine& engine, const Player& player)
