@@ -263,7 +263,8 @@ Reply<Uuid> BridgeMain::Impl::game(
     const std::string& identity, const boost::optional<Uuid>& gameUuid,
     const boost::optional<nlohmann::json>& args)
 {
-    log(LogLevel::DEBUG, "Game command from %s", asHex(identity));
+    log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
+        asHex(identity), gameUuid, args);
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
@@ -297,8 +298,8 @@ Reply<Uuid> BridgeMain::Impl::join(
     const std::string& identity, const boost::optional<Uuid>& gameUuid,
     const boost::optional<Uuid>& playerUuid, boost::optional<Position> position)
 {
-    log(LogLevel::DEBUG, "Join command from %s. Player: %s. Position: %s",
-        asHex(identity), playerUuid, position);
+    log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
+        asHex(identity), gameUuid, playerUuid, position);
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
@@ -323,8 +324,8 @@ Reply<> BridgeMain::Impl::call(
     const std::string& identity, const Uuid& gameUuid,
     const boost::optional<Uuid>& playerUuid, const Call& call)
 {
-    log(LogLevel::DEBUG, "Call command from %s. Player: %s. Call: %s",
-        asHex(identity), playerUuid, call);
+    log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
+        asHex(identity), gameUuid, playerUuid, call);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
@@ -340,8 +341,8 @@ Reply<> BridgeMain::Impl::play(
     const boost::optional<CardType>& card,
     const boost::optional<std::size_t>& index)
 {
-    log(LogLevel::DEBUG, "Play command from %s. Player: %s. Card: %s. Index: %d",
-        asHex(identity), playerUuid, card, index);
+    log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
+        asHex(identity), gameUuid, playerUuid, card, index);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
