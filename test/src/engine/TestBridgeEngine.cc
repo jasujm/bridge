@@ -318,8 +318,13 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         const auto position = dereference(engine.getPosition(player));
         auto observer = std::make_shared<
             MockObserver<BridgeEngine::BiddingCompleted>>();
-        EXPECT_CALL(*observer, handleNotify(_)).Times(
-            static_cast<std::size_t>(e.first + 1) == calls.size() ? 1 : 0);
+        EXPECT_CALL(
+            *observer,
+            handleNotify(
+                BridgeEngine::BiddingCompleted {
+                    Position::EAST, Contract {BID, Doubling::REDOUBLED}}))
+            .Times(
+                static_cast<std::size_t>(e.first + 1) == calls.size() ? 1 : 0);
         engine.subscribeToBiddingCompleted(observer);
         engine.call(player, call);
         expectedState.calls->emplace_back(position, call);

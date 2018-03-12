@@ -21,6 +21,7 @@ namespace Bridge {
 
 class Card;
 class Bidding;
+struct Contract;
 class Hand;
 enum class Position;
 class Player;
@@ -71,7 +72,17 @@ public:
 
     /** \brief Event for announcing that contract was reached
      */
-    struct BiddingCompleted {};
+    struct BiddingCompleted : private boost::equality_comparable<BiddingCompleted> {
+        /** \brief Generate new bidding completed event
+         *
+         * \param declarer see \ref declarer
+         * \param contract see \ref contract
+         */
+        BiddingCompleted(Position declarer, const Contract& contract);
+
+        Position declarer;        ///< \brief The declarer determined by the bidding
+        const Contract& contract; ///< \brief The contract reached during bidding
+    };
 
     /** \brief Event for announcing that a card was played
      */
@@ -375,6 +386,12 @@ private:
  */
 bool operator==(
     const BridgeEngine::CallMade&, const BridgeEngine::CallMade&);
+
+/** \brief Equality operator for bidding completed events
+ */
+bool operator==(
+    const BridgeEngine::BiddingCompleted&,
+    const BridgeEngine::BiddingCompleted&);
 
 /** \brief Equality operator for card played events
  */

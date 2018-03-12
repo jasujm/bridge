@@ -465,7 +465,9 @@
  * \subsection bridgeprotocoleventbidding bidding
  *
  * - \b Command: bidding
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *   - \e declarer: the declarer determined by the bidding
+ *   - \e contract: the contract reached
  *
  * This event is published whenever contract is reached in bidding
  *

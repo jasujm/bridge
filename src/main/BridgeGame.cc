@@ -2,6 +2,7 @@
 
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Contract.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
@@ -13,6 +14,7 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
+#include "messaging/ContractJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -321,10 +323,14 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::CallMade& event)
         std::tie(CALL_COMMAND, event.call));
 }
 
-void BridgeGame::Impl::handleNotify(const BridgeEngine::BiddingCompleted&)
+void BridgeGame::Impl::handleNotify(const BridgeEngine::BiddingCompleted& event)
 {
-    log(LogLevel::DEBUG, "Bidding completed");
-    publish(BIDDING_COMMAND);
+    log(LogLevel::DEBUG, "Bidding completed. Declarer: %s. Contract: %s",
+        event.declarer, event.contract);
+    publish(
+        BIDDING_COMMAND,
+        std::tie(DECLARER_COMMAND, event.declarer),
+        std::tie(CONTRACT_COMMAND, event.contract));
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::CardPlayed& event)

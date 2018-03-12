@@ -501,13 +501,19 @@ sc::result InBidding::react(const CallEvent& event)
         auto& context = outermost_context();
         context.getCallMadeNotifier().notifyAll(
             BridgeEngine::CallMade { event.player, event.call });
-        const auto has_contract = bidding.hasContract();
-        if (has_contract) {
-            context.getBiddingCompletedNotifier().notifyAll(
-                BridgeEngine::BiddingCompleted {});
-            return transit<Playing>();
-        } else if (!has_contract) {
-            post_event(DealPassedOutEvent {});
+        const auto outer_contract = bidding.getContract();
+        const auto outer_declarer_position = bidding.getDeclarerPosition();
+        if (outer_contract && outer_declarer_position) {
+            const auto inner_contract = *outer_contract;
+            const auto inner_declarer_position = *outer_declarer_position;
+            if (inner_contract && inner_declarer_position) {
+                context.getBiddingCompletedNotifier().notifyAll(
+                    BridgeEngine::BiddingCompleted {
+                        *inner_declarer_position, *inner_contract});
+                return transit<Playing>();
+            } else {
+                post_event(DealPassedOutEvent {});
+            }
         }
     }
     return discard_event();
@@ -1196,6 +1202,13 @@ BridgeEngine::CallMade::CallMade(
 {
 }
 
+BridgeEngine::BiddingCompleted::BiddingCompleted(
+    const Position declarer, const Contract& contract) :
+    declarer {declarer},
+    contract {contract}
+{
+}
+
 BridgeEngine::CardPlayed::CardPlayed(const Hand& hand, const Card& card) :
     hand {hand},
     card {card}
@@ -1214,6 +1227,12 @@ bool operator==(
 {
     return &lhs.player == &rhs.player &&
         lhs.call == rhs.call;
+}
+bool operator==(
+    const BridgeEngine::BiddingCompleted& lhs,
+    const BridgeEngine::BiddingCompleted& rhs)
+{
+    return lhs.declarer == rhs.declarer && lhs.contract == rhs.contract;
 }
 
 bool operator==(
