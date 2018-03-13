@@ -7,6 +7,7 @@
 #define ENGINE_BRIDGEENINE_HH_
 
 #include "bridge/Call.hh"
+#include "bridge/TricksWon.hh"
 #include "Observer.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -26,7 +27,6 @@ class Hand;
 enum class Position;
 class Player;
 class Trick;
-struct TricksWon;
 struct Vulnerability;
 
 /** \brief The bridge engine
@@ -118,7 +118,19 @@ public:
 
     /** \brief Event for announcing that deal has ended
      */
-    struct DealEnded {};
+    struct DealEnded : private boost::equality_comparable<DealEnded> {
+        /** \brief Create new deal ended event
+         *
+         * \param tricksWon see \ref tricksWon
+         */
+        DealEnded(const TricksWon& tricksWon);
+
+        /** \brief Tricks won in the deal
+         *
+         * \note Tricks won by each partnership is zero if the deal passed out.
+         */
+        TricksWon tricksWon;
+    };
 
     /** \brief Create new bridge engine
      *
@@ -402,6 +414,11 @@ bool operator==(
  */
 bool operator==(
     const BridgeEngine::TrickCompleted&, const BridgeEngine::TrickCompleted&);
+
+/** \brief Equality operator for deal ended events
+ */
+bool operator==(
+    const BridgeEngine::DealEnded&, const BridgeEngine::DealEnded&);
 
 }
 }

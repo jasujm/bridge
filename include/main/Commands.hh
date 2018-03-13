@@ -498,7 +498,8 @@
  * \subsection bridgeprotocoleventdealend dealend
  *
  * - \b Command: dealend
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *   - tricksWon: the number of tricks won by each partnership
  *
  * This event is published whenever a deal ends.
  */

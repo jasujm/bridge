@@ -358,7 +358,10 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             const auto notify_count =
                 (i == N_CARDS_PER_PLAYER - 1 && last_card_in_trick) ?
                 1 : 0;
-            EXPECT_CALL(*observer, handleNotify(_)).Times(notify_count);
+            EXPECT_CALL(
+                *observer,
+                handleNotify(BridgeEngine::DealEnded {TricksWon {13, 0}}))
+                .Times(notify_count);
             assertDealState(Position::WEST);
             assertHandsVisible(engine.getPlayer(Position::WEST));
 

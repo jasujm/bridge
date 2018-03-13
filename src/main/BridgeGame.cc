@@ -18,6 +18,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/TricksWonJsonSerializer.hh"
 #include "Logging.hh"
 #include "Observer.hh"
 #include "Utility.hh"
@@ -358,10 +359,10 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
     publish(DUMMY_COMMAND);
 }
 
-void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded&)
+void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
-    log(LogLevel::DEBUG, "Deal ended");
-    publish(DEAL_END_COMMAND);
+    log(LogLevel::DEBUG, "Deal ended. Tricks won: %s", event.tricksWon);
+    publish(DEAL_END_COMMAND, std::tie(TRICKS_WON_COMMAND, event.tricksWon));
 }
 
 BridgeGame::BridgeGame(

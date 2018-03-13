@@ -7,7 +7,6 @@
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
@@ -323,8 +322,6 @@ public:
 
     InDeal(my_context ctx);
 
-    void exit();
-
     sc::result react(const DealCompletedEvent&);
     sc::result react(const DealPassedOutEvent&);
 
@@ -386,14 +383,6 @@ InDeal::InDeal(my_context ctx) :
         BridgeEngine::ShufflingCompleted {});
 }
 
-void InDeal::exit()
-{
-    // This must be in exit() instead of ~InDeal(). Context might be
-    // destructed if we ended up here due to destruction of Impl.
-    outermost_context().getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {});
-}
-
 Bidding& InDeal::getBidding()
 {
     assert(bidding);
@@ -447,6 +436,9 @@ sc::result InDeal::react(const DealCompletedEvent& event)
         return discard_event();
     }
 
+    outermost_context().getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {event.tricksWon});
+
     const auto declarer_partnership = partnershipFor(**declarer);
     return internalCallAndTransit(
         &GameManager::addResult,
@@ -457,6 +449,8 @@ sc::result InDeal::react(const DealCompletedEvent& event)
 
 sc::result InDeal::react(const DealPassedOutEvent&)
 {
+    outermost_context().getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {TricksWon {0, 0}});
     return internalCallAndTransit(&GameManager::addPassedOut);
 }
 
@@ -1222,6 +1216,11 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 {
 }
 
+BridgeEngine::DealEnded::DealEnded(const TricksWon& tricksWon) :
+    tricksWon {tricksWon}
+{
+}
+
 bool operator==(
     const BridgeEngine::CallMade& lhs, const BridgeEngine::CallMade& rhs)
 {
@@ -1247,6 +1246,12 @@ bool operator==(
     const BridgeEngine::TrickCompleted& rhs)
 {
     return &lhs.trick == &rhs.trick && &lhs.winner == &rhs.winner;
+}
+
+bool operator==(
+    const BridgeEngine::DealEnded& lhs, const BridgeEngine::DealEnded& rhs)
+{
+    return lhs.tricksWon == rhs.tricksWon;
 }
 
 }
