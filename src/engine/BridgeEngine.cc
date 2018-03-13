@@ -7,7 +7,6 @@
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
-#include "bridge/Vulnerability.hh"
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
 #include "FunctionObserver.hh"
@@ -159,9 +158,9 @@ public:
 
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
-    Observable<ShufflingCompleted>& getShufflingCompletedNotifier()
+    Observable<DealStarted>& getDealStartedNotifier()
     {
-        return shufflingCompletedNotifier;
+        return dealStartedNotifier;
     }
     Observable<CallMade>& getCallMadeNotifier()
     {
@@ -222,7 +221,7 @@ private:
     std::vector<std::shared_ptr<Player>> players;
     boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
-    Observable<ShufflingCompleted> shufflingCompletedNotifier;
+    Observable<DealStarted> dealStartedNotifier;
     Observable<CallMade> callMadeNotifier;
     Observable<BiddingCompleted> biddingCompletedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
@@ -379,8 +378,12 @@ InDeal::InDeal(my_context ctx) :
     hands {internalMakeHands()},
     handsMap {internalMakePositionMapping(hands)}
 {
-    outermost_context().getShufflingCompletedNotifier().notifyAll(
-        BridgeEngine::ShufflingCompleted {});
+    auto& context = outermost_context();
+    const auto& game_manager = context.getGameManager();
+    context.getDealStartedNotifier().notifyAll(
+        BridgeEngine::DealStarted {
+            dereference(game_manager.getOpenerPosition()),
+            dereference(game_manager.getVulnerability())});
 }
 
 Bidding& InDeal::getBidding()
@@ -1012,11 +1015,11 @@ BridgeEngine::BridgeEngine(
 
 BridgeEngine::~BridgeEngine() = default;
 
-void BridgeEngine::subscribeToShufflingCompleted(
-    std::weak_ptr<Observer<ShufflingCompleted>> observer)
+void BridgeEngine::subscribeToDealStarted(
+    std::weak_ptr<Observer<DealStarted>> observer)
 {
     assert(impl);
-    impl->getShufflingCompletedNotifier().subscribe(std::move(observer));
+    impl->getDealStartedNotifier().subscribe(std::move(observer));
 }
 
 void BridgeEngine::subscribeToCallMade(
@@ -1189,6 +1192,13 @@ boost::optional<TricksWon> BridgeEngine::getTricksWon() const
     return impl->getTricksWon();
 }
 
+BridgeEngine::DealStarted::DealStarted(
+    const Position opener, const Vulnerability vulnerability) :
+    opener {opener},
+    vulnerability {vulnerability}
+{
+}
+
 BridgeEngine::CallMade::CallMade(
     const Player& player, const Call& call) :
     player {player},
@@ -1219,6 +1229,12 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 BridgeEngine::DealEnded::DealEnded(const TricksWon& tricksWon) :
     tricksWon {tricksWon}
 {
+}
+
+bool operator==(
+    const BridgeEngine::DealStarted& lhs, const BridgeEngine::DealStarted& rhs)
+{
+    return lhs.opener == rhs.opener && lhs.vulnerability == rhs.vulnerability;
 }
 
 bool operator==(

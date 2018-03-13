@@ -95,6 +95,10 @@ protected:
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
         EXPECT_CALL(*cardManager, handleRequestShuffle());
+        ON_CALL(*gameManager, handleGetOpenerPosition())
+            .WillByDefault(Return(Position::NORTH));
+        ON_CALL(*gameManager, handleGetVulnerability())
+            .WillByDefault(Return(Vulnerability {true, true}));
         engine.initiate();
         Mock::VerifyAndClearExpectations(cardManager.get());
         shuffledNotifier.notifyAll(
@@ -265,10 +269,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     EXPECT_CALL(
         *gameManager, handleAddResult(
             Partnership::EAST_WEST, Contract {BID, Doubling::REDOUBLED}, 0));
-    EXPECT_CALL(*gameManager, handleGetOpenerPosition())
-        .WillRepeatedly(Return(Position::NORTH));
-    EXPECT_CALL(*gameManager, handleGetVulnerability())
-        .WillRepeatedly(Return(Vulnerability {true, true}));
 
     // Startup
     expectedState.stage = Stage::SHUFFLING;
@@ -279,9 +279,13 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     // Shuffling
     {
         auto observer = std::make_shared<
-            MockObserver<BridgeEngine::ShufflingCompleted>>();
-        EXPECT_CALL(*observer, handleNotify(_));
-        engine.subscribeToShufflingCompleted(observer);
+            MockObserver<BridgeEngine::DealStarted>>();
+        EXPECT_CALL(
+            *observer,
+            handleNotify(
+                BridgeEngine::DealStarted {
+                    Position::NORTH, Vulnerability {true, true}}));
+        engine.subscribeToDealStarted(observer);
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::COMPLETED);
     }

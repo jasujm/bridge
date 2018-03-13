@@ -440,7 +440,9 @@
  * \subsection bridgeprotocoleventdeal deal
  *
  * - \b Command: deal
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *  - \e opener: the position of the opener of the bidding
+ *  - \e vulnerability: the vulnerabilities in the deal
  *
  * This event is published whenever new cards are dealt.
  *
@@ -623,6 +625,10 @@ extern const std::string DEAL_COMMAND;
 /** \brief See \ref bridgeprotocolcontroldeal
  */
 extern const std::string CARDS_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventdeal
+ */
+extern const std::string OPENER_COMMAND;
 
 /** \brief See \ref bridgeprotocoleventturn
  */

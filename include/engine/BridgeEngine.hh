@@ -8,6 +8,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/TricksWon.hh"
+#include "bridge/Vulnerability.hh"
 #include "Observer.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -27,7 +28,6 @@ class Hand;
 enum class Position;
 class Player;
 class Trick;
-struct Vulnerability;
 
 /** \brief The bridge engine
  *
@@ -52,9 +52,19 @@ class GameManager;
 class BridgeEngine : private boost::noncopyable {
 public:
 
-    /** \brief Event for announcing that shuffling is completed dealt
+    /** \brief Event for announcing that deal has started
      */
-    struct ShufflingCompleted {};
+    struct DealStarted : private boost::equality_comparable<DealStarted> {
+        /** \brief Create new deal started event
+         *
+         * \param opener see \ref opener
+         * \param vulnerability see \ref vulnerability
+         */
+        DealStarted(Position opener, Vulnerability vulnerability);
+
+        Position opener;             ///< The position of the opened
+        Vulnerability vulnerability; ///< Vulnerabilities of the deal
+    };
 
     /** \brief Event for announcing that a call was made
      */
@@ -147,13 +157,13 @@ public:
 
     ~BridgeEngine();
 
-    /** \brief Subscribe to notifications about shuffling being completed
+    /** \brief Subscribe to notifications about deal being started
      *
      * The notification takes place after hands have become visible but before
      * bidding has started.
      */
-    void subscribeToShufflingCompleted(
-        std::weak_ptr<Observer<ShufflingCompleted>> observer);
+    void subscribeToDealStarted(
+        std::weak_ptr<Observer<DealStarted>> observer);
 
     /** \brief Subscribe to notifications about call being made
      *
@@ -393,6 +403,11 @@ private:
 
     const std::shared_ptr<Impl> impl;
 };
+
+/** \brief Equality operator for deal started events
+ */
+bool operator==(
+    const BridgeEngine::DealStarted&, const BridgeEngine::DealStarted&);
 
 /** \brief Equality operator for call made events
  */

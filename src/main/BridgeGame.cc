@@ -19,6 +19,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
+#include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Logging.hh"
 #include "Observer.hh"
 #include "Utility.hh"
@@ -45,7 +46,7 @@ using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
 
 class BridgeGame::Impl  :
-    public Observer<BridgeEngine::ShufflingCompleted>,
+    public Observer<BridgeEngine::DealStarted>,
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
@@ -99,7 +100,7 @@ private:
 
     void publishTurn();
 
-    void handleNotify(const BridgeEngine::ShufflingCompleted&) override;
+    void handleNotify(const BridgeEngine::DealStarted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
@@ -307,10 +308,14 @@ Engine::DuplicateGameManager& BridgeGame::Impl::getGameManager()
     return *gameManager;
 }
 
-void BridgeGame::Impl::handleNotify(const BridgeEngine::ShufflingCompleted&)
+void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
 {
-    log(LogLevel::DEBUG, "Shuffling completed");
-    publish(DEAL_COMMAND);
+    log(LogLevel::DEBUG, "Deal started. Opener: %s. Vulnerability: %s",
+        event.opener, event.vulnerability);
+    publish(
+        DEAL_COMMAND,
+        std::tie(OPENER_COMMAND, event.opener),
+        std::tie(VULNERABILITY_COMMAND, event.vulnerability));
     publishTurn();
 }
 
@@ -377,7 +382,7 @@ BridgeGame::BridgeGame(
         std::move(cardProtocol), std::move(peerCommandSender))}
 {
     auto& engine = impl->getEngine();
-    engine.subscribeToShufflingCompleted(impl);
+    engine.subscribeToDealStarted(impl);
     engine.subscribeToCallMade(impl);
     engine.subscribeToBiddingCompleted(impl);
     engine.subscribeToCardPlayed(impl);
