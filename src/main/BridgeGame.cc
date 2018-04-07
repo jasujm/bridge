@@ -167,10 +167,11 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
 
 void BridgeGame::Impl::publishTurn()
 {
-    publish(
-        TURN_COMMAND,
-        std::make_pair(
-            std::cref(POSITION_COMMAND), engine.getPositionInTurn()));
+    if (const auto position = engine.getPositionInTurn()) {
+        publish(
+            TURN_COMMAND,
+            std::make_pair(std::cref(POSITION_COMMAND), *position));
+    }
 }
 
 bool BridgeGame::Impl::addPeer(
