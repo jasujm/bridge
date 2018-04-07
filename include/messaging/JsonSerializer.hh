@@ -29,6 +29,12 @@ namespace Messaging {
  * library itself. Partial or full specializations of the struct can be used
  * to convert complex types for which impicit conversion does not work.
  *
+ * \note Specializations of JsonConverter class can assume that any exceptions
+ * from nlohmann::json library are caught by JsonSerializer. This means that
+ * convertFromJson() can optimistically cast JSON objects to the desired types,
+ * access desired keys in objects etc. without needing to do additional type
+ * checking.
+ *
  * \tparam T the type converted to/from JSON by the specialization
  */
 template<typename T>
@@ -100,6 +106,12 @@ T fromJson(const nlohmann::json& j) {
  * toJson() and fromJson() or their specializations to handle the actual
  * conversions to and from JSON, respectively.
  *
+ * \note JsonSerializer::deserialize() catches all exceptions from the JSON
+ * library. While this somewhat contradicts the general design purpose of
+ * limitnig scopes of try clauses in order not to mask bugs, this is
+ * purposefully done to greatly simplify implementing JsonConverter for
+ * individual types.
+ *
  * \sa FunctionMessageHandler
  */
 struct JsonSerializer {
@@ -127,11 +139,7 @@ struct JsonSerializer {
     {
         try {
             return fromJson<T>(nlohmann::json::parse(s));
-        } catch (const std::logic_error&) {
-            // The JSON library uses several derivates of std::logic_error to
-            // indicate errors in parsing or invalid access of the parsed
-            // objects. We assume all logic errors in this function are
-            // parsing errors.
+        } catch (const nlohmann::json::exception&) {
             throw SerializationFailureException {};
         }
     }
