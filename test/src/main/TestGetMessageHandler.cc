@@ -27,6 +27,7 @@
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "MockBridgeGameInfo.hh"
 
+#include <boost/range/adaptor/strided.hpp>
 #include <boost/range/combine.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <gtest/gtest.h>
@@ -204,15 +205,17 @@ TEST_F(GetMessageHandlerTest, testRequestWithInvalidGameIsRejected)
     EXPECT_TRUE(reply.empty());
 }
 
-TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIsRejected)
+TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)
 {
     const auto args = {
         GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
     };
-    EXPECT_FALSE(
+    EXPECT_TRUE(
         handler.handle(
             PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
-    EXPECT_TRUE(reply.empty());
+    const auto keys = boost::adaptors::stride(reply, 2);
+    const auto expected = GetMessageHandler::getAllKeys();
+    EXPECT_THAT(keys, testing::UnorderedElementsAreArray(expected));
 }
 
 TEST_F(GetMessageHandlerTest, testPositionInTurn)

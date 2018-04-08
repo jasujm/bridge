@@ -265,7 +265,7 @@
  * - \b Command: get
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
- *   - \e keys: array of keys for the values to be retrieved
+ *   - \e keys: array of keys for the values to be retrieved (optional)
  * - \b Reply:
  *   - \e position: the position of the controlled player
  *   - \e positionInTurn: the position of the player who is in turn to act
@@ -282,10 +282,12 @@
  *     see \ref jsonvulnerability
  *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
- * Get commands returns one or multiple values corresponding to the keys
- * specified. The keys parameter is a array of keys to be retrieved. The reply
- * MUST contain the values corresponding to the keys. Keys that are not
- * recognized SHOULD be ignored.
+ * Get commands retrieves one or multiple key–value pairs describing the state
+ * of a game. The keys argument is a array of keys to be retrieved. It MAY be
+ * omitted in which case the reply MUST contain all key–value pairs mentioned in
+ * the reply arguments list. If included, the reply SHOULD only contain the
+ * key–value pairs contained in the array. Keys that are not recognized SHOULD
+ * be ignored.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game

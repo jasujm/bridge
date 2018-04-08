@@ -52,6 +52,13 @@ public:
         GetGameFunction games,
         std::shared_ptr<const NodePlayerControl> nodePlayerControl);
 
+    /** \brief Get list on all supported keys
+     *
+     * \return List of all keys that can be used in the query, i.e. the keys
+     * listed in \ref bridgeprotocolcontrolget command
+     */
+    static std::vector<std::string> getAllKeys();
+
 private:
 
     bool doHandle(

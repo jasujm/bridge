@@ -47,6 +47,13 @@ using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
 using Messaging::toJson;
 
+const auto ALL_KEYS = std::vector<std::string> {
+    POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
+    CALLS_COMMAND, DECLARER_COMMAND, CONTRACT_COMMAND, ALLOWED_CARDS_COMMAND,
+    CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND,
+    SCORE_COMMAND
+};
+
 std::string getPosition(const BridgeEngine& engine, const Player& player)
 {
     return JsonSerializer::serialize(engine.getPosition(player));
@@ -167,6 +174,11 @@ GetMessageHandler::GetMessageHandler(
 {
 }
 
+std::vector<std::string> GetMessageHandler::getAllKeys()
+{
+    return ALL_KEYS;
+}
+
 bool GetMessageHandler::doHandle(
     const std::string& identity, const ParameterVector& params,
     OutputSink sink)
@@ -177,12 +189,13 @@ bool GetMessageHandler::doHandle(
         return false;
     }
     const auto game = games(*game_uuid);
-    const auto keys = Messaging::deserializeParam<std::vector<std::string>>(
+    const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
+    const auto& keys = bool(keys_param) ? *keys_param : ALL_KEYS;
     const auto player = dereference(nodePlayerControl).getPlayer(identity);
-    if (game && keys && player) {
+    if (game && player) {
         const auto& engine = game->getEngine();
-        for (const auto& key : *keys) {
+        for (const auto& key : keys) {
             if (internalContainsKey(key, POSITION_COMMAND, sink)) {
                 sink(getPosition(engine, *player));
             } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
