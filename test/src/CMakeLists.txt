@@ -35,7 +35,7 @@ set(BRIDGE_TEST_INCLUDE_DIRS
 
 add_library(test-common STATIC TestMain.cc ${PROJECT_SOURCE_DIR}/src/Logging.cc)
 target_include_directories(test-common PUBLIC ${BRIDGE_TEST_INCLUDE_DIRS})
-target_link_libraries(test-common INTERFACE ${GMOCK_LIBRARY} ${GTEST_LIBRARY})
+target_link_libraries(test-common PUBLIC ${GMOCK_LIBRARY} ${GTEST_LIBRARY})
 target_compile_features(test-common PUBLIC ${BRIDGE_COMPILE_FEATURES})
 set_property(TARGET test-common PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
