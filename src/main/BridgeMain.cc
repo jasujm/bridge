@@ -274,18 +274,11 @@ Reply<Uuid> BridgeMain::Impl::game(
                 return success(*gameUuid);
             }
         } else if (iter->second == Role::CLIENT) {
-            // TODO: There could be trivial card "protocol" for definitely
-            // peerless games
             const auto uuid_for_game = gameUuid ? *gameUuid : uuidGenerator();
-            auto sender = std::make_shared<PeerCommandSender>();
-            auto card_protocol = std::make_unique<SimpleCardProtocol>(sender);
             const auto game = games.emplace(
                 std::piecewise_construct,
                 std::make_tuple(uuid_for_game),
-                std::make_tuple(
-                    uuid_for_game,
-                    PositionSet(POSITIONS.begin(), POSITIONS.end()),
-                    eventSocket, std::move(card_protocol), std::move(sender)));
+                std::make_tuple(uuid_for_game, eventSocket));
             if (game.second) {
                 return success(uuid_for_game);
             }

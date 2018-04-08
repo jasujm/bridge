@@ -2,12 +2,15 @@
 
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
+#include "bridge/Random.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
+#include "engine/SimpleCardManager.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
@@ -38,12 +41,41 @@
 namespace Bridge {
 namespace Main {
 
-namespace {
 using PositionVector = std::vector<Position>;
-}
 
+using Engine::CardManager;
+using Engine::SimpleCardManager;
 using Engine::BridgeEngine;
 using Messaging::JsonSerializer;
+
+namespace {
+
+class Shuffler : public Observer<CardManager::ShufflingState> {
+public:
+    std::shared_ptr<CardManager> getCardManager();
+private:
+    void handleNotify(const CardManager::ShufflingState& state);
+    std::shared_ptr<SimpleCardManager> cardManager {
+        std::make_shared<SimpleCardManager>()};
+};
+
+std::shared_ptr<CardManager> Shuffler::getCardManager()
+{
+    return cardManager;
+}
+
+void Shuffler::handleNotify(const CardManager::ShufflingState& state)
+{
+    if (state == CardManager::ShufflingState::REQUESTED) {
+        auto cards = std::vector<CardType>(
+            cardTypeIterator(0), cardTypeIterator(N_CARDS));
+        std::shuffle(cards.begin(), cards.end(), getRng());
+        assert(cardManager);
+        cardManager->shuffle(cards.begin(), cards.end());
+    }
+}
+
+}
 
 class BridgeGame::Impl  :
     public Observer<BridgeEngine::DealStarted>,
@@ -115,7 +147,8 @@ private:
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
     std::shared_ptr<zmq::socket_t> eventSocket;
-    Engine::BridgeEngine engine;
+    std::shared_ptr<Shuffler> shuffler;
+    BridgeEngine engine;
     std::unique_ptr<CardProtocol> cardProtocol;
 };
 
@@ -131,19 +164,26 @@ BridgeGame::Impl::Impl(
     positionsInUse {std::move(positionsControlled)},
     peerCommandSender {std::move(peerCommandSender)},
     eventSocket {std::move(eventSocket)},
+    shuffler {cardProtocol ? nullptr : std::make_shared<Shuffler>()},
     engine {
-        dereference(cardProtocol).getCardManager(), gameManager},
+        cardProtocol ?
+            cardProtocol->getCardManager() : shuffler->getCardManager(),
+        gameManager},
     cardProtocol {std::move(cardProtocol)}
 {
+    if (shuffler) {
+        shuffler->getCardManager()->subscribe(shuffler);
+    }
 }
 
 template<typename... Args>
 void BridgeGame::Impl::sendToPeers(
     const std::string& command, Args&&... args)
 {
-    assert(peerCommandSender);
-    peerCommandSender->sendCommand(
-        Messaging::JsonSerializer {}, command, std::forward<Args>(args)...);
+    if (peerCommandSender) {
+        peerCommandSender->sendCommand(
+            Messaging::JsonSerializer {}, command, std::forward<Args>(args)...);
+    }
 }
 
 template<typename... Args>
@@ -197,7 +237,7 @@ bool BridgeGame::Impl::addPeer(
     for (const auto position : *positions) {
         positionsInUse.insert(position);
     }
-    if (dereference(cardProtocol).acceptPeer(identity, *positions, args)) {
+    if (cardProtocol && cardProtocol->acceptPeer(identity, *positions, args)) {
         startIfReady();
         return true;
     }
@@ -293,7 +333,9 @@ void BridgeGame::Impl::startIfReady()
 {
     if (positionsInUse.size() == N_POSITIONS) {
         log(LogLevel::DEBUG, "Starting bridge engine");
-        dereference(cardProtocol).initialize();
+        if (cardProtocol) {
+            cardProtocol->initialize();
+        }
         engine.initiate();
     }
 }
@@ -391,6 +433,13 @@ BridgeGame::BridgeGame(
     engine.subscribeToDummyRevealed(impl);
     engine.subscribeToDealEnded(impl);
     impl->startIfReady();
+}
+
+BridgeGame::BridgeGame(const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket) :
+    BridgeGame {
+        uuid, PositionSet(POSITIONS.begin(), POSITIONS.end()),
+        std::move(eventSocket), nullptr, nullptr}
+{
 }
 
 bool BridgeGame::addPeer(

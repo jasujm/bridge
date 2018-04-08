@@ -72,6 +72,16 @@ public:
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
+    /** \brief Create new bridge game without peers
+     *
+     * This constructor creates a bridge game without peers. The client who
+     * creates a bridge game with this constructor controls all positions.
+     *
+     * \param uuid the UUID of the game
+     * \param eventSocket ZeroMQ socket used to publish events about the game
+     */
+    BridgeGame(const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket);
+
     /** \brief Handle handshake from a peer
      *
      * This method is intended to be used to handle \ref
