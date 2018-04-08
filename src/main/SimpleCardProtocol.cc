@@ -1,10 +1,9 @@
 #include "main/SimpleCardProtocol.hh"
 
 #include "bridge/BridgeConstants.hh"
+#include "bridge/CardShuffle.hh"
 #include "bridge/CardType.hh"
-#include "bridge/CardTypeIterator.hh"
 #include "bridge/Position.hh"
-#include "bridge/Random.hh"
 #include "engine/SimpleCardManager.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
@@ -78,9 +77,7 @@ void SimpleCardProtocol::Impl::handleNotify(
         if (!leaderIdentity) {
             log(LogLevel::DEBUG,
                 "Simple card protocol: Generating deck");
-            auto cards = CardVector(
-                cardTypeIterator(0), cardTypeIterator(N_CARDS));
-            std::shuffle(cards.begin(), cards.end(), getRng());
+            const auto cards = generateShuffledDeck();
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(

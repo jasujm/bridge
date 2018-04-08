@@ -1,13 +1,12 @@
 #include "main/BridgeGame.hh"
 
 #include "bridge/Card.hh"
+#include "bridge/CardShuffle.hh"
 #include "bridge/CardType.hh"
-#include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
-#include "bridge/Random.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
@@ -67,9 +66,7 @@ std::shared_ptr<CardManager> Shuffler::getCardManager()
 void Shuffler::handleNotify(const CardManager::ShufflingState& state)
 {
     if (state == CardManager::ShufflingState::REQUESTED) {
-        auto cards = std::vector<CardType>(
-            cardTypeIterator(0), cardTypeIterator(N_CARDS));
-        std::shuffle(cards.begin(), cards.end(), getRng());
+        const auto cards = generateShuffledDeck();
         assert(cardManager);
         cardManager->shuffle(cards.begin(), cards.end());
     }
