@@ -1,9 +1,8 @@
 #include "main/NodePlayerControl.hh"
 
 #include "bridge/BasicPlayer.hh"
+#include "bridge/UuidGenerator.hh"
 #include "Utility.hh"
-
-#include <boost/uuid/random_generator.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -30,7 +29,7 @@ private:
     // Assumption: access control happens per game and thus the vector contains
     // small number of elements. Searching the vector is fast.
     std::vector<Element> players;
-    boost::uuids::random_generator uuidGenerator;
+    UuidGenerator uuidGenerator {createUuidGenerator()};
 };
 
 NodePlayerControl::NodePlayerControl() :

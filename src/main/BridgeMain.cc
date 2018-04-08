@@ -2,6 +2,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
+#include "bridge/UuidGenerator.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/BridgeGame.hh"
 #include "main/CardServerProxy.hh"
@@ -24,7 +25,6 @@
 
 #include <boost/optional/optional.hpp>
 #include <boost/optional/optional_io.hpp>
-#include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <zmq.hpp>
 
@@ -116,7 +116,7 @@ private:
         const std::string& cardServerBasePeerEndpoint,
         PeerCommandSender& peerCommandSender);
 
-    boost::uuids::random_generator uuidGenerator;
+    UuidGenerator uuidGenerator {createUuidGenerator()};
     bool peerMode;
     std::map<std::string, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;

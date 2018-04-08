@@ -4,6 +4,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Position.hh"
+#include "bridge/Random.hh"
 #include "engine/SimpleCardManager.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
@@ -17,7 +18,6 @@
 #include <boost/optional/optional.hpp>
 
 #include <algorithm>
-#include <random>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -63,13 +63,11 @@ private:
     bool expectingCards {false};
     boost::optional<std::string> leaderIdentity;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
-    std::mt19937 randomEngine;
 };
 
 SimpleCardProtocol::Impl::Impl(
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
-    peerCommandSender {std::move(peerCommandSender)},
-    randomEngine {std::random_device()()}
+    peerCommandSender {std::move(peerCommandSender)}
 {
 }
 
@@ -82,7 +80,7 @@ void SimpleCardProtocol::Impl::handleNotify(
                 "Simple card protocol: Generating deck");
             auto cards = CardVector(
                 cardTypeIterator(0), cardTypeIterator(N_CARDS));
-            std::shuffle(cards.begin(), cards.end(), randomEngine);
+            std::shuffle(cards.begin(), cards.end(), getRng());
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
