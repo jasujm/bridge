@@ -18,10 +18,19 @@ constexpr Bridge::Partnership PARTNERSHIP {Bridge::Partnership::NORTH_SOUTH};
 const Bridge::Contract CONTRACT {Bridge::Bid {2, Bridge::Strain::CLUBS},
                                  Bridge::Doubling::UNDOUBLED};
 constexpr int TRICKS_WON {7};
+
+struct ResultType {};
 }
 
 class GameManagerTest : public testing::Test {
 protected:
+    GameManagerTest()
+    {
+        ON_CALL(gameManager, handleAddResult(_, _, _)).WillByDefault(
+            Return(ResultType {}));
+        ON_CALL(gameManager, handleAddPassedOut()).WillByDefault(
+            Return(ResultType {}));
+    }
     Bridge::Engine::MockGameManager gameManager;
 };
 
@@ -30,28 +39,34 @@ TEST_F(GameManagerTest, testAddResult)
     EXPECT_CALL(gameManager, handleHasEnded());
     EXPECT_CALL(
         gameManager, handleAddResult(PARTNERSHIP, CONTRACT, TRICKS_WON));
-    gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
+    const auto result = gameManager.addResult(
+        PARTNERSHIP, CONTRACT, TRICKS_WON);
+    EXPECT_TRUE(boost::any_cast<ResultType>(&result));
 }
 
 TEST_F(GameManagerTest, testAddResultWhenGameHasEnded)
 {
     EXPECT_CALL(gameManager, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(gameManager, handleAddResult(_, _, _)).Times(0);
-    gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
+    const auto result = gameManager.addResult(
+        PARTNERSHIP, CONTRACT, TRICKS_WON);
+    EXPECT_TRUE(result.empty());
 }
 
 TEST_F(GameManagerTest, testPassedOut)
 {
     EXPECT_CALL(gameManager, handleHasEnded());
     EXPECT_CALL(gameManager, handleAddPassedOut());
-    gameManager.addPassedOut();
+    const auto result = gameManager.addPassedOut();
+    EXPECT_TRUE(boost::any_cast<ResultType>(&result));
 }
 
 TEST_F(GameManagerTest, testPassedOutWhenGameHasEnded)
 {
     EXPECT_CALL(gameManager, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(gameManager, handleAddPassedOut()).Times(0);
-    gameManager.addPassedOut();
+    const auto result = gameManager.addPassedOut();
+    EXPECT_TRUE(result.empty());
 }
 
 TEST_F(GameManagerTest, testGameNotEnded)

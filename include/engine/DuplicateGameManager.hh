@@ -29,11 +29,11 @@ public:
 
 private:
 
-    void handleAddResult(
+    boost::any handleAddResult(
         Partnership partnership, const Contract& contract,
         int tricksWon) override;
 
-    void handleAddPassedOut() override;
+    boost::any handleAddPassedOut() override;
 
     bool handleHasEnded() const override;
 

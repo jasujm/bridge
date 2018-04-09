@@ -16,8 +16,8 @@ namespace Engine {
 class MockGameManager : public GameManager
 {
 public:
-    MOCK_METHOD3(handleAddResult, void(Partnership, const Contract&, int));
-    MOCK_METHOD0(handleAddPassedOut, void());
+    MOCK_METHOD3(handleAddResult, boost::any(Partnership, const Contract&, int));
+    MOCK_METHOD0(handleAddPassedOut, boost::any());
     MOCK_CONST_METHOD0(handleHasEnded, bool());
     MOCK_CONST_METHOD0(handleGetOpenerPosition, Position());
     MOCK_CONST_METHOD0(handleGetVulnerability, Vulnerability());

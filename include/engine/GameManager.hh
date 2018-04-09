@@ -6,6 +6,7 @@
 #ifndef ENGINE_GAMEMANAGER_HH_
 #define ENGINE_GAMEMANAGER_HH_
 
+#include <boost/any.hpp>
 #include <boost/optional/optional_fwd.hpp>
 
 namespace Bridge {
@@ -19,10 +20,10 @@ namespace Engine {
 
 /** \brief The link between the bridge engine and the overall bridge rules
  *
- * GameManager encapsulates the bridge game rules. It provides interface
- * necessary for bridge game logic to inject deal results to the underlying
- * scoring logic and determine if the game has ended. GameManager doesn’t
- * support retrieving the scores as it doesn’t particular type of game
+ * GameManager encapsulates the high level bridge game rules. It provides
+ * interface necessary for bridge game logic to inject deal results to the
+ * underlying scoring logic and determine if the game has ended. GameManager
+ * doesn’t support retrieving the scores as it doesn’t particular type of game
  * (rubber, match points, IMPs, etc.).
  */
 class GameManager {
@@ -37,16 +38,26 @@ public:
      * \param partnership partnership the contract belongs to
      * \param contract contract in the last deal
      * \param tricksWon number of tricks the partnership won
+     *
+     * \return An object (possibly empty) describing the outcome of the
+     * deal. How the result is interpreted returns on the concrete
+     * implementation of GameManager, but the intention is for it to describe
+     * the scores of each side. If the game has ended, empty object is returned.
      */
-    void addResult(
+    boost::any addResult(
         Partnership partnership, const Contract& contract, int tricksWon);
 
     /** \brief Add passed out deal
      *
      * Indicate that the last deal was passed out. This method has no effect
      * if the game has ended.
+     *
+     * \return An object (possibly empty) describing the outcome of the passed
+     * out deal. How the result is interpreted returns on the concrete
+     * implementation of GameManager, but the intention is for it to describe
+     * the scores of each side. If the game has ended, empty object is returned.
      */
-    void addPassedOut();
+    boost::any addPassedOut();
 
     /** \brief Determine if the game has ended
      *
@@ -75,7 +86,7 @@ private:
      *
      * \sa addResult()
      */
-    virtual void handleAddResult(
+    virtual boost::any handleAddResult(
         Partnership partnership, const Contract& contract, int tricksWon) = 0;
 
     /** \brief Handle for adding a passed out deal
@@ -84,7 +95,7 @@ private:
      *
      * \sa addPassedOut()
      */
-    virtual void handleAddPassedOut() = 0;
+    virtual boost::any handleAddPassedOut() = 0;
 
     /** \brief Handle for determining if the game has ended
      *

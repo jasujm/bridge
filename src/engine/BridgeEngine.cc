@@ -342,9 +342,9 @@ private:
     auto internalMakeBidding();
     auto internalMakeHands();
 
-    template<typename... Args1, typename... Args2>
+    template<typename... Args1, typename... Args2, typename Ret>
     sc::result internalCallAndTransit(
-        void (GameManager::*memfn)(Args1...),
+        Ret (GameManager::*memfn)(Args1...),
         Args2&&... args);
 
     const std::unique_ptr<Bidding> bidding;
@@ -466,13 +466,13 @@ void InDeal::lockHand(const Hand& hand)
     outermost_context().lockHand(std::move(*iter));
 }
 
-template<typename... Args1, typename... Args2>
+template<typename... Args1, typename... Args2, typename Ret>
 sc::result InDeal::internalCallAndTransit(
-    void (GameManager::*const memfn)(Args1...),
+    Ret (GameManager::*const memfn)(Args1...),
     Args2&&... args)
 {
     auto& game_manager = outermost_context().getGameManager();
-    (game_manager.*memfn)(std::forward<Args2>(args)...);
+    static_cast<void>((game_manager.*memfn)(std::forward<Args2>(args)...));
     return transit<Shuffling>();
 }
 

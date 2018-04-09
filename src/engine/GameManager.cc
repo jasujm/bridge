@@ -11,20 +11,22 @@ namespace Engine {
 
 GameManager::~GameManager() = default;
 
-void GameManager::addResult(
+boost::any GameManager::addResult(
     const Partnership partnership, const Contract& contract,
     const int tricksWon)
 {
     if (!hasEnded()) {
-        handleAddResult(partnership, contract, tricksWon);
+        return handleAddResult(partnership, contract, tricksWon);
     }
+    return {};
 }
 
-void GameManager::addPassedOut()
+boost::any GameManager::addPassedOut()
 {
     if (!hasEnded()) {
-        handleAddPassedOut();
+        return handleAddPassedOut();
     }
+    return {};
 }
 
 bool GameManager::hasEnded() const

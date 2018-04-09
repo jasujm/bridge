@@ -31,16 +31,18 @@ const Scoring::DuplicateScoreSheet& DuplicateGameManager::getScoreSheet() const
     return scoreSheet;
 }
 
-void DuplicateGameManager::handleAddResult(
+boost::any DuplicateGameManager::handleAddResult(
     Partnership partnership, const Contract& contract, const int tricksWon)
 {
     const auto vulnerability = getVulnerabilityHelper(scoreSheet);
     scoreSheet.addResult(partnership, contract, tricksWon, vulnerability);
+    return {};
 }
 
-void DuplicateGameManager::handleAddPassedOut()
+boost::any DuplicateGameManager::handleAddPassedOut()
 {
     scoreSheet.addPassedOut();
+    return {};
 }
 
 bool DuplicateGameManager::handleHasEnded() const
