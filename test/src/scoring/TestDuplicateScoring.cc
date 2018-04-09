@@ -1,5 +1,7 @@
 #include "bridge/Bid.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Partnership.hh"
+#include "scoring/DuplicateScore.hh"
 #include "scoring/DuplicateScoring.hh"
 
 #include <gtest/gtest.h>
@@ -9,6 +11,7 @@
 
 using Bridge::Strain;
 using Bridge::Doubling;
+using Bridge::Partnership;
 
 namespace {
 
@@ -17,9 +20,12 @@ void test(
     const Doubling doubling, const bool vulnerable, const int tricksWon,
     const std::string& message)
 {
+    const auto winner_partnership = won ?
+        Partnership::NORTH_SOUTH : Partnership::EAST_WEST;
     EXPECT_EQ(
-        std::make_pair(won, score),
+        Bridge::Scoring::DuplicateScore(winner_partnership, score),
         Bridge::Scoring::calculateDuplicateScore(
+            Partnership::NORTH_SOUTH,
             Bridge::Contract {Bridge::Bid {level, strain}, doubling},
             vulnerable, tricksWon)) << message;
 }

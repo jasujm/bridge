@@ -16,7 +16,6 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -50,8 +49,7 @@ using Messaging::toJson;
 const auto ALL_KEYS = std::vector<std::string> {
     POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
     CALLS_COMMAND, DECLARER_COMMAND, CONTRACT_COMMAND, ALLOWED_CARDS_COMMAND,
-    CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND,
-    SCORE_COMMAND
+    CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND
 };
 
 std::string getPosition(const BridgeEngine& engine, const Player& player)
@@ -159,11 +157,6 @@ std::string getVulnerability(const DuplicateGameManager& gameManager)
     return JsonSerializer::serialize(gameManager.getVulnerability());
 }
 
-std::string getScore(const DuplicateGameManager& gameManager)
-{
-    return JsonSerializer::serialize(gameManager.getScoreSheet());
-}
-
 }
 
 GetMessageHandler::GetMessageHandler(
@@ -218,8 +211,6 @@ bool GetMessageHandler::doHandle(
                 sink(getTricksWon(engine));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
                 sink(getVulnerability(game->getGameManager()));
-            } else if (internalContainsKey(key, SCORE_COMMAND, sink)) {
-                sink(getScore(game->getGameManager()));
             }
         }
         return true;

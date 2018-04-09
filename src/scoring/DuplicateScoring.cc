@@ -1,6 +1,8 @@
 #include "scoring/DuplicateScoring.hh"
 
 #include "bridge/Contract.hh"
+#include "bridge/Partnership.hh"
+#include "scoring/DuplicateScore.hh"
 
 #include <boost/algorithm/clamp.hpp>
 
@@ -150,17 +152,18 @@ int calculateDuplicateScoreForDefeatedContract(
 
 }
 
-std::pair<bool, int> calculateDuplicateScore(
-    const Contract& contract, const bool vulnerable, const int tricksWon)
+DuplicateScore calculateDuplicateScore(
+    const Partnership partnership, const Contract& contract,
+    const bool vulnerable, const int tricksWon)
 {
     if (isMade(contract, tricksWon)) {
         return {
-            true,
+            partnership,
             calculateDuplicateScoreForMadeContract(
                 contract, vulnerable, tricksWon)};
     } else {
         return {
-            false,
+            otherPartnership(partnership),
             calculateDuplicateScoreForDefeatedContract(
                 contract, vulnerable, tricksWon)};
     }

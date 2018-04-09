@@ -11,7 +11,6 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -19,7 +18,6 @@
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
-#include "scoring/DuplicateScoreSheet.hh"
 
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -28,7 +26,6 @@
 
 using namespace Bridge;
 using namespace Bridge::Messaging;
-using namespace Bridge::Scoring;
 
 using nlohmann::json;
 
@@ -312,99 +309,6 @@ TEST_F(JsonSerializerTest, testTricksWonEastWestInvalid)
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), 5},
         {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
     testFailedDeserializationHelper<TricksWon>(j);
-}
-
-TEST_F(JsonSerializerTest, testDuplicateScoreSheet)
-{
-    const auto j = json {
-        nullptr,
-        {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                toJson(Partnership::NORTH_SOUTH)
-            },
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                50
-            }
-        },
-        {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                toJson(Partnership::EAST_WEST)
-            },
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                100
-            }
-        },
-    };
-    const auto scoreSheet = DuplicateScoreSheet {
-        boost::none,
-        DuplicateScoreSheet::Score {Partnership::NORTH_SOUTH, 50},
-        DuplicateScoreSheet::Score {Partnership::EAST_WEST, 100}
-    };
-    testHelper(scoreSheet, j);
-}
-
-TEST_F(JsonSerializerTest, testScoreSheetPartnershipMissing)
-{
-    const auto j = json {
-        {
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                50
-            }
-        }
-    };
-    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
-}
-
-TEST_F(JsonSerializerTest, testDuplicateScoreSheetPartnershipInvalid)
-{
-    const auto j = json {
-        {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                nullptr
-            },
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                50
-            }
-        }
-    };
-    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
-}
-
-TEST_F(JsonSerializerTest, testScoreSheetScoreMissing)
-{
-    const auto j = json {
-        {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                toJson(Partnership::NORTH_SOUTH)
-            }
-        }
-    };
-    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
-}
-
-TEST_F(JsonSerializerTest, testDuplicateScoreSheetScoreInvalid)
-{
-    const auto j = json {
-        {
-            {
-                DUPLICATE_SCORE_SHEET_PARTNERSHIP_KEY,
-                toJson(Partnership::NORTH_SOUTH)
-            },
-            {
-                DUPLICATE_SCORE_SHEET_SCORE_KEY,
-                nullptr
-            }
-        }
-    };
-    testFailedDeserializationHelper<DuplicateScoreSheet>(j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntry)

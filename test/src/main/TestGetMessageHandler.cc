@@ -8,7 +8,6 @@
 #include "bridge/Player.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
-#include "scoring/DuplicateScoreSheet.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
@@ -18,7 +17,6 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DuplicateScoreSheetJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -54,7 +52,6 @@ using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::JsonSerializer;
 using Bridge::Messaging::fromJson;
-using Bridge::Scoring::DuplicateScoreSheet;
 
 using testing::ReturnPointee;
 
@@ -406,32 +403,4 @@ TEST_F(GetMessageHandlerTest, testVulnerability)
     EXPECT_EQ(
         Bridge::Vulnerability(false, false),
         JsonSerializer::deserialize<Bridge::Vulnerability>(reply[1]));
-}
-
-TEST_F(GetMessageHandlerTest, testScoreIfEmpty)
-{
-    request(PLAYER1, SCORE_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(SCORE_COMMAND, reply[0]);
-    const auto scores =
-        JsonSerializer::deserialize<DuplicateScoreSheet>(reply[1]);
-    EXPECT_TRUE(scores.begin() == scores.end());
-}
-
-TEST_F(GetMessageHandlerTest, testScoreIfNotEmpty)
-{
-    const auto PARTNERSHIP = Bridge::Partnership::NORTH_SOUTH;
-    const auto SCORE = DuplicateScoreSheet::Score {PARTNERSHIP, 70};
-    gameManager->addPassedOut();
-    gameManager->addResult(
-        PARTNERSHIP,
-        {{1, Bridge::Strain::CLUBS}, Bridge::Doubling::UNDOUBLED}, 7);
-    request(PLAYER1, SCORE_COMMAND);
-    ASSERT_EQ(2u, reply.size());
-    EXPECT_EQ(SCORE_COMMAND, reply[0]);
-    const auto scores =
-        JsonSerializer::deserialize<DuplicateScoreSheet>(reply[1]);
-    ASSERT_EQ(2, std::distance(scores.begin(), scores.end()));
-    EXPECT_EQ(boost::none, *scores.begin());
-    EXPECT_EQ(SCORE, *std::next(scores.begin()));
 }

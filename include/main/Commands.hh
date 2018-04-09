@@ -280,7 +280,6 @@
  *   - \e tricksWon: see \ref jsontrickswon
  *   - \e vulnerability: \e vulnerabilities of the current deal,
  *     see \ref jsonvulnerability
- *   - \e score: the scoresheet, see \ref jsonduplicatescoresheet
  *
  * Get commands retrieves one or multiple key–value pairs describing the state
  * of a game. The keys argument is a array of keys to be retrieved. It MAY be
@@ -354,8 +353,6 @@
  * The \b vulnerability parameter is an object containing the current
  * vulnerabilities of the partnerships. If they are not known (perhaps because
  * there is no ongoing deal), the value is empty.
- *
- * The \b score parameter is the current scoresheet of the game.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -599,10 +596,6 @@ extern const std::string TRICK_COMMAND;
 /** \brief See \ref bridgeprotocolcontrolget
  */
 extern const std::string VULNERABILITY_COMMAND;
-
-/** \brief See \ref bridgeprotocolcontrolget
- */
-extern const std::string SCORE_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolcall
  */

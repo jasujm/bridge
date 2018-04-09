@@ -5,14 +5,18 @@
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "scoring/DuplicateScoreSheet.hh"
+#include "scoring/DuplicateScore.hh"
+#include "scoring/DuplicateScoring.hh"
 #include "Enumerate.hh"
 
+#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <tuple>
 
 using Bridge::Position;
+using Bridge::Scoring::DuplicateScore;
+using ScoreEntry = Bridge::Engine::DuplicateGameManager::ScoreEntry;
 
 namespace {
 constexpr Bridge::Partnership PARTNERSHIP {Bridge::Partnership::NORTH_SOUTH};
@@ -25,9 +29,6 @@ class DuplicateGameManagerTest : public testing::Test
 {
 protected:
     Bridge::Engine::DuplicateGameManager gameManager;
-    const Bridge::Scoring::DuplicateScoreSheet& scoreSheet  {
-        gameManager.getScoreSheet()};
-
 };
 
 TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
@@ -35,23 +36,20 @@ TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
     EXPECT_FALSE(gameManager.hasEnded());
 }
 
-TEST_F(DuplicateGameManagerTest, testInitiallyThereAreNoScoreEntries)
-{
-    EXPECT_TRUE(scoreSheet.begin() == scoreSheet.end());
-}
-
 TEST_F(DuplicateGameManagerTest, testAddPassedOut)
 {
-    gameManager.addPassedOut();
-    EXPECT_TRUE(scoreSheet.begin() != scoreSheet.end());
-    EXPECT_FALSE(*scoreSheet.begin());
+    const auto result = gameManager.addPassedOut();
+    EXPECT_EQ(boost::none, boost::any_cast<ScoreEntry>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testAddResult)
 {
-    gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
-    EXPECT_TRUE(scoreSheet.begin() != scoreSheet.end());
-    EXPECT_TRUE(*scoreSheet.begin());
+    const auto result = gameManager.addResult(
+        PARTNERSHIP, CONTRACT, TRICKS_WON);
+    EXPECT_EQ(
+        Bridge::Scoring::calculateDuplicateScore(
+            PARTNERSHIP, CONTRACT, false, TRICKS_WON),
+        boost::any_cast<ScoreEntry>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)
