@@ -501,8 +501,10 @@
  * - \b Command: dealend
  * - \b Parameters:
  *   - tricksWon: the number of tricks won by each partnership
+ *   - score: the score awarded to the winner, see \ref jsonduplicatescore
  *
- * This event is published whenever a deal ends.
+ * This event is published whenever a deal ends. If the deal passes out,
+ * tricksWon are 0 for each partnership and score is null.
  */
 
 #ifndef MAIN_COMMANDS_HH_
@@ -648,6 +650,10 @@ extern const std::string WINNER_COMMAND;
 /** \brief See \ref bridgeprotocoleventdealend
  */
 extern const std::string DEAL_END_COMMAND;
+
+/** \brief See \ref bridgeprotocoleventdealend
+ */
+extern const std::string SCORE_COMMAND;
 
 }
 }

@@ -342,11 +342,6 @@ private:
     auto internalMakeBidding();
     auto internalMakeHands();
 
-    template<typename... Args1, typename... Args2, typename Ret>
-    sc::result internalCallAndTransit(
-        Ret (GameManager::*memfn)(Args1...),
-        Args2&&... args);
-
     const std::unique_ptr<Bidding> bidding;
     const std::vector<std::shared_ptr<Hand>> hands;
     const HandsMap handsMap;
@@ -439,22 +434,24 @@ sc::result InDeal::react(const DealCompletedEvent& event)
         return discard_event();
     }
 
-    outermost_context().getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {event.tricksWon});
 
+    auto& context = outermost_context();
     const auto declarer_partnership = partnershipFor(**declarer);
-    return internalCallAndTransit(
-        &GameManager::addResult,
-        declarer_partnership,
-        **contract,
+    const auto result = context.getGameManager().addResult(
+        declarer_partnership, **contract,
         getNumberOfTricksWon(event.tricksWon, declarer_partnership));
+    context.getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {event.tricksWon, result});
+    return transit<Shuffling>();
 }
 
 sc::result InDeal::react(const DealPassedOutEvent&)
 {
-    outermost_context().getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {TricksWon {0, 0}});
-    return internalCallAndTransit(&GameManager::addPassedOut);
+    auto& context = outermost_context();
+    const auto result = context.getGameManager().addPassedOut();
+    context.getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {TricksWon {0, 0}, result});
+    return transit<Shuffling>();
 }
 
 void InDeal::lockHand(const Hand& hand)
@@ -464,16 +461,6 @@ void InDeal::lockHand(const Hand& hand)
         [&hand](const auto& hand_ptr) { return hand_ptr.get() == &hand; });
     assert(iter != hands.end());
     outermost_context().lockHand(std::move(*iter));
-}
-
-template<typename... Args1, typename... Args2, typename Ret>
-sc::result InDeal::internalCallAndTransit(
-    Ret (GameManager::*const memfn)(Args1...),
-    Args2&&... args)
-{
-    auto& game_manager = outermost_context().getGameManager();
-    static_cast<void>((game_manager.*memfn)(std::forward<Args2>(args)...));
-    return transit<Shuffling>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1226,8 +1213,10 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 {
 }
 
-BridgeEngine::DealEnded::DealEnded(const TricksWon& tricksWon) :
-    tricksWon {tricksWon}
+BridgeEngine::DealEnded::DealEnded(
+    const TricksWon& tricksWon, const boost::any& result) :
+    tricksWon {tricksWon},
+    result {result}
 {
 }
 
@@ -1267,6 +1256,7 @@ bool operator==(
 bool operator==(
     const BridgeEngine::DealEnded& lhs, const BridgeEngine::DealEnded& rhs)
 {
+    // TODO: Also results should compare equal
     return lhs.tricksWon == rhs.tricksWon;
 }
 

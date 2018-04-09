@@ -17,11 +17,13 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
 #include "messaging/ContractJsonSerializer.hh"
+#include "messaging/DuplicateScoreJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
+#include "scoring/DuplicateScore.hh"
 #include "Logging.hh"
 #include "Observer.hh"
 #include "Utility.hh"
@@ -407,7 +409,12 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
     log(LogLevel::DEBUG, "Deal ended. Tricks won: %s", event.tricksWon);
-    publish(DEAL_END_COMMAND, std::tie(TRICKS_WON_COMMAND, event.tricksWon));
+    using ScoreEntry = Engine::DuplicateGameManager::ScoreEntry;
+    const auto& result = boost::any_cast<const ScoreEntry&>(event.result);
+    publish(
+        DEAL_END_COMMAND,
+        std::tie(TRICKS_WON_COMMAND, event.tricksWon),
+        std::tie(SCORE_COMMAND, result));
 }
 
 BridgeGame::BridgeGame(

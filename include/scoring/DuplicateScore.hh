@@ -10,6 +10,8 @@
 
 #include <boost/operators.hpp>
 
+#include <iosfwd>
+
 namespace Bridge {
 
 class Contract;
@@ -39,6 +41,15 @@ struct DuplicateScore : private boost::equality_comparable<DuplicateScore> {
  * \sa DuplicateScore
  */
 bool operator==(const DuplicateScore&, const DuplicateScore&);
+
+/** \brief Output a DuplicateScore to stream
+ *
+ * \param os the output stream
+ * \param score the score to output
+ *
+ * \return parameter \p os
+ */
+std::ostream& operator<<(std::ostream& os, const DuplicateScore& score);
 
 }
 }

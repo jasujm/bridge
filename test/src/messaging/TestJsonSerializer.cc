@@ -11,6 +11,7 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
+#include "messaging/DuplicateScoreJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -18,6 +19,7 @@
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
+#include "scoring/DuplicateScore.hh"
 
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -26,6 +28,7 @@
 
 using namespace Bridge;
 using namespace Bridge::Messaging;
+using Bridge::Scoring::DuplicateScore;
 
 using nlohmann::json;
 
@@ -399,4 +402,53 @@ TEST_F(JsonSerializerTest, testUuidInvalidFormat)
 {
     const auto j = json("invalid");
     testFailedDeserializationHelper<Uuid>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScore)
+{
+    const auto j = json {
+        {
+            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+        },
+        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+    const auto score = DuplicateScore {Partnership::NORTH_SOUTH, 100};
+    testHelper(score, j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScorePartnershipMissing)
+{
+    const auto j = json {
+        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+    testFailedDeserializationHelper<DuplicateScore>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScorePartnershipInvalid)
+{
+    const auto j = json {
+        {DUPLICATE_SCORE_PARTNERSHIP_KEY, "invalid"},
+        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+    testFailedDeserializationHelper<DuplicateScore>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreScoreMissing)
+{
+    const auto j = json {
+        {
+            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+        }
+    };
+    testFailedDeserializationHelper<DuplicateScore>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateScoreScoreInvalid)
+{
+    const auto j = json {
+        {
+            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+        },
+        {DUPLICATE_SCORE_SCORE_KEY, "invalid"}};
+    testFailedDeserializationHelper<DuplicateScore>(j);
 }

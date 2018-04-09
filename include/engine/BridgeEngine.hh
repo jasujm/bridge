@@ -11,6 +11,7 @@
 #include "bridge/Vulnerability.hh"
 #include "Observer.hh"
 
+#include <boost/any.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/operators.hpp>
 #include <boost/optional/optional_fwd.hpp>
@@ -132,14 +133,22 @@ public:
         /** \brief Create new deal ended event
          *
          * \param tricksWon see \ref tricksWon
+         * \param result see \ref result
          */
-        DealEnded(const TricksWon& tricksWon);
+        DealEnded(const TricksWon& tricksWon, const boost::any& result);
 
         /** \brief Tricks won in the deal
          *
          * \note Tricks won by each partnership is zero if the deal passed out.
          */
         TricksWon tricksWon;
+
+        /** \brief Result of the deal
+         *
+         * \note This is the object returned by the game manager. The client
+         * needs to interpret it according to the type of the game manager.
+         */
+        const boost::any& result;
     };
 
     /** \brief Create new bridge engine
