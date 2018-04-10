@@ -196,27 +196,28 @@ BridgeMain::Impl::Impl(
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     controlSocket->bind(*endpointIterator++);
     eventSocket->bind(*endpointIterator);
-    auto peerCommandSender = std::make_shared<PeerCommandSender>();
-    auto cardProtocol = makeCardProtocol(
-        context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
-        peerCommandSender);
-    for (auto&& handler : cardProtocol->getMessageHandlers()) {
-        messageQueue.trySetHandler(handler.first, handler.second);
-    }
+    // Default game for peers, if there are any
     if (peerMode) {
+        auto peerCommandSender = std::make_shared<PeerCommandSender>();
+        auto cardProtocol = makeCardProtocol(
+            context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
+            peerCommandSender);
+        for (auto&& handler : cardProtocol->getMessageHandlers()) {
+            messageQueue.trySetHandler(handler.first, handler.second);
+        }
         internalInitializePeers(
             context, peerEndpoints, positions, cardServerBasePeerEndpoint,
             *peerCommandSender);
+        for (auto&& socket : cardProtocol->getSockets()) {
+            messageLoop.addSocket(socket.first, socket.second);
+        }
+        games.emplace(
+            std::piecewise_construct,
+            std::make_tuple(Uuid {}),
+            std::make_tuple(
+                Uuid {}, generatePositionsControlled(positions), eventSocket,
+                std::move(cardProtocol), std::move(peerCommandSender)));
     }
-    for (auto&& socket : cardProtocol->getSockets()) {
-        messageLoop.addSocket(socket.first, socket.second);
-    }
-    games.emplace(
-        std::piecewise_construct,
-        std::make_tuple(Uuid {}),
-        std::make_tuple(
-            Uuid {}, generatePositionsControlled(positions), eventSocket,
-            std::move(cardProtocol), std::move(peerCommandSender)));
     messageQueue.trySetHandler(
         GET_COMMAND,
         std::make_shared<GetMessageHandler>(
