@@ -180,6 +180,7 @@ void BridgeGame::Impl::sendToPeers(
     const std::string& command, Args&&... args)
 {
     if (peerCommandSender) {
+        log(LogLevel::DEBUG, "Sending command to peers: %s", command);
         peerCommandSender->sendCommand(
             Messaging::JsonSerializer {}, command, std::forward<Args>(args)...);
     }
@@ -199,6 +200,7 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
 {
     std::ostringstream os;
     os << uuid << ':' << command;
+    log(LogLevel::DEBUG, "Publishing event: %s", command);
     sendCommand(
         dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...);
