@@ -57,8 +57,10 @@ const auto CARD_SERVER_ENDPOINT = "inproc://card-server"s;
 const auto CARD_SERVER_ENDPOINT2 = "inproc://card-server-2"s;
 const auto CONTROL_ENDPOINT = "inproc://control"s;
 const auto PEER = "peer"s;
+const auto PEER_HEX = "70656572"s;
 const auto PEER_POSITIONS = CardProtocol::PositionVector {Position::SOUTH};
 const auto PEER2 = "peer2"s;
+const auto PEER2_HEX = "7065657232"s;
 const auto PEER2_POSITIONS = CardProtocol::PositionVector {
     Position::NORTH, Position::WEST};
 const auto PEER_ENDPOINT = "inproc://control"s;
@@ -171,8 +173,8 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         INIT_COMMAND, ORDER_COMMAND, IsSerialized(1), PEERS_COMMAND,
         IsSerialized(
             std::vector<PeerEntry> {
-                PeerEntry {PEER2, CARD_SERVER_ENDPOINT2},
-                PeerEntry {PEER, boost::none} }));
+                PeerEntry {PEER2_HEX, CARD_SERVER_ENDPOINT2},
+                PeerEntry {PEER_HEX, boost::none} }));
 
     const auto manager = protocol.getCardManager();
     ASSERT_TRUE(manager);
@@ -186,7 +188,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     EXPECT_FALSE(manager->isShuffleCompleted());
     assertMessage(SHUFFLE_COMMAND);
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER2),
+        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER2_HEX),
         CardServer::CARDS_COMMAND,
         IsSerialized(cardsFor(PEER2_POSITIONS.begin(), PEER2_POSITIONS.end())));
     const auto self_card_ns =
@@ -196,7 +198,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     const auto peer_card_ns =
         cardsFor(PEER_POSITIONS.begin(), PEER_POSITIONS.end());
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER),
+        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER_HEX),
         CardServer::CARDS_COMMAND, IsSerialized(peer_card_ns));
 
     revealCards(self_card_ns.begin(), self_card_ns.end());

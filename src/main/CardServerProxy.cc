@@ -59,6 +59,26 @@ using IndexVector = std::vector<std::size_t>;
 
 namespace {
 
+// TODO: Temporary method for encoding identity. Should be replaced with data
+// type which transparently encodes itself as necessary.
+std::string encode(const std::string& identity) {
+    static const std::array<char, 16> HEXS {{
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    }};
+    auto ret = std::string(2*identity.size(), '\0');
+    auto input_iter = identity.begin();
+    auto output_iter = ret.begin();
+    while (input_iter != identity.end()) {
+        assert(output_iter != ret.end());
+        assert(output_iter+1 != ret.end());
+        const auto c = static_cast<unsigned char>(*input_iter++);
+        *output_iter++ = HEXS[(c & 0xf0) >> 4];
+        *output_iter++ = HEXS[c & 0x0f];
+    }
+    return ret;
+}
+
 class Initializing;
 class Idle;
 class WaitingShuffleReply;
@@ -264,7 +284,7 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
             peer.positions.begin(), peer.positions.end());
         if (peer.identity) {
             log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
-                asHex(*peer.identity));
+                *peer.identity);
             sendCommand(
                 CardServer::REVEAL_COMMAND,
                 std::tie(CardServer::ID_COMMAND, *peer.identity),
@@ -465,10 +485,16 @@ bool Initializing::internalAddPeer(
                 selfPositions.begin(), selfPositions.end(), position);
             selfPositions.erase(iter, selfPositions.end());
         }
+        // TODO: Identity is a blob so we encode it as hex string before passing
+        // it to the serializer. It's problematic that the same data type
+        // represents "unencode" identity blobs and their "encoded" hex
+        // versions. Ideally identity would be internally represented as a
+        // distinct data type std::string (which are assumed to be UTF-8 encoded
+        // strings) which would handle serialization transparently.
         peers.emplace_back(
             std::piecewise_construct,
             std::forward_as_tuple(std::move(positions)),
-            std::forward_as_tuple(identity, std::move(endpoint)));
+            std::forward_as_tuple(encode(identity), std::move(endpoint)));
         return true;
     }
     return false;
