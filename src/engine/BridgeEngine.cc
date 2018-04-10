@@ -162,6 +162,10 @@ public:
     {
         return dealStartedNotifier;
     }
+    Observable<TurnStarted>& getTurnStartedNotifier()
+    {
+        return turnStartedNotifier;
+    }
     Observable<CallMade>& getCallMadeNotifier()
     {
         return callMadeNotifier;
@@ -222,6 +226,7 @@ private:
     boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
     Observable<DealStarted> dealStartedNotifier;
+    Observable<TurnStarted> turnStartedNotifier;
     Observable<CallMade> callMadeNotifier;
     Observable<BiddingCompleted> biddingCompletedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
@@ -375,10 +380,13 @@ InDeal::InDeal(my_context ctx) :
 {
     auto& context = outermost_context();
     const auto& game_manager = context.getGameManager();
+    const auto opener_position = dereference(game_manager.getOpenerPosition());
     context.getDealStartedNotifier().notifyAll(
         BridgeEngine::DealStarted {
-            dereference(game_manager.getOpenerPosition()),
+            opener_position,
             dereference(game_manager.getVulnerability())});
+    context.getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {opener_position});
 }
 
 Bidding& InDeal::getBidding()
@@ -485,6 +493,10 @@ sc::result InBidding::react(const CallEvent& event)
         auto& context = outermost_context();
         context.getCallMadeNotifier().notifyAll(
             BridgeEngine::CallMade { event.player, event.call });
+        if (const auto next_position_in_turn = bidding.getPositionInTurn()) {
+            context.getTurnStartedNotifier().notifyAll(
+                BridgeEngine::TurnStarted(*next_position_in_turn));
+        }
         const auto outer_contract = bidding.getContract();
         const auto outer_declarer_position = bidding.getDeclarerPosition();
         if (outer_contract && outer_declarer_position) {
@@ -651,9 +663,11 @@ private:
 PlayingTrick::PlayingTrick(my_context ctx) :
     my_base {ctx}
 {
-    const auto& hands = context<InDeal>().getHands(
-        context<Playing>().getLeaderPosition());
+    const auto leader_position = context<Playing>().getLeaderPosition();
+    const auto& hands = context<InDeal>().getHands(leader_position);
     trick = std::make_unique<BasicTrick>(hands.begin(), hands.end());
+    outermost_context().getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
 }
 
 void PlayingTrick::playNext(Hand& hand, std::size_t card)
@@ -661,19 +675,29 @@ void PlayingTrick::playNext(Hand& hand, std::size_t card)
     playInfo.emplace(hand, card);
 }
 
+class DummyVisible;
+
 void PlayingTrick::play()
 {
     assert(playInfo);
     assert(trick);
     const auto& card = dereference(playInfo->hand.getCard(playInfo->card));
     if (trick->play(playInfo->hand, card)) {
+        auto& context_ = outermost_context();
         playInfo->hand.markPlayed(playInfo->card);
-        outermost_context().getCardPlayedNotifier().notifyAll(
+        context_.getCardPlayedNotifier().notifyAll(
             BridgeEngine::CardPlayed { playInfo->hand, card });
         if (trick->isCompleted()) {
             context<Playing>().addTrick(std::move(trick));
         }
-        post_event(RevealDummyEvent {});
+        // If dummy is not yet visible, turn notification is deferred until
+        // revealing is completed
+        else if (state_cast<const DummyVisible*>()) {
+            context_.getTurnStartedNotifier().notifyAll(
+                BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
+        } else {
+            post_event(RevealDummyEvent {});
+        }
     }
 }
 
@@ -796,9 +820,6 @@ public:
 // RevealingDummy
 ////////////////////////////////////////////////////////////////////////////////
 
-
-class DummyVisible;
-
 class RevealingDummy : public sc::state<
     RevealingDummy, Playing::orthogonal<1>> {
 public:
@@ -840,8 +861,11 @@ public:
 DummyVisible::DummyVisible(my_context ctx) :
     my_base {ctx}
 {
-    outermost_context().getDummyRevealedNotifier().notifyAll(
+    auto& context_ = outermost_context();
+    context_.getDummyRevealedNotifier().notifyAll(
         BridgeEngine::DummyRevealed {});
+    context_.getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {context<Playing>().getDeclarerPosition()});
 }
 
 const Hand& DummyVisible::getDummyHand() const
@@ -1016,6 +1040,13 @@ void BridgeEngine::subscribeToDealStarted(
 {
     assert(impl);
     impl->getDealStartedNotifier().subscribe(std::move(observer));
+}
+
+void BridgeEngine::subscribeToTurnStarted(
+    std::weak_ptr<Observer<TurnStarted>> observer)
+{
+    assert(impl);
+    impl->getTurnStartedNotifier().subscribe(std::move(observer));
 }
 
 void BridgeEngine::subscribeToCallMade(
@@ -1195,6 +1226,11 @@ BridgeEngine::DealStarted::DealStarted(
 {
 }
 
+BridgeEngine::TurnStarted::TurnStarted(const Position position) :
+    position {position}
+{
+}
+
 BridgeEngine::CallMade::CallMade(
     const Player& player, const Call& call) :
     player {player},
@@ -1233,6 +1269,12 @@ bool operator==(
     const BridgeEngine::DealStarted& lhs, const BridgeEngine::DealStarted& rhs)
 {
     return lhs.opener == rhs.opener && lhs.vulnerability == rhs.vulnerability;
+}
+
+bool operator==(
+    const BridgeEngine::TurnStarted& lhs, const BridgeEngine::TurnStarted& rhs)
+{
+    return lhs.position == rhs.position;
 }
 
 bool operator==(

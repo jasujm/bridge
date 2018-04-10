@@ -78,6 +78,7 @@ void Shuffler::handleNotify(const CardManager::ShufflingState& state)
 
 class BridgeGame::Impl  :
     public Observer<BridgeEngine::DealStarted>,
+    public Observer<BridgeEngine::TurnStarted>,
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
     public Observer<BridgeEngine::CardPlayed>,
@@ -129,9 +130,8 @@ private:
     template<typename... Args>
     void publish(const std::string& command, Args&&... args);
 
-    void publishTurn();
-
     void handleNotify(const BridgeEngine::DealStarted&) override;
+    void handleNotify(const BridgeEngine::TurnStarted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
@@ -204,15 +204,6 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
     sendCommand(
         dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...);
-}
-
-void BridgeGame::Impl::publishTurn()
-{
-    if (const auto position = engine.getPositionInTurn()) {
-        publish(
-            TURN_COMMAND,
-            std::make_pair(std::cref(POSITION_COMMAND), *position));
-    }
 }
 
 bool BridgeGame::Impl::addPeer(
@@ -295,7 +286,6 @@ bool BridgeGame::Impl::call(
             std::tie(GAME_COMMAND, uuid),
             std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
             std::tie(CALL_COMMAND, call));
-        publishTurn();
         return true;
     }
     return false;
@@ -322,7 +312,6 @@ bool BridgeGame::Impl::play(
                     std::tie(GAME_COMMAND, uuid),
                     std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
                     std::tie(INDEX_COMMAND, *n_card));
-                publishTurn();
                 return true;
             }
         }
@@ -360,7 +349,17 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
         DEAL_COMMAND,
         std::tie(OPENER_COMMAND, event.opener),
         std::tie(VULNERABILITY_COMMAND, event.vulnerability));
-    publishTurn();
+    publish(
+        TURN_COMMAND,
+        std::tie(POSITION_COMMAND, event.opener));
+}
+
+void BridgeGame::Impl::handleNotify(const BridgeEngine::TurnStarted& event)
+{
+    log(LogLevel::DEBUG, "Turn started. Position: %s", event.position);
+    publish(
+        TURN_COMMAND,
+        std::tie(POSITION_COMMAND, event.position));
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::CallMade& event)
@@ -432,6 +431,7 @@ BridgeGame::BridgeGame(
 {
     auto& engine = impl->getEngine();
     engine.subscribeToDealStarted(impl);
+    engine.subscribeToTurnStarted(impl);
     engine.subscribeToCallMade(impl);
     engine.subscribeToBiddingCompleted(impl);
     engine.subscribeToCardPlayed(impl);

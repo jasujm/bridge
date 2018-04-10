@@ -67,6 +67,18 @@ public:
         Vulnerability vulnerability; ///< Vulnerabilities of the deal
     };
 
+    /** \brief Event for announcing that a player has turn
+     */
+    struct TurnStarted : private boost::equality_comparable<TurnStarted> {
+        /** \brief Create new turn started event
+         *
+         * \param position see \ref position
+         */
+        TurnStarted(Position position);
+
+        Position position;  ///< The position of the player having turn
+    };
+
     /** \brief Event for announcing that a call was made
      */
     struct CallMade : private boost::equality_comparable<CallMade> {
@@ -173,6 +185,14 @@ public:
      */
     void subscribeToDealStarted(
         std::weak_ptr<Observer<DealStarted>> observer);
+
+    /** \brief Subscribe to notifications about turn starting
+     *
+     * The notification takes place after a player has got turn to call or play
+     * card.
+     */
+    void subscribeToTurnStarted(
+        std::weak_ptr<Observer<TurnStarted>> observer);
 
     /** \brief Subscribe to notifications about call being made
      *
@@ -417,6 +437,11 @@ private:
  */
 bool operator==(
     const BridgeEngine::DealStarted&, const BridgeEngine::DealStarted&);
+
+/** \brief Equality operator for turn started events
+ */
+bool operator==(
+    const BridgeEngine::TurnStarted&, const BridgeEngine::TurnStarted&);
 
 /** \brief Equality operator for call made events
  */
