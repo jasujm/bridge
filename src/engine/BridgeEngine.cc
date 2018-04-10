@@ -636,9 +636,9 @@ public:
     void playNext(Hand& hand, std::size_t card);
     void play();
 
-    const Trick& getTrick() const;
-    Position getPositionInTurn() const;
-    const Hand& getHandInTurn() const;
+    const Trick* getTrick() const;
+    boost::optional<Position> getPositionInTurn() const;
+    const Hand* getHandInTurn() const;
     Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
     const auto& getNextPlay();
 
@@ -677,33 +677,36 @@ void PlayingTrick::play()
     }
 }
 
-const Trick& PlayingTrick::getTrick() const
+const Trick* PlayingTrick::getTrick() const
 {
-    assert(trick);
-    return *trick;
+    return trick.get();
 }
 
-Position PlayingTrick::getPositionInTurn() const
+boost::optional<Position> PlayingTrick::getPositionInTurn() const
 {
-    const auto& hand = getHandInTurn();
-    auto position = context<InDeal>().getPosition(hand);
-    // Declarer plays for dummy
-    if (position == context<Playing>().getDummyPosition()) {
-        position = partnerFor(position);
+    if (const auto* hand = getHandInTurn()) {
+        auto position = context<InDeal>().getPosition(*hand);
+        // Declarer plays for dummy
+        if (position == context<Playing>().getDummyPosition()) {
+            position = partnerFor(position);
+        }
+        return position;
     }
-    return position;
+    return boost::none;
 }
 
-const Hand& PlayingTrick::getHandInTurn() const
+const Hand* PlayingTrick::getHandInTurn() const
 {
-    assert(trick);
-    return dereference(trick->getHandInTurn());
+    if (trick) {
+        return trick->getHandInTurn();
+    }
+    return nullptr;
 }
 
 Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
 {
     if (outermost_context().getPosition(player) == getPositionInTurn() &&
-        &hand == &getHandInTurn()) {
+        &hand == getHandInTurn()) {
         auto& in_deal = context<InDeal>();
         const auto position = in_deal.getPosition(hand);
         auto& hand = in_deal.getHand(position);
@@ -918,7 +921,10 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
 
 const Hand* BridgeEngine::Impl::getHandInTurn() const
 {
-    return internalCallIfInState(&PlayingTrick::getHandInTurn);
+    if (const auto* state = state_cast<const PlayingTrick*>()) {
+        return state->getHandInTurn();
+    }
+    return nullptr;
 }
 
 const Player* BridgeEngine::Impl::getPlayer(const Position position) const
@@ -956,7 +962,10 @@ const Bidding* BridgeEngine::Impl::getBidding() const
 
 const Trick* BridgeEngine::Impl::getCurrentTrick() const
 {
-    return internalCallIfInState(&PlayingTrick::getTrick);
+    if (const auto* state = state_cast<const PlayingTrick*>()) {
+        return state->getTrick();
+    }
+    return nullptr;
 }
 
 boost::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
