@@ -1,27 +1,16 @@
 #include "csmain/CardServerMain.hh"
-#include "Signals.hh"
 #include "Logging.hh"
 
 #include <getopt.h>
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
-#include <atomic>
 #include <string>
 
 namespace {
 
 using namespace Bridge;
 using CardServer::CardServerMain;
-
-std::atomic<CardServerMain*> appObserver {nullptr};
-
-extern "C" void signalHandler(int)
-{
-    const auto app_observer = appObserver.load();
-    assert(app_observer);
-    app_observer->terminate();
-}
 
 class CardServerApp {
 public:
@@ -32,8 +21,6 @@ public:
         const std::string& basePeerEndpoint) :
         app {zmqctx, controlEndpoint, basePeerEndpoint}
     {
-        appObserver = &app;
-        startHandlingSignals(signalHandler);
         log(Bridge::LogLevel::INFO, "Setup completed");
     }
 
@@ -41,8 +28,6 @@ public:
 
     ~CardServerApp()
     {
-        stopHandlingSignals();
-        appObserver = nullptr;
         log(Bridge::LogLevel::INFO, "Shutting down");
     }
 

@@ -5,13 +5,11 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "Logging.hh"
-#include "Signals.hh"
 
 #include <zmq.hpp>
 #include <getopt.h>
 
 #include <array>
-#include <atomic>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -22,15 +20,6 @@ namespace {
 using namespace Bridge;
 using Main::BridgeMain;
 using Messaging::JsonSerializer;
-
-std::atomic<BridgeMain*> appObserver {nullptr};
-
-extern "C" void signalHandler(int)
-{
-    const auto app_observer = appObserver.load();
-    assert(app_observer);
-    app_observer->terminate();
-}
 
 class BridgeApp {
 public:
@@ -46,8 +35,6 @@ public:
             zmqctx, baseEndpoint, std::move(positions), peerEndpoints,
             cardServerControlEndpoint, cardServerBasePeerEndpoint}
     {
-        appObserver = &app;
-        startHandlingSignals(signalHandler);
         log(Bridge::LogLevel::INFO, "Startup completed");
     }
 
@@ -55,8 +42,6 @@ public:
 
     ~BridgeApp()
     {
-        stopHandlingSignals();
-        appObserver = nullptr;
         log(Bridge::LogLevel::INFO, "Shutting down");
     }
 

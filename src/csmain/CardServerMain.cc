@@ -326,7 +326,6 @@ public:
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& basePeerEndpoint);
     void run();
-    void terminate();
 
 private:
 
@@ -394,11 +393,6 @@ CardServerMain::Impl::Impl(
 void CardServerMain::Impl::run()
 {
     messageLoop.run();
-}
-
-void CardServerMain::Impl::terminate()
-{
-    messageLoop.terminate();
 }
 
 Reply<> CardServerMain::Impl::init(
@@ -475,12 +469,6 @@ void CardServerMain::run()
 {
     assert(impl);
     impl->run();
-}
-
-void CardServerMain::terminate()
-{
-    assert(impl);
-    impl->terminate();
 }
 
 }

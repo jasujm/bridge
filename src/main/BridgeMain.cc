@@ -78,8 +78,6 @@ public:
 
     void run();
 
-    void terminate();
-
     std::unique_ptr<CardProtocol> makeCardProtocol(
         zmq::context_t& context,
         const std::string& cardServerControlEndpoint,
@@ -232,11 +230,6 @@ BridgeMain::Impl::Impl(
 void BridgeMain::Impl::run()
 {
     messageLoop.run();
-}
-
-void BridgeMain::Impl::terminate()
-{
-    messageLoop.terminate();
 }
 
 Reply<> BridgeMain::Impl::hello(
@@ -412,12 +405,6 @@ void BridgeMain::run()
 {
     assert(impl);
     impl->run();
-}
-
-void BridgeMain::terminate()
-{
-    assert(impl);
-    impl->terminate();
 }
 
 }

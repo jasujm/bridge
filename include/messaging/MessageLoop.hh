@@ -23,6 +23,9 @@ namespace Messaging {
  * polled. The application is then signaled by calling a callback. The sockets
  * are shared if the client of the class wishes to retain ownership.
  *
+ * In addition to handling incoming ZeroMQ messages, MessageLoop handles SIGTERM
+ * and SIGINT signals by terminating cleanly.
+ *
  * In addition MessageLoop supports immediate callbacks that are dispatched
  * sequentially. They can be used to defer user code to be called once a
  * previous callback has returned.
@@ -91,23 +94,15 @@ public:
      * receive messages. Thus when callback is called, the socket given as its
      * argument is guaranteed to not block when message is received from it.
      *
-     * The method catches zmq::error_t indicating interruption. All other
-     * exceptions are propagated as is. Note that interruption does not
-     * automatically terminate the loop. It is intended that an interruption
-     * handler wishing to terminate the loop calls terminate().
+     * Before entering the message loop this method blocks SIGINT and
+     * SIGTERM. MessageLoop takes responsibility of handling those signals by
+     * doing cleanup and finally exiting run() method. Signal masks are cleaned
+     * when the method is exited, whether by exception or otherwise.
+     *
+     * \exception The method catches zmq::error_t indicating interruption. All
+     * other exceptions are propagated as is.
      */
     void run();
-
-    /** \brief Request the message loop to terminate
-     *
-     * After this function is called (from kernel signal handler, message
-     * handler etc.), run() will return. If run() is called after this
-     * function, it will return immediately.
-     *
-     * \note It is safe to call this function from other threads or signal
-     * handlers.
-     */
-    void terminate();
 
 private:
 

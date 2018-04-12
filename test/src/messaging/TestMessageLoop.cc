@@ -8,6 +8,7 @@
 #include <zmq.hpp>
 
 #include <array>
+#include <csignal>
 #include <string>
 
 using Bridge::Messaging::recvMessage;
@@ -35,7 +36,7 @@ protected:
                     {
                         const auto msg = recvMessage(socket);
                         EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
-                        loop.terminate();
+                        std::raise(SIGTERM);
                     }));
             t.get<2>()->bind(t.get<0>());
             t.get<1>().connect(t.get<0>());
@@ -99,7 +100,7 @@ TEST_F(MessageLoopTest, testTerminate)
                 {
                     const auto msg = recvMessage(socket);
                     EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
-                    loop.terminate();
+                    std::raise(SIGTERM);
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1]))).Times(0);
     sendMessage(frontSockets[0], OTHER_MSG);
@@ -121,7 +122,7 @@ TEST_F(MessageLoopTest, testCallOnce)
                             EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
                             callbacks[0].callSimple();
                         });
-                    loop.terminate();
+                    std::raise(SIGTERM);
                 }));
     sendMessage(frontSockets[0], DEFAULT_MSG);
     loop.run();
