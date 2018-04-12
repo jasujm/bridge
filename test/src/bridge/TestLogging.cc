@@ -31,7 +31,6 @@ TEST_F(LoggingTest, testLoggingWithTriggeringLevel)
 {
     setupLogging(Bridge::LogLevel::INFO, stream);
     log(Bridge::LogLevel::INFO, "format %s format"s, MESSAGE);
-    std::cout << stream.str() << stream.str().size() << std::endl;
     EXPECT_NE(std::string::npos, stream.str().find(MESSAGE));
 }
 
