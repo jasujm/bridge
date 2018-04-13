@@ -102,9 +102,6 @@ bool MessageLoop::Impl::run(int sfd)
 {
     assert(!pollitems.empty());
     pollitems[0].fd = sfd;
-    for (auto& item : pollitems) {
-        item.revents = 0;
-    }
     static_cast<void>(zmq::poll(pollitems));
     if (pollitems[0].revents & ZMQ_POLLIN) {
         auto fdsi = signalfd_siginfo {};
