@@ -25,10 +25,6 @@ namespace Messaging {
  *
  * In addition to handling incoming ZeroMQ messages, MessageLoop handles SIGTERM
  * and SIGINT signals by terminating cleanly.
- *
- * In addition MessageLoop supports immediate callbacks that are dispatched
- * sequentially. They can be used to defer user code to be called once a
- * previous callback has returned.
  */
 class MessageLoop : private boost::noncopyable {
 public:
@@ -38,13 +34,6 @@ public:
      * \sa addSocket()
      */
     using SocketCallback = std::function<void(zmq::socket_t&)>;
-
-    /** \brief Callback that can be registered to be called once by the
-     * message loop
-     *
-     * \sa callOnce()
-     */
-    using SimpleCallback = std::function<void()>;
 
     /** \brief Create new message loop
      *
@@ -71,21 +60,6 @@ public:
      */
     void addSocket(
         std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
-
-    /** \brief Enqueue a simple callback
-     *
-     * The callbacks in the queue are called in the registration order after
-     * the socket handler or another callback returns. Callbacks are dequeued
-     * once called. This method can be used to ensure that an action is taken
-     * once the previous handler has completely finished.
-     *
-     * If \p callback captures objects by reference, it is the responsibility
-     * of the client to ensure that the lifetime of any object captured by \p
-     * callback exceeds the lifetime of the MessageLoop.
-     *
-     * \param callback the callback
-     */
-    void callOnce(SimpleCallback callback);
 
     /** \brief Start polling messages
      *

@@ -67,7 +67,6 @@ class MessageLoop::Impl {
 public:
     void addSocket(
         std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
-    void addSimpleCallback(SimpleCallback callback);
     bool run(int sfd);
 
 private:
@@ -76,7 +75,6 @@ private:
     };
     std::vector<
         std::pair<SocketCallback, std::shared_ptr<zmq::socket_t>>> callbacks;
-    std::queue<SimpleCallback> simpleCallbacks;
 };
 
 void MessageLoop::Impl::addSocket(
@@ -91,11 +89,6 @@ void MessageLoop::Impl::addSocket(
         pollitems.pop_back();
         throw;
     }
-}
-
-void MessageLoop::Impl::addSimpleCallback(SimpleCallback callback)
-{
-    simpleCallbacks.emplace(std::move(callback));
 }
 
 bool MessageLoop::Impl::run(int sfd)
@@ -123,10 +116,6 @@ bool MessageLoop::Impl::run(int sfd)
         if (item.revents & ZMQ_POLLIN) {
             assert(callback.second);
             callback.first(*callback.second);
-            while (!simpleCallbacks.empty()) {
-                simpleCallbacks.front()();
-                simpleCallbacks.pop();
-            }
         }
     }
     return true;
@@ -143,12 +132,6 @@ void MessageLoop::addSocket(
 {
     assert(impl);
     impl->addSocket(std::move(socket), std::move(callback));
-}
-
-void MessageLoop::callOnce(SimpleCallback callback)
-{
-    assert(impl);
-    impl->addSimpleCallback(std::move(callback));
 }
 
 void MessageLoop::run()
