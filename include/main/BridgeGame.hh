@@ -30,6 +30,7 @@ class DuplicateGameManager;
 
 namespace Main {
 
+class CallbackScheduler;
 class CardProtocol;
 class PeerCommandSender;
 
@@ -64,13 +65,15 @@ public:
      * peers
      * \param peerCommandSender the peer command sender object used to send
      * commands to the peers taking part in the game
+     * \param callbackScheduler a callback scheduler object
      */
     BridgeGame(
         const Uuid& uuid,
         PositionSet positionsControlled,
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
-        std::shared_ptr<PeerCommandSender> peerCommandSender);
+        std::shared_ptr<PeerCommandSender> peerCommandSender,
+        std::shared_ptr<CallbackScheduler> callbackScheduler);
 
     /** \brief Create new bridge game without peers
      *
@@ -79,8 +82,11 @@ public:
      *
      * \param uuid the UUID of the game
      * \param eventSocket ZeroMQ socket used to publish events about the game
+     * \param callbackScheduler a callback scheduler object
      */
-    BridgeGame(const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket);
+    BridgeGame(
+        const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
+        std::shared_ptr<CallbackScheduler> callbackScheduler);
 
     /** \brief Handle handshake from a peer
      *

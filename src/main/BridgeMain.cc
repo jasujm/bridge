@@ -5,6 +5,7 @@
 #include "bridge/UuidGenerator.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/BridgeGame.hh"
+#include "main/CallbackScheduler.hh"
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
 #include "main/GetMessageHandler.hh"
@@ -119,6 +120,7 @@ private:
     std::map<std::string, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
+    std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
     std::map<Uuid, BridgeGame> games;
@@ -149,6 +151,7 @@ BridgeMain::Impl::Impl(
     nodePlayerControl {std::make_shared<NodePlayerControl>()},
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
+    callbackScheduler {std::make_shared<CallbackScheduler>(context)},
     messageQueue {
         {
             {
@@ -214,13 +217,21 @@ BridgeMain::Impl::Impl(
             std::make_tuple(Uuid {}),
             std::make_tuple(
                 Uuid {}, generatePositionsControlled(positions), eventSocket,
-                std::move(cardProtocol), std::move(peerCommandSender)));
+                std::move(cardProtocol), std::move(peerCommandSender),
+                callbackScheduler));
     }
     messageQueue.trySetHandler(
         GET_COMMAND,
         std::make_shared<GetMessageHandler>(
             [this](const Uuid& uuid) { return internalGetGame(uuid); },
             nodePlayerControl));
+    messageLoop.addSocket(
+        callbackScheduler->getSocket(),
+        [callbackScheduler = this->callbackScheduler](auto& socket)
+        {
+            assert(callbackScheduler);
+            (*callbackScheduler)(socket);
+        }),
     messageLoop.addSocket(
         std::move(controlSocket),
         [&queue = this->messageQueue](auto& socket) { queue(socket); });
@@ -272,7 +283,7 @@ Reply<Uuid> BridgeMain::Impl::game(
             const auto game = games.emplace(
                 std::piecewise_construct,
                 std::make_tuple(uuid_for_game),
-                std::make_tuple(uuid_for_game, eventSocket));
+                std::make_tuple(uuid_for_game, eventSocket, callbackScheduler));
             if (game.second) {
                 return success(uuid_for_game);
             }
