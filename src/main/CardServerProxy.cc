@@ -223,8 +223,7 @@ Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
             }
         }
     }},
-    controlSocket {*sockets.front().first},
-    cards(N_CARDS)
+    controlSocket {*sockets.front().first}
 {
     controlSocket.connect(controlEndpoint);
 }
@@ -273,6 +272,7 @@ void Impl::sendCommand(Args&&... args)
 
 void Impl::doRequestShuffle(const RequestShuffleEvent&)
 {
+    cards.assign(N_CARDS, {});
     handObservers.clear();
     shufflingStateNotifier.notifyAll(ShufflingState::REQUESTED);
     log(LogLevel::DEBUG, "Card server proxy: Shuffling");
