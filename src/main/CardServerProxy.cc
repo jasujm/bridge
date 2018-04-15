@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <queue>
 #include <tuple>
 #include <utility>
 
@@ -629,31 +630,35 @@ public:
 
 private:
 
-    std::shared_ptr<BasicHand> hand;
-    IndexVector handNs;
+    struct RequestInfo {
+        std::shared_ptr<BasicHand> hand;
+        IndexVector handNs;
+    };
+
+    std::queue<RequestInfo> requestQueue;
 };
 
 sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
 {
-    if (!hand) {
-        log(LogLevel::DEBUG,"Card server proxy: Revealing card(s) to all players");
-        outermost_context().sendCommand(
-            CardServer::REVEAL_ALL_COMMAND,
-            std::tie(CardServer::CARDS_COMMAND, event.deckNs));
-        assert(event.hand);
-        hand = event.hand;
-        handNs = event.handNs;
-    }
+    log(LogLevel::DEBUG,"Card server proxy: Revealing card(s) to all players");
+    outermost_context().sendCommand(
+        CardServer::REVEAL_ALL_COMMAND,
+        std::tie(CardServer::CARDS_COMMAND, event.deckNs));
+    assert(event.hand);
+    requestQueue.emplace(RequestInfo {event.hand, event.handNs});
     return discard_event();
 }
 
 sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
 {
-    if (this->hand) {
+    if (!requestQueue.empty()) {
         outermost_context().revealCards(event.cards.begin(), event.cards.end());
-        // Already set this->hand to null if the subscribers request new reveal
-        const auto hand = std::move(this->hand);
-        hand->reveal(handNs.begin(), handNs.end());
+        const auto request = std::move(requestQueue.front());
+        requestQueue.pop();
+        request.hand->reveal(request.handNs.begin(), request.handNs.end());
+    } else {
+        log(LogLevel::WARNING,
+            "Card server proxy request queue unexpectedly empty");
     }
     return discard_event();
 }
