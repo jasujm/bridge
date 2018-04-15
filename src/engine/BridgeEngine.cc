@@ -69,6 +69,7 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
 // Events
 ////////////////////////////////////////////////////////////////////////////////
 
+class StartDealEvent : public sc::event<StartDealEvent> {};
 class CallEvent : public sc::event<CallEvent> {
 public:
     CallEvent(const Player& player, const Call& call, bool& ret) :
@@ -141,11 +142,10 @@ public:
 // BridgeEngine::Impl
 ////////////////////////////////////////////////////////////////////////////////
 
-class InDeal;
-class Shuffling;
+class Idle;
 
 class BridgeEngine::Impl :
-    public sc::state_machine<BridgeEngine::Impl, Shuffling>,
+    public sc::state_machine<BridgeEngine::Impl, Idle>,
     public Observer<CardManager::ShufflingState> {
 public:
     Impl(
@@ -279,6 +279,8 @@ auto BridgeEngine::Impl::makeCardRevealStateObserver()
 // Shuffling
 ////////////////////////////////////////////////////////////////////////////////
 
+class InDeal;
+
 class Shuffling : public sc::state<Shuffling, BridgeEngine::Impl> {
 public:
     using reactions = boost::mpl::list<
@@ -311,6 +313,17 @@ sc::result Shuffling::react(const ShufflingStateEvent& event)
     }
     return discard_event();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Idle
+////////////////////////////////////////////////////////////////////////////////
+
+class Shuffling;
+
+class Idle : public sc::simple_state<Idle, BridgeEngine::Impl> {
+public:
+    using reactions = sc::transition<StartDealEvent, Shuffling>;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // InDeal
@@ -450,7 +463,7 @@ sc::result InDeal::react(const DealCompletedEvent& event)
         getNumberOfTricksWon(event.tricksWon, declarer_partnership));
     context.getDealEndedNotifier().notifyAll(
         BridgeEngine::DealEnded {event.tricksWon, result});
-    return transit<Shuffling>();
+    return transit<Idle>();
 }
 
 sc::result InDeal::react(const DealPassedOutEvent&)
@@ -459,7 +472,7 @@ sc::result InDeal::react(const DealPassedOutEvent&)
     const auto result = context.getGameManager().addPassedOut();
     context.getDealEndedNotifier().notifyAll(
         BridgeEngine::DealEnded {TricksWon {0, 0}, result});
-    return transit<Shuffling>();
+    return transit<Idle>();
 }
 
 void InDeal::lockHand(const Hand& hand)
@@ -1029,8 +1042,10 @@ BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager) :
     impl {
-        std::make_shared<Impl>(std::move(cardManager), std::move(gameManager))}
+        std::make_shared<Impl>(cardManager, std::move(gameManager))}
 {
+    dereference(cardManager).subscribe(impl);
+    impl->initiate();
 }
 
 BridgeEngine::~BridgeEngine() = default;
@@ -1091,14 +1106,13 @@ void BridgeEngine::subscribeToDealEnded(
     impl->getDealEndedNotifier().subscribe(std::move(observer));
 }
 
-void BridgeEngine::initiate()
+void BridgeEngine::startDeal()
 {
     assert(impl);
-    impl->getCardManager().subscribe(impl);
     impl->functionQueue(
         [&impl = *impl]()
         {
-            impl.initiate();
+            impl.process_event(StartDealEvent {});
         });
 }
 

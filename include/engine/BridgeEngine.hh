@@ -165,9 +165,9 @@ public:
 
     /** \brief Create new bridge engine
      *
-     * The engine is not started until initialize() is called. The purpose of
-     * the two-stage initialization is to allow the client to subscribe to the
-     * desired notifications before the engine actually starts.
+     * The first deal is not started until startDeal() is called. The two-stage
+     * initialization allows the client to subscribe to the desired
+     * notifications before the game actually starts.
      *
      * \param cardManager the card manager used to manage playing cards
      * \param gameManager the game manager used to manage the rules of the game
@@ -245,16 +245,18 @@ public:
      */
     void subscribeToDealEnded(std::weak_ptr<Observer<DealEnded>> observer);
 
-    /** \brief Start the game
+    /** \brief Start a new deal
      *
-     * This method starts the actual state machine
+     * This method starts a deal if no deal is ongoing. It needs to be called
+     * before the game and after the completion of each deal when the client is
+     * ready to start a deal.
      *
      * \note In order to not lose any notifications, notifications should be
-     * subscribed to before calling this method. Especially note that after
-     * starting the game, the first shuffling is immediately requested from
-     * the card manager.
+     * subscribed to before calling this method for the first time. Especially
+     * note that after starting the game, the first shuffling is immediately
+     * requested from the card manager.
      */
-    void initiate();
+    void startDeal();
 
     /** \brief Add player to the game
      *

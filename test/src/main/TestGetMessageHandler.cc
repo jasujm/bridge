@@ -103,7 +103,7 @@ protected:
         for (const auto t : boost::combine(POSITIONS, players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
-        engine->initiate();
+        engine->startDeal();
     }
 
     void shuffle()

@@ -83,13 +83,6 @@ protected:
                 handleGetHand(ElementsAreArray(cardsFor(position))))
                 .WillByDefault(InvokeWithoutArgs(cardsForFunctor(position)));
         }
-        ON_CALL(*cardManager, handleSubscribe(_))
-            .WillByDefault(
-                Invoke(
-                    [this](auto observer)
-                    {
-                        shuffledNotifier.subscribe(std::move(observer));
-                    }));
         ON_CALL(*cardManager, handleIsShuffleCompleted())
             .WillByDefault(Return(true));
         ON_CALL(*cardManager, handleGetNumberOfCards())
@@ -99,7 +92,7 @@ protected:
             .WillByDefault(Return(Position::NORTH));
         ON_CALL(*gameManager, handleGetVulnerability())
             .WillByDefault(Return(Vulnerability {true, true}));
-        engine.initiate();
+        engine.startDeal();
         Mock::VerifyAndClearExpectations(cardManager.get());
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::REQUESTED);
@@ -180,6 +173,7 @@ protected:
         engine.play(partner, hand, card);
         engine.play(player, partner_hand, card);
         engine.play(partner, partner_hand, card);
+        engine.startDeal();
         Mock::VerifyAndClearExpectations(cardRevealStateObserver.get());
     }
 
@@ -244,6 +238,19 @@ protected:
     std::array<NiceMock<MockCard>, N_CARDS> cards;
     const std::shared_ptr<Engine::MockCardManager> cardManager {
         std::make_shared<NiceMock<Engine::MockCardManager>>()};
+    Observable<Engine::CardManager::ShufflingState> shuffledNotifier {
+        [this]()
+        {
+            auto notifier = Observable<Engine::CardManager::ShufflingState>();
+            ON_CALL(*cardManager, handleSubscribe(_))
+                .WillByDefault(
+                    Invoke(
+                        [this](auto observer)
+                        {
+                            shuffledNotifier.subscribe(std::move(observer));
+                        }));
+            return notifier;
+        }()};
     const std::shared_ptr<Engine::MockGameManager> gameManager {
         std::make_shared<NiceMock<Engine::MockGameManager>>()};
     std::array<std::shared_ptr<Player>, N_PLAYERS> players {{
@@ -252,7 +259,6 @@ protected:
         std::make_shared<MockPlayer>(),
         std::make_shared<MockPlayer>()}};
     BridgeEngine engine {cardManager, gameManager};
-    Observable<Engine::CardManager::ShufflingState> shuffledNotifier;
     std::map<std::size_t, std::reference_wrapper<BasicHand>> hands;
     std::shared_ptr<NiceMock<MockCardRevealStateObserver>>
     cardRevealStateObserver {
@@ -432,6 +438,7 @@ TEST_F(BridgeEngineTest, testPassOut)
         engine.subscribeToBiddingCompleted(observer);
         EXPECT_CALL(*observer, handleNotify(_)).Times(0);
         engine.call(*player, Pass {});
+        engine.startDeal();
     }
     EXPECT_FALSE(engine.hasEnded());
 }
@@ -449,6 +456,7 @@ TEST_F(BridgeEngineTest, testEndGame)
 
     for (const auto& player : players) {
         engine.call(*player, Pass {});
+        engine.startDeal();
     }
     EXPECT_TRUE(engine.hasEnded());
 }

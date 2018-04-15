@@ -286,6 +286,7 @@ bool BridgeGame::Impl::call(
             std::tie(GAME_COMMAND, uuid),
             std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
             std::tie(CALL_COMMAND, call));
+        engine.startDeal();
         return true;
     }
     return false;
@@ -312,6 +313,7 @@ bool BridgeGame::Impl::play(
                     std::tie(GAME_COMMAND, uuid),
                     std::make_pair(std::cref(PLAYER_COMMAND), player.getUuid()),
                     std::tie(INDEX_COMMAND, *n_card));
+                engine.startDeal();
                 return true;
             }
         }
@@ -326,7 +328,7 @@ void BridgeGame::Impl::startIfReady()
         if (cardProtocol) {
             cardProtocol->initialize();
         }
-        engine.initiate();
+        engine.startDeal();
     }
 }
 
