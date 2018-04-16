@@ -47,7 +47,7 @@ To build and run unit tests for the backend
 
 This repository only contains code for the backend. In order to play bridge,
 you’ll also need a frontend. A GUI written in Python can be found in my other
-repository at https://github.com/jasujm/bridge.
+repository at https://github.com/jasujm/bridgegui.
 
 The GUI depends on
 [PyQt5](https://www.riverbankcomputing.com/software/pyqt/download5) to provide
@@ -96,22 +96,12 @@ logging, respectively.
 
 Run the four frontend (client) instances
 
-    $ bridgegui --config=bridge-config --position=position endpoint
+    $ bridgegui endpoint
 
-where endpoint is the control endpoint of the backend application. Exactly one
-frontend must connect for each position the backend controls. The backend
-automatically assigns positions in order the frontends connect.
-
-The configuration file specified with the --config option is optional but
-useful. It remembers the frontend to remember its identity. If the client quits
-(or worse, crashes), the old session can be recovered by specifying the same
-configuration file and backend. The file can be any file to which the used has
-write access.
-
-The optional position argument is one of the positions (north, east, south,
-west). If provided, it is the preferred position requested for the backend. If
-the position is already taken (or it is controlled by another peer), the backend
-assigns any position.
+where endpoint is the control endpoint of the backend application. Run
+`bridgegui --help` for the remaining options. Exactly one frontend must connect
+for each position the backend controls. The backend automatically assigns
+positions in order the frontends connect.
 
 ### Examples
 
@@ -206,7 +196,7 @@ for this project are:
 
 ## Copyright
 
-Copyright © 2015–2017 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2018 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
