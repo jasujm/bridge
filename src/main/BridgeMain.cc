@@ -30,6 +30,7 @@
 #include <zmq.hpp>
 
 #include <iterator>
+#include <queue>
 #include <set>
 #include <string>
 #include <tuple>
@@ -124,6 +125,7 @@ private:
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
     std::map<Uuid, BridgeGame> games;
+    std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
@@ -285,6 +287,7 @@ Reply<Uuid> BridgeMain::Impl::game(
                 std::make_tuple(uuid_for_game),
                 std::make_tuple(uuid_for_game, eventSocket, callbackScheduler));
             if (game.second) {
+                availableGames.emplace(uuid_for_game, &game.first->second);
                 return success(uuid_for_game);
             }
         }
@@ -304,10 +307,31 @@ Reply<Uuid> BridgeMain::Impl::join(
         if (iter->second == Role::PEER && (!playerUuid || !gameUuid)) {
             return failure();
         }
-        const auto uuid_for_game = gameUuid.value_or(Uuid {});
-        const auto game = internalGetGame(uuid_for_game);
-        if (game &&
-            (position = game->getPositionForPlayerToJoin(identity, position))) {
+        auto uuid_for_game = Uuid {};
+        auto game = static_cast<BridgeGame*>(nullptr);
+        if (gameUuid || position || availableGames.empty()) {
+            uuid_for_game = gameUuid.value_or(Uuid {});
+            game = internalGetGame(uuid_for_game);
+            if (game) {
+                position = game->getPositionForPlayerToJoin(identity, position);
+            }
+        } else {
+            while (!availableGames.empty()) {
+                const auto& possible_game = availableGames.front();
+                assert(possible_game.second);
+                const auto possible_position =
+                    possible_game.second->getPositionForPlayerToJoin(
+                        identity, boost::none);
+                if (possible_position) {
+                    uuid_for_game = possible_game.first;
+                    game = possible_game.second;
+                    position = possible_position;
+                    break;
+                }
+                availableGames.pop();
+            }
+        }
+        if (game && position) {
             assert(nodePlayerControl);
             if (auto player = nodePlayerControl->createPlayer(identity, playerUuid)) {
                 game->join(identity, *position, std::move(player));
