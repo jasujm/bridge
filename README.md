@@ -110,10 +110,9 @@ different kinds of network topologies can be made. In the pure client‐server
 model one backend controls all positions and all frontends connect to it.
 
     $ bridge tcp://*:5555
-    $ GAME=$(uuidgen)
-    $ bridgegui --game=$GAME --create-game tcp://example.com:5555 &
+    $ bridgegui --create-game tcp://example.com:5555 &
     $ for n in {2..4}; do
-    >   bridgegui --game=$GAME tcp://example.com:5555 &
+    >   bridgegui tcp://example.com:5555 &
     > done
 
 In pure peer‐to‐peer model each player has their own instance of backend
