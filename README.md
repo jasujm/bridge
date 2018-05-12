@@ -10,7 +10,8 @@ bridge application for social games.
 
 - GUI for playing social bridge games
 - Multiple models of networking: client‐server and peer‐to‐peer
-- Cards can be exchanged between peers by secure protocol preventing cheating
+- Cards can be exchanged between peers by mental card game protocol preventing
+  cheating (although see section Security for disclaimers)
 - Duplicate scoring (but no support for duplicate deals yet…)
 
 ## Installing
@@ -55,15 +56,17 @@ the GUI framework and [PyZQM](https://github.com/zeromq/pyzmq) for messaging.
 
 ## Usage
 
+### Backend
+
 Run the backend (server):
 
     $ bridge --positions=positions --connect=peer‐endpoints   \
     >   --cs-cntl=cardserver‐control‐endpoint                 \
     >   --cs-peer=cardserver‐base‐peer‐endpoint endpoint
 
-The backend opens two sockets into two consequtive ports. The first one is
-used to receive commands from the frontend and peers. The second one is for
-publishing events to the clients.
+The backend opens two sockets into two consequtive ports starting at
+`endpoint`. The first one is used to receive commands from the frontend and
+peers. The second one is for publishing events to the clients.
 
 The options are:
 
@@ -73,66 +76,87 @@ The options are:
                for event socket is tcp://*:5556.
     positions  JSON list containing positions the backend instance controls.
                E.g. ["north"]. If omitted, all positions are controlled.
-    connect    JSON list containing ZMQ endpoints of the control sockects of
-               the peers the backend connects to. E.g.
+    connect    JSON list containing the control endpoints of the peers. E.g.
                ["tcp://peer1.example.com:5555", "tcp://peer2.example.com:5555"].
-               If omitted, the backend connects to no peers.
+               If omitted, the game is peerless.
     cs-cntl    Card server control endpoint.
     cs-peer    Base endpoint for peer card servers.
 
-Positions option is only significant if connect option is specified. When
-connecting peers to each other, no position can be controlled by two peers and
-each position must be controlled by some peer. If there are no peers (and thus
-the backend acts purely as server), it always controls all players. See the
-Examples section for more information.
+`positions` option is ignored unless `connect` option is also specified. When
+connecting peers to each other, no position can be controlled by multiple peers
+and each position must be controlled by some peer. If the game is peerless (and
+thus the backend acts purely as server), the single backend always controls all
+players. See the Examples section for more information.
 
-If the last two parameters are present, card server is used for secure card
-exchange between the peers. See the Card server section for more information. If
-they are not present, plaintext simple card exchange protocol is used, so no
+If `cs-cntl` and `cs-peer` options are present, card server is used for secure
+card exchange between the peers. `cs-cntl` is an endpoint reserved for the
+communication between the bridge backend and it’s card server. `cs-peer` is the
+(first) endpoint reserved for communication between the card server instances of
+each peer. See the Card server section for more information. If the two `cs`
+options are not present, plaintext simple card exchange protocol is used, so no
 peeking the network traffic :innocent:
 
 To increase logging level, -v and -vv flags can be used for INFO and DEBUG level
 logging, respectively.
 
+A single backend application can host multiple games identified by UUID. In
+peerless backend, no games initially exist and must be created by the client.
+If instructed to run in peer mode by providing the `connect` option, the backend
+automatically configures a game based on the command line arguments, identified
+by null UUID.
+
+### Frontend
+
 Run the four frontend (client) instances
 
-    $ bridgegui endpoint
+    $ bridgegui [--game UUID] [--create-game] endpoint
 
 where endpoint is the control endpoint of the backend application. Run
 `bridgegui --help` for the remaining options. Exactly one frontend must connect
 for each position the backend controls. The backend automatically assigns
 positions in order the frontends connect.
 
+The client handles creating and joining a game based on it’s command line
+arguments. See the Examples section or use `bridgegui --help`.
+
 ### Examples
 
-By adjusting the positions and peers arguments in the backend application,
-different kinds of network topologies can be made. In the pure client‐server
-model one backend controls all positions and all frontends connect to it.
+By using different command line arguments in the backend application, different
+kinds of network topologies can be made. In the pure client‐server model one
+backend controls all positions and all frontends connect to it.
 
-    $ bridge tcp://*:5555
-    $ bridgegui --create-game tcp://example.com:5555 &
-    $ for n in {2..4}; do
+    server@example.com$ bridge tcp://*:5555 &
+
+    client1@example.com$ bridgegui --create-game tcp://example.com:5555 &
+    client234@example.com$ for n in {2..4}; do
     >   bridgegui tcp://example.com:5555 &
     > done
+
+One of the clients must create a game. Games are identified by UUID, but the
+UUID can be omitted to allow the server to pick a random one.
 
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    $ bridge --positions='["north"]'                                      \
+    peer@example.com$ bridge --positions='["north"]'                     \
     >     --connect='["tcp://peer1.example.com:5555",…]' tcp://*:5555 &
-    $ bridgegui tcp://localhost:5555
+    peer@example.com$ bridgegui tcp://localhost:5555
 
-Players and their cards are shown in the middle of the screen. The player whose
-position is bolded has turn to call (during auction) or play a card to the trick
-(during playing).
+The peers automatically set up a game identified by null UUID. In this case no
+client should create a game (it would be a new game unrelated to the one the
+peers are setting up).
 
 Note! The application does not yet correctly handle peers leaving and rejoining
 the game. If a peer or a card server crashes, the session is lost.
 
-### Score
+### Frontend display
 
 Score sheet is displayed on the right. More rows are added to the sheet after
 every deal.
+
+Players and their cards are shown in the middle of the screen. The player whose
+position is bolded has turn to call (during auction) or play a card to the trick
+(during playing).
 
 ### Call
 
@@ -156,19 +180,24 @@ of contract bridge). Small Python program used to test the card server is run as
 part of the ctest suite.
 
 In order to the use the card server with the bridge application, each peer must
-supply the cs-cntl and cs-peer options when starting the backend application.
-The card server is started, giving the same endpoints as arguments. The control
-endpoint does needs to be visible only to the backend. The peer endpoints must
-be accessible to the peers.
+supply the `cs-cntl` and `cs-peer` options when starting the backend
+application. The card server is started, giving the same endpoints as
+arguments.
 
-    $ bridge --positions='["north"]'                                           \
+The `cs-cntl` endpoint is reserved for communication between the backend and
+it’s card served, and should not be visible to other peers. The `cs-peer`
+endpoints are reserved for communication _between_ card server instances, and
+must be accessible to other peers.
+
+    peer@example.com$ bridge --positions='["north"]'                           \
     >     --connect='["tcp://peer1.example.com:5555",…]'                       \
     >     --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 tcp://*:5555 &
-    $ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
-    $ bridgegui tcp://localhost:5555
+    peer@example.com$ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
+    peer@example.com$ bridgegui tcp://localhost:5555
 
-One port is reserved for each peer. In the example above that means ports
-5565–5567 assuming three peers.
+In the example above, the local TCP port 5560 is reserved for controlling the
+card server. Public TCP ports 5565–5567 (assuming three peers) are reserved for
+communicating with remote card server peers.
 
 ## Building documentation
 
@@ -179,14 +208,26 @@ target
     $ cd /the/build/directory
     $ make doc
 
+## Security
+
+Currently communication between peers and clients is not encrypted or
+authenticated, save the cryptography used in card exchange between card server
+peers. Thus the application is not suitable for public network where the nodes
+can’t trust each other.
+
+Please see LibTMCG documentation for further information about it’s security
+model and assumptions, in particular the honest‐but‐curious security model.
+
 ## TODO
 
 Obviously the application is never complete. Because this is hobby project I do
-to learn about network software — and because I‘m an engineer and not a normal
+to learn about network software — and because I’m an engineer and not a normal
 person — the interesting network stuff comes first and the (in comparison)
 boring UX stuff comes later. In approximate order of importance the next goals
 for this project are:
 
+- Security for public networks (encryption/authentication based on the
+  [CurveZMQ](http://curvezmq.org/) implemented in the ZeroMQ library)
 - More user friendly installation and configuration of the application
 - Persistent state for the backend (persistent sessions, keep records etc.)
 - Nicer user interface and other usability oriented features (claiming tricks,
