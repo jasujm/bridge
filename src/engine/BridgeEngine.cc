@@ -154,8 +154,6 @@ public:
 
     void setPlayer(Position position, std::shared_ptr<Player> player);
 
-    void lockHand(std::shared_ptr<Hand> hand);
-
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
     Observable<DealStarted>& getDealStartedNotifier()
@@ -342,8 +340,6 @@ public:
     sc::result react(const DealCompletedEvent&);
     sc::result react(const DealPassedOutEvent&);
 
-    void lockHand(const Hand& hand);
-
     Bidding& getBidding();
     const Bidding& getBidding() const;
 
@@ -473,15 +469,6 @@ sc::result InDeal::react(const DealPassedOutEvent&)
     context.getDealEndedNotifier().notifyAll(
         BridgeEngine::DealEnded {TricksWon {0, 0}, result});
     return transit<Idle>();
-}
-
-void InDeal::lockHand(const Hand& hand)
-{
-    const auto iter = std::find_if(
-        hands.begin(), hands.end(),
-        [&hand](const auto& hand_ptr) { return hand_ptr.get() == &hand; });
-    assert(iter != hands.end());
-    outermost_context().lockHand(std::move(*iter));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -745,10 +732,11 @@ Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
     if (outermost_context().getPosition(player) == getPositionInTurn() &&
         &hand == getHandInTurn()) {
         auto& in_deal = context<InDeal>();
+        // Arguably a peculiar sequence of commands but correct in the sense
+        // that it converts const Hand& into (non-const) Hand* using the proper
+        // interface
         const auto position = in_deal.getPosition(hand);
-        auto& hand = in_deal.getHand(position);
-        in_deal.lockHand(hand);
-        return &hand;
+        return &in_deal.getHand(position);
     }
     return nullptr;
 }
@@ -1018,11 +1006,6 @@ boost::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
 {
     return internalCallIfInState(&DummyVisible::getDummyHand);
-}
-
-void BridgeEngine::Impl::lockHand(std::shared_ptr<Hand> hand)
-{
-    lockedHand.swap(hand);
 }
 
 void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
