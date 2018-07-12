@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <vector>
+#include <random>
 
 using testing::_;
 using testing::ElementsAreArray;
