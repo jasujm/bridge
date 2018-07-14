@@ -23,9 +23,8 @@ Bridge is written in C++ (backend) and Python (GUI). The backend does all
 actual game logic and communicates with the frontend and other peers using TCP
 sockets.
 
-The backend uses many features from C++14 — deliberately as one of the goals
-of this project was to learn C++14 — so you need modern‐ish compiler. The
-project depends on [ZeroMQ](http://zeromq.org/) for messaging,
+The backend needs modern‐ish C++ compiler supporting C++17. The project depends
+on [ZeroMQ](http://zeromq.org/) for messaging,
 [json](https://github.com/nlohmann/json) to serialize and deserialize messages
 and [Boost](http://www.boost.org/) for various things. Optionally
 [LibTMCG](http://www.nongnu.org/libtmcg/) is used for secure card exchange.

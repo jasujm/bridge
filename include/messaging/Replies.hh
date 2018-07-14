@@ -6,8 +6,6 @@
 #ifndef MESSAGING_REPLIES_HH_
 #define MESSAGING_REPLIES_HH_
 
-#include "Future.hh"
-
 #include <boost/endian/conversion.hpp>
 #include <boost/optional/optional.hpp>
 
@@ -64,8 +62,8 @@ bool isSuccessful(boost::optional<StatusCode> code);
 template<typename MessageString>
 boost::optional<StatusCode> getStatusCode(const MessageString& status)
 {
-    const auto d = data(status);
-    const auto s = size(status) * sizeof(*d);
+    const auto d = std::data(status);
+    const auto s = std::size(status) * sizeof(*d);
     if (s == sizeof(StatusCode)) {
         auto ret = StatusCode {};
         std::memcpy(&ret, d, s);
