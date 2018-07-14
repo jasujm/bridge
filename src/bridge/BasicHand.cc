@@ -1,5 +1,7 @@
 #include "bridge/BasicHand.hh"
 
+#include <cassert>
+
 namespace Bridge {
 
 BasicHand::CardEntry::CardEntry(const Card& card) :

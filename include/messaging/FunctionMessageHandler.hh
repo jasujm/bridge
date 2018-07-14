@@ -13,6 +13,7 @@
 #include <boost/variant/variant.hpp>
 
 #include <array>
+#include <cassert>
 #include <map>
 #include <memory>
 #include <string>
