@@ -50,7 +50,7 @@ const auto CALLS = std::map<std::string, std::function<Call(const json&)>> {
 json JsonConverter<Call>::convertToJson(const Call& call)
 {
     json j = json::object();
-    j[CALL_TYPE_KEY] = boost::apply_visitor(JsonSerializerVisitor {j}, call);
+    j[CALL_TYPE_KEY] = std::visit(JsonSerializerVisitor {j}, call);
     return j;
 }
 

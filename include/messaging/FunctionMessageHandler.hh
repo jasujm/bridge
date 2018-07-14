@@ -9,8 +9,6 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
 
-#include <boost/variant/variant.hpp>
-
 #include <array>
 #include <cassert>
 #include <map>
@@ -20,6 +18,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace Bridge {
 namespace Messaging {
@@ -98,7 +97,7 @@ struct Reply {
 
     /** \brief Variant containing the successful or the failed reply
      */
-    boost::variant<ReplyFailure, ReplySuccess<Args...>> reply;
+    std::variant<ReplyFailure, ReplySuccess<Args...>> reply;
 };
 
 /** \brief Convenience function for creating successful reply
@@ -347,7 +346,7 @@ private:
         auto&& result = function(
             identity,
             ParamTraits<Args>::unwrap(std::get<Ns>(args))...);
-        return boost::apply_visitor(
+        return std::visit(
             ReplyVisitor {serializer, sink, replyKeys}, result.reply);
     }
 

@@ -11,9 +11,9 @@
 #include "bridge/Bid.hh"
 
 #include <boost/operators.hpp>
-#include <boost/variant/variant.hpp>
 
 #include <iosfwd>
+#include <variant>
 
 namespace Bridge {
 
@@ -34,7 +34,7 @@ struct Redouble : private boost::totally_ordered<Redouble> {};
  * A variant object representing a bridge call. A \ref Call object wraps either
  * Bid or any of the tags representing other calls (Pass, Double, Redouble).
  */
-using Call = boost::variant<Pass, Bid, Double, Redouble>;
+using Call = std::variant<Pass, Bid, Double, Redouble>;
 
 /** \brief Equality operator for Pass
  *

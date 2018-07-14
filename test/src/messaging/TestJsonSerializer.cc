@@ -20,6 +20,7 @@
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "scoring/DuplicateScore.hh"
+#include "IoUtility.hh"
 
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>

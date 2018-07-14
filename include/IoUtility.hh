@@ -13,6 +13,7 @@
 #include <istream>
 #include <optional>
 #include <ostream>
+#include <variant>
 
 namespace Bridge {
 
@@ -77,6 +78,21 @@ std::ostream& operator<<(std::ostream& os, const std::optional<T>& t)
         return os << *t;
     }
     return os << "(none)";
+}
+
+/** \brief Output variant
+ *
+ * This function simply applies visitor which uses \c operator<< for the
+ * underlying type.
+ *
+ * \param os the output stream
+ * \param t the value to be written to \p os
+ */
+template<typename T, typename... Ts>
+std::ostream& operator<<(std::ostream& os, const std::variant<T, Ts...>& t)
+{
+    std::visit([&os](const auto& v) { os << v; }, t);
+    return os;
 }
 
 }

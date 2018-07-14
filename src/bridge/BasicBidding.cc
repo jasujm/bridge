@@ -128,7 +128,7 @@ BasicBidding::BasicBidding(const Position openingPosition) :
 void BasicBidding::handleAddCall(const Call &call)
 {
     assert(bool(contract) == !indeterminate(lastBidderHasTurn));
-    auto new_state = boost::apply_visitor(
+    auto new_state = std::visit(
         AddCallVisitor {contract, lastBidderHasTurn}, call);
     calls.emplace_back(call);
 
@@ -155,7 +155,7 @@ Call BasicBidding::handleGetCall(const std::size_t n) const
 bool BasicBidding::handleIsCallAllowed(const Call& call) const
 {
     assert(bool(contract) == !indeterminate(lastBidderHasTurn));
-    return boost::apply_visitor(
+    return std::visit(
         CallAllowedVisitor {contract, lastBidderHasTurn}, call);
 }
 
@@ -182,7 +182,7 @@ Position BasicBidding::handleGetDeclarerPosition() const
     const auto offset = (contract->doubling == Doubling::DOUBLED);
     auto i = (calls.size() + offset) % 2;
     while(true) {
-        if (boost::apply_visitor(visitor, calls.at(i))) {
+        if (std::visit(visitor, calls.at(i))) {
             return clockwise(openingPosition, i);
         }
         i += 2;
