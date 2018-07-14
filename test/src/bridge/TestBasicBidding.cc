@@ -5,9 +5,9 @@
 #include "bridge/Position.hh"
 #include "Enumerate.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <vector>
 
 using Bridge::BasicBidding;
@@ -40,13 +40,13 @@ protected:
 
     void expectContractEquals(const Bid& bid, const Doubling doubling)
     {
-        EXPECT_EQ(boost::make_optional(Contract(bid, doubling)),
+        EXPECT_EQ(std::make_optional(Contract(bid, doubling)),
                   bidding.getContract());
     }
 
     void expectDeclarerPositionIs(const Position position)
     {
-        EXPECT_EQ(boost::make_optional(position),
+        EXPECT_EQ(std::make_optional(position),
                   bidding.getDeclarerPosition());
     }
 
@@ -74,7 +74,7 @@ TEST_F(BasicBiddingTest, testPassOut)
 {
     const std::vector<Call> calls(4, Pass{});
     makeCallsHelper(calls);
-    EXPECT_EQ(boost::make_optional(boost::optional<Contract>(boost::none)),
+    EXPECT_EQ(std::make_optional(std::optional<Contract>(std::nullopt)),
               bidding.getContract());
 }
 

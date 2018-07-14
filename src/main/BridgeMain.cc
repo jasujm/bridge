@@ -24,12 +24,11 @@
 #include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"
 
-#include <boost/optional/optional.hpp>
-#include <boost/optional/optional_io.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <zmq.hpp>
 
 #include <iterator>
+#include <optional>
 #include <queue>
 #include <set>
 #include <string>
@@ -92,24 +91,24 @@ private:
         const std::string& identity, const VersionVector& version,
         const std::string& role);
     Reply<Uuid> game(
-        const std::string& identity, const boost::optional<Uuid>& uuid,
-        const boost::optional<nlohmann::json>& args);
+        const std::string& identity, const std::optional<Uuid>& uuid,
+        const std::optional<nlohmann::json>& args);
     Reply<Uuid> join(
-        const std::string& identity, const boost::optional<Uuid>& gameUuid,
-        const boost::optional<Uuid>& playerUuid,
-        boost::optional<Position> positions);
+        const std::string& identity, const std::optional<Uuid>& gameUuid,
+        const std::optional<Uuid>& playerUuid,
+        std::optional<Position> positions);
     Reply<> call(
         const std::string& identity, const Uuid& gameUuid,
-        const boost::optional<Uuid>& playerUuid, const Call& call);
+        const std::optional<Uuid>& playerUuid, const Call& call);
     Reply<> play(
         const std::string& identity, const Uuid& gameUuid,
-        const boost::optional<Uuid>& playerUuid,
-        const boost::optional<CardType>& card,
-        const boost::optional<std::size_t>& index);
+        const std::optional<Uuid>& playerUuid,
+        const std::optional<CardType>& card,
+        const std::optional<std::size_t>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
-        const std::string& identity, const boost::optional<Uuid>& playerUuid);
+        const std::string& identity, const std::optional<Uuid>& playerUuid);
     void internalInitializePeers(
         zmq::context_t& context, const EndpointVector& peerEndpoints,
         const PositionVector& positions,
@@ -267,8 +266,8 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<Uuid> BridgeMain::Impl::game(
-    const std::string& identity, const boost::optional<Uuid>& gameUuid,
-    const boost::optional<nlohmann::json>& args)
+    const std::string& identity, const std::optional<Uuid>& gameUuid,
+    const std::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
         asHex(identity), gameUuid, args);
@@ -296,8 +295,8 @@ Reply<Uuid> BridgeMain::Impl::game(
 }
 
 Reply<Uuid> BridgeMain::Impl::join(
-    const std::string& identity, const boost::optional<Uuid>& gameUuid,
-    const boost::optional<Uuid>& playerUuid, boost::optional<Position> position)
+    const std::string& identity, const std::optional<Uuid>& gameUuid,
+    const std::optional<Uuid>& playerUuid, std::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         asHex(identity), gameUuid, playerUuid, position);
@@ -321,7 +320,7 @@ Reply<Uuid> BridgeMain::Impl::join(
                 assert(possible_game.second);
                 const auto possible_position =
                     possible_game.second->getPositionForPlayerToJoin(
-                        identity, boost::none);
+                        identity, std::nullopt);
                 if (possible_position) {
                     uuid_for_game = possible_game.first;
                     game = possible_game.second;
@@ -344,7 +343,7 @@ Reply<Uuid> BridgeMain::Impl::join(
 
 Reply<> BridgeMain::Impl::call(
     const std::string& identity, const Uuid& gameUuid,
-    const boost::optional<Uuid>& playerUuid, const Call& call)
+    const std::optional<Uuid>& playerUuid, const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         asHex(identity), gameUuid, playerUuid, call);
@@ -359,9 +358,9 @@ Reply<> BridgeMain::Impl::call(
 
 Reply<> BridgeMain::Impl::play(
     const std::string& identity, const Uuid& gameUuid,
-    const boost::optional<Uuid>& playerUuid,
-    const boost::optional<CardType>& card,
-    const boost::optional<std::size_t>& index)
+    const std::optional<Uuid>& playerUuid,
+    const std::optional<CardType>& card,
+    const std::optional<std::size_t>& index)
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         asHex(identity), gameUuid, playerUuid, card, index);
@@ -413,7 +412,7 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
 }
 
 const Player* BridgeMain::Impl::internalGetPlayerFor(
-    const std::string& identity, const boost::optional<Uuid>& playerUuid)
+    const std::string& identity, const std::optional<Uuid>& playerUuid)
 {
     assert(nodePlayerControl);
     return nodePlayerControl->getPlayer(identity, playerUuid).get();

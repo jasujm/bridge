@@ -22,12 +22,12 @@ bool CardManager::isShuffleCompleted() const
     return handleIsShuffleCompleted();
 }
 
-boost::optional<std::size_t> CardManager::getNumberOfCards() const
+std::optional<std::size_t> CardManager::getNumberOfCards() const
 {
     if (isShuffleCompleted()) {
         return handleGetNumberOfCards();
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 }

@@ -9,11 +9,11 @@
 #include "Observer.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Bridge {
@@ -102,7 +102,7 @@ public:
      * \return the number of cards managed by this object, or none if
      * isShuffleCompleted() == false
      */
-    boost::optional<std::size_t> getNumberOfCards() const;
+    std::optional<std::size_t> getNumberOfCards() const;
 
 protected:
 

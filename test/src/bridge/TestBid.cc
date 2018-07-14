@@ -2,8 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/optional/optional.hpp>
-
 #include <sstream>
 #include <stdexcept>
 

@@ -22,7 +22,6 @@
 #include "Logging.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
@@ -30,6 +29,7 @@
 #include <atomic>
 #include <cstddef>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -46,7 +46,7 @@ namespace Bridge {
 namespace CardServer {
 using PeerVector = std::vector<PeerEntry>;
 using IndexVector = std::vector<std::size_t>;
-using CardVector = std::vector<boost::optional<CardType>>;
+using CardVector = std::vector<std::optional<CardType>>;
 }
 
 namespace CardServer {
@@ -105,9 +105,9 @@ private:
 
     bool revealHelper(PeerStreamEntry& peer, const IndexVector& ns);
 
-    std::vector<boost::optional<PeerStreamEntry>> peers;
+    std::vector<std::optional<PeerStreamEntry>> peers;
     SchindelhauerTMCG tmcg;
-    boost::optional<BarnettSmartVTMF_dlog> vtmf;
+    std::optional<BarnettSmartVTMF_dlog> vtmf;
     TMCG_Stack<VTMF_Card> stack;
     CardVector cards;
 };
@@ -191,8 +191,8 @@ TMCG::TMCG(
 
 bool TMCG::shuffle()
 {
-    auto p_vtmf = vtmf.get_ptr();
-    assert(p_vtmf);
+    assert(vtmf);
+    auto* p_vtmf = &(*vtmf);
 
     TMCG_Stack<VTMF_Card> stack;
     for (const auto type : to(N_CARDS)) {
@@ -231,7 +231,7 @@ bool TMCG::shuffle()
     }
 
     swap(this->stack, stack);
-    std::fill(this->cards.begin(), this->cards.end(), boost::none);
+    std::fill(this->cards.begin(), this->cards.end(), std::nullopt);
     return true;
 }
 
@@ -268,8 +268,8 @@ bool TMCG::revealAll(const IndexVector& ns)
 
 bool TMCG::draw(const IndexVector& ns)
 {
-    auto p_vtmf = vtmf.get_ptr();
-    assert(p_vtmf);
+    assert(vtmf);
+    auto* p_vtmf = &(*vtmf);
 
     for (const auto n : ns) {
         if (n >= N_CARDS) {
@@ -304,8 +304,8 @@ const CardVector& TMCG::getCards() const
 
 bool TMCG::revealHelper(PeerStreamEntry& peer, const IndexVector& ns)
 {
-    auto p_vtmf = vtmf.get_ptr();
-    assert(p_vtmf);
+    assert(vtmf);
+    auto* p_vtmf = &(*vtmf);
 
     for (const auto n : ns) {
         if (n >= N_CARDS) {
@@ -338,7 +338,7 @@ private:
 
     zmq::context_t& context;
     const EndpointIterator peerEndpointIterator;
-    boost::optional<TMCG> tmcg;
+    std::optional<TMCG> tmcg;
     Messaging::MessageLoop messageLoop;
 };
 

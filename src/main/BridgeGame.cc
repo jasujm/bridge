@@ -25,12 +25,11 @@
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "scoring/DuplicateScore.hh"
+#include "IoUtility.hh"
 #include "Logging.hh"
 #include "Observer.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
-#include <boost/optional/optional_io.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 #include <algorithm>
@@ -98,8 +97,8 @@ public:
 
     bool addPeer(const std::string& identity, const nlohmann::json& args);
 
-    boost::optional<Position> getPositionForPlayerToJoin(
-        const std::string& identity, const boost::optional<Position>& position);
+    std::optional<Position> getPositionForPlayerToJoin(
+        const std::string& identity, const std::optional<Position>& position);
 
     void join(
         const std::string& identity, Position position,
@@ -110,8 +109,8 @@ public:
 
     bool play(
         const std::string& identity, const Player& player,
-        const boost::optional<CardType>& card,
-        const boost::optional<std::size_t>& index);
+        const std::optional<CardType>& card,
+        const std::optional<std::size_t>& index);
 
     void startIfReady();
 
@@ -234,15 +233,17 @@ bool BridgeGame::Impl::addPeer(
     for (const auto position : *positions) {
         positionsInUse.insert(position);
     }
-    if (cardProtocol && cardProtocol->acceptPeer(identity, *positions, args)) {
+    if (cardProtocol &&
+        cardProtocol->acceptPeer(
+            identity, *positions, CardProtocol::OptionalArgs {args})) {
         startIfReady();
         return true;
     }
     return false;
 }
 
-boost::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
-    const std::string& identity, const boost::optional<Position>& position)
+std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
+    const std::string& identity, const std::optional<Position>& position)
 {
     const auto iter = peers.find(identity);
     // For peers only controlled positions apply
@@ -252,12 +253,12 @@ boost::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
             controlled_positions.begin(), controlled_positions.end(), *position)
             != controlled_positions.end();
         if (!peer_controls_position) {
-            return boost::none;
+            return std::nullopt;
         }
     }
     // For clients try preferred position if given
     if (position) {
-        return engine.getPlayer(*position) ? boost::none : position;
+        return engine.getPlayer(*position) ? std::nullopt : position;
     }
     // Otherwise select any position (or none if none is free)
     for (const auto p : positionsControlled) {
@@ -265,7 +266,7 @@ boost::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
             return p;
         }
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 void BridgeGame::Impl::join(
@@ -298,8 +299,8 @@ bool BridgeGame::Impl::call(
 
 bool BridgeGame::Impl::play(
     const std::string& identity, const Player& player,
-    const boost::optional<CardType>& card,
-    const boost::optional<std::size_t>& index)
+    const std::optional<CardType>& card,
+    const std::optional<std::size_t>& index)
 {
     // Either card or index - but not both - needs to be provided
     if (bool(card) == bool(index)) {
@@ -390,7 +391,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::BiddingCompleted& event)
 void BridgeGame::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
     const auto hand_position = dereference(engine.getPosition(event.hand));
-    const auto card_type = event.card.getType().get();
+    const auto card_type = dereference(event.card.getType());
     log(LogLevel::DEBUG, "Card played. Position: %s. Card: %s", hand_position,
         card_type);
     publish(
@@ -466,8 +467,8 @@ bool BridgeGame::addPeer(
     return impl->addPeer(identity, args);
 }
 
-boost::optional<Position> BridgeGame::getPositionForPlayerToJoin(
-    const std::string& identity, const boost::optional<Position>& position)
+std::optional<Position> BridgeGame::getPositionForPlayerToJoin(
+    const std::string& identity, const std::optional<Position>& position)
 {
     assert(impl);
     return impl->getPositionForPlayerToJoin(identity, position);
@@ -490,8 +491,8 @@ bool BridgeGame::call(
 
 bool BridgeGame::play(
     const std::string& identity, const Player& player,
-    const boost::optional<CardType>& card,
-    const boost::optional<std::size_t>& index)
+    const std::optional<CardType>& card,
+    const std::optional<std::size_t>& index)
 {
     assert(impl);
     return impl->play(identity, player, card, index);

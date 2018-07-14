@@ -4,8 +4,6 @@
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 
-#include <boost/optional/optional.hpp>
-
 namespace Bridge {
 namespace Engine {
 
@@ -34,20 +32,20 @@ bool GameManager::hasEnded() const
     return handleHasEnded();
 }
 
-boost::optional<Position> GameManager::getOpenerPosition() const
+std::optional<Position> GameManager::getOpenerPosition() const
 {
     if (!hasEnded()) {
         return handleGetOpenerPosition();
     }
-    return boost::none;
+    return std::nullopt;
 }
 
-boost::optional<Vulnerability> GameManager::getVulnerability() const
+std::optional<Vulnerability> GameManager::getVulnerability() const
 {
     if (!hasEnded()) {
         return handleGetVulnerability();
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 }

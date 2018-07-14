@@ -3,7 +3,7 @@
 namespace Bridge {
 namespace Messaging {
 
-bool isSuccessful(boost::optional<StatusCode> code)
+bool isSuccessful(std::optional<StatusCode> code)
 {
     return code && *code >= 0;
 }

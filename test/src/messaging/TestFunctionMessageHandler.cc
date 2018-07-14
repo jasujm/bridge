@@ -2,8 +2,6 @@
 #include "messaging/SerializationFailureException.hh"
 #include "MockSerializationPolicy.hh"
 
-#include <boost/optional/optional_io.hpp>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -72,14 +70,14 @@ Reply<std::string, int> reply2(const std::string&)
     return success(REPLY1, REPLY2);
 }
 
-Reply<boost::optional<std::string>> replyOptional(const std::string&)
+Reply<std::optional<std::string>> replyOptional(const std::string&)
 {
     return success(REPLY1);
 }
 
-Reply<boost::optional<std::string>> replyNone(const std::string&)
+Reply<std::optional<std::string>> replyNone(const std::string&)
 {
-    return success(boost::none);
+    return success(std::nullopt);
 }
 
 class MockFunction {
@@ -87,7 +85,7 @@ public:
     MOCK_METHOD1(call0, Reply<>(std::string));
     MOCK_METHOD2(call1, Reply<>(std::string, std::string));
     MOCK_METHOD3(call2, Reply<>(std::string, int, std::string));
-    MOCK_METHOD2(call_opt, Reply<>(std::string, boost::optional<int>));
+    MOCK_METHOD2(call_opt, Reply<>(std::string, std::optional<int>));
 };
 
 class FailingPolicy {
@@ -213,24 +211,24 @@ TEST_F(FunctionMessageHandlerTest, testInvalidKey)
 
 TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
 {
-    auto handler = makeMessageHandler<boost::optional<int>>(
-        [this](const auto& identity, boost::optional<int> param)
+    auto handler = makeMessageHandler<std::optional<int>>(
+        [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
-    EXPECT_CALL(function, call_opt(IDENTITY, boost::make_optional(123)))
+    EXPECT_CALL(function, call_opt(IDENTITY, std::make_optional(123)))
         .WillOnce(Return(makeReply(true)));
     testHelper(*handler, {KEY1, "123"}, true);
 }
 
 TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
 {
-    auto handler = makeMessageHandler<boost::optional<int>>(
-        [this](const auto& identity, boost::optional<int> param)
+    auto handler = makeMessageHandler<std::optional<int>>(
+        [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
-    EXPECT_CALL(function, call_opt(IDENTITY, boost::optional<int> {}))
+    EXPECT_CALL(function, call_opt(IDENTITY, std::optional<int> {}))
         .WillOnce(Return(makeReply(true)));
     testHelper(*handler, {}, true);
 }

@@ -6,9 +6,9 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/SerializationFailureException.hh"
 
-#include <boost/optional/optional.hpp>
 #include <json.hpp>
 
+#include <optional>
 #include <utility>
 
 #ifndef MESSAGING_JSONSERIALIZERUTILITY_HH_
@@ -91,7 +91,7 @@ auto checkedGet(
 template<typename T>
 void optionalPut(
     nlohmann::json& j, const nlohmann::json::object_t::key_type& key,
-    const boost::optional<T>& t)
+    const std::optional<T>& t)
 {
     if (t) {
         j[key] = toJson(*t);
@@ -113,14 +113,14 @@ void optionalPut(
  * exist in the object
  */
 template<typename T>
-boost::optional<T> optionalGet(
+std::optional<T> optionalGet(
     const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
 {
     const auto iter = j.find(key);
     if (iter != j.end()) {
-        return fromJson<boost::optional<T>>(*iter);
+        return fromJson<std::optional<T>>(*iter);
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 /// \cond DOXYGEN_IGNORE
@@ -138,8 +138,8 @@ struct JsonGetter {
 };
 
 template<typename T>
-struct JsonGetter<boost::optional<T>> {
-    static boost::optional<T> get(
+struct JsonGetter<std::optional<T>> {
+    static std::optional<T> get(
         const nlohmann::json& j, const nlohmann::json::object_t::key_type& key)
     {
         return optionalGet<T>(j, key);
@@ -155,7 +155,7 @@ struct JsonGetter<boost::optional<T>> {
  * This function is used to access an element from JSON object and converting
  * it to the desired type. This function delegates the conversion to either
  * checkedGet<T>() or optionalGet<T>() depending on whether or not \p T is
- * a specialization of boost::optional or not.
+ * a specialization of std::optional or not.
  *
  * \tparam T the type the JSON element is converted to
  *
@@ -221,7 +221,7 @@ std::pair<T1, T2> jsonToPair(
  * \sa JsonSerializer.hh
  */
 template<typename T>
-struct JsonConverter<boost::optional<T>>
+struct JsonConverter<std::optional<T>>
 {
     /** \brief Convert optional type to JSON
      *
@@ -230,7 +230,7 @@ struct JsonConverter<boost::optional<T>>
      * \return If \p t contains value, applies toJson() to the contained value
      * and returns the result. Otherwise returns \c null.
      */
-    static nlohmann::json convertToJson(const boost::optional<T>& t);
+    static nlohmann::json convertToJson(const std::optional<T>& t);
 
     /** \brief Convert JSON to optional type
      *
@@ -243,12 +243,12 @@ struct JsonConverter<boost::optional<T>>
      *
      * \sa optionalToJson()
      */
-    static boost::optional<T> convertFromJson(const nlohmann::json& j);
+    static std::optional<T> convertFromJson(const nlohmann::json& j);
 };
 
 template<typename T>
-nlohmann::json JsonConverter<boost::optional<T>>::convertToJson(
-    const boost::optional<T>& t)
+nlohmann::json JsonConverter<std::optional<T>>::convertToJson(
+    const std::optional<T>& t)
 {
     if (t) {
         return toJson(*t);
@@ -257,11 +257,11 @@ nlohmann::json JsonConverter<boost::optional<T>>::convertToJson(
 }
 
 template<typename T>
-boost::optional<T> JsonConverter<boost::optional<T>>::convertFromJson(
+std::optional<T> JsonConverter<std::optional<T>>::convertFromJson(
     const nlohmann::json& j)
 {
     if (j.is_null()) {
-        return boost::none;
+        return std::nullopt;
     }
     return fromJson<T>(j);
 }
@@ -361,12 +361,12 @@ decltype(auto) validate(T&& t, Pred&& pred, Preds&&... rest)
  * while converting
  */
 template<typename T>
-boost::optional<T> tryFromJson(const nlohmann::json& j)
+std::optional<T> tryFromJson(const nlohmann::json& j)
 {
     try {
         return fromJson<T>(j);
     } catch (const std::exception&) {
-        return boost::none;
+        return std::nullopt;
     }
 }
 

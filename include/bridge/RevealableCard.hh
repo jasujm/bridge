@@ -9,7 +9,7 @@
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
 
-#include <boost/optional/optional.hpp>
+#include <optional>
 
 namespace Bridge {
 
@@ -35,7 +35,7 @@ private:
 
     bool handleIsKnown() const override;
 
-    boost::optional<CardType> cardType;
+    std::optional<CardType> cardType;
 };
 
 }

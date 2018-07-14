@@ -5,7 +5,6 @@
 #include "scoring/DuplicateScore.hh"
 #include "scoring/DuplicateScoring.hh"
 
-#include <boost/optional/optional.hpp>
 
 namespace Bridge {
 namespace Engine {

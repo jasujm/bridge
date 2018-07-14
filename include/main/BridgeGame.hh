@@ -6,11 +6,11 @@
 #include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional/optional_fwd.hpp>
 #include <json.hpp>
 #include <zmq.hpp>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -126,8 +126,8 @@ public:
      * \return position that the player can join, or none in one of the
      * conditions described earlier
      */
-    boost::optional<Position> getPositionForPlayerToJoin(
-        const std::string& identity, const boost::optional<Position>& position);
+    std::optional<Position> getPositionForPlayerToJoin(
+        const std::string& identity, const std::optional<Position>& position);
 
     /** \brief Join a player in the game
      *
@@ -177,8 +177,8 @@ public:
      */
     bool play(
         const std::string& identity, const Player& player,
-        const boost::optional<CardType>& card,
-        const boost::optional<std::size_t>& index);
+        const std::optional<CardType>& card,
+        const std::optional<std::size_t>& index);
 
 private:
 

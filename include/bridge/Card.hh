@@ -6,7 +6,7 @@
 #ifndef CARD_HH_
 #define CARD_HH_
 
-#include <boost/optional/optional_fwd.hpp>
+#include <optional>
 
 namespace Bridge {
 
@@ -24,7 +24,7 @@ public:
      * \return CardType associated with this card, or none if the type is
      * unknown
      */
-    boost::optional<CardType> getType() const;
+    std::optional<CardType> getType() const;
 
     /** \brief Determine if this card is known
      *

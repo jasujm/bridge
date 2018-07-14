@@ -6,11 +6,11 @@
 #include "MockMessageHandler.hh"
 #include "MockMessageLoopCallback.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 #include <json.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <iterator>
 
 using Bridge::Main::CardProtocol;
@@ -31,7 +31,7 @@ TEST_P(CardProtocolTest, testAcceptPeer)
     const auto identity = std::string {"identity"};
     const auto positions = CardProtocol::PositionVector {
         Bridge::Position::NORTH, Bridge::Position::SOUTH};
-    const auto args = boost::make_optional(nlohmann::json {123});
+    const auto args = std::make_optional(nlohmann::json {123});
     EXPECT_CALL(
         protocol,
         handleAcceptPeer(identity, positions, args)).WillOnce(Return(success));

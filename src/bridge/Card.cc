@@ -2,16 +2,14 @@
 
 #include "bridge/CardType.hh"
 
-#include <boost/optional/optional.hpp>
-
 namespace Bridge {
 
 Card::~Card() = default;
 
-boost::optional<CardType> Card::getType() const
+std::optional<CardType> Card::getType() const
 {
     if (!isKnown()) {
-        return boost::none;
+        return std::nullopt;
     }
     return handleGetType();
 }

@@ -2,8 +2,6 @@
 
 #include "IoUtility.hh"
 
-#include <boost/optional/optional.hpp>
-
 #include <initializer_list>
 #include <istream>
 #include <ostream>
@@ -30,7 +28,7 @@ const StrainToStringMap STRAIN_TO_STRING_MAP(
 const Bid Bid::LOWEST_BID {Bid::MINIMUM_LEVEL, Strain::CLUBS};
 const Bid Bid::HIGHEST_BID {Bid::MAXIMUM_LEVEL, Strain::NO_TRUMP};
 
-boost::optional<Bid> nextHigherBid(const Bid& bid)
+std::optional<Bid> nextHigherBid(const Bid& bid)
 {
     if (bid.strain < Strain::NO_TRUMP) {
         // Safe because strains are continuous with Strain::NO_TRUMP being the
@@ -40,7 +38,7 @@ boost::optional<Bid> nextHigherBid(const Bid& bid)
     } else if (bid.level < Bid::MAXIMUM_LEVEL) {
         return Bid {bid.level + 1, Strain::CLUBS};
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 bool operator==(const Bid& lhs, const Bid& rhs)

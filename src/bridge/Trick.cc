@@ -74,7 +74,7 @@ std::size_t Trick::internalGetNumberOfCardsPlayed() const
     return n;
 }
 
-const Hand* getWinner(const Trick& trick, const boost::optional<Suit> trump)
+const Hand* getWinner(const Trick& trick, const std::optional<Suit> trump)
 {
     if (!trick.isCompleted()) {
         return nullptr;

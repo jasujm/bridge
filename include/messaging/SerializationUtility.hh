@@ -25,9 +25,9 @@
 
 #include "messaging/SerializationFailureException.hh"
 
-#include <boost/optional/optional.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <tuple>
 #include <utility>
 
@@ -47,7 +47,7 @@ namespace Messaging {
  * parameter is not found in the range
  */
 template<typename T, typename SerializationPolicy, typename ParamIterator>
-boost::optional<T> deserializeParam(
+std::optional<T> deserializeParam(
     SerializationPolicy&& serializer,
     ParamIterator first, ParamIterator last, const std::string& param)
 {
@@ -58,7 +58,7 @@ boost::optional<T> deserializeParam(
             return serializer.template deserialize<T>(*first);
         }
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 /** \brief Deserialize several strings
@@ -80,7 +80,7 @@ boost::optional<T> deserializeParam(
 template<
     typename... DeserializedTypes, typename SerializationPolicy,
     typename... Strings>
-boost::optional<std::tuple<DeserializedTypes...>> deserializeAll(
+std::optional<std::tuple<DeserializedTypes...>> deserializeAll(
     SerializationPolicy&& serializer, Strings&&... strings)
 {
     static_assert(
@@ -91,7 +91,7 @@ boost::optional<std::tuple<DeserializedTypes...>> deserializeAll(
             serializer.template deserialize<DeserializedTypes>(
                 std::forward<Strings>(strings))...);
     } catch (const SerializationFailureException&) {
-        return boost::none;
+        return std::nullopt;
     }
 }
 

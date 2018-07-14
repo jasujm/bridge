@@ -61,7 +61,7 @@ using namespace std::string_literals;
 using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
-using OptionalCardVector = std::vector<boost::optional<Bridge::CardType>>;
+using OptionalCardVector = std::vector<std::optional<Bridge::CardType>>;
 
 boost::uuids::string_generator STRING_GENERATOR;
 const auto VALID_GAME = STRING_GENERATOR(
@@ -96,10 +96,10 @@ protected:
             .WillByDefault(ReturnPointee(engine));
         ON_CALL(gameInfo, handleGetGameManager())
             .WillByDefault(ReturnPointee(gameManager));
-        players[0] = nodePlayerControl->createPlayer(PLAYER1, boost::none);
-        players[1] = nodePlayerControl->createPlayer(PLAYER2, boost::none);
-        players[2] = nodePlayerControl->createPlayer(PLAYER3, boost::none);
-        players[3] = nodePlayerControl->createPlayer(PLAYER4, boost::none);
+        players[0] = nodePlayerControl->createPlayer(PLAYER1, std::nullopt);
+        players[1] = nodePlayerControl->createPlayer(PLAYER2, std::nullopt);
+        players[2] = nodePlayerControl->createPlayer(PLAYER3, std::nullopt);
+        players[3] = nodePlayerControl->createPlayer(PLAYER4, std::nullopt);
         for (const auto t : boost::combine(POSITIONS, players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
@@ -355,7 +355,7 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
             j.at(POSITION_TO_STRING_MAP.left.at(position)));
         const auto expected = (position == Position::NORTH) ?
             OptionalCardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS_PER_PLAYER)) :
-            OptionalCardVector(N_CARDS_PER_PLAYER, boost::none);
+            OptionalCardVector(N_CARDS_PER_PLAYER, std::nullopt);
         EXPECT_EQ(expected, actual);
     }
 }

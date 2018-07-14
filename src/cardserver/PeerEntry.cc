@@ -7,7 +7,7 @@ namespace Bridge {
 namespace CardServer {
 
 PeerEntry::PeerEntry(
-    std::string identity, boost::optional<std::string> endpoint) :
+    std::string identity, std::optional<std::string> endpoint) :
     identity {std::move(identity)},
     endpoint {std::move(endpoint)}
 {

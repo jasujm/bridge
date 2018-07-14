@@ -1,7 +1,6 @@
 #include "bridge/CardType.hh"
 #include "MockCard.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 using testing::Return;

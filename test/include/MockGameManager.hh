@@ -7,7 +7,6 @@
 #include "bridge/Vulnerability.hh"
 #include "engine/GameManager.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gmock/gmock.h>
 
 namespace Bridge {

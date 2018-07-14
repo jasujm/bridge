@@ -14,10 +14,10 @@
 #include <boost/iterator/indirect_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <vector>
 
@@ -264,7 +264,7 @@ inline auto Hand::end() const
  * \return index of the first occurence of a known card with given type, or
  * none if one couldn’t be found
  */
-boost::optional<std::size_t> findFromHand(
+std::optional<std::size_t> findFromHand(
     const Hand& hand, const CardType& cardType);
 
 /** \brief Convenience function for requesting reveal of all cards in the hand

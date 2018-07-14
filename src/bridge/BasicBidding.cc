@@ -16,12 +16,12 @@ namespace Bridge {
 
 namespace {
 
-using BiddingState = std::pair<boost::optional<Contract>, tribool>;
+using BiddingState = std::pair<std::optional<Contract>, tribool>;
 
 // Visitor for determining how adding a call affects the contract-in-making
 class AddCallVisitor {
 public:
-    AddCallVisitor(const boost::optional<Contract>& contract,
+    AddCallVisitor(const std::optional<Contract>& contract,
                    tribool lastBidderHasTurn) :
         contract {contract},
         lastBidderHasTurn {lastBidderHasTurn}
@@ -53,14 +53,14 @@ public:
     }
 
 private:
-    const boost::optional<Contract>& contract;
+    const std::optional<Contract>& contract;
     tribool lastBidderHasTurn;
 };
 
 // Visitor for determining if call is allowed
 class CallAllowedVisitor {
 public:
-    CallAllowedVisitor(const boost::optional<Contract>& contract,
+    CallAllowedVisitor(const std::optional<Contract>& contract,
                        const tribool& lastBidderHasTurn) :
         contract {contract},
         lastBidderHasTurn {lastBidderHasTurn}
@@ -90,7 +90,7 @@ public:
     }
 
 private:
-    const boost::optional<Contract>& contract;
+    const std::optional<Contract>& contract;
     const tribool lastBidderHasTurn;
 };
 
@@ -159,7 +159,7 @@ bool BasicBidding::handleIsCallAllowed(const Call& call) const
         CallAllowedVisitor {contract, lastBidderHasTurn}, call);
 }
 
-boost::optional<Bid> BasicBidding::handleGetLowestAllowedBid() const
+std::optional<Bid> BasicBidding::handleGetLowestAllowedBid() const
 {
     if (contract) {
         return nextHigherBid(contract->bid);

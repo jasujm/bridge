@@ -14,10 +14,10 @@
 #include <boost/any.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/operators.hpp>
-#include <boost/optional/optional_fwd.hpp>
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <utility>
 
 namespace Bridge {
@@ -318,7 +318,7 @@ public:
      * \return vulnerability for the current deal, or none if the game has
      * ended
      */
-    boost::optional<Vulnerability> getVulnerability() const;
+    std::optional<Vulnerability> getVulnerability() const;
 
     /** \brief Retrieve the position currently in turn
      *
@@ -327,7 +327,7 @@ public:
      * turns instead of dummy. If the game is in state where no position has
      * turn (e.g. before cards have been dealt), return none.
      */
-    boost::optional<Position> getPositionInTurn() const;
+    std::optional<Position> getPositionInTurn() const;
 
     /** \brief Retrieve the player currently in turn
      *
@@ -361,7 +361,7 @@ public:
      * \return the position of the player, or none if the player is not in the
      * game
      */
-    boost::optional<Position> getPosition(const Player& player) const;
+    std::optional<Position> getPosition(const Player& player) const;
 
     /** \brief Retrieve the hand of the player seated at the given position
      *
@@ -398,7 +398,7 @@ public:
      *
      * \todo Return none if the hand is not in the game
      */
-    boost::optional<Position> getPosition(const Hand& hand) const;
+    std::optional<Position> getPosition(const Hand& hand) const;
 
     /** \brief Retrieve the bidding of the current deal
      *
@@ -419,14 +419,14 @@ public:
      * \return the number of tricks played so far, or none if the game is not
      * in the playing phase
      */
-    boost::optional<std::size_t> getNumberOfTricksPlayed() const;
+    std::optional<std::size_t> getNumberOfTricksPlayed() const;
 
     /** \brief Determine the number of tricks won by each partnership
      *
      * \return TricksWon object containing tricks won by each partnership, or
      * none if the game is not in deal phase
      */
-    boost::optional<TricksWon> getTricksWon() const;
+    std::optional<TricksWon> getTricksWon() const;
 
     class Impl;
 

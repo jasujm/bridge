@@ -9,7 +9,8 @@
 #include "bridge/Bid.hh"
 
 #include <boost/iterator/iterator_facade.hpp>
-#include <boost/optional/optional.hpp>
+
+#include <optional>
 
 namespace Bridge {
 
@@ -21,7 +22,7 @@ namespace Bridge {
  * Example for creating a vector containing all possible bids:
  *
  * \code{.cc}
- * std::vector<Bid>(BidIterator(Bid::LOWEST_BID), BidIterator(boost::none))
+ * std::vector<Bid>(BidIterator(Bid::LOWEST_BID), BidIterator(std::nullopt))
  * \endcode
  *
  * \sa Bid
@@ -37,7 +38,7 @@ public:
      * \param bid the first bid in the range, or none if this iterator
      * represents the iterator past the highest bid
      */
-    BidIterator(boost::optional<Bid> bid);
+    BidIterator(std::optional<Bid> bid);
 
 private:
 
@@ -45,7 +46,7 @@ private:
     bool equal(const BidIterator& other) const;
     void increment();
 
-    boost::optional<Bid> bid;
+    std::optional<Bid> bid;
     friend class boost::iterator_core_access;
 };
 

@@ -7,9 +7,9 @@
 #define CARDSERVER_PEERENTRY_HH_
 
 #include <boost/operators.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <iosfwd>
+#include <optional>
 #include <string>
 
 namespace Bridge {
@@ -24,7 +24,7 @@ namespace CardServer {
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
     std::string identity;                   ///< \brief Peer identity
-    boost::optional<std::string> endpoint;  ///< \brief Card server endpoint
+    std::optional<std::string> endpoint;  ///< \brief Card server endpoint
 
     /** \brief Create new peer entry
      *
@@ -33,7 +33,7 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
      */
     explicit PeerEntry(
         std::string identity,
-        boost::optional<std::string> endpoint = boost::none);
+        std::optional<std::string> endpoint = std::nullopt);
 };
 
 /** \brief Equality operator for peer entries

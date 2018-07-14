@@ -14,11 +14,11 @@
 #include "bridge/Vulnerability.hh"
 
 #include <boost/bimap/bimap.hpp>
-#include <boost/optional/optional.hpp>
 #include <boost/operators.hpp>
 
 #include <iosfwd>
 #include <map>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
@@ -71,13 +71,13 @@ struct DealState : private boost::equality_comparable<DealState> {
      * This member is none if the game is not in a phase where a player can
      * act.
      */
-    boost::optional<Position> positionInTurn;
+    std::optional<Position> positionInTurn;
 
     /** \brief The vulnerability status of the deal
      *
      * This member if none if the game has ended.
      */
-    boost::optional<Vulnerability> vulnerability;
+    std::optional<Vulnerability> vulnerability;
 
     /** \brief Type of the \ref cards member
      */
@@ -89,7 +89,7 @@ struct DealState : private boost::equality_comparable<DealState> {
      * player at the position is holding. This member is none if the cards
      * haven’t been dealt yet.
      */
-    boost::optional<Cards> cards;
+    std::optional<Cards> cards;
 
     /** \brief Type of the \ref calls member
      */
@@ -101,19 +101,19 @@ struct DealState : private boost::equality_comparable<DealState> {
      * has started, it is a vector of pairs (in calling order) containing the
      * position of the caller and the call made.
      */
-    boost::optional<Calls> calls;
+    std::optional<Calls> calls;
 
     /** \brief The declarer determined by the bidding
      *
      * This member is none if the bidding isn’t finished.
      */
-    boost::optional<Position> declarer;
+    std::optional<Position> declarer;
 
     /** \brief The contract made by the declarer
      *
      * This member is none if the bidding isn’t finished.
      */
-    boost::optional<Contract> contract;
+    std::optional<Contract> contract;
 
     /** \brief Type of the \ref currentTrick member
      */
@@ -125,13 +125,13 @@ struct DealState : private boost::equality_comparable<DealState> {
      * position of the player and the card played, in the order the cards were
      * played.
      */
-    boost::optional<Trick> currentTrick;
+    std::optional<Trick> currentTrick;
 
     /** \brief The number of tricks won in the current deal
      *
      * This member if none if the playing hasn’t started yet.
      */
-    boost::optional<TricksWon> tricksWon;
+    std::optional<TricksWon> tricksWon;
 };
 
 /** \brief Equality operator for deal states

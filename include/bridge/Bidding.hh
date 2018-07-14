@@ -13,9 +13,9 @@
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 namespace Bridge {
@@ -47,7 +47,7 @@ public:
      * \return the lowest Bid that the position in turn can make, or none if
      * hasEnded() == true or no higher bids are allowed
      */
-    boost::optional<Bid> getLowestAllowedBid() const;
+    std::optional<Bid> getLowestAllowedBid() const;
 
     /** \brief Determine if doubling is allowed
      *
@@ -67,7 +67,7 @@ public:
      *
      * \return the position in turn, or none if the bidding has ended
      */
-    boost::optional<Position> getPositionInTurn() const;
+    std::optional<Position> getPositionInTurn() const;
 
     /** \brief Determine the number of calls made in the bidding
      *
@@ -109,7 +109,7 @@ public:
      * \return optional contract determined by the bidding, or none if bidding
      * is still ongoing
      */
-    boost::optional<boost::optional<Contract>> getContract() const;
+    std::optional<std::optional<Contract>> getContract() const;
 
     /** \brief Determine the declarer
      *
@@ -120,7 +120,7 @@ public:
      *
      * \return the declarer, or none if the bidding is still ongoing
      */
-    boost::optional<boost::optional<Position>> getDeclarerPosition() const;
+    std::optional<std::optional<Position>> getDeclarerPosition() const;
 
     /** \brief Determine if the bidding has ended
      *
@@ -185,7 +185,7 @@ private:
      *
      * \return The lowest bid that the position in turn can make
      */
-    virtual boost::optional<Bid> handleGetLowestAllowedBid() const = 0;
+    virtual std::optional<Bid> handleGetLowestAllowedBid() const = 0;
 
     /** \brief Handle for determining which contract was determined by the
      * bidding
@@ -221,7 +221,7 @@ private:
     virtual bool handleHasContract() const = 0;
 
     template<class T>
-    boost::optional<boost::optional<T>> internalGetIfHasContract(
+    std::optional<std::optional<T>> internalGetIfHasContract(
         T (Bidding::*memfn)() const) const;
 };
 

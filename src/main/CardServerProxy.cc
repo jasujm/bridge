@@ -22,7 +22,6 @@
 #include "Logging.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
 #include <boost/statechart/in_state_reaction.hpp>
@@ -34,6 +33,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <optional>
 #include <queue>
 #include <tuple>
 #include <utility>
@@ -54,7 +54,7 @@ using Impl = CardServerProxy::Impl;
 using PositionVector = CardProtocol::PositionVector;
 using ShufflingState = CardManager::ShufflingState;
 using CardRevealState = Hand::CardRevealState;
-using CardTypeVector = std::vector<boost::optional<CardType>>;
+using CardTypeVector = std::vector<std::optional<CardType>>;
 using CardVector = std::vector<RevealableCard>;
 using IndexVector = std::vector<std::size_t>;
 
@@ -143,13 +143,13 @@ struct RevealAllSuccessfulEvent :
 
 struct PeerPosition {
     PeerPosition(
-        boost::optional<std::string> identity, PositionVector positions) :
+        std::optional<std::string> identity, PositionVector positions) :
         identity {std::move(identity)},
         positions {std::move(positions)}
     {
     }
 
-    boost::optional<std::string> identity;
+    std::optional<std::string> identity;
     PositionVector positions;
 };
 
@@ -536,7 +536,7 @@ void Initializing::internalInitCardServer()
     // Record peers and positions for the future use
     for (const auto n : to(this->peers.size() + 1)) {
         if (n == order) {
-            impl.emplacePeer(boost::none, std::move(selfPositions));
+            impl.emplacePeer(std::nullopt, std::move(selfPositions));
         } else {
             const auto n2 = n - (n > order);
             auto&& positions = this->peers[n2].first;

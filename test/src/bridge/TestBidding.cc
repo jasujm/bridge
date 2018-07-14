@@ -7,11 +7,11 @@
 #include "MockBidding.hh"
 
 #include <boost/logic/tribool.hpp>
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <utility>
 
 using Bridge::Bidding;
@@ -241,7 +241,7 @@ TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsContract)
     EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(bidding, handleHasContract());
     EXPECT_CALL(bidding, handleGetContract());
-    EXPECT_EQ(boost::make_optional(CONTRACT), bidding.getContract());
+    EXPECT_EQ(std::make_optional(CONTRACT), bidding.getContract());
 }
 
 TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsContract)
@@ -266,7 +266,7 @@ TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsNoContract)
     EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(bidding, handleHasContract()).WillOnce(Return(false));
     EXPECT_CALL(bidding, handleGetContract()).Times(0);
-    EXPECT_EQ(boost::make_optional(boost::optional<Contract>(boost::none)),
+    EXPECT_EQ(std::make_optional(std::optional<Contract>(std::nullopt)),
               bidding.getContract());
 }
 

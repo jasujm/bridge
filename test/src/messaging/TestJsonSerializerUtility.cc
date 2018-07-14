@@ -1,6 +1,5 @@
 #include "messaging/JsonSerializerUtility.hh"
 
-#include <boost/optional/optional_io.hpp>
 #include <gtest/gtest.h>
 #include <json.hpp>
 

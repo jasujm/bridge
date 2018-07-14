@@ -101,7 +101,7 @@ TEST_F(AllowedCallsTest, testAllowedBids)
     EXPECT_TRUE(
         std::includes(
             calls.begin(), calls.end(),
-            BidIterator(LOWEST_ALLOWED_BID), BidIterator(boost::none),
+            BidIterator(LOWEST_ALLOWED_BID), BidIterator(std::nullopt),
             compareCalls));
 }
 

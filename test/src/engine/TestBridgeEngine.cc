@@ -24,7 +24,6 @@
 #include "Enumerate.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <boost/range/combine.hpp>
 #include <gtest/gtest.h>
 
@@ -32,6 +31,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -177,7 +177,7 @@ protected:
         Mock::VerifyAndClearExpectations(cardRevealStateObserver.get());
     }
 
-    void assertDealState(boost::optional<Position> dummy = boost::none)
+    void assertDealState(std::optional<Position> dummy = std::nullopt)
     {
         // Deal states for different positions (remove all visible cards
         // except position and dummy)
@@ -370,7 +370,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     }};
     for (const auto i : to(players.size())) {
         assertDealState(
-            i == 0 ? boost::none : boost::make_optional(Position::WEST));
+            i == 0 ? std::nullopt : std::make_optional(Position::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         auto observer = std::make_shared<

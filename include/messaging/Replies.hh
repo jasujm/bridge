@@ -7,9 +7,9 @@
 #define MESSAGING_REPLIES_HH_
 
 #include <boost/endian/conversion.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <iterator>
+#include <optional>
 #include <string>
 
 namespace Bridge {
@@ -46,7 +46,7 @@ constexpr StatusCode REPLY_FAILURE = -12234158;
  *
  * \return true if code and *code >= 0, false otherwise
  */
-bool isSuccessful(boost::optional<StatusCode> code);
+bool isSuccessful(std::optional<StatusCode> code);
 
 /**
  * \brief Interpret status code
@@ -60,7 +60,7 @@ bool isSuccessful(boost::optional<StatusCode> code);
  * \return status code, or none if the input does not contain four bytes
  */
 template<typename MessageString>
-boost::optional<StatusCode> getStatusCode(const MessageString& status)
+std::optional<StatusCode> getStatusCode(const MessageString& status)
 {
     const auto d = std::data(status);
     const auto s = std::size(status) * sizeof(*d);
@@ -69,7 +69,7 @@ boost::optional<StatusCode> getStatusCode(const MessageString& status)
         std::memcpy(&ret, d, s);
         return boost::endian::big_to_native(ret);
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 /** \brief Determine whether or not message is a successful reply

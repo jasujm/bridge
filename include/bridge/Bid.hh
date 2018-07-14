@@ -8,11 +8,11 @@
 
 #include <boost/bimap/bimap.hpp>
 #include <boost/operators.hpp>
-#include <boost/optional/optional_fwd.hpp>
 
 #include <array>
 #include <iosfwd>
 #include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -116,7 +116,7 @@ struct Bid : private boost::totally_ordered<Bid> {
  * \return The lowest bid greater that \p bid, or none if \p bid is already
  * the highest possible bid
  */
-boost::optional<Bid> nextHigherBid(const Bid& bid);
+std::optional<Bid> nextHigherBid(const Bid& bid);
 
 /** \brief Equality operator for bids
  *

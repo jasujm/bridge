@@ -15,7 +15,6 @@
 
 #include <boost/bimap/bimap.hpp>
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/optional/optional.hpp>
 #include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
@@ -189,18 +188,18 @@ public:
         return dealEndedNotifier;
     }
 
-    boost::optional<Vulnerability> getVulnerability() const;
-    boost::optional<Position> getPositionInTurn() const;
+    std::optional<Vulnerability> getVulnerability() const;
+    std::optional<Position> getPositionInTurn() const;
     const Player* getPlayerInTurn() const;
     const Hand* getHandInTurn() const;
     const Player* getPlayer(Position position) const;
-    boost::optional<Position> getPosition(const Player& player) const;
+    std::optional<Position> getPosition(const Player& player) const;
     const Hand* getHand(Position position) const;
-    boost::optional<Position> getPosition(const Hand& hand) const;
+    std::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
-    boost::optional<std::size_t> getNumberOfTricksPlayed() const;
-    boost::optional<TricksWon> getTricksWon() const;
+    std::optional<std::size_t> getNumberOfTricksPlayed() const;
+    std::optional<TricksWon> getTricksWon() const;
     const Hand* getDummyHandIfVisible() const;
     auto makeCardRevealStateObserver();
 
@@ -534,7 +533,7 @@ public:
     Position getDummyPosition() const;
     Hand& getDummyHand();
     const Hand& getDummyHand() const;
-    boost::optional<Suit> getTrump() const;
+    std::optional<Suit> getTrump() const;
 
 private:
     std::vector<std::unique_ptr<Trick>> tricks;
@@ -615,7 +614,7 @@ const Hand& Playing::getDummyHand() const
     return const_cast<Playing&>(*this).getDummyHand();
 }
 
-boost::optional<Suit> Playing::getTrump() const
+std::optional<Suit> Playing::getTrump() const
 {
     const auto contract =
         dereference(dereference(context<InDeal>().getBidding().getContract()));
@@ -629,7 +628,7 @@ boost::optional<Suit> Playing::getTrump() const
     case Strain::SPADES:
         return Suit::SPADES;
     default:
-        return boost::none;
+        return std::nullopt;
     }
 }
 
@@ -649,14 +648,14 @@ public:
     void play();
 
     const Trick* getTrick() const;
-    boost::optional<Position> getPositionInTurn() const;
+    std::optional<Position> getPositionInTurn() const;
     const Hand* getHandInTurn() const;
     Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
     const auto& getNextPlay();
 
 private:
 
-    boost::optional<PlayInfo> playInfo;
+    std::optional<PlayInfo> playInfo;
     std::unique_ptr<Trick> trick;
 };
 
@@ -706,7 +705,7 @@ const Trick* PlayingTrick::getTrick() const
     return trick.get();
 }
 
-boost::optional<Position> PlayingTrick::getPositionInTurn() const
+std::optional<Position> PlayingTrick::getPositionInTurn() const
 {
     if (const auto* hand = getHandInTurn()) {
         auto position = context<InDeal>().getPosition(*hand);
@@ -716,7 +715,7 @@ boost::optional<Position> PlayingTrick::getPositionInTurn() const
         }
         return position;
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 const Hand* PlayingTrick::getHandInTurn() const
@@ -880,7 +879,7 @@ const Hand& DummyVisible::getDummyHand() const
 
 // The following defines a helper for conditionally returning a value from a
 // method call if the BridgeEngine::Impl is in a given state. Return values of
-// methods returning by value are wrapped into boost::optional and return
+// methods returning by value are wrapped into std::optional and return
 // values of methods returning by reference are returned as pointers. The
 // default values if the engine is not in the given state are then none and
 // nullptr, respectively.
@@ -888,7 +887,7 @@ const Hand& DummyVisible::getDummyHand() const
 template<typename T>
 struct BridgeEngine::Impl::InternalCallIfInStateHelper
 {
-    using ReturnType = boost::optional<T>;
+    using ReturnType = std::optional<T>;
     static ReturnType returnValue(T&& v) { return std::move(v); }
 };
 
@@ -919,12 +918,12 @@ void BridgeEngine::Impl::setPlayer(
     playersMap.insert({position, players.back().get()});
 }
 
-boost::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
+std::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
 {
     return dereference(gameManager).getVulnerability();
 }
 
-boost::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
+std::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
 {
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
@@ -932,7 +931,7 @@ boost::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
     } else if (const auto* state = state_cast<const PlayingTrick*>()) {
         return state->getPositionInTurn();
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 const Player* BridgeEngine::Impl::getPlayerInTurn() const
@@ -958,7 +957,7 @@ const Player* BridgeEngine::Impl::getPlayer(const Position position) const
     return (iter != playersMap.left.end()) ? iter->second : nullptr;
 }
 
-boost::optional<Position> BridgeEngine::Impl::getPosition(
+std::optional<Position> BridgeEngine::Impl::getPosition(
     const Player& player) const
 {
     // This const_cast is safe as the player is only used as key
@@ -966,7 +965,7 @@ boost::optional<Position> BridgeEngine::Impl::getPosition(
     if (iter != playersMap.right.end()) {
         return iter->second;
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 const Hand* BridgeEngine::Impl::getHand(const Position position) const
@@ -974,7 +973,7 @@ const Hand* BridgeEngine::Impl::getHand(const Position position) const
     return internalCallIfInState(&InDeal::getHand, position);
 }
 
-boost::optional<Position> BridgeEngine::Impl::getPosition(
+std::optional<Position> BridgeEngine::Impl::getPosition(
     const Hand& hand) const
 {
     return internalCallIfInState(&InDeal::getPosition, hand);
@@ -993,12 +992,12 @@ const Trick* BridgeEngine::Impl::getCurrentTrick() const
     return nullptr;
 }
 
-boost::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
+std::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
 {
     return internalCallIfInState(&Playing::getNumberOfTricksPlayed);
 }
 
-boost::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
+std::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 {
     return internalCallIfInState(&Playing::getTricksWon);
 }
@@ -1136,7 +1135,7 @@ bool BridgeEngine::hasEnded() const
     return impl->terminated();
 }
 
-boost::optional<Vulnerability> BridgeEngine::getVulnerability() const
+std::optional<Vulnerability> BridgeEngine::getVulnerability() const
 {
     assert(impl);
     return impl->getVulnerability();
@@ -1148,7 +1147,7 @@ const Player* BridgeEngine::getPlayerInTurn() const
     return impl->getPlayerInTurn();
 }
 
-boost::optional<Position> BridgeEngine::getPositionInTurn() const
+std::optional<Position> BridgeEngine::getPositionInTurn() const
 {
     assert(impl);
     return impl->getPositionInTurn();
@@ -1174,7 +1173,7 @@ bool BridgeEngine::isVisible(const Hand& hand, const Player& player) const
         &hand == impl->getDummyHandIfVisible();
 }
 
-boost::optional<Position> BridgeEngine::getPosition(const Player& player) const
+std::optional<Position> BridgeEngine::getPosition(const Player& player) const
 {
     assert(impl);
     return impl->getPosition(player);
@@ -1186,7 +1185,7 @@ const Hand* BridgeEngine::getHand(const Position position) const
     return impl->getHand(position);
 }
 
-boost::optional<Position> BridgeEngine::getPosition(const Hand& hand) const
+std::optional<Position> BridgeEngine::getPosition(const Hand& hand) const
 {
     assert(impl);
     return impl->getPosition(hand);
@@ -1204,13 +1203,13 @@ const Trick* BridgeEngine::getCurrentTrick() const
     return impl->getCurrentTrick();
 }
 
-boost::optional<std::size_t> BridgeEngine::getNumberOfTricksPlayed() const
+std::optional<std::size_t> BridgeEngine::getNumberOfTricksPlayed() const
 {
     assert(impl);
     return impl->getNumberOfTricksPlayed();
 }
 
-boost::optional<TricksWon> BridgeEngine::getTricksWon() const
+std::optional<TricksWon> BridgeEngine::getTricksWon() const
 {
     assert(impl);
     return impl->getTricksWon();

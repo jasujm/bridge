@@ -1,7 +1,6 @@
 #include "bridge/CardType.hh"
 #include "bridge/SimpleCard.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 using Bridge::SimpleCard;

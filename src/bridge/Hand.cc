@@ -71,7 +71,7 @@ boost::logic::tribool Hand::handleIsOutOfSuit(const Suit) const
     return boost::indeterminate;
 }
 
-boost::optional<std::size_t> findFromHand(
+std::optional<std::size_t> findFromHand(
     const Hand& hand, const CardType& cardType)
 {
     const auto n_cards = hand.getNumberOfCards();
@@ -81,7 +81,7 @@ boost::optional<std::size_t> findFromHand(
             return n;
         }
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 void requestRevealHand(Hand& hand)

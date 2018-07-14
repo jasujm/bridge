@@ -9,13 +9,13 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
 
-#include <boost/optional/optional.hpp>
 #include <boost/variant/variant.hpp>
 
 #include <array>
 #include <cassert>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -155,9 +155,9 @@ inline auto failure()
  * \endcode
  *
  * FunctionMessageHandler supports optional arguments. If any of the \p Args
- * decays into \c boost::optional<T> for some type \c T, the corresponding
+ * decays into \c std::optional<T> for some type \c T, the corresponding
  * key–value pair may be omitted from the message. If it is present, the value
- * is deserializez as \c T (and not \c boost::optional<T> itself). Similarly,
+ * is deserializez as \c T (and not \c std::optional<T> itself). Similarly,
  * if the reply contains any empty optional values, they are not present in
  * the serialized reply.
  *
@@ -203,7 +203,7 @@ private:
 
     template<typename T>
     struct ParamTraitsImplBase {
-        using WrappedType = boost::optional<T>;
+        using WrappedType = std::optional<T>;
         using DeserializedType = T;
         static void initialize(DeserializedType&& param, WrappedType& wrapper)
         {
@@ -235,7 +235,7 @@ private:
     };
 
     template<typename T>
-    struct ParamTraitsImpl<boost::optional<T>> : public ParamTraitsImplBase<T> {
+    struct ParamTraitsImpl<std::optional<T>> : public ParamTraitsImplBase<T> {
         using Base = ParamTraitsImplBase<T>;
         using WrappedType = typename Base::WrappedType;
         using DeserializedType = typename Base::DeserializedType;
@@ -247,11 +247,11 @@ private:
         {
             return std::move(wrapper);
         }
-        static bool shouldSerialize(const boost::optional<T>& value)
+        static bool shouldSerialize(const std::optional<T>& value)
         {
             return bool(value);
         }
-        static const T& getSerializable(const boost::optional<T>& value)
+        static const T& getSerializable(const std::optional<T>& value)
         {
             assert(value);
             return *value;

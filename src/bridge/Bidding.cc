@@ -18,12 +18,12 @@ bool Bidding::call(const Position position, const Call& call)
     return false;
 }
 
-boost::optional<Bid> Bidding::getLowestAllowedBid() const
+std::optional<Bid> Bidding::getLowestAllowedBid() const
 {
     if (!hasEnded()) {
         return handleGetLowestAllowedBid();
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 bool Bidding::isDoublingAllowed() const
@@ -36,14 +36,14 @@ bool Bidding::isRedoublingAllowed() const
     return !hasEnded() && handleIsCallAllowed(Call {Redouble {}});
 }
 
-boost::optional<Position> Bidding::getPositionInTurn() const
+std::optional<Position> Bidding::getPositionInTurn() const
 {
     if (!hasEnded()) {
         const auto opener = handleGetOpeningPosition();
         const auto steps = getNumberOfCalls();
         return clockwise(opener, steps);
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 std::size_t Bidding::getNumberOfCalls() const
@@ -70,12 +70,12 @@ boost::logic::tribool Bidding::hasContract() const
     return boost::logic::indeterminate;
 }
 
-boost::optional<boost::optional<Contract>> Bidding::getContract() const
+std::optional<std::optional<Contract>> Bidding::getContract() const
 {
     return internalGetIfHasContract(&Bidding::handleGetContract);
 }
 
-boost::optional<boost::optional<Position>> Bidding::getDeclarerPosition() const
+std::optional<std::optional<Position>> Bidding::getDeclarerPosition() const
 {
     return internalGetIfHasContract(&Bidding::handleGetDeclarerPosition);
 }
@@ -86,16 +86,16 @@ bool Bidding::hasEnded() const
 }
 
 template<class T>
-boost::optional<boost::optional<T>> Bidding::internalGetIfHasContract(
+std::optional<std::optional<T>> Bidding::internalGetIfHasContract(
     T (Bidding::*const memfn)() const) const
 {
     if (hasEnded()) {
         if (handleHasContract()) {
-            return boost::optional<T> {(this->*memfn)()};
+            return std::optional<T> {(this->*memfn)()};
         }
-        return boost::optional<T> {boost::none};
+        return std::optional<T> {std::nullopt};
     }
-    return boost::none;
+    return std::nullopt;
 }
 
 }

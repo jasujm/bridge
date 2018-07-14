@@ -7,7 +7,8 @@
 #define ENGINE_GAMEMANAGER_HH_
 
 #include <boost/any.hpp>
-#include <boost/optional/optional_fwd.hpp>
+
+#include <optional>
 
 namespace Bridge {
 
@@ -70,13 +71,13 @@ public:
      * \return the position of the opener of the current deal, or none if the
      * game has ended
      */
-    boost::optional<Position> getOpenerPosition() const;
+    std::optional<Position> getOpenerPosition() const;
 
     /** \brief Determine the vulnerabilities for the current deal
      *
      * \return the vulnerability status, or none if the game has ended
      */
-    boost::optional<Vulnerability> getVulnerability() const;
+    std::optional<Vulnerability> getVulnerability() const;
 
 private:
 

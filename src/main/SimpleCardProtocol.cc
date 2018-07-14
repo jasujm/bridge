@@ -14,9 +14,8 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "Logging.hh"
 
-#include <boost/optional/optional.hpp>
-
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -60,7 +59,7 @@ private:
     Reply<> deal(const std::string& identity, const CardVector& cards);
 
     bool expectingCards {false};
-    boost::optional<std::string> leaderIdentity;
+    std::optional<std::string> leaderIdentity;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
 };
 

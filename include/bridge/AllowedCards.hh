@@ -10,8 +10,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Trick.hh"
-
-#include <boost/optional/optional.hpp>
+#include "Utility.hh"
 
 namespace Bridge {
 
@@ -32,7 +31,7 @@ OutputIterator getAllowedCards(const Trick& trick, OutputIterator out)
         for (const auto& card : *hand) {
             if (trick.canPlay(*hand, card)) {
                 // Can play implies that the type of the card is known
-                *out++ = card.getType().get();
+                *out++ = dereference(card.getType());
             }
         }
     }

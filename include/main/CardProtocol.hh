@@ -9,11 +9,11 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 
-#include <boost/optional/optional.hpp>
 #include <json.hpp>
 #include <zmq.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -44,7 +44,7 @@ public:
      *
      * \sa acceptPeer()
      */
-    using OptionalArgs = boost::optional<nlohmann::json>;
+    using OptionalArgs = std::optional<nlohmann::json>;
 
     /** \brief Vector containing positions
      */

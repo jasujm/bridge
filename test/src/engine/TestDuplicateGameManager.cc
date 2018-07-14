@@ -9,9 +9,9 @@
 #include "scoring/DuplicateScoring.hh"
 #include "Enumerate.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <tuple>
 
 using Bridge::Position;
@@ -39,7 +39,7 @@ TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
 TEST_F(DuplicateGameManagerTest, testAddPassedOut)
 {
     const auto result = gameManager.addPassedOut();
-    EXPECT_EQ(boost::none, boost::any_cast<ScoreEntry>(result));
+    EXPECT_EQ(std::nullopt, boost::any_cast<ScoreEntry>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testAddResult)

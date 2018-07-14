@@ -15,7 +15,6 @@
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/optional/optional.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <zmq.hpp>
@@ -23,6 +22,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 
 using namespace Bridge;
@@ -107,7 +107,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
 {
     EXPECT_TRUE(
         protocol.acceptPeer(
-            PEER, {Position::SOUTH, Position::WEST}, boost::none));
+            PEER, {Position::SOUTH, Position::WEST}, std::nullopt));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();
@@ -128,8 +128,8 @@ TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
     EXPECT_TRUE(
         protocol.acceptPeer(
-            LEADER, {Position::NORTH, Position::EAST}, boost::none));
-    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}, boost::none));
+            LEADER, {Position::NORTH, Position::EAST}, std::nullopt));
+    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}, std::nullopt));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();

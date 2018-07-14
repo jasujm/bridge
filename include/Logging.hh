@@ -12,6 +12,8 @@
 #include <ostream>
 #include <iterator>
 
+#include "IoUtility.hh"
+
 namespace Bridge {
 
 /** \brief Log level
@@ -53,7 +55,13 @@ void log(
         log(first, iter);
     } else {
         logStream().write(std::addressof(*first), iter - first);
-        logStream() << arg;
+        // This seems to be necessary to bring some operator<< overloads defined
+        // in the Bridge namespace into consideration. I hope it doesn't have
+        // any twisted side effects on the lookup...
+        {
+            using Bridge::operator<<;
+            logStream() << arg;
+        }
         log(std::next(iter, 2), last, rest...);
     }
 }

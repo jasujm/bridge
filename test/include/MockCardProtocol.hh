@@ -12,7 +12,7 @@ public:
         handleAcceptPeer,
         bool(
             const std::string& identity, const PositionVector&,
-            const boost::optional<nlohmann::json>&));
+            const std::optional<nlohmann::json>&));
     MOCK_METHOD0(handleInitialize, void());
     MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerVector());
     MOCK_METHOD0(handleGetSockets, SocketVector());

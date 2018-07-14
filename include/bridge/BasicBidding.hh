@@ -11,8 +11,8 @@
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/logic/tribool.hpp>
-#include <boost/optional/optional.hpp>
 
+#include <optional>
 #include <vector>
 
 namespace Bridge {
@@ -44,7 +44,7 @@ private:
 
     bool handleIsCallAllowed(const Call& call) const override;
 
-    boost::optional<Bid> handleGetLowestAllowedBid() const override;
+    std::optional<Bid> handleGetLowestAllowedBid() const override;
 
     Contract handleGetContract() const override;
 
@@ -57,7 +57,7 @@ private:
     const Position openingPosition;
     std::vector<Call> calls;
     boost::logic::tribool lastBidderHasTurn;
-    boost::optional<Contract> contract;
+    std::optional<Contract> contract;
 };
 
 }

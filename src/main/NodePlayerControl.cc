@@ -14,10 +14,10 @@ namespace Main {
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> createPlayer(
-        const std::string& node, const boost::optional<Uuid>& uuid);
+        const std::string& node, const std::optional<Uuid>& uuid);
 
     std::shared_ptr<const Player> getPlayer(
-        const std::string& node, const boost::optional<Uuid>& uuid) const;
+        const std::string& node, const std::optional<Uuid>& uuid) const;
 
 private:
 
@@ -38,7 +38,7 @@ NodePlayerControl::NodePlayerControl() :
 }
 
 std::shared_ptr<Player> NodePlayerControl::Impl::createPlayer(
-    const std::string& node, const boost::optional<Uuid>& uuid)
+    const std::string& node, const std::optional<Uuid>& uuid)
 {
     const auto uuid_for_player = uuid ? *uuid : uuidGenerator();
     const auto iter = std::find_if(
@@ -56,7 +56,7 @@ std::shared_ptr<Player> NodePlayerControl::Impl::createPlayer(
 }
 
 std::shared_ptr<const Player> NodePlayerControl::Impl::getPlayer(
-    const std::string& node, const boost::optional<Uuid>& uuid) const
+    const std::string& node, const std::optional<Uuid>& uuid) const
 {
     const auto last = players.end();
     if (uuid) {
@@ -82,14 +82,14 @@ std::shared_ptr<const Player> NodePlayerControl::Impl::getPlayer(
 NodePlayerControl::~NodePlayerControl() = default;
 
 std::shared_ptr<Player> NodePlayerControl::createPlayer(
-    const std::string& node, const boost::optional<Uuid>& uuid)
+    const std::string& node, const std::optional<Uuid>& uuid)
 {
     assert(impl);
     return impl->createPlayer(node, uuid);
 }
 
 std::shared_ptr<const Player> NodePlayerControl::getPlayer(
-    const std::string& node, const boost::optional<Uuid>& uuid) const
+    const std::string& node, const std::optional<Uuid>& uuid) const
 {
     assert(impl);
     return impl->getPlayer(node, uuid);

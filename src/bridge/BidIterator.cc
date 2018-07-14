@@ -2,7 +2,7 @@
 
 namespace Bridge {
 
-BidIterator::BidIterator(boost::optional<Bid> bid) :
+BidIterator::BidIterator(std::optional<Bid> bid) :
     bid {bid}
 {
 }

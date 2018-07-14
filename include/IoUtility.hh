@@ -11,6 +11,7 @@
 #define IOUTILITY_HH_
 
 #include <istream>
+#include <optional>
 #include <ostream>
 
 namespace Bridge {
@@ -59,6 +60,23 @@ std::istream& inputEnum(std::istream& is, EnumType& e, const MapType& map)
         }
     }
     return is;
+}
+
+/** \brief Output optional value
+ *
+ * If \p t is not empty, outputs the wrapped value using \c operator<< for \c
+ * T. Otherwise outputs the placeholder value “(none)”.
+ *
+ * \param os the output stream
+ * \param t the value to be written to \p os
+ */
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::optional<T>& t)
+{
+    if (t) {
+        return os << *t;
+    }
+    return os << "(none)";
 }
 
 }

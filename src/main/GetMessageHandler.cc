@@ -26,11 +26,11 @@
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/optional/optional.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -88,9 +88,9 @@ std::string getCalls(const BridgeEngine& engine)
 template<typename Result>
 std::string getBiddingResult(
     const BridgeEngine& engine,
-    boost::optional<boost::optional<Result>> (Bidding::*getResult)() const)
+    std::optional<std::optional<Result>> (Bidding::*getResult)() const)
 {
-    auto result = boost::optional<Result> {};
+    auto result = std::optional<Result> {};
     if (const auto bidding = engine.getBidding()) {
         if (bidding->hasContract()) {
             result = dereference((bidding->*getResult)());
@@ -112,7 +112,7 @@ std::string getAllowedCards(const BridgeEngine& engine, const Player& player)
 
 std::string getCards(const Player& player, const BridgeEngine& engine)
 {
-    using CardTypeVector = std::vector<boost::optional<CardType>>;
+    using CardTypeVector = std::vector<std::optional<CardType>>;
     auto cards = nlohmann::json::object();
     for (const auto position : POSITIONS) {
         if (const auto hand = engine.getHand(position)) {
@@ -122,7 +122,7 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
                     boost::make_transform_iterator(hand->begin(), type_func),
                     boost::make_transform_iterator(hand->end(), type_func)) :
                 CardTypeVector(
-                    std::distance(hand->begin(), hand->end()), boost::none);
+                    std::distance(hand->begin(), hand->end()), std::nullopt);
             const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
             cards[position_str] = toJson(cards_in_hand);
         }

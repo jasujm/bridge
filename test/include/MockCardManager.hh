@@ -3,8 +3,6 @@
 
 #include "engine/CardManager.hh"
 
-#include <boost/optional/optional.hpp>
-
 #include <gmock/gmock.h>
 
 namespace Bridge {

@@ -21,7 +21,6 @@
 #include "MockObserver.hh"
 #include "Utility.hh"
 
-#include <boost/optional/optional.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <gtest/gtest.h>
 #include <zmq.hpp>
@@ -29,6 +28,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -126,7 +126,7 @@ protected:
     zmq::context_t context;
     zmq::socket_t proxySocket {context, zmq::socket_type::pair};
     CardServerProxy protocol {context, CONTROL_ENDPOINT};
-    std::vector<boost::optional<CardType>> allCards;
+    std::vector<std::optional<CardType>> allCards;
 };
 
 TEST_F(CardServerProxyTest, testNoMessageHandlers)
@@ -136,25 +136,30 @@ TEST_F(CardServerProxyTest, testNoMessageHandlers)
 
 TEST_F(CardServerProxyTest, testAcceptPeerMissingArgs)
 {
-    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, boost::none));
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, std::nullopt));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerInvalidArgs)
 {
     const auto args = nlohmann::json::array();
-    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, args));
+    EXPECT_FALSE(
+        protocol.acceptPeer(
+            PEER, {Position::SOUTH}, CardProtocol::OptionalArgs {args}));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerWithInvalidEndpoint)
 {
     const auto args = nlohmann::json {{ENDPOINT_COMMAND, nullptr}};
-    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, args));
+    EXPECT_FALSE(
+        protocol.acceptPeer(
+            PEER, {Position::SOUTH}, CardProtocol::OptionalArgs {args}));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerMissingPosition)
 {
     const auto args = makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT);
-    EXPECT_FALSE(protocol.acceptPeer(PEER, {}, args));
+    EXPECT_FALSE(
+        protocol.acceptPeer(PEER, {}, CardProtocol::OptionalArgs {args}));
 }
 
 TEST_F(CardServerProxyTest, testCardServerProxy)
@@ -174,7 +179,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         IsSerialized(
             std::vector<PeerEntry> {
                 PeerEntry {PEER2_HEX, CARD_SERVER_ENDPOINT2},
-                PeerEntry {PEER_HEX, boost::none} }));
+                PeerEntry {PEER_HEX, std::nullopt} }));
 
     const auto manager = protocol.getCardManager();
     ASSERT_TRUE(manager);

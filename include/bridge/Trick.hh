@@ -10,9 +10,9 @@
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 
 namespace Bridge {
@@ -154,7 +154,7 @@ private:
  * is not completed
  */
 const Hand* getWinner(
-    const Trick& trick, boost::optional<Suit> trump = boost::none);
+    const Trick& trick, std::optional<Suit> trump = std::nullopt);
 
 inline auto Trick::trickCardIterator(std::size_t n) const
 {

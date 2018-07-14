@@ -38,7 +38,7 @@ OutputIterator getAllowedCalls(const Bidding& bidding, OutputIterator out)
         *out++ = Redouble {};
     }
     return std::copy(
-        BidIterator(bidding.getLowestAllowedBid()), BidIterator(boost::none),
+        BidIterator(bidding.getLowestAllowedBid()), BidIterator(std::nullopt),
         out);
 }
 

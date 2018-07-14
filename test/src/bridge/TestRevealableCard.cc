@@ -1,7 +1,6 @@
 #include "bridge/CardType.hh"
 #include "bridge/RevealableCard.hh"
 
-#include <boost/optional/optional.hpp>
 #include <gtest/gtest.h>
 
 namespace {

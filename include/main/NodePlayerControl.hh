@@ -9,9 +9,9 @@
 #include "bridge/Player.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional/optional.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace Bridge {
@@ -47,7 +47,7 @@ public:
      * \param uuid UUID of the new player
      */
     std::shared_ptr<Player> createPlayer(
-        const std::string& node, const boost::optional<Uuid>& uuid);
+        const std::string& node, const std::optional<Uuid>& uuid);
 
     /** \brief Get player if the node is allowed to act for itself
      *
@@ -64,7 +64,7 @@ public:
      */
     std::shared_ptr<const Player> getPlayer(
         const std::string& node,
-        const boost::optional<Uuid>& uuid = boost::none) const;
+        const std::optional<Uuid>& uuid = std::nullopt) const;
 
 private:
 

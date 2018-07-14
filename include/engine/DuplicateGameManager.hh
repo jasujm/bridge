@@ -9,7 +9,8 @@
 #include "engine/GameManager.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <boost/optional/optional_fwd.hpp>
+
+#include <optional>
 
 namespace Bridge {
 
@@ -38,7 +39,7 @@ public:
      * methods. If the deal is played, the entry contains score for the deal. If
      * passed out, the entry is none.
      */
-    using ScoreEntry = boost::optional<Scoring::DuplicateScore>;
+    using ScoreEntry = std::optional<Scoring::DuplicateScore>;
 
     /** \brief Create new duplicate game manager
      */

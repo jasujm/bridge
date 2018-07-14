@@ -40,7 +40,7 @@ protected:
     }
 
     void assertReply(
-        bool success, boost::optional<std::string> command, bool more = false)
+        bool success, std::optional<std::string> command, bool more = false)
     {
         const auto status = recvMessage(frontSocket);
         EXPECT_EQ(success, isSuccessful(getStatusCode(status.first)));
@@ -100,7 +100,7 @@ TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 
     messageQueue(backSocket);
 
-    assertReply(false, boost::none);
+    assertReply(false, std::nullopt);
 }
 
 TEST_F(MessageQueueTest, testReply)
