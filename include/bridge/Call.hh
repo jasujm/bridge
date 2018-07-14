@@ -31,10 +31,8 @@ struct Redouble : private boost::totally_ordered<Redouble> {};
 
 /** \brief Bridge call
  *
- * A call is a discriminated union of either Bid or any of the tags
- * representing other calls (pass, double, redouble). See
- * http://www.boost.org/doc/libs/1_60_0/doc/html/variant.html for
- * documentation on boost::variant used to implement the call.
+ * A variant object representing a bridge call. A \ref Call object wraps either
+ * Bid or any of the tags representing other calls (Pass, Double, Redouble).
  */
 using Call = boost::variant<Pass, Bid, Double, Redouble>;
 
@@ -74,7 +72,10 @@ inline bool operator<(Redouble, Redouble) { return false; }
 
 /** \brief Output pass to stream
  *
- * This function is required to generator operator<< for \ref Call.
+ * The representation of a Pass tag is just the string “pass”.
+ *
+ * \note This function is required to generate proper streaming operator for the
+ * variant type \ref Call.
  *
  * \param os the output stream
  *
@@ -84,7 +85,10 @@ std::ostream& operator<<(std::ostream& os, Pass);
 
 /** \brief Output double to stream
  *
- * This function is required to generator operator<< for \ref Call.
+ * The representation of a Double tag is just the string “double”.
+ *
+ * \note This function is required to generate proper streaming operator for the
+ * variant type \ref Call.
  *
  * \param os the output stream
  *
@@ -94,7 +98,10 @@ std::ostream& operator<<(std::ostream& os, Double);
 
 /** \brief Output redouble to stream
  *
- * This function is required to generator operator<< for \ref Call.
+ * The representation of a Redouble tag is just the string “redouble”.
+ *
+ * \note This function is required to generate proper streaming operator for the
+ * variant type \ref Call.
  *
  * \param os the output stream
  *
