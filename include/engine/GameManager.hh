@@ -6,8 +6,7 @@
 #ifndef ENGINE_GAMEMANAGER_HH_
 #define ENGINE_GAMEMANAGER_HH_
 
-#include <boost/any.hpp>
-
+#include <any>
 #include <optional>
 
 namespace Bridge {
@@ -45,7 +44,7 @@ public:
      * implementation of GameManager, but the intention is for it to describe
      * the scores of each side. If the game has ended, empty object is returned.
      */
-    boost::any addResult(
+    std::any addResult(
         Partnership partnership, const Contract& contract, int tricksWon);
 
     /** \brief Add passed out deal
@@ -58,7 +57,7 @@ public:
      * implementation of GameManager, but the intention is for it to describe
      * the scores of each side. If the game has ended, empty object is returned.
      */
-    boost::any addPassedOut();
+    std::any addPassedOut();
 
     /** \brief Determine if the game has ended
      *
@@ -87,7 +86,7 @@ private:
      *
      * \sa addResult()
      */
-    virtual boost::any handleAddResult(
+    virtual std::any handleAddResult(
         Partnership partnership, const Contract& contract, int tricksWon) = 0;
 
     /** \brief Handle for adding a passed out deal
@@ -96,7 +95,7 @@ private:
      *
      * \sa addPassedOut()
      */
-    virtual boost::any handleAddPassedOut() = 0;
+    virtual std::any handleAddPassedOut() = 0;
 
     /** \brief Handle for determining if the game has ended
      *

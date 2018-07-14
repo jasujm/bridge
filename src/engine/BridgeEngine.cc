@@ -1255,7 +1255,7 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 }
 
 BridgeEngine::DealEnded::DealEnded(
-    const TricksWon& tricksWon, const boost::any& result) :
+    const TricksWon& tricksWon, const std::any& result) :
     tricksWon {tricksWon},
     result {result}
 {

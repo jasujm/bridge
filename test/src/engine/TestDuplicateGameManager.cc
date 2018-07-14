@@ -39,7 +39,7 @@ TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
 TEST_F(DuplicateGameManagerTest, testAddPassedOut)
 {
     const auto result = gameManager.addPassedOut();
-    EXPECT_EQ(std::nullopt, boost::any_cast<ScoreEntry>(result));
+    EXPECT_EQ(std::nullopt, std::any_cast<ScoreEntry>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testAddResult)
@@ -49,7 +49,7 @@ TEST_F(DuplicateGameManagerTest, testAddResult)
     EXPECT_EQ(
         Bridge::Scoring::calculateDuplicateScore(
             PARTNERSHIP, CONTRACT, false, TRICKS_WON),
-        boost::any_cast<ScoreEntry>(result));
+        std::any_cast<ScoreEntry>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)

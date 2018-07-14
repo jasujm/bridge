@@ -25,7 +25,7 @@ DuplicateGameManager::DuplicateGameManager() :
 {
 }
 
-boost::any DuplicateGameManager::handleAddResult(
+std::any DuplicateGameManager::handleAddResult(
     const Partnership partnership, const Contract& contract,
     const int tricksWon)
 {
@@ -37,7 +37,7 @@ boost::any DuplicateGameManager::handleAddResult(
             tricksWon)};
 }
 
-boost::any DuplicateGameManager::handleAddPassedOut()
+std::any DuplicateGameManager::handleAddPassedOut()
 {
     ++round;
     return ScoreEntry {};

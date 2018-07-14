@@ -11,10 +11,10 @@
 #include "bridge/Vulnerability.hh"
 #include "Observer.hh"
 
-#include <boost/any.hpp>
 #include <boost/core/noncopyable.hpp>
 #include <boost/operators.hpp>
 
+#include <any>
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -147,7 +147,7 @@ public:
          * \param tricksWon see \ref tricksWon
          * \param result see \ref result
          */
-        DealEnded(const TricksWon& tricksWon, const boost::any& result);
+        DealEnded(const TricksWon& tricksWon, const std::any& result);
 
         /** \brief Tricks won in the deal
          *
@@ -160,7 +160,7 @@ public:
          * \note This is the object returned by the game manager. The client
          * needs to interpret it according to the type of the game manager.
          */
-        const boost::any& result;
+        const std::any& result;
     };
 
     /** \brief Create new bridge engine
