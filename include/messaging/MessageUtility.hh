@@ -103,22 +103,25 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
 
 /** \brief Receive message sent through socket
  *
- * \tparam String the type of the string returned by the function
+ * \tparam MessageType the type of the message. It's expected to be a standard
+ * container (vector, string etc.) holding POD elements.
  *
  * \param socket the socket used to receive the message
  *
  * \return A pair containing the following
- *   - string containing the message
+ *   - the message (single frame)
  *   - boolean indicating whether there are more parts in the message
  */
-template<typename String = std::string>
-std::pair<String, bool> recvMessage(zmq::socket_t& socket)
+template<typename MessageType = std::string>
+std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
 {
-    using CharType = typename String::value_type;
+    using ValueType = typename MessageType::value_type;
     auto msg = zmq::message_t {};
     socket.recv(&msg);
+    const auto first = msg.data<ValueType>();
+    const auto last = first + msg.size() / sizeof(ValueType);
     const auto more = socket.getsockopt<std::int64_t>(ZMQ_RCVMORE);
-    return {{msg.data<CharType>(), msg.size() / sizeof(CharType)}, more != 0};
+    return {MessageType(first, last), more != 0};
 }
 
 /** \brief Receive (and ignore) empty frame if necessary
