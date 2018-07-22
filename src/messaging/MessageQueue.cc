@@ -1,5 +1,6 @@
 #include "messaging/MessageQueue.hh"
 
+#include "messaging/Identity.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
@@ -16,18 +17,18 @@ namespace {
 
 using StringVector = std::vector<std::string>;
 
-bool recvIdentityIfRouter(std::string& identity, zmq::socket_t& socket)
+bool recvIdentityIfRouter(Identity& identity, zmq::socket_t& socket)
 {
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     bool more = true;
     if (type == zmq::socket_type::router) {
-        std::tie(identity, more) = recvMessage(socket);
+        std::tie(identity, more) = recvMessage<Identity>(socket);
     }
     return more;
 }
 
 bool recvMessageHelper(
-    std::string& identity, StringVector& message, zmq::socket_t& socket)
+    Identity& identity, StringVector& message, zmq::socket_t& socket)
 {
     if (!recvIdentityIfRouter(identity, socket)) {
         return false;
@@ -36,7 +37,7 @@ bool recvMessageHelper(
     return !message.empty();
 }
 
-void sendIdentityIfRouter(const std::string& identity, zmq::socket_t& socket)
+void sendIdentityIfRouter(const Identity& identity, zmq::socket_t& socket)
 {
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     if (type == zmq::socket_type::router) {
@@ -45,7 +46,7 @@ void sendIdentityIfRouter(const std::string& identity, zmq::socket_t& socket)
 }
 
 void sendReplyHelper(
-    const std::string& identity, const bool success,
+    const Identity& identity, const bool success,
     const StringVector& output, zmq::socket_t& socket)
 {
     sendIdentityIfRouter(identity, socket);
@@ -80,7 +81,7 @@ bool MessageQueue::trySetHandler(
 void MessageQueue::operator()(zmq::socket_t& socket)
 {
     auto message = std::vector<std::string> {};
-    auto identity = std::string {};
+    auto identity = Identity {};
     auto success = false;
     auto output = std::vector<std::string> {};
     if (recvMessageHelper(identity, message, socket)) {

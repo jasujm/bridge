@@ -11,7 +11,7 @@ public:
     MOCK_METHOD3(
         handleAcceptPeer,
         bool(
-            const std::string& identity, const PositionVector&,
+            const Messaging::Identity& identity, const PositionVector&,
             const std::optional<nlohmann::json>&));
     MOCK_METHOD0(handleInitialize, void());
     MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerVector());

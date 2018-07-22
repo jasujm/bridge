@@ -53,6 +53,7 @@ namespace CardServer {
 
 using Messaging::EndpointIterator;
 using Messaging::failure;
+using Messaging::Identity;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
 using Messaging::Reply;
@@ -82,7 +83,7 @@ public:
         EndpointIterator peerEndpointIterator);
 
     bool shuffle();
-    bool reveal(const std::string& identity, const IndexVector& ns);
+    bool reveal(const Identity& identity, const IndexVector& ns);
     bool revealAll(const IndexVector& ns);
     bool draw(const IndexVector& ns);
 
@@ -100,7 +101,7 @@ private:
         Messaging::MessageBuffer outbuffer;
         std::istream instream;
         std::ostream outstream;
-        std::string identity;
+        Identity identity;
     };
 
     bool revealHelper(PeerStreamEntry& peer, const IndexVector& ns);
@@ -235,7 +236,7 @@ bool TMCG::shuffle()
     return true;
 }
 
-bool TMCG::reveal(const std::string& identity, const IndexVector& ns)
+bool TMCG::reveal(const Identity& identity, const IndexVector& ns)
 {
     const auto iter = std::find_if(
         peers.begin(), peers.end(),
@@ -329,12 +330,12 @@ public:
 
 private:
 
-    Reply<> init(const std::string&, int order, PeerVector&& peers);
-    Reply<> shuffle(const std::string&);
-    Reply<CardVector> draw(const std::string&, const IndexVector& ns);
+    Reply<> init(const Identity&, int order, PeerVector&& peers);
+    Reply<> shuffle(const Identity&);
+    Reply<CardVector> draw(const Identity&, const IndexVector& ns);
     Reply<> reveal(
-        const std::string&, const std::string& identity, const IndexVector& ns);
-    Reply<CardVector> revealAll(const std::string&, const IndexVector& ns);
+        const Identity&, const Identity& identity, const IndexVector& ns);
+    Reply<CardVector> revealAll(const Identity&, const IndexVector& ns);
 
     zmq::context_t& context;
     const EndpointIterator peerEndpointIterator;
@@ -396,7 +397,7 @@ void CardServerMain::Impl::run()
 }
 
 Reply<> CardServerMain::Impl::init(
-    const std::string&, const int order, PeerVector&& peers)
+    const Identity&, const int order, PeerVector&& peers)
 {
     log(LogLevel::DEBUG, "Initializing");
     if (!tmcg) {
@@ -411,7 +412,7 @@ Reply<> CardServerMain::Impl::init(
     return failure();
 }
 
-Reply<> CardServerMain::Impl::shuffle(const std::string&)
+Reply<> CardServerMain::Impl::shuffle(const Identity&)
 {
     log(LogLevel::DEBUG, "Shuffling requested");
     if (tmcg && tmcg->shuffle()) {
@@ -422,7 +423,7 @@ Reply<> CardServerMain::Impl::shuffle(const std::string&)
 }
 
 Reply<CardVector> CardServerMain::Impl::draw(
-    const std::string&, const IndexVector& ns)
+    const Identity&, const IndexVector& ns)
 {
     log(LogLevel::DEBUG, "Drawing %d cards", ns.size());
     if (tmcg && tmcg->draw(ns)) {
@@ -433,7 +434,7 @@ Reply<CardVector> CardServerMain::Impl::draw(
 }
 
 Reply<> CardServerMain::Impl::reveal(
-    const std::string&, const std::string& identity, const IndexVector& ns)
+    const Identity&, const Identity& identity, const IndexVector& ns)
 {
     log(LogLevel::DEBUG, "Revealing %d cards to %s", ns.size(), asHex(identity));
     if (tmcg && tmcg->reveal(identity, ns)) {
@@ -444,7 +445,7 @@ Reply<> CardServerMain::Impl::reveal(
 }
 
 Reply<CardVector> CardServerMain::Impl::revealAll(
-    const std::string&, const IndexVector& ns)
+    const Identity&, const IndexVector& ns)
 {
     log(LogLevel::DEBUG, "Revealing %d cards to all players");
     if (tmcg && tmcg->revealAll(ns)) {

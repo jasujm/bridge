@@ -16,6 +16,7 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
+#include "messaging/Identity.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageLoop.hh"
@@ -39,6 +40,7 @@ namespace Bridge {
 namespace Main {
 
 using Messaging::failure;
+using Messaging::Identity;
 using Messaging::JsonSerializer;
 using Messaging::makeMessageHandler;
 using Messaging::MessageQueue;
@@ -88,27 +90,27 @@ public:
 private:
 
     Reply<> hello(
-        const std::string& identity, const VersionVector& version,
+        const Identity& identity, const VersionVector& version,
         const std::string& role);
     Reply<Uuid> game(
-        const std::string& identity, const std::optional<Uuid>& uuid,
+        const Identity& identity, const std::optional<Uuid>& uuid,
         const std::optional<nlohmann::json>& args);
     Reply<Uuid> join(
-        const std::string& identity, const std::optional<Uuid>& gameUuid,
+        const Identity& identity, const std::optional<Uuid>& gameUuid,
         const std::optional<Uuid>& playerUuid,
         std::optional<Position> positions);
     Reply<> call(
-        const std::string& identity, const Uuid& gameUuid,
+        const Identity& identity, const Uuid& gameUuid,
         const std::optional<Uuid>& playerUuid, const Call& call);
     Reply<> play(
-        const std::string& identity, const Uuid& gameUuid,
+        const Identity& identity, const Uuid& gameUuid,
         const std::optional<Uuid>& playerUuid,
         const std::optional<CardType>& card,
         const std::optional<std::size_t>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
-        const std::string& identity, const std::optional<Uuid>& playerUuid);
+        const Identity& identity, const std::optional<Uuid>& playerUuid);
     void internalInitializePeers(
         zmq::context_t& context, const EndpointVector& peerEndpoints,
         const PositionVector& positions,
@@ -117,7 +119,7 @@ private:
 
     UuidGenerator uuidGenerator {createUuidGenerator()};
     bool peerMode;
-    std::map<std::string, Role> nodes;
+    std::map<Identity, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
     std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
@@ -245,7 +247,7 @@ void BridgeMain::Impl::run()
 }
 
 Reply<> BridgeMain::Impl::hello(
-    const std::string& identity, const VersionVector& version,
+    const Identity& identity, const VersionVector& version,
     const std::string& role)
 {
     log(LogLevel::DEBUG, "Hello command from %s. Version: %d. Role: %s",
@@ -266,7 +268,7 @@ Reply<> BridgeMain::Impl::hello(
 }
 
 Reply<Uuid> BridgeMain::Impl::game(
-    const std::string& identity, const std::optional<Uuid>& gameUuid,
+    const Identity& identity, const std::optional<Uuid>& gameUuid,
     const std::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
@@ -295,7 +297,7 @@ Reply<Uuid> BridgeMain::Impl::game(
 }
 
 Reply<Uuid> BridgeMain::Impl::join(
-    const std::string& identity, const std::optional<Uuid>& gameUuid,
+    const Identity& identity, const std::optional<Uuid>& gameUuid,
     const std::optional<Uuid>& playerUuid, std::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
@@ -342,7 +344,7 @@ Reply<Uuid> BridgeMain::Impl::join(
 }
 
 Reply<> BridgeMain::Impl::call(
-    const std::string& identity, const Uuid& gameUuid,
+    const Identity& identity, const Uuid& gameUuid,
     const std::optional<Uuid>& playerUuid, const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
@@ -357,7 +359,7 @@ Reply<> BridgeMain::Impl::call(
 }
 
 Reply<> BridgeMain::Impl::play(
-    const std::string& identity, const Uuid& gameUuid,
+    const Identity& identity, const Uuid& gameUuid,
     const std::optional<Uuid>& playerUuid,
     const std::optional<CardType>& card,
     const std::optional<std::size_t>& index)
@@ -412,7 +414,7 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
 }
 
 const Player* BridgeMain::Impl::internalGetPlayerFor(
-    const std::string& identity, const std::optional<Uuid>& playerUuid)
+    const Identity& identity, const std::optional<Uuid>& playerUuid)
 {
     assert(nodePlayerControl);
     return nodePlayerControl->getPlayer(identity, playerUuid).get();

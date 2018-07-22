@@ -14,7 +14,7 @@
  * }
  * \endcode
  *
- * - &lt;id&gt; is a string containing the identity of the peer
+ * - &lt;id&gt; is a opaque hex encoded binary string identifying the peer
  * - &lt;endpoint&gt; is a string containing the endpoint of the peer. Optional.
  *
  * \sa \ref cardserverprotocol

@@ -3,6 +3,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
+#include "messaging/Identity.hh"
 #include "main/BridgeGameInfo.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -95,13 +96,14 @@ public:
      * returns true if the peer is successfully accepted, or false if not, in
      * which case the call has no effect.
      *
-     * \param identity identity of the peer
+     * \param identity the identity of the peer
      * \param args arguments for initializing the game (parameter to \ref
      * bridgeprotocolcontrolgame command)
      *
      * \return true if the peer was successfully accepted, false otherwise
      */
-    bool addPeer(const std::string& identity, const nlohmann::json& args);
+    bool addPeer(
+        const Messaging::Identity& identity, const nlohmann::json& args);
 
     /** \brief Get position that a player can join in
      *
@@ -127,7 +129,8 @@ public:
      * conditions described earlier
      */
     std::optional<Position> getPositionForPlayerToJoin(
-        const std::string& identity, const std::optional<Position>& position);
+        const Messaging::Identity& identity,
+        const std::optional<Position>& position);
 
     /** \brief Join a player in the game
      *
@@ -146,7 +149,7 @@ public:
      * \param player the player to join the game
      */
     void join(
-        const std::string& identity, Position position,
+        const Messaging::Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
     /** \brief Make call
@@ -161,7 +164,8 @@ public:
      * \return true if the call was successful, false otherwise
      */
     bool call(
-        const std::string& identity, const Player& player, const Call& call);
+        const Messaging::Identity& identity, const Player& player,
+        const Call& call);
 
     /** \brief Play a card
      *
@@ -176,7 +180,7 @@ public:
      * \return true if the call was successful, false otherwise
      */
     bool play(
-        const std::string& identity, const Player& player,
+        const Messaging::Identity& identity, const Player& player,
         const std::optional<CardType>& card,
         const std::optional<std::size_t>& index);
 

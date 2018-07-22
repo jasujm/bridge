@@ -71,7 +71,7 @@ public:
 
     /** \brief Receive and reply the next message
      *
-     * When called, the method receives a message from \p socket, dispatchesq
+     * When called, the method receives a message from \p socket, dispatches
      * it to the correct handler and sends the reply through \p socket. The
      * reply is either REPLY_SUCCESS or REPLY_FAILURE, as determined by the
      * MessageHandler the message is dispatched to. If the MessageHandler
@@ -86,8 +86,9 @@ public:
      * type of \p socket should support the intended use. For example rep,
      * pair or router are such socket types.
      *
-     * \note If \p socket is not router, the identity passed to the message
-     * handler is always an empty string.
+     * \note MessageQueue passes the identity received from the socket as
+     * argument to the MessageHandler instances. If \p socket is not router, the
+     * identity passed to the message handler is always an empty blob.
      *
      * \param socket the socket the message is received from and the reply is
      * sent to

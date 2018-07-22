@@ -39,10 +39,10 @@ def cleanup(servers):
 
 REPLY_SUCCESS = [b'\0\0OK']
 PEERS = [
-    PeerEntry("peer1", 5501, 5510),
-    PeerEntry("peer2", 5502, 5520),
-    PeerEntry("peer3", 5503, 5530),
-    PeerEntry("peer4", 5504, 5540)]
+    PeerEntry("12", 5501, 5510),
+    PeerEntry("34", 5502, 5520),
+    PeerEntry("56", 5503, 5530),
+    PeerEntry("78", 5504, 5540)]
 
 CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 

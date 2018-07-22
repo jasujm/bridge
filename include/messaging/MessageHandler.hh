@@ -6,6 +6,8 @@
 #ifndef MESSAGING_MESSAGEHANDLER_HH_
 #define MESSAGING_MESSAGEHANDLER_HH_
 
+#include "messaging/Identity.hh"
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -42,7 +44,7 @@ public:
      */
     template<typename OutputIterator, typename ParameterIterator>
     bool handle(
-        const std::string& identity,
+        const Identity& identity,
         ParameterIterator first, ParameterIterator last, OutputIterator out);
 
 protected:
@@ -69,13 +71,13 @@ private:
      * \sa handle()
      */
     virtual bool doHandle(
-        const std::string& identity, const ParameterVector& params,
+        const Identity& identity, const ParameterVector& params,
         OutputSink sink) = 0;
 };
 
 template<typename OutputIterator, typename ParameterIterator>
 bool MessageHandler::handle(
-    const std::string& identity,
+    const Identity& identity,
     ParameterIterator first, ParameterIterator last, OutputIterator out)
 {
     return doHandle(

@@ -6,6 +6,7 @@
 #ifndef MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 #define MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
 
+#include "messaging/Identity.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
 
@@ -197,7 +198,7 @@ public:
 private:
 
     bool doHandle(
-        const std::string& identity, const ParameterVector& params,
+        const Identity& identity, const ParameterVector& params,
         OutputSink sink) override;
 
     template<typename T>
@@ -265,7 +266,7 @@ private:
         bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
     using InitFunctionMap = std::map<std::string, InitFunction>;
     using ResultType = typename std::result_of_t<
-        Function(std::string, typename ParamTraits<Args>::DeserializedType...)>;
+        Function(Identity, typename ParamTraits<Args>::DeserializedType...)>;
     static constexpr auto REPLY_SIZE =
         std::tuple_size<typename ResultType::Types>::value;
     using ReplyKeysArray = std::array<std::string, REPLY_SIZE>;
@@ -313,7 +314,7 @@ private:
 
     template<std::size_t... Ns>
     bool internalCallFunction(
-        const std::string& identity, const ParameterVector& params,
+        const Identity& identity, const ParameterVector& params,
         OutputSink& sink, std::index_sequence<Ns...>)
     {
         auto first = params.begin();
@@ -408,7 +409,7 @@ FunctionMessageHandler(
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    const std::string& identity, const ParameterVector& params,
+    const Identity& identity, const ParameterVector& params,
     OutputSink sink)
 {
     return internalCallFunction(
@@ -548,22 +549,22 @@ auto makeMessageHandler(
  * \sa FunctionMessageHandler
  */
 template<
-    typename Handler, typename Reply, typename String, typename... Args,
+    typename Handler, typename Reply, typename... Args,
     typename SerializationPolicy, typename Keys = std::tuple<>,
     typename ReplyKeys = std::tuple<>>
 auto makeMessageHandler(
-    Handler& handler, Reply (Handler::*memfn)(String, Args...),
+    Handler& handler, Reply (Handler::*memfn)(const Identity&, Args...),
     SerializationPolicy&& serializer, Keys&& keys = {},
     ReplyKeys&& replyKeys = {})
 {
-    // Identity always comes as const std::string& from
+    // Identity always comes as const Identity& from
     // FunctionMessageHandler::doHandle so no need to move/forward
     // it. However, other parameters are constructed in doHandle and moved to
     // the handler function, so there might be performance to be gained by
     // accepting them as rvalue references.
     return makeMessageHandler<Args...>(
         [&handler, memfn](
-            const std::string& identity, std::decay_t<Args>&&... args)
+            const Identity& identity, std::decay_t<Args>&&... args)
         {
             return (handler.*memfn)(identity, std::move(args)...);
         },

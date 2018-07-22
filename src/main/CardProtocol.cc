@@ -6,7 +6,7 @@ namespace Main {
 CardProtocol::~CardProtocol() = default;
 
 bool CardProtocol::acceptPeer(
-    const std::string& identity, const PositionVector& positions,
+    const Messaging::Identity& identity, const PositionVector& positions,
     const OptionalArgs& args)
 {
     return handleAcceptPeer(identity, positions, args);

@@ -50,13 +50,13 @@ using Bridge::POSITION_TO_STRING_MAP;
 using Bridge::Engine::BridgeEngine;
 using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
+using Bridge::Messaging::Identity;
 using Bridge::Messaging::JsonSerializer;
 using Bridge::Messaging::fromJson;
 
 using testing::ReturnPointee;
 
 using namespace Bridge::Main;
-using namespace std::string_literals;
 
 using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Call>;
@@ -69,10 +69,10 @@ const auto VALID_GAME = STRING_GENERATOR(
 const auto INVALID_GAME = STRING_GENERATOR(
     "b4c36d82-a19c-488e-9ed7-36095dc90598");
 
-const auto PLAYER1 = "player1"s;
-const auto PLAYER2 = "player2"s;
-const auto PLAYER3 = "player3"s;
-const auto PLAYER4 = "player4"s;
+const auto PLAYER1 = Identity { std::byte {1} };
+const auto PLAYER2 = Identity { std::byte {2} };
+const auto PLAYER3 = Identity { std::byte {3} };
+const auto PLAYER4 = Identity { std::byte {4} };
 
 std::array<Call, 4> CALLS {{
     Bridge::Bid {1, Bridge::Strain::CLUBS},
@@ -121,7 +121,7 @@ protected:
 
     template<typename... String>
     void request(
-        const std::string& identity, String&&... keys)
+        const Identity& identity, String&&... keys)
     {
         const auto keys_ = StringVector {std::forward<String>(keys)...};
         const auto args = {
@@ -134,7 +134,7 @@ protected:
     }
 
     void testEmptyRequestReply(
-        const std::string& command, const std::string& player = PLAYER1)
+        const std::string& command, const Identity& player = PLAYER1)
     {
         request(player, command);
         ASSERT_EQ(2u, reply.size());
@@ -173,7 +173,7 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
     };
     EXPECT_FALSE(
         handler.handle(
-            "unknown", args.begin(), args.end(), std::back_inserter(reply)));
+            Identity {}, args.begin(), args.end(), std::back_inserter(reply)));
     EXPECT_TRUE(reply.empty());
 }
 

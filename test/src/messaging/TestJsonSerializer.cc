@@ -7,6 +7,7 @@
 #include "bridge/Vulnerability.hh"
 #include "cardserver/PeerEntry.hh"
 #include "messaging/JsonSerializer.hh"
+#include "messaging/JsonSerializerUtility.hh"
 #include "messaging/BidJsonSerializer.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
@@ -40,7 +41,8 @@ const auto BID = Bid {4, Strain::HEARTS};
 const auto CONTRACT = Contract {BID, Doubling::DOUBLED};
 const auto VULNERABILITY = Vulnerability {true, false};
 const auto TRICKS_WON = TricksWon {5, 6};
-const auto PEER_IDENTITY = "peer"s;
+const auto PEER_IDENTITY = Identity { std::byte {123}, std::byte {32} };
+const auto PEER_IDENTITY_HEX = "7b20"s;
 const auto PEER_ENDPOINT = "inproc://test"s;
 }
 
@@ -320,7 +322,7 @@ TEST_F(JsonSerializerTest, testPeerEntry)
     const auto j = json {
         {
             IDENTITY_KEY,
-            PEER_IDENTITY
+            PEER_IDENTITY_HEX
         },
         {
             ENDPOINT_KEY,
@@ -362,7 +364,7 @@ TEST_F(JsonSerializerTest, testPeerEntryEndpointMissing)
     const auto j = json {
         {
             IDENTITY_KEY,
-            PEER_IDENTITY
+            PEER_IDENTITY_HEX
         },
     };
     const auto peerEntry = CardServer::PeerEntry {PEER_IDENTITY};

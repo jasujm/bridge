@@ -7,12 +7,12 @@
 #define MAIN_NODEPLAYERCONTROL_HH_
 
 #include "bridge/Player.hh"
+#include "messaging/Identity.hh"
 
 #include <boost/core/noncopyable.hpp>
 
 #include <memory>
 #include <optional>
-#include <string>
 
 namespace Bridge {
 
@@ -43,11 +43,12 @@ public:
      * The method returns nullptr if \p uuid was already used to create a
      * player.
      *
-     * \param node identity of the node controlling or representing the player
+     * \param node the identity of the node controlling or representing the
+     * player
      * \param uuid UUID of the new player
      */
     std::shared_ptr<Player> createPlayer(
-        const std::string& node, const std::optional<Uuid>& uuid);
+        const Messaging::Identity& node, const std::optional<Uuid>& uuid);
 
     /** \brief Get player if the node is allowed to act for itself
      *
@@ -59,11 +60,12 @@ public:
      * The \p uuid parameter may also be none, in which case pointer to a valid
      * pointer is returned if and only if \p node controls exactly one player.
      *
-     * \param node identity of the node controlling or representing the player
+     * \param node the identity of the node controlling or representing the
+     * player
      * \param uuid UUID of the player
      */
     std::shared_ptr<const Player> getPlayer(
-        const std::string& node,
+        const Messaging::Identity& node,
         const std::optional<Uuid>& uuid = std::nullopt) const;
 
 private:

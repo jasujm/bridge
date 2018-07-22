@@ -173,7 +173,7 @@ std::vector<std::string> GetMessageHandler::getAllKeys()
 }
 
 bool GetMessageHandler::doHandle(
-    const std::string& identity, const ParameterVector& params,
+    const Messaging::Identity& identity, const ParameterVector& params,
     OutputSink sink)
 {
     const auto game_uuid = Messaging::deserializeParam<Uuid>(

@@ -17,7 +17,8 @@ using testing::Return;
 using testing::StrictMock;
 
 namespace {
-const auto IDENTITY = std::string {"identity"};
+const auto IDENTITY = Bridge::Messaging::Identity {
+    std::byte {123}, std::byte {32} };
 const std::array<std::string, 2> PARAMS {{"param1", "param2"}};
 const std::array<std::string, 2> OUTPUTS {{"output1", "output2"}};
 }

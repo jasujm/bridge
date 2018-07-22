@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 
+using Bridge::Messaging::Identity;
 using Bridge::Messaging::MessageHandler;
 using Bridge::Messaging::Reply;
 using Bridge::Messaging::MockSerializationPolicy;
@@ -44,7 +45,7 @@ std::ostream& operator<<(
 namespace {
 
 using namespace std::string_literals;
-const auto IDENTITY = "identity"s;
+const auto IDENTITY = Identity { std::byte {123}, std::byte {32} };
 const auto KEY1 = "key1"s;
 const auto KEY2 = "key2"s;
 const auto REPLY_KEY1 = "replykey1"s;
@@ -60,32 +61,32 @@ Reply<> makeReply(const bool successful)
     return failure();
 }
 
-Reply<std::string> reply1(const std::string&)
+Reply<std::string> reply1(const Identity&)
 {
     return success(REPLY1);
 }
 
-Reply<std::string, int> reply2(const std::string&)
+Reply<std::string, int> reply2(const Identity&)
 {
     return success(REPLY1, REPLY2);
 }
 
-Reply<std::optional<std::string>> replyOptional(const std::string&)
+Reply<std::optional<std::string>> replyOptional(const Identity&)
 {
     return success(REPLY1);
 }
 
-Reply<std::optional<std::string>> replyNone(const std::string&)
+Reply<std::optional<std::string>> replyNone(const Identity&)
 {
     return success(std::nullopt);
 }
 
 class MockFunction {
 public:
-    MOCK_METHOD1(call0, Reply<>(std::string));
-    MOCK_METHOD2(call1, Reply<>(std::string, std::string));
-    MOCK_METHOD3(call2, Reply<>(std::string, int, std::string));
-    MOCK_METHOD2(call_opt, Reply<>(std::string, std::optional<int>));
+    MOCK_METHOD1(call0, Reply<>(Identity));
+    MOCK_METHOD2(call1, Reply<>(Identity, std::string));
+    MOCK_METHOD3(call2, Reply<>(Identity, int, std::string));
+    MOCK_METHOD2(call_opt, Reply<>(Identity, std::optional<int>));
 };
 
 class FailingPolicy {

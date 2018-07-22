@@ -27,6 +27,7 @@ using CardVector = std::vector<CardType>;
 
 using Engine::CardManager;
 using Messaging::failure;
+using Messaging::Identity;
 using Messaging::JsonSerializer;
 using Messaging::Reply;
 using Messaging::success;
@@ -38,7 +39,7 @@ public:
     Impl(std::shared_ptr<PeerCommandSender> peerCommandSender);
 
     bool acceptPeer(
-        const std::string& identity, const PositionVector& positions);
+        const Identity& identity, const PositionVector& positions);
 
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
@@ -56,10 +57,10 @@ private:
 
     void handleNotify(const CardManager::ShufflingState& state) override;
 
-    Reply<> deal(const std::string& identity, const CardVector& cards);
+    Reply<> deal(const Identity& identity, const CardVector& cards);
 
     bool expectingCards {false};
-    std::optional<std::string> leaderIdentity;
+    std::optional<Identity> leaderIdentity;
     const std::shared_ptr<PeerCommandSender> peerCommandSender;
 };
 
@@ -91,7 +92,7 @@ void SimpleCardProtocol::Impl::handleNotify(
 }
 
 bool SimpleCardProtocol::Impl::acceptPeer(
-    const std::string& identity, const PositionVector& positions)
+    const Identity& identity, const PositionVector& positions)
 {
     if (std::find(positions.begin(), positions.end(), Position::NORTH) !=
         positions.end()) {
@@ -101,7 +102,7 @@ bool SimpleCardProtocol::Impl::acceptPeer(
 }
 
 Reply<> SimpleCardProtocol::Impl::deal(
-    const std::string& identity, const CardVector& cards)
+    const Identity& identity, const CardVector& cards)
 {
     log(LogLevel::DEBUG, "Deal command from %s", asHex(identity));
     if (expectingCards && leaderIdentity == identity) {
@@ -122,7 +123,7 @@ SimpleCardProtocol::SimpleCardProtocol(
 }
 
 bool SimpleCardProtocol::handleAcceptPeer(
-    const std::string& identity, const PositionVector& positions,
+    const Identity& identity, const PositionVector& positions,
     const OptionalArgs&)
 {
     assert(impl);

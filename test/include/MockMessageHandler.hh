@@ -13,7 +13,7 @@ namespace Messaging {
 class MockMessageHandler : public MessageHandler {
 public:
     MOCK_METHOD3(
-        doHandle, bool(const std::string&, const ParameterVector&, OutputSink));
+        doHandle, bool(const Identity&, const ParameterVector&, OutputSink));
 
     // Create functor that writes to sink given as parameter to
     // doHandler. Intended to use with the Invoke action.
@@ -26,7 +26,7 @@ auto MockMessageHandler::writeToSink(
     Iterator first, Iterator last, bool success)
 {
     return [first, last, success](
-        const std::string&, ParameterVector, OutputSink sink)
+        const Identity&, ParameterVector, OutputSink sink)
     {
         std::for_each(first, last, sink);
         return success;

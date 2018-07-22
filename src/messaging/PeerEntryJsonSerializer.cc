@@ -17,7 +17,7 @@ json JsonConverter<PeerEntry>::convertToJson(const PeerEntry& entry)
     auto j = json {
         {
             IDENTITY_KEY,
-            entry.identity
+            toJson(entry.identity)
         }
     };
     optionalPut(j, ENDPOINT_KEY, entry.endpoint);
@@ -27,7 +27,7 @@ json JsonConverter<PeerEntry>::convertToJson(const PeerEntry& entry)
 PeerEntry JsonConverter<PeerEntry>::convertFromJson(const json& j)
 {
     return PeerEntry {
-        checkedGet<std::string>(j, IDENTITY_KEY),
+        checkedGet<Identity>(j, IDENTITY_KEY),
         optionalGet<std::string>(j, ENDPOINT_KEY)};
 }
 

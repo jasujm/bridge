@@ -24,7 +24,7 @@ using testing::Return;
 using namespace std::string_literals;
 
 namespace {
-const auto IDENTITY = "identity"s;
+const auto IDENTITY = Identity { std::byte {123}, std::byte {32} };
 const auto ENDPOINT = "inproc://testing"s;
 const auto COMMAND = "command"s;
 const auto OTHER_COMMAND = "other"s;
@@ -35,7 +35,7 @@ protected:
     virtual void SetUp()
     {
         backSocket.bind(ENDPOINT);
-        frontSocket.setsockopt(ZMQ_IDENTITY, IDENTITY.c_str(), IDENTITY.size());
+        frontSocket.setsockopt(ZMQ_IDENTITY, IDENTITY.data(), IDENTITY.size());
         frontSocket.connect(ENDPOINT);
     }
 

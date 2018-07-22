@@ -6,6 +6,7 @@
 #ifndef MAIN_CARDPROTOCOL_HH_
 #define MAIN_CARDPROTOCOL_HH_
 
+#include "messaging/Identity.hh"
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 
@@ -14,7 +15,6 @@
 
 #include <memory>
 #include <optional>
-#include <string>
 #include <vector>
 
 namespace Bridge {
@@ -82,7 +82,7 @@ public:
      * \return true if the peer is accepted, false if rejected
      */
     bool acceptPeer(
-        const std::string& identity, const PositionVector& positions,
+        const Messaging::Identity& identity, const PositionVector& positions,
         const OptionalArgs& args);
 
     /** \brief Initialize the protocol
@@ -131,7 +131,7 @@ private:
      * \sa acceptPeer()
      */
     virtual bool handleAcceptPeer(
-        const std::string& identity, const PositionVector& positions,
+        const Messaging::Identity& identity, const PositionVector& positions,
         const OptionalArgs& args) = 0;
 
     /** \brief Handle initializing the protocol

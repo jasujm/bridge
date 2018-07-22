@@ -64,8 +64,8 @@ MATCHER(IsShuffledDeck, "")
 }
 
 const auto ENDPOINT = "inproc://test"s;
-const auto LEADER = "leader"s;
-const auto PEER = "peer"s;
+const auto LEADER = Identity { std::byte {123}, std::byte {32} };
+const auto PEER = Identity { std::byte {234}, std::byte {43} };
 
 }
 
@@ -80,7 +80,7 @@ protected:
         }
     }
 
-    bool dealCommand(const std::string& identity)
+    bool dealCommand(const Identity& identity)
     {
         const auto args = {
             CARDS_COMMAND,

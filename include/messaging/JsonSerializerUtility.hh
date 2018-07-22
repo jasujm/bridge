@@ -5,6 +5,7 @@
 
 #include "messaging/JsonSerializer.hh"
 #include "messaging/SerializationFailureException.hh"
+#include "Blob.hh"
 
 #include <json.hpp>
 
@@ -314,6 +315,38 @@ std::vector<T> JsonConverter<std::vector<T>>::convertFromJson(
     }
     return ret;
 }
+
+/** \brief JSON converter for blobs
+ *
+ * \ref Blob is the preferred data type for arbitrary binary data without
+ * further assumptions about its content. Hex encoding is applied to the data
+ * before it is serialized as JSON.
+ *
+ * \sa JsonSerializer.hh
+ */
+template<>
+struct JsonConverter<Blob>
+{
+
+    /** \brief Convert blob to JSON
+     *
+     * \param blob the blob to convert
+     *
+     * \return JSON string containing the hex encoded blob
+     */
+    static nlohmann::json convertToJson(const Blob& blob);
+
+    /** \brief Convert JSON to blob
+     *
+     * \param j JSON string containing the hex encoded blob
+     *
+     * \return the decoded blob
+     *
+     * \throw SerializationFailureException if \p j does not contain valid hex
+     * encoded string
+     */
+    static Blob convertFromJson(const nlohmann::json& j);
+};
 
 /// \{
 template<typename T>

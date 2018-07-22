@@ -107,11 +107,14 @@
  * in \ref cardserverorder for the card server.
  *
  * The peers parameter MUST contain an array of peer entries. There MUST be one
- * entry for each card server peer. Each peer entry object MUST contain a string
- * identifier used to refer to that peer in later communication and the base
- * peer endpoint of that peer (if applicable). The order of the peer entries
- * MUST be the same as the order of peers, except that there is no entry for the
+ * entry for each card server peer. Each peer entry object MUST contain the
+ * identity used to refer to that peer in later communication and the base peer
+ * endpoint of that peer (if applicable). The order of the peer entries MUST be
+ * the same as the order of peers, except that there is no entry for the
  * controlled card server instance itself.
+ *
+ * \note The identity is an opaque hex encoded binary object. The controlling
+ * peer may use for example the ZeroMQ socket identity of its peers.
  *
  * \note The card server determines the complete order of the peers by inserting
  * a “gap” into the array at the index determined by its own order parameter,
@@ -144,7 +147,7 @@
  * | Key   | Value
  * |-------|------------------------------------------------------------------
  * | order | 1
- * | peers | [{"id":"A","endpoint":"tcp://peerA.example.com:5600"},{"id":"B"}]
+ * | peers | [{"id":"1234","endpoint":"tcp://peerA.example.com:5600"},{"id":"abcd"}]
  *
  * When receiving this message, card server B connects to
  * tcp://peerA.example.com:5601 to establish connection with card server A, and
@@ -202,7 +205,7 @@
  *
  * - \b command: reveal
  * - \b Parameters:
- *   - \e id: the identity of the peer drawing the cards
+ *   - \e id: hex encoded string identifying the peer drawing the cards
  *   - \e cards: an array of indices identifying the cards drawn
  * - \b Reply: \e none
  *
@@ -210,10 +213,11 @@
  * protocol. The bridge peers MUST synchronize the draw protocol as described
  * in \ref cardservercontroldraw.
  *
- * The id parameter identifies the card server peer drawing the cards. The cards
- * parameter is the list of indices that the peer is drawing. The indices MUST
- * be appear in the same order in the reveal as they appear in the corresponding
- * draw command.
+ * The id parameter identifies the card server peer drawing the cards, and MUST
+ * be one of the identities provided in the \ref cardservercontrolinit
+ * command. The cards parameter is the list of indices that the peer is
+ * drawing. The indices MUST be appear in the same order in the reveal as they
+ * appear in the corresponding draw command.
  *
  * The reply is successful if the proofs during the draw protocol are verified,
  * false otherwise.

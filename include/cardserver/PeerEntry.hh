@@ -6,6 +6,8 @@
 #ifndef CARDSERVER_PEERENTRY_HH_
 #define CARDSERVER_PEERENTRY_HH_
 
+#include "messaging/Identity.hh"
+
 #include <boost/operators.hpp>
 
 #include <iosfwd>
@@ -20,10 +22,10 @@ namespace CardServer {
  * This struct is the internal representation of a peer of card server. The
  * init command in card server protocol consumes a list of peer entries.
  *
- * \sa \ref cardserverprotocol
+ ,* \sa \ref cardserverprotocol
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
-    std::string identity;                   ///< \brief Peer identity
+    Messaging::Identity identity;         ///< \brief Peer identity
     std::optional<std::string> endpoint;  ///< \brief Card server endpoint
 
     /** \brief Create new peer entry
@@ -32,7 +34,7 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
      * \param endpoint see \ref endpoint
      */
     explicit PeerEntry(
-        std::string identity,
+        Messaging::Identity identity,
         std::optional<std::string> endpoint = std::nullopt);
 };
 

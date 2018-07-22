@@ -47,6 +47,7 @@ using PositionVector = std::vector<Position>;
 using Engine::CardManager;
 using Engine::SimpleCardManager;
 using Engine::BridgeEngine;
+using Messaging::Identity;
 using Messaging::JsonSerializer;
 
 namespace {
@@ -95,20 +96,20 @@ public:
         std::shared_ptr<PeerCommandSender> peerCommandSender,
         std::shared_ptr<CallbackScheduler> callbackScheduler);
 
-    bool addPeer(const std::string& identity, const nlohmann::json& args);
+    bool addPeer(const Identity& identity, const nlohmann::json& args);
 
     std::optional<Position> getPositionForPlayerToJoin(
-        const std::string& identity, const std::optional<Position>& position);
+        const Identity& identity, const std::optional<Position>& position);
 
     void join(
-        const std::string& identity, Position position,
+        const Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
     bool call(
-        const std::string& identity, const Player& player, const Call& call);
+        const Identity& identity, const Player& player, const Call& call);
 
     bool play(
-        const std::string& identity, const Player& player,
+        const Identity& identity, const Player& player,
         const std::optional<CardType>& card,
         const std::optional<std::size_t>& index);
 
@@ -125,7 +126,7 @@ private:
 
     template<typename... Args>
     void sendToPeersIfClient(
-        const std::string& identity, const std::string& command,
+        const Identity& identity, const std::string& command,
         Args&&... args);
 
     template<typename... Args>
@@ -142,7 +143,7 @@ private:
 
     const Uuid uuid;
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
-    std::map<std::string, PositionVector> peers;
+    std::map<Identity, PositionVector> peers;
     const PositionSet positionsControlled;
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
@@ -192,7 +193,7 @@ void BridgeGame::Impl::sendToPeers(
 
 template<typename... Args>
 void BridgeGame::Impl::sendToPeersIfClient(
-    const std::string& identity, const std::string& command, Args&&... args)
+    const Identity& identity, const std::string& command, Args&&... args)
 {
     if (peers.find(identity) == peers.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
@@ -211,7 +212,7 @@ void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
 }
 
 bool BridgeGame::Impl::addPeer(
-    const std::string& identity, const nlohmann::json& args)
+    const Identity& identity, const nlohmann::json& args)
 {
     const auto iter = args.find(POSITIONS_COMMAND);
     if (iter == args.end()) {
@@ -243,7 +244,7 @@ bool BridgeGame::Impl::addPeer(
 }
 
 std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
-    const std::string& identity, const std::optional<Position>& position)
+    const Identity& identity, const std::optional<Position>& position)
 {
     const auto iter = peers.find(identity);
     // For peers only controlled positions apply
@@ -270,7 +271,7 @@ std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
 }
 
 void BridgeGame::Impl::join(
-    const std::string& identity, const Position position,
+    const Identity& identity, const Position position,
     std::shared_ptr<Player> player)
 {
     sendToPeersIfClient(
@@ -283,7 +284,7 @@ void BridgeGame::Impl::join(
 }
 
 bool BridgeGame::Impl::call(
-    const std::string& identity, const Player& player, const Call& call)
+    const Identity& identity, const Player& player, const Call& call)
 {
     if (engine.call(player, call)) {
         sendToPeersIfClient(
@@ -298,7 +299,7 @@ bool BridgeGame::Impl::call(
 }
 
 bool BridgeGame::Impl::play(
-    const std::string& identity, const Player& player,
+    const Identity& identity, const Player& player,
     const std::optional<CardType>& card,
     const std::optional<std::size_t>& index)
 {
@@ -460,21 +461,21 @@ BridgeGame::BridgeGame(
 }
 
 bool BridgeGame::addPeer(
-    const std::string& identity, const nlohmann::json& args)
+    const Identity& identity, const nlohmann::json& args)
 {
     assert(impl);
     return impl->addPeer(identity, args);
 }
 
 std::optional<Position> BridgeGame::getPositionForPlayerToJoin(
-    const std::string& identity, const std::optional<Position>& position)
+    const Identity& identity, const std::optional<Position>& position)
 {
     assert(impl);
     return impl->getPositionForPlayerToJoin(identity, position);
 }
 
 void BridgeGame::join(
-    const std::string& identity, const Position position,
+    const Identity& identity, const Position position,
     std::shared_ptr<Player> player)
 {
     assert(impl);
@@ -482,14 +483,14 @@ void BridgeGame::join(
 }
 
 bool BridgeGame::call(
-    const std::string& identity, const Player& player, const Call& call)
+    const Identity& identity, const Player& player, const Call& call)
 {
     assert(impl);
     return impl->call(identity, player, call);
 }
 
 bool BridgeGame::play(
-    const std::string& identity, const Player& player,
+    const Identity& identity, const Player& player,
     const std::optional<CardType>& card,
     const std::optional<std::size_t>& index)
 {
