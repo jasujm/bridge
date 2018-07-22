@@ -12,6 +12,7 @@
 #include <ostream>
 #include <iterator>
 
+#include "HexUtility.hh"
 #include "IoUtility.hh"
 
 namespace Bridge {
@@ -74,16 +75,10 @@ struct HexFormatter {
 template<typename Data>
 std::ostream& operator<<(std::ostream& out, const HexFormatter<Data>& formatter)
 {
-    static const std::array<char, 16> HEXS {{
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-    }};
-    for (const auto c : formatter.data) {
-        static_assert(
-            sizeof(c) == sizeof(unsigned char),
-            "Hex formatter only supports char ranges");
-        out << HEXS[(static_cast<unsigned char>(c) & 0xf0) >> 4]
-            << HEXS[static_cast<unsigned char>(c) & 0x0f];
+    std::ostream::sentry s {out};
+    if (s) {
+        auto outiter = std::ostreambuf_iterator {out};
+        toHex(std::begin(formatter.data), std::end(formatter.data), outiter);
     }
     return out;
 }
