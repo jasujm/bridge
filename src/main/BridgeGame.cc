@@ -311,7 +311,6 @@ bool BridgeGame::Impl::play(
         const auto n_card = index ? index : findFromHand(*hand, *card);
         if (n_card) {
             if (engine.play(player, *hand, *n_card)) {
-                const auto player_position = engine.getPosition(player);
                 sendToPeersIfClient(
                     identity,
                     PLAY_COMMAND,
