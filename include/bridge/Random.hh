@@ -1,6 +1,6 @@
 /** \file
  *
- * \file The common random number generator
+ * \brief Definition of random number generator utilities
  */
 
 #ifndef RANDOM_HH_
