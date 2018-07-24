@@ -23,6 +23,7 @@
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
+#include "HexUtility.hh"
 #include "Logging.hh"
 
 #include <boost/uuid/uuid_io.hpp>
@@ -251,16 +252,16 @@ Reply<> BridgeMain::Impl::hello(
     const std::string& role)
 {
     log(LogLevel::DEBUG, "Hello command from %s. Version: %d. Role: %s",
-        asHex(identity), version.empty() ? -1 : version.front(), role);
+        formatHex(identity), version.empty() ? -1 : version.front(), role);
     if (version.empty() || version.front() > 0 ||
         nodes.find(identity) != nodes.end()) {
         return failure();
     } else if (role == PEER_ROLE && peerMode) {
-        log(LogLevel::DEBUG, "Peer accepted: %s", asHex(identity));
+        log(LogLevel::DEBUG, "Peer accepted: %s", formatHex(identity));
         nodes.emplace(identity, Role::PEER);
         return success();
     } else if (role == CLIENT_ROLE) {
-        log(LogLevel::DEBUG, "Client accepted: %s", asHex(identity));
+        log(LogLevel::DEBUG, "Client accepted: %s", formatHex(identity));
         nodes.emplace(identity, Role::CLIENT);
         return success();
     }
@@ -272,7 +273,7 @@ Reply<Uuid> BridgeMain::Impl::game(
     const std::optional<nlohmann::json>& args)
 {
     log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
-        asHex(identity), gameUuid, args);
+        formatHex(identity), gameUuid, args);
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
@@ -301,7 +302,7 @@ Reply<Uuid> BridgeMain::Impl::join(
     const std::optional<Uuid>& playerUuid, std::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
-        asHex(identity), gameUuid, playerUuid, position);
+        formatHex(identity), gameUuid, playerUuid, position);
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
@@ -348,7 +349,7 @@ Reply<> BridgeMain::Impl::call(
     const std::optional<Uuid>& playerUuid, const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
-        asHex(identity), gameUuid, playerUuid, call);
+        formatHex(identity), gameUuid, playerUuid, call);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
@@ -365,7 +366,7 @@ Reply<> BridgeMain::Impl::play(
     const std::optional<std::size_t>& index)
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
-        asHex(identity), gameUuid, playerUuid, card, index);
+        formatHex(identity), gameUuid, playerUuid, card, index);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {

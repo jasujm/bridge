@@ -10,6 +10,7 @@
 #include <array>
 #include <cstddef>
 #include <iterator>
+#include <ostream>
 #include <stdexcept>
 
 namespace Bridge {
@@ -155,6 +156,47 @@ bool isValidHex(InputIterator first, InputIterator last)
             first, last,
             [](const auto c) { return HexUtilityImpl::isValidHexChar(c); });
 }
+
+/// \cond DOXYGEN_IGNORE
+
+namespace HexUtilityImpl {
+
+template<typename Data>
+struct HexFormatter {
+    Data data;
+};
+
+template<typename Data>
+std::ostream& operator<<(std::ostream& out, const HexFormatter<Data>& formatter)
+{
+    std::ostream::sentry s {out};
+    if (s) {
+        auto outiter = std::ostreambuf_iterator {out};
+        toHex(std::begin(formatter.data), std::end(formatter.data), outiter);
+    }
+    return out;
+}
+
+}
+
+/// \endcond
+
+/** \brief Format binary data as hexadecimal
+ *
+ * This function returns an object that, when streamed to an output stream,
+ * outputs hexadecimal representation of its underlying bytes. It is intended
+ * to be used to print printable representation of binary data.
+ *
+ * \param data range (typically a blob) from which the data is read
+
+ * \return hex formatter that can be streamed to std::ostream
+ */
+template<typename Data>
+auto formatHex(Data&& data)
+{
+    return HexUtilityImpl::HexFormatter<Data> {std::forward<Data>(data)};
+}
+
 
 }
 

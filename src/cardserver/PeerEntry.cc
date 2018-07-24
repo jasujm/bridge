@@ -1,6 +1,6 @@
 #include "cardserver/PeerEntry.hh"
 
-#include "Logging.hh" // TODO: hex encoding to some other header
+#include "HexUtility.hh"
 
 #include <tuple>
 #include <utility>
@@ -23,7 +23,7 @@ bool operator==(const PeerEntry& lhs, const PeerEntry& rhs)
 
 std::ostream& operator<<(std::ostream& os, const PeerEntry& entry)
 {
-    os << asHex(entry.identity);
+    os << formatHex(entry.identity);
     if (entry.endpoint) {
         os << " " << *entry.endpoint;
     }

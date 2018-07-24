@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -68,4 +69,11 @@ TEST(HexUtilityTest, testInvalidHexInvalidChars)
 {
     const auto input = "xx"s;
     EXPECT_FALSE(isValidHex(input.begin(), input.end()));
+}
+
+TEST(HexUtilityTest, testFormatHex)
+{
+    std::ostringstream s;
+    s << Bridge::formatHex(BYTES);
+    EXPECT_EQ(HEX, s.str());
 }

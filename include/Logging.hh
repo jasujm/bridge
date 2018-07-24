@@ -12,7 +12,6 @@
 #include <ostream>
 #include <iterator>
 
-#include "HexUtility.hh"
 #include "IoUtility.hh"
 
 namespace Bridge {
@@ -67,40 +66,9 @@ void log(
     }
 }
 
-template<typename Data>
-struct HexFormatter {
-    Data data;
-};
-
-template<typename Data>
-std::ostream& operator<<(std::ostream& out, const HexFormatter<Data>& formatter)
-{
-    std::ostream::sentry s {out};
-    if (s) {
-        auto outiter = std::ostreambuf_iterator {out};
-        toHex(std::begin(formatter.data), std::end(formatter.data), outiter);
-    }
-    return out;
-}
-
 }
 
 /// \endcond
-
-/** \brief Format binary data as hexadecimal
- *
- * This function returns an object that, when streamed to an output stream,
- * outputs hexadecimal represenatation of its underlying data.
- *
- * \param data range (typically a string) from which the data is read
-
- * \return hex formatted that can be streamed to std::ostream
- */
-template<typename Data>
-auto asHex(Data&& data)
-{
-    return Impl::HexFormatter<Data> {std::forward<Data>(data)};
-}
 
 /** \brief Logging utility
  *

@@ -53,14 +53,6 @@ TEST_F(LoggingTest, testLoggingWithInvalidFormatSpecifier)
     EXPECT_EQ(std::string::npos, stream.str().find(MESSAGE));
 }
 
-TEST_F(LoggingTest, testHexFormatting)
-{
-    std::array<unsigned char, 8> data {
-        { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef }};
-    log(Bridge::LogLevel::WARNING, "%s"s, Bridge::asHex(data));
-    EXPECT_NE(std::string::npos, stream.str().find("0123456789abcdef"));
-}
-
 TEST_F(LoggingTest, testVerbosity)
 {
     EXPECT_EQ(Bridge::LogLevel::WARNING, Bridge::getLogLevel(0));

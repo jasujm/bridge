@@ -20,6 +20,7 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "Enumerate.hh"
 #include "Logging.hh"
+#include "HexUtility.hh"
 #include "Utility.hh"
 
 #include <libTMCG.hh>
@@ -212,7 +213,7 @@ bool TMCG::shuffle()
                     peer->instream, peer->outstream)) {
                 log(LogLevel::WARNING,
                     "Failed to verify stack equality. Prover: %s",
-                    asHex(peer->identity));
+                    formatHex(peer->identity));
                 return false;
             }
         } else {
@@ -286,7 +287,7 @@ bool TMCG::draw(const IndexVector& ns)
                         card, p_vtmf, peer->instream, peer->outstream)) {
                     log(LogLevel::WARNING,
                         "Failed to verify card secret. Prover: %s",
-                        asHex(peer->identity));
+                        formatHex(peer->identity));
                     return false;
                 }
             }
@@ -436,7 +437,8 @@ Reply<CardVector> CardServerMain::Impl::draw(
 Reply<> CardServerMain::Impl::reveal(
     const Identity&, const Identity& identity, const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Revealing %d cards to %s", ns.size(), asHex(identity));
+    log(LogLevel::DEBUG, "Revealing %d cards to %s", ns.size(),
+        formatHex(identity));
     if (tmcg && tmcg->reveal(identity, ns)) {
         return success();
     }

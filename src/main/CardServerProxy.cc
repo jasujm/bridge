@@ -19,6 +19,7 @@
 #include "messaging/SerializationUtility.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
+#include "HexUtility.hh"
 #include "Logging.hh"
 #include "Utility.hh"
 
@@ -266,7 +267,7 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
             peer.positions.begin(), peer.positions.end());
         if (peer.identity) {
             log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
-                asHex(*peer.identity));
+                formatHex(*peer.identity));
             sendCommand(
                 CardServer::REVEAL_COMMAND,
                 std::tie(CardServer::ID_COMMAND, *peer.identity),
