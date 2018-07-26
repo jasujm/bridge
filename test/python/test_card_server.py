@@ -28,6 +28,10 @@ PEERS_COMMAND = b'peers'
 CARDS_COMMAND = b'cards'
 IDENTITY_COMMAND = b'id'
 
+CURVE_SERVERKEY = b"rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7\0"
+CURVE_PUBLICKEY = b"Yne@$w-vo<fVvi]a<NY6T1ed:M$fCG*[IaLV{hID\0"
+CURVE_SECRETKEY = b"D:)Q[IlAW!ahhC2ac:9*A}h:p?([4%wOTJ%JR%cs\0"
+
 def get_endpoint(port):
     return "tcp://127.0.0.1:%d" % port
 
@@ -62,6 +66,9 @@ for (n, (socket, peer)) in enumerate(zip(sockets, PEERS)):
         {IDENTITY_KEY: other.id,
          ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None} for
         (m, other) in enumerate(PEERS) if n != m]
+    socket.curve_serverkey = CURVE_SERVERKEY
+    socket.curve_publickey = CURVE_PUBLICKEY
+    socket.curve_secretkey = CURVE_SECRETKEY
     socket.connect(get_endpoint(peer.control))
     socket.send(INIT_COMMAND, flags=zmq.SNDMORE)
     socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)

@@ -16,6 +16,7 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
+#include "messaging/Security.hh"
 #include "messaging/SerializationUtility.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
@@ -208,6 +209,7 @@ Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
     }},
     controlSocket {*sockets.front().first}
 {
+    Messaging::setupCurveClient(controlSocket);
     controlSocket.connect(controlEndpoint);
 }
 

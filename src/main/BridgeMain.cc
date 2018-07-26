@@ -22,6 +22,7 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/Security.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "HexUtility.hh"
 #include "Logging.hh"
@@ -199,7 +200,9 @@ BridgeMain::Impl::Impl(
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    Messaging::setupCurveServer(*controlSocket);
     controlSocket->bind(*endpointIterator++);
+    Messaging::setupCurveServer(*eventSocket);
     eventSocket->bind(*endpointIterator);
     // Default game for peers, if there are any
     if (peerMode) {

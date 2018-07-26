@@ -2,6 +2,7 @@
 
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
+#include "messaging/Security.hh"
 
 #include <algorithm>
 #include <stdexcept>
@@ -17,6 +18,7 @@ PeerCommandSender::Peer::Peer(
     socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
     success {false}
 {
+    setupCurveClient(*socket);
     socket->connect(endpoint);
 }
 

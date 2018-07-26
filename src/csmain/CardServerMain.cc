@@ -18,6 +18,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
+#include "messaging/Security.hh"
 #include "Enumerate.hh"
 #include "Logging.hh"
 #include "HexUtility.hh"
@@ -125,9 +126,11 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     identity {std::move(entry.identity)}
 {
     if (entry.endpoint) {
+        Messaging::setupCurveClient(*socket);
         auto endpointIterator = EndpointIterator {*entry.endpoint};
         socket->connect(*(endpointIterator += order));
     } else {
+        Messaging::setupCurveServer(*socket);
         socket->bind(*peerEndpointIterator);
     }
 }
@@ -352,6 +355,7 @@ CardServerMain::Impl::Impl(
 {
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::pair);
+    Messaging::setupCurveServer(*controlSocket);
     controlSocket->bind(controlEndpoint);
     messageLoop.addSocket(
         std::move(controlSocket),

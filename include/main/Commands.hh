@@ -23,7 +23,10 @@
  *
  * \section bridgeprotocoltransport Transport
  *
- * Bridge protocol uses ZMTP 3.0 over TCP (http://rfc.zeromq.org/spec:23).
+ * Bridge protocol uses ZMTP 3.0 over TCP
+ * (https://rfc.zeromq.org/spec:23/ZMTP). The traffic is authenticated and
+ * encrypted using the curve mechanism
+ * (https://rfc.zeromq.org/spec:25/ZMTP-CURVE).
  *
  * \section bridgeprotocolroles Roles
  *
