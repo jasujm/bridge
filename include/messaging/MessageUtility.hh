@@ -17,12 +17,16 @@
 
 #include <iterator>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace Bridge {
 namespace Messaging {
 
 /** \brief Send message through socket
+ *
+ * \tparam MessageType the type of the message. It must be a standard container
+ * (vector, string etc.) holding scalar values.
  *
  * \param socket socket used for sending the message
  * \param message the message to be sent (typically a string)
@@ -32,6 +36,11 @@ template<typename MessageType>
 void sendMessage(
     zmq::socket_t& socket, const MessageType& message, bool more = false)
 {
+    static_assert(
+        std::is_scalar_v<
+            typename std::iterator_traits<
+                decltype(std::begin(message))>::value_type>,
+        "Message type must contain scalar values");
     const auto flags = more ? ZMQ_SNDMORE : 0;
     socket.send(std::begin(message), std::end(message), flags);
 }
@@ -40,6 +49,9 @@ void sendMessage(
  *
  * Sends several messages, given as iterator range \p first and \p last, as
  * multipart message.
+ *
+ * \tparam MessageType the type of the message. It must be a standard container
+ * (vector, string etc.) holding scalar values.
  *
  * \param socket socket used for sending the message
  * \param first iterator to the first message to be sent
@@ -103,8 +115,8 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
 
 /** \brief Receive message sent through socket
  *
- * \tparam MessageType the type of the message. It's expected to be a standard
- * container (vector, string etc.) holding POD elements.
+ * \tparam MessageType the type of the message. It must be a standard container
+ * (vector, string etc.) holding scalar values.
  *
  * \param socket the socket used to receive the message
  *
@@ -115,6 +127,9 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
 template<typename MessageType = std::string>
 std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
 {
+    static_assert(
+        std::is_scalar_v<typename MessageType::value_type>,
+        "Message type must contain scalar values");
     using ValueType = typename MessageType::value_type;
     auto msg = zmq::message_t {};
     socket.recv(&msg);
@@ -153,17 +168,18 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  * socket this is expected to be called after extracting the identity frame by
  * other means.
  *
- * \tparam String the type of the string written to the output iterator
+ * \tparam MessageType the type of the message. It must be a standard container
+ * (vector, string etc.) holding scalar values.
  *
  * \param out output iterator the messages are written to
  * \param socket socket used to receive the messages
  */
-template<typename String = std::string, typename OutputIterator>
+template<typename MessageType = std::string, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
 {
     auto more = recvEmptyFrameIfNecessary(socket);
     while (more) {
-        auto message = recvMessage<String>(socket);
+        auto message = recvMessage<MessageType>(socket);
         *out++ = std::move(message.first);
         more = message.second;
     }
