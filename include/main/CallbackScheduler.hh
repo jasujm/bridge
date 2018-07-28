@@ -3,6 +3,9 @@
  * \brief Definition of Bridge::Main::CallbackScheduler
  */
 
+#ifndef MAIN_CALLBACKSCHEDULER_HH_
+#define MAIN_CALLBACKSCHEDULER_HH_
+
 #include <boost/noncopyable.hpp>
 #include <zmq.hpp>
 
@@ -96,3 +99,5 @@ private:
 
 }
 }
+
+#endif // MAIN_CALLBACKSCHEDULER_HH_
