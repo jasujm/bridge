@@ -11,6 +11,7 @@
 #include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
 
+#include <chrono>
 #include <iterator>
 #include <memory>
 #include <queue>
@@ -21,18 +22,26 @@
 namespace Bridge {
 namespace Main {
 
+class CallbackScheduler;
+
 /** \brief Reliably send commands to peers
  *
- * A PeerCommandSender object has a queue of commands that are to be sent to
- * all peers. It monitors replies from the peers and tries to resend the
- * command to peers who reply failure. The assumption is that failure is
- * caused by temporary out‐of‐sync state between the peers (maybe because a
- * peer has not yet processed earlier commands from other peers) that will
- * eventually resolve given that all peers have correcly implemented the
- * protocol.
+ * A PeerCommandSender object has a queue of commands that are to be sent to all
+ * peers. It monitors replies from the peers. If a peer replies failure, the
+ * peer command sender tries to resend the command to peers with increasingly
+ * long intervals. The assumption is that failure is caused by temporary
+ * out‐of‐sync state between the peers (maybe because a peer has not yet
+ * processed earlier commands from other peers) that will eventually resolve
+ * given that all peers have correcly implemented the protocol.
  */
 class PeerCommandSender : private boost::noncopyable {
 public:
+
+    /** \brief Create peer command sender
+     *
+     * \param callbackScheduler callback scheduler for the message loop
+     */
+    PeerCommandSender(std::shared_ptr<CallbackScheduler> callbackScheduler);
 
     /** \brief Create peer
      *
@@ -85,6 +94,7 @@ private:
     struct Peer {
         Peer(zmq::context_t& context, const std::string& endpoint);
         std::shared_ptr<zmq::socket_t> socket;
+        std::chrono::milliseconds resendTimeout;
         bool success;
     };
 
@@ -92,6 +102,7 @@ private:
     void internalSendMessageToAll();
     void internalAddMessage(Message message);
 
+    std::shared_ptr<CallbackScheduler> callbackScheduler;
     std::queue<Message> messages;
     std::vector<Peer> peers;
 };

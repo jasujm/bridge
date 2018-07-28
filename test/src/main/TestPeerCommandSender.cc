@@ -1,6 +1,8 @@
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
+#include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"
+#include "CallbackSchedulerUtility.hh"
 #include "MockSerializationPolicy.hh"
 
 #include <boost/range/combine.hpp>
@@ -11,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 
+using Bridge::Main::CallbackScheduler;
 using Bridge::Main::PeerCommandSender;
 using Bridge::Messaging::MockSerializationPolicy;
 using Bridge::Messaging::recvMessage;
@@ -86,7 +89,9 @@ protected:
         {context, zmq::socket_type::dealer},
     }};
     std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets;
-    PeerCommandSender sender;
+    std::shared_ptr<CallbackScheduler> callbackScheduler {
+        std::make_shared<CallbackScheduler>(context)};
+    PeerCommandSender sender {callbackScheduler};
 };
 
 TEST_F(PeerCommandSenderTest, testSendToAll)
@@ -102,6 +107,7 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
     sendMessage(
         frontSockets[0], FAILURE_MESSAGE.begin(), FAILURE_MESSAGE.end());
     sender.processReply(*backSockets[0]);
+    pollAndExecuteCallbacks(*callbackScheduler);
     checkReceive(true, false);
 }
 

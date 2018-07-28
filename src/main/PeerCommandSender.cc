@@ -1,3 +1,4 @@
+#include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"
 
 #include "messaging/MessageUtility.hh"
@@ -13,9 +14,20 @@ namespace Main {
 
 using namespace Messaging;
 
+using namespace std::chrono_literals;
+
+namespace {
+
+const auto INITIAL_RESEND_TIMEOUT = 50ms;
+const auto MAX_RESEND_TIMEOUT =
+    std::chrono::duration_cast<std::chrono::milliseconds>(1min);
+
+}
+
 PeerCommandSender::Peer::Peer(
     zmq::context_t& context, const std::string& endpoint) :
     socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
+    resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
     setupCurveClient(*socket);
@@ -29,6 +41,14 @@ std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
     return peers.back().socket;
 }
 
+PeerCommandSender::PeerCommandSender(
+    std::shared_ptr<CallbackScheduler> callbackScheduler) :
+    callbackScheduler {std::move(callbackScheduler)},
+    messages {},
+    peers {}
+{
+}
+
 void PeerCommandSender::processReply(zmq::socket_t& socket)
 {
     auto iter = std::find_if(
@@ -37,8 +57,6 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
     if (iter == peers.end()) {
         throw std::invalid_argument("Socket is not peer socket");
     }
-    auto& success = iter->success;
-
     auto message = Message {};
     recvAll(std::back_inserter(message), socket);
     if (messages.empty()) {
@@ -48,7 +66,7 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
     assert(!current_message.empty());
     const auto reply_iter = isSuccessfulReply(message.begin(), message.end());
     if (reply_iter != message.end() && *reply_iter == current_message.front()) {
-        success = true;
+        iter->success = true;
         if (
             std::all_of(
                 peers.begin(), peers.end(),
@@ -59,7 +77,12 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
             }
         }
     } else {
-        internalSendMessage(socket);
+        dereference(callbackScheduler).callOnce(
+            [this, &socket](){
+                internalSendMessage(socket);
+            }, iter->resendTimeout);
+        iter->resendTimeout = std::min(
+            2 * iter->resendTimeout, MAX_RESEND_TIMEOUT);
     }
 }
 
@@ -76,6 +99,7 @@ void PeerCommandSender::internalSendMessageToAll()
     for (auto& peer : peers) {
         assert(peer.socket);
         internalSendMessage(*peer.socket);
+        peer.resendTimeout = INITIAL_RESEND_TIMEOUT;
         peer.success = false;
     }
 }

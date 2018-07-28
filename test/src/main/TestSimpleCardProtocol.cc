@@ -3,6 +3,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Position.hh"
 #include "engine/CardManager.hh"
+#include "main/CallbackScheduler.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/SimpleCardProtocol.hh"
@@ -97,8 +98,10 @@ protected:
     zmq::context_t context;
     zmq::socket_t backSocket {context, zmq::socket_type::dealer};
     std::shared_ptr<zmq::socket_t> frontSocket;
+    std::shared_ptr<CallbackScheduler> callbackScheduler {
+        std::make_shared<CallbackScheduler>(context)};
     std::shared_ptr<PeerCommandSender> peerCommandSender {
-        std::make_shared<PeerCommandSender>()};
+        std::make_shared<PeerCommandSender>(callbackScheduler)};
     SimpleCardProtocol protocol {peerCommandSender};
     MessageQueue::HandlerMap messageHandlers;
 };

@@ -206,7 +206,8 @@ BridgeMain::Impl::Impl(
     eventSocket->bind(*endpointIterator);
     // Default game for peers, if there are any
     if (peerMode) {
-        auto peerCommandSender = std::make_shared<PeerCommandSender>();
+        auto peerCommandSender = std::make_shared<PeerCommandSender>(
+            callbackScheduler);
         auto cardProtocol = makeCardProtocol(
             context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
             peerCommandSender);
