@@ -9,7 +9,7 @@
 class BridgeGameInfoTest : public testing::Test {
 public:
     std::shared_ptr<Bridge::Engine::CardManager> cardManager {
-        std::make_shared<Bridge::Engine::MockCardManager>()};
+        std::make_shared<testing::NiceMock<Bridge::Engine::MockCardManager>>()};
     std::shared_ptr<Bridge::Engine::DuplicateGameManager> gameManager {
         std::make_shared<Bridge::Engine::DuplicateGameManager>()};
     Bridge::Engine::BridgeEngine engine {cardManager, gameManager};
