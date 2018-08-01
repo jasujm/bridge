@@ -50,14 +50,6 @@ public:
         zmq::context_t& context, const std::string& controlEndpoint,
         const std::string& basePeerEndpoint);
 
-    /** \brief Move construct card server
-     *
-     * \note This constructor definition is required to allow returning
-     * CardServerMain by value from a factory function. No method may be invoked
-     * on the moved‐from CardServerMain object.
-     */
-    CardServerMain(CardServerMain&&);
-
     ~CardServerMain();
 
     /** \brief Run the card server
@@ -76,7 +68,7 @@ public:
 private:
 
     class Impl;
-    std::unique_ptr<Impl> impl;
+    const std::unique_ptr<Impl> impl;
 };
 
 

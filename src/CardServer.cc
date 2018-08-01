@@ -24,8 +24,6 @@ public:
         log(Bridge::LogLevel::INFO, "Setup completed");
     }
 
-    CardServerApp(CardServerApp&&) = default;
-
     ~CardServerApp()
     {
         log(Bridge::LogLevel::INFO, "Shutting down");

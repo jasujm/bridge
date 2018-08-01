@@ -38,8 +38,6 @@ public:
         log(Bridge::LogLevel::INFO, "Startup completed");
     }
 
-    BridgeApp(BridgeApp&&) = default;
-
     ~BridgeApp()
     {
         log(Bridge::LogLevel::INFO, "Shutting down");

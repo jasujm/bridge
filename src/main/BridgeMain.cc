@@ -431,14 +431,12 @@ BridgeMain::BridgeMain(
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     impl {
-        std::make_shared<Impl>(
+        std::make_unique<Impl>(
             context, baseEndpoint, std::move(positions),
             std::move(peerEndpoints), cardServerControlEndpoint,
             cardServerBasePeerEndpoint)}
 {
 }
-
-BridgeMain::BridgeMain(BridgeMain&&) = default;
 
 BridgeMain::~BridgeMain() = default;
 
