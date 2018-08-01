@@ -75,7 +75,7 @@ protected:
     virtual void SetUp()
     {
         backSocket.bind(ENDPOINT);
-        frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
+        frontSocket = peerCommandSender->addPeer(context, nullptr, ENDPOINT);
         for (auto&& handler : protocol.getMessageHandlers()) {
             messageHandlers.emplace(handler);
         }

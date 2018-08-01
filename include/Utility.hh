@@ -55,6 +55,22 @@ decltype(auto) dereference(const T& p)
     return *p;
 }
 
+/** \brief Convert pointer‐like object to pointer
+ *
+ * \param p pointer‐like object
+ *
+ * \return pointer to the object obtained by derefencing \p p, or nullptr if \p
+ * p is empty
+ */
+template<typename T>
+auto getPtr(const T& p) -> decltype(std::addressof(*p))
+{
+    if (p) {
+        return std::addressof(*p);
+    }
+    return nullptr;
+}
+
 /** \brief Generate functor that will compare addresses of two references
  *
  * \note The functor borrows a reference to the parameter. It is the

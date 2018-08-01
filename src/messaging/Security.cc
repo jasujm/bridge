@@ -3,18 +3,33 @@
 namespace Bridge {
 namespace Messaging {
 
-void setupCurveServer(zmq::socket_t& socket)
+namespace {
+
+void setKey(zmq::socket_t& socket, int opt, const std::string& key)
 {
-    socket.setsockopt(ZMQ_CURVE_SERVER, 1);
-    socket.setsockopt(ZMQ_CURVE_SECRETKEY, "JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6", 41);
+    if (key.size() == EXPECTED_CURVE_KEY_SIZE) {
+        socket.setsockopt(opt, key.c_str(), EXPECTED_CURVE_KEY_SIZE + 1);
+    }
 }
 
-void setupCurveClient(zmq::socket_t& socket)
+}
+
+void setupCurveServer(zmq::socket_t& socket, const CurveKeys* const keys)
 {
-    socket.setsockopt(ZMQ_CURVE_SERVER, 0);
-    socket.setsockopt(ZMQ_CURVE_SERVERKEY, "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7", 41);
-    socket.setsockopt(ZMQ_CURVE_PUBLICKEY, "Yne@$w-vo<fVvi]a<NY6T1ed:M$fCG*[IaLV{hID", 41);
-    socket.setsockopt(ZMQ_CURVE_SECRETKEY, "D:)Q[IlAW!ahhC2ac:9*A}h:p?([4%wOTJ%JR%cs", 41);
+    if (keys) {
+        socket.setsockopt(ZMQ_CURVE_SERVER, 1);
+        setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+    }
+}
+
+void setupCurveClient(zmq::socket_t& socket, const CurveKeys* const keys)
+{
+    if (keys) {
+        socket.setsockopt(ZMQ_CURVE_SERVER, 0);
+        setKey(socket, ZMQ_CURVE_SERVERKEY, keys->serverKey);
+        setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+        setKey(socket, ZMQ_CURVE_PUBLICKEY, keys->publicKey);
+    }
 }
 
 }

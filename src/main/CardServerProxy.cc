@@ -47,6 +47,7 @@ namespace Main {
 
 using CardServer::PeerEntry;
 using Engine::CardManager;
+using Messaging::CurveKeys;
 using Messaging::failure;
 using Messaging::Identity;
 using Messaging::JsonSerializer;
@@ -142,7 +143,9 @@ class CardServerProxy::Impl :
     public sc::state_machine<Impl, Initializing>, public CardManager {
 public:
 
-    Impl(zmq::context_t& context, const std::string& controlEndpoint);
+    Impl(
+        zmq::context_t& context, const CurveKeys* keys,
+        const std::string& controlEndpoint);
 
     bool acceptPeer(
         const Identity& identity, PositionVector positions,
@@ -196,7 +199,9 @@ private:
     std::vector<std::shared_ptr<Hand::CardRevealStateObserver>> handObservers;
 };
 
-Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
+Impl::Impl(
+    zmq::context_t& context, const CurveKeys* const keys,
+    const std::string& controlEndpoint) :
     sockets {{
         {
             std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
@@ -209,7 +214,7 @@ Impl::Impl(zmq::context_t& context, const std::string& controlEndpoint) :
     }},
     controlSocket {*sockets.front().first}
 {
-    Messaging::setupCurveClient(controlSocket);
+    Messaging::setupCurveClient(controlSocket, keys);
     controlSocket.connect(controlEndpoint);
 }
 
@@ -644,8 +649,9 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
 }
 
 CardServerProxy::CardServerProxy(
-    zmq::context_t& context, const std::string& controlEndpoint) :
-    impl {std::make_shared<Impl>(context, controlEndpoint)}
+    zmq::context_t& context, const CurveKeys* const keys,
+    const std::string& controlEndpoint) :
+    impl {std::make_shared<Impl>(context, keys, controlEndpoint)}
 {
     impl->initiate();
 }

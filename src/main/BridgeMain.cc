@@ -8,6 +8,7 @@
 #include "main/CallbackScheduler.hh"
 #include "main/CardServerProxy.hh"
 #include "main/Commands.hh"
+#include "main/Config.hh"
 #include "main/GetMessageHandler.hh"
 #include "main/NodePlayerControl.hh"
 #include "main/PeerCommandSender.hh"
@@ -76,15 +77,16 @@ class BridgeMain::Impl {
 public:
 
     Impl(
-        zmq::context_t& context, const std::string& baseEndpoint,
-        PositionVector positions, const EndpointVector& peerEndpoints,
+        zmq::context_t& context, Config config,
+        const std::string& baseEndpoint, PositionVector positions,
+        const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
     void run();
 
     std::unique_ptr<CardProtocol> makeCardProtocol(
-        zmq::context_t& context,
+        zmq::context_t& context, const Messaging::CurveKeys* keys,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
@@ -119,6 +121,7 @@ private:
         const std::string& cardServerBasePeerEndpoint,
         PeerCommandSender& peerCommandSender);
 
+    const Config config;
     UuidGenerator uuidGenerator {createUuidGenerator()};
     bool peerMode;
     std::map<Identity, Role> nodes;
@@ -132,7 +135,7 @@ private:
 };
 
 std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
-    zmq::context_t& context,
+    zmq::context_t& context, const Messaging::CurveKeys* const keys,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint,
     std::shared_ptr<PeerCommandSender> peerCommandSender)
@@ -144,14 +147,16 @@ std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
     }
     log(LogLevel::DEBUG, "Card exchange protocol: card server");
     return std::make_unique<CardServerProxy>(
-        context, cardServerControlEndpoint);
+        context, keys, cardServerControlEndpoint);
 }
 
 BridgeMain::Impl::Impl(
-    zmq::context_t& context, const std::string& baseEndpoint,
-    PositionVector positions, const EndpointVector& peerEndpoints,
+    zmq::context_t& context, Config config,
+    const std::string& baseEndpoint, PositionVector positions,
+    const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
+    config {std::move(config)},
     peerMode {!peerEndpoints.empty()},
     nodePlayerControl {std::make_shared<NodePlayerControl>()},
     eventSocket {
@@ -200,17 +205,17 @@ BridgeMain::Impl::Impl(
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
-    Messaging::setupCurveServer(*controlSocket);
+    Messaging::setupCurveServer(*controlSocket, this->config.getCurveConfig());
     controlSocket->bind(*endpointIterator++);
-    Messaging::setupCurveServer(*eventSocket);
+    Messaging::setupCurveServer(*eventSocket, this->config.getCurveConfig());
     eventSocket->bind(*endpointIterator);
     // Default game for peers, if there are any
     if (peerMode) {
         auto peerCommandSender = std::make_shared<PeerCommandSender>(
             callbackScheduler);
         auto cardProtocol = makeCardProtocol(
-            context, cardServerControlEndpoint, cardServerBasePeerEndpoint,
-            peerCommandSender);
+            context, this->config.getCurveConfig(), cardServerControlEndpoint,
+            cardServerBasePeerEndpoint, peerCommandSender);
         for (auto&& handler : cardProtocol->getMessageHandlers()) {
             messageQueue.trySetHandler(handler.first, handler.second);
         }
@@ -388,7 +393,8 @@ void BridgeMain::Impl::internalInitializePeers(
 {
     for (const auto& endpoint : peerEndpoints) {
         messageLoop.addSocket(
-            peerCommandSender.addPeer(context, endpoint),
+            peerCommandSender.addPeer(
+                context, config.getCurveConfig(), endpoint),
             [&sender = peerCommandSender](zmq::socket_t& socket)
             {
                 sender.processReply(socket);
@@ -426,13 +432,14 @@ const Player* BridgeMain::Impl::internalGetPlayerFor(
 }
 
 BridgeMain::BridgeMain(
-    zmq::context_t& context, const std::string& baseEndpoint,
-    PositionVector positions, const EndpointVector& peerEndpoints,
+    zmq::context_t& context, Config config,
+    const std::string& baseEndpoint, PositionVector positions,
+    const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     impl {
         std::make_unique<Impl>(
-            context, baseEndpoint, std::move(positions),
+            context, std::move(config), baseEndpoint, std::move(positions),
             std::move(peerEndpoints), cardServerControlEndpoint,
             cardServerBasePeerEndpoint)}
 {

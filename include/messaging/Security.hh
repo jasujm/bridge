@@ -4,10 +4,6 @@
  *
  * This header defines utilities for configuring CurveZMW based communication
  * between nodes (http://curvezmq.org/).
- *
- * \warning This feature is still experimental. The keypair is currently the
- * test keypair defined in the ZeroMQ manual page
- * (http://api.zeromq.org/4-2:zmq-curve). It does not provide actual security.
  */
 
 #ifndef MESSAGING_SECURITY_HH_
@@ -15,34 +11,47 @@
 
 #include <zmq.hpp>
 
+#include <cstddef>
+#include <optional>
+
 namespace Bridge {
 namespace Messaging {
+
+/** \brief Expected size of CurveZMQ keys
+ *
+ * ZeroMQ API accepts curve keys as null terminated Z85 encoded strings. This
+ * constant defines the expected size of the encoded key (excuding the null
+ * character).
+ */
+constexpr std::size_t EXPECTED_CURVE_KEY_SIZE = 40;
+
+/** \brief Collection of CurveZMQ keys
+ */
+struct CurveKeys {
+    std::string serverKey;  ///< \brief Server public key (clients only)
+    std::string secretKey;  ///< \brief Secret key
+    std::string publicKey;  ///< \brief Public key
+};
 
 /** \brief Setup socket as curve server
  *
  * This function sets the appropriate socket options on \p socket to make it act
  * as curve server.
  *
- * \warning This feature is still experimental. The keypair is currently the
- * test keypair defined in the ZeroMQ manual page
- * (http://api.zeromq.org/4-2:zmq-curve). It does not provide actual security.
- *
  * \param socket the socket that will act as curve server
+ * \param keys the CurveZMQ keys
  */
-void setupCurveServer(zmq::socket_t& socket);
+void setupCurveServer(zmq::socket_t& socket, const CurveKeys* keys);
 
 /** \brief Setup socket as curve client
  *
  * This function sets the appropriate socket options on \p socket to make it act
  * as curve client.
  *
- * \warning This feature is still experimental. The keypair is currently the
- * test keypair defined in the ZeroMQ manual page
- * (http://api.zeromq.org/4-2:zmq-curve). It does not provide actual security.
- *
  * \param socket the socket that will act as curve client
+ * \param keys the CurveZMQ keys
  */
-void setupCurveClient(zmq::socket_t& socket);
+void setupCurveClient(zmq::socket_t& socket, const CurveKeys* keys);
 
 }
 }

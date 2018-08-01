@@ -1,3 +1,4 @@
+#include "messaging/Security.hh"
 #include "csmain/CardServerMain.hh"
 #include "Logging.hh"
 
@@ -5,6 +6,8 @@
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
+#include <array>
+#include <optional>
 #include <string>
 
 namespace {
@@ -17,9 +20,10 @@ public:
 
     CardServerApp(
         zmq::context_t& zmqctx,
+        std::optional<Messaging::CurveKeys> keys,
         const std::string& controlEndpoint,
         const std::string& basePeerEndpoint) :
-        app {zmqctx, controlEndpoint, basePeerEndpoint}
+        app {zmqctx, std::move(keys), controlEndpoint, basePeerEndpoint}
     {
         log(Bridge::LogLevel::INFO, "Setup completed");
     }
@@ -43,14 +47,28 @@ private:
 
 CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    const auto opt = "v";
+    auto curveSecretKey = std::string {};
+    auto curvePublicKey = std::string {};
+
+    const auto short_opt = "vs:p:";
+    const auto long_opt = std::array {
+        option { "curve-secret-key", required_argument, 0, 's' },
+        option { "curve-public-key", required_argument, 0, 'p' },
+        option { nullptr, 0, 0, 0 },
+    };
     auto verbosity = 0;
+    auto opt_index = 0;
     while(true) {
-        auto c = getopt(argc, argv, opt);
+        auto c = getopt_long(
+            argc, argv, short_opt, long_opt.data(), &opt_index);
         if (c == -1 || c == '?') {
             break;
         } else if (c == 'v') {
             ++verbosity;
+        } else if (c == 's') {
+            curveSecretKey = optarg;
+        } else if (c == 'p') {
+            curvePublicKey = optarg;
         } else {
             exit(EXIT_FAILURE);
         }
@@ -62,6 +80,13 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
+    if (curveSecretKey.empty() != curvePublicKey.empty()) {
+        std::cerr << argv[0]
+            << ": both curve secret and public key must be provided, or neither"
+            << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
 
     if (!init_libTMCG()) {
@@ -70,7 +95,12 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    return CardServerApp {zmqctx, argv[optind], argv[optind+1]};
+    auto keys = curveSecretKey.empty() ? std::nullopt :
+        std::make_optional(
+            Messaging::CurveKeys {
+                curvePublicKey, curveSecretKey, curvePublicKey });
+    return CardServerApp {
+        zmqctx, std::move(keys), argv[optind], argv[optind+1]};
 }
 
 int bridge_main(int argc, char* argv[])

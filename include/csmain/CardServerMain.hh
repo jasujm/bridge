@@ -6,9 +6,12 @@
 #ifndef CARDSERVER_CARDSERVERMAIN_HH_
 #define CARDSERVER_CARDSERVERMAIN_HH_
 
+#include "messaging/Security.hh"
+
 #include <zmq.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace Bridge {
@@ -42,12 +45,15 @@ public:
 
     /** \brief Create new card server
      *
-     * \param context ZeroMQ context
+     * \param context the ZeroMQ context
+     * \param keys the CurveZMQ keys used for connections, or nullopt if curve
+     * security isn’t used
      * \param controlEndpoint the endpoint for the client to connect to
      * \param basePeerEndpoint the base endpoint the first peer connects to
      */
     CardServerMain(
-        zmq::context_t& context, const std::string& controlEndpoint,
+        zmq::context_t& context, std::optional<Messaging::CurveKeys> keys,
+        const std::string& controlEndpoint,
         const std::string& basePeerEndpoint);
 
     ~CardServerMain();

@@ -123,7 +123,7 @@ protected:
 
     zmq::context_t context;
     zmq::socket_t proxySocket {context, zmq::socket_type::pair};
-    CardServerProxy protocol {context, CONTROL_ENDPOINT};
+    CardServerProxy protocol {context, nullptr, CONTROL_ENDPOINT};
     std::vector<std::optional<CardType>> allCards;
 };
 

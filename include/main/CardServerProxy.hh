@@ -18,6 +18,12 @@ namespace Bridge {
 
 enum class Position;
 
+namespace Messaging {
+
+struct CurveKeys;
+
+}
+
 namespace Main {
 
 /** \brief Client for card server
@@ -39,11 +45,14 @@ public:
 
     /** \brief Create card server proxy
      *
-     * \param context ZeroMQ context
+     * \param context the ZeroMQ context
+     * \param keys the CurveZMQ keys used for connections, or nullptr if curve
+     * security isn’t used
      * \param controlEndpoint the control endpoint of the card server
      */
     CardServerProxy(
-        zmq::context_t& context, const std::string& controlEndpoint);
+        zmq::context_t& context, const Messaging::CurveKeys* keys,
+        const std::string& controlEndpoint);
 
     class Impl;
 

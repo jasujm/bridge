@@ -15,6 +15,7 @@ find_package(Threads REQUIRED)
 find_package(Boost REQUIRED)
 find_package(ZeroMQ REQUIRED)
 find_package(Json REQUIRED)
+find_package(Lua 5.3 REQUIRED)
 find_package(LibTMCG)
 find_package(PythonInterp)
 

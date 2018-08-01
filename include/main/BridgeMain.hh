@@ -24,6 +24,8 @@ namespace Bridge {
  */
 namespace Main {
 
+class Config;
+
 /** \brief Configure and run the event loop for the Bridge backend
  *
  * When constructed, BridgeMain configures and sets up Bridge peer application
@@ -49,6 +51,7 @@ public:
     /** \brief Create Bridge backend
      *
      * \param context the ZeroMQ context for the game
+     * \param config the application configurations
      * \param baseEndpoint the base endpoint for control and event sockets
      * \param positionsControlled the positions controlled by the application
      *   (empty vector implies all positions)
@@ -69,6 +72,7 @@ public:
      */
     BridgeMain(
         zmq::context_t& context,
+        Config config,
         const std::string& baseEndpoint,
         PositionVector positionsControlled,
         const EndpointVector& peerEndpoints,

@@ -35,7 +35,7 @@ protected:
         for (auto&& t : boost::combine(endpoints, frontSockets, backSockets))
         {
             t.get<1>().bind(t.get<0>());
-            t.get<2>() = sender.addPeer(context, t.get<0>());
+            t.get<2>() = sender.addPeer(context, nullptr, t.get<0>());
         }
     }
 

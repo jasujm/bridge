@@ -3,7 +3,6 @@
 
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
-#include "messaging/Security.hh"
 
 #include <algorithm>
 #include <stdexcept>
@@ -25,19 +24,21 @@ const auto MAX_RESEND_TIMEOUT =
 }
 
 PeerCommandSender::Peer::Peer(
-    zmq::context_t& context, const std::string& endpoint) :
+    zmq::context_t& context, const CurveKeys* const keys,
+    const std::string& endpoint) :
     socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
     resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
-    setupCurveClient(*socket);
+    setupCurveClient(*socket, keys);
     socket->connect(endpoint);
 }
 
 std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
-    zmq::context_t& context, const std::string& endpoint)
+    zmq::context_t& context, const CurveKeys* const keys,
+    const std::string& endpoint)
 {
-    peers.emplace_back(context, endpoint);
+    peers.emplace_back(context, keys, endpoint);
     return peers.back().socket;
 }
 

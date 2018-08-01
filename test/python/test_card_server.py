@@ -29,8 +29,8 @@ CARDS_COMMAND = b'cards'
 IDENTITY_COMMAND = b'id'
 
 CURVE_SERVERKEY = b"rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7\0"
-CURVE_PUBLICKEY = b"Yne@$w-vo<fVvi]a<NY6T1ed:M$fCG*[IaLV{hID\0"
-CURVE_SECRETKEY = b"D:)Q[IlAW!ahhC2ac:9*A}h:p?([4%wOTJ%JR%cs\0"
+CURVE_SECRETKEY = b"JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6\0"
+CURVE_PUBLICKEY = b"rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7\0"
 
 def get_endpoint(port):
     return "tcp://127.0.0.1:%d" % port
@@ -53,7 +53,10 @@ CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 zmqctx = zmq.Context.instance()
 servers = [
     subprocess.Popen(
-        [sys.argv[1], get_endpoint(peer.control),
+        [sys.argv[1],
+         '--curve-secret-key', CURVE_SECRETKEY[:-1].decode(),
+         '--curve-public-key', CURVE_PUBLICKEY[:-1].decode(),
+         get_endpoint(peer.control),
          get_endpoint(peer.endpoint)]) for peer in PEERS]
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
 
