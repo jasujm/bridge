@@ -18,8 +18,7 @@ find_package(Json REQUIRED)
 find_package(LibTMCG)
 find_package(PythonInterp)
 
-include_directories(include ${Boost_INCLUDE_DIR} ${ZEROMQ_INCLUDE_DIRS}
-  ${JSON_INCLUDE_DIRS})
+include_directories(include ${Boost_INCLUDE_DIR})
 
 if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
   set(BRIDGE_PYTHON_AVAILABLE ON)

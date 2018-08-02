@@ -18,8 +18,7 @@ set_property(TARGET bridge-common PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
-  bridge-engine bridge-scoring bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
-  Threads::Threads)
+  bridge-engine bridge-scoring bridge-bridge bridge-common Threads::Threads)
 set_property(TARGET bridge PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 install(TARGETS bridge RUNTIME DESTINATION bin)
@@ -31,8 +30,8 @@ if(LibTMCG_FOUND)
     add_subdirectory(csmain)
     add_executable(bridgecs CardServer.cc)
     target_link_libraries(bridgecs bridge-csmain bridge-messaging
-      bridge-cardserver bridge-bridge bridge-common ${ZEROMQ_LIBRARIES}
-      ${TMCG_LIBRARIES} Threads::Threads)
+      bridge-cardserver bridge-bridge bridge-common ${TMCG_LIBRARIES}
+      Threads::Threads)
     set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
     install(TARGETS bridgecs RUNTIME DESTINATION bin)
   endif()
