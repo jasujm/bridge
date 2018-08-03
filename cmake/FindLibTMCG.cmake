@@ -7,3 +7,4 @@ set(TMCG_INCLUDE_DIRS ${TMCG_INCLUDE_DIR})
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(LibTMCG DEFAULT_MSG TMCG_LIBRARY
   TMCG_INCLUDE_DIR)
+mark_as_advanced(TMCG_LIBRARY TMCG_INCLUDE_DIR)
