@@ -23,7 +23,7 @@ namespace Bridge {
  *
  * \return card type corresponding to the number
  *
- * \throw std::domain_error if n is not valid card type
+ * \throw std::invalid_argument if n is not valid card type
  */
 CardType enumerateCardType(std::size_t n);
 

@@ -10,7 +10,7 @@ CardType enumerateCardType(const std::size_t n)
 {
     static_assert(N_RANKS * N_SUITS == N_CARDS, "Unexpected number of cards");
     if (n >= N_CARDS) {
-        throw std::domain_error("Invalid card number");
+        throw std::invalid_argument {"Invalid card number"};
     }
 
     const auto n_suit = n / N_RANKS;
