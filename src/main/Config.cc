@@ -27,16 +27,19 @@ struct LuaStreamReaderArgs {
     std::array<char, READ_CHUNK_SIZE> buf;
 };
 
-const char* luaStreamReader(lua_State*, void* data, std::size_t* size)
-{
-    auto& args = *reinterpret_cast<LuaStreamReaderArgs*>(data);
-    if (args.in) {
-        args.in.read(args.buf.data(), args.buf.size());
-        *size = args.in.gcount();
-        return args.buf.data();
+extern "C" {
+    const char* config_lua_reader(
+        lua_State*, void* data, std::size_t* size)
+    {
+        auto& args = *reinterpret_cast<LuaStreamReaderArgs*>(data);
+        if (args.in) {
+            args.in.read(args.buf.data(), args.buf.size());
+            *size = args.in.gcount();
+            return args.buf.data();
+        }
+        *size = 0;
+        return nullptr;
     }
-    *size = 0;
-    return nullptr;
 }
 
 void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
@@ -46,7 +49,7 @@ void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
         const auto reader_args = std::make_unique<LuaStreamReaderArgs>(in);
         const auto error =
             lua_load(
-                lua, luaStreamReader, reader_args.get(), "config", nullptr) ||
+                lua, config_lua_reader, reader_args.get(), "config", nullptr) ||
             lua_pcall(lua, 0, 0, 0);
         if (error) {
             log(LogLevel::ERROR, "Error while running config script: %s",
