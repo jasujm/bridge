@@ -37,6 +37,8 @@
 #include <utility>
 #include <vector>
 
+#include <signal.h>
+
 template<typename CardType>
 void swap(TMCG_Stack<CardType>& stack1, TMCG_Stack<CardType>& stack2)
 {
@@ -75,6 +77,72 @@ void failUnless(const bool condition)
 {
     if (!condition) {
         throw TMCGInitFailure {};
+    }
+}
+
+extern "C" {
+    void cardservermain_handle_signal(int signal)
+    {
+        log(LogLevel::INFO,
+            "%s received while executing protocol. Exiting immediately.",
+            strsignal(signal));
+        std::exit(EXIT_SUCCESS);
+    }
+}
+
+// Protocols performed by LibTMCG are based on multiple successive blocking
+// sends/recvs and there is no easy way to graciously cancel the
+// execution. Before interacting with LibTMCG, CardServer functions create
+// SignalGuard that
+// - sets signal handler that exits immediately when signal is received
+// - unblocks SIGTERM and SIGINT
+// - does the reverse when the protocol is finished
+
+class SignalGuard {
+public:
+    SignalGuard();
+    ~SignalGuard();
+
+private:
+    sigset_t oldMask {};
+    struct sigaction oldIntAct {};
+    struct sigaction oldTermAct {};
+};
+
+SignalGuard::SignalGuard()
+{
+    sigset_t mask {};
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
+    struct sigaction action {};
+    action.sa_handler = cardservermain_handle_signal;
+    action.sa_mask = mask;
+    if (sigaction(SIGINT, &action, &oldIntAct) != 0) {
+        log(LogLevel::ERROR,
+            "Failed to set SIGINT action: %s", strerror(errno));
+    }
+    if (sigaction(SIGTERM, &action, &oldTermAct) != 0) {
+        log(LogLevel::ERROR,
+            "Failed to set SIGTERM action: %s", strerror(errno));
+    }
+    if (sigprocmask(SIG_UNBLOCK, &mask, &oldMask) != 0) {
+        log(LogLevel::ERROR, "Failed to set sigprocmask: %s", strerror(errno));
+    }
+}
+
+SignalGuard::~SignalGuard()
+{
+    if (sigprocmask(SIG_SETMASK, &oldMask, nullptr) != 0) {
+        log(LogLevel::ERROR, "Failed to restore sigprocmask: %s",
+            strerror(errno));
+    }
+    if (sigaction(SIGTERM, &oldTermAct, nullptr) != 0) {
+        log(LogLevel::ERROR,
+            "Failed to restore SIGTERM action: %s", strerror(errno));
+    }
+    if (sigaction(SIGINT, &oldIntAct, nullptr) != 0) {
+        log(LogLevel::ERROR, "Failed to restore SIGINT action: %s", strerror(errno));
     }
 }
 
@@ -145,6 +213,8 @@ TMCG::TMCG(
     stack {},
     cards(N_CARDS)
 {
+    SignalGuard guard;
+
     // Phase 1: Connect to all peers
 
     failUnless(!peers.empty());
@@ -198,6 +268,8 @@ TMCG::TMCG(
 
 bool TMCG::shuffle()
 {
+    SignalGuard guard;
+
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
@@ -275,6 +347,8 @@ bool TMCG::revealAll(const IndexVector& ns)
 
 bool TMCG::draw(const IndexVector& ns)
 {
+    SignalGuard guard;
+
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
@@ -311,6 +385,8 @@ const CardVector& TMCG::getCards() const
 
 bool TMCG::revealHelper(PeerStreamEntry& peer, const IndexVector& ns)
 {
+    SignalGuard guard;
+
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
