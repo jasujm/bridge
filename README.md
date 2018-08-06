@@ -209,10 +209,24 @@ target
 
 ## Security
 
-Currently communication between peers and clients is not encrypted or
-authenticated, save the cryptography used in card exchange between card server
-peers. Thus the application is not suitable for public network where the nodes
-can’t trust each other.
+**Note! This feature is still experimental.**
+
+The communication between nodes can be authenticated and encrypted using CURVE
+mechanism implemented in the ZeroMQ library (http://curvezmq.org/).
+
+To start the backend with CURVE support, load a configuration file containing
+CURVE keys. There is a sample file in the repository.
+
+    $ bridge --config=sample/config.lua …rest of the args…
+
+The GUI needs to configure the public key of the server. It can be extracted
+from the server configuration script.
+
+    $ PUBKEY=$(lua5.3 -e 'dofile("sample/config.lua"); print(curve_public_key)')
+    $ bridgegui --curve-server-key=$PUBKEY …rest of the args…
+
+The backend performs no authentication of the frontend instances connecting to
+it. Clients authenticate the server.
 
 Please see LibTMCG documentation for further information about it’s security
 model and assumptions, in particular the honest‐but‐curious security model.
