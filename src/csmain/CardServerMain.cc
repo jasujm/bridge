@@ -459,7 +459,7 @@ Reply<> CardServerMain::Impl::reveal(
 Reply<CardVector> CardServerMain::Impl::revealAll(
     const Identity&, const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Revealing %d cards to all players");
+    log(LogLevel::DEBUG, "Revealing %d cards to all players", ns.size());
     if (tmcg && tmcg->revealAll(ns)) {
         return success(tmcg->getCards());
     }
