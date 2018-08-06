@@ -24,10 +24,14 @@ actual game logic and communicates with the frontend and other peers using TCP
 sockets.
 
 The backend needs modern‐ish C++ compiler supporting C++17. The project depends
-on [ZeroMQ](http://zeromq.org/) for messaging,
-[json](https://github.com/nlohmann/json) to serialize and deserialize messages
-and [Boost](http://www.boost.org/) for various things. Optionally
-[LibTMCG](http://www.nongnu.org/libtmcg/) is used for secure card exchange.
+on
+- [ZeroMQ](http://zeromq.org/) for messaging
+- [json](https://github.com/nlohmann/json) to serialize and deserialize messages
+- [Lua](https://www.lua.org/) for configuration parsing
+- [Boost](http://www.boost.org/) for various things.
+
+Optionally [LibTMCG](http://www.nongnu.org/libtmcg/) is used for secure card
+exchange.
 
 [Googletest](https://github.com/google/googletest) is used to build unit
 tests. As recommended by the maintainers of the project, instead of relying on
