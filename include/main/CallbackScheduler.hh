@@ -6,6 +6,8 @@
 #ifndef MAIN_CALLBACKSCHEDULER_HH_
 #define MAIN_CALLBACKSCHEDULER_HH_
 
+#include "Thread.hh"
+
 #include <boost/noncopyable.hpp>
 #include <zmq.hpp>
 
@@ -13,7 +15,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <thread>
 
 namespace Bridge {
 namespace Main {
@@ -94,7 +95,7 @@ private:
     zmq::socket_t frontSocket;
     std::shared_ptr<zmq::socket_t> backSocket;
     std::map<unsigned long, Callback> callbacks;
-    std::thread worker;
+    Thread worker;
 };
 
 }

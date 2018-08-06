@@ -13,7 +13,7 @@ add_subdirectory(engine)
 add_subdirectory(scoring)
 add_subdirectory(bridge)
 
-add_library(bridge-common STATIC Logging.cc Boilerplate.cc)
+add_library(bridge-common STATIC Logging.cc Boilerplate.cc Thread.cc)
 set_property(TARGET bridge-common PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 add_executable(bridge Bridge.cc)

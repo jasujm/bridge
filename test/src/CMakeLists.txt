@@ -33,7 +33,7 @@ add_dependencies(${GTEST_LIBRARY} googletest)
 set(BRIDGE_TEST_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/test/include ${GMOCK_INCLUDE_DIR})
 
-add_library(test-common STATIC TestMain.cc ${PROJECT_SOURCE_DIR}/src/Logging.cc)
+add_library(test-common STATIC TestMain.cc ${PROJECT_SOURCE_DIR}/src/Logging.cc ${PROJECT_SOURCE_DIR}/src/Thread.cc)
 target_include_directories(test-common PUBLIC ${BRIDGE_TEST_INCLUDE_DIRS})
 target_link_libraries(test-common PUBLIC ${GMOCK_LIBRARY} ${GTEST_LIBRARY})
 target_compile_features(test-common PUBLIC ${BRIDGE_COMPILE_FEATURES})

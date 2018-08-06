@@ -105,22 +105,18 @@ CallbackScheduler::CallbackScheduler(zmq::context_t& context) :
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)},
     callbacks {}
 {
-    const auto back_name = generateSocketName("csbs", this);
-    const auto front_name = generateSocketName("csfs", this);
+    auto back_name = generateSocketName("csbs", this);
+    auto front_name = generateSocketName("csfs", this);
     backSocket->bind(back_name);
     frontSocket.bind(front_name);
-    worker = std::thread {
-        [&context, back_name, front_name]()
-        {
-            callbackSchedulerWorker(context, back_name, front_name);
-        }
-    };
+    worker = Thread {
+        callbackSchedulerWorker, std::ref(context), std::move(back_name),
+        std::move(front_name) };
 }
 
 CallbackScheduler::~CallbackScheduler()
 {
     frontSocket.send(zmq::message_t {});
-    worker.join();
 }
 
 void CallbackScheduler::callOnce(Callback callback, const Ms timeout)
