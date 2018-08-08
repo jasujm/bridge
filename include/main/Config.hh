@@ -6,10 +6,17 @@
 #include "messaging/Security.hh"
 
 #include <iosfwd>
-#include <optional>
+#include <memory>
 #include <string>
 
 namespace Bridge {
+
+namespace Messaging {
+
+struct CurveKeys;
+
+}
+
 namespace Main {
 
 /** \brief Configuration file processing utility
@@ -34,6 +41,16 @@ public:
      */
     Config(std::istream& in);
 
+    /** \brief Move constructor
+     */
+    Config(Config&&);
+
+    ~Config();
+
+    /** \brief Move assignment
+     */
+    Config& operator=(Config&&);
+
     /** \brief Get CurveZMQ keys
      *
      * \return pointer to the curve keys in the configs, or nullptr if no keys
@@ -43,7 +60,8 @@ public:
 
 private:
 
-    std::optional<Messaging::CurveKeys> curveConfig;
+    struct Impl;
+    std::unique_ptr<const Impl> impl;
 };
 
 /** \brief Create configuration from file

@@ -5,7 +5,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
-#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <tuple>
 
@@ -77,9 +77,16 @@ std::string getKeyStringOrEmpty(lua_State* lua, const char* key)
 
 }
 
-Config::Config() = default;
+struct Config::Impl {
+    Impl();
+    Impl(std::istream& in);
 
-Config::Config(std::istream& in)
+    std::optional<Messaging::CurveKeys> curveConfig {};
+};
+
+Config::Impl::Impl() = default;
+
+Config::Impl::Impl(std::istream& in)
 {
     log(LogLevel::INFO, "Reading configs");
 
@@ -99,9 +106,26 @@ Config::Config(std::istream& in)
     log(LogLevel::INFO, "Reading configs completed");
 }
 
+Config::Config() :
+    impl {std::make_unique<Impl>()}
+{
+}
+
+Config::Config(std::istream& in) :
+    impl {std::make_unique<Impl>(in)}
+{
+}
+
+Config::Config(Config&&) = default;
+
+Config::~Config() = default;
+
+Config& Config::operator=(Config&&) = default;
+
 const Messaging::CurveKeys* Config::getCurveConfig() const
 {
-    return getPtr(curveConfig);
+    assert(impl);
+    return getPtr(impl->curveConfig);
 }
 
 Config configFromPath(const std::string_view path)
