@@ -34,7 +34,7 @@ public:
 
     /** \brief Create thread running callable
      *
-     * Creates thread which blocks SIGINT and SIGTERM, then calls function \f
+     * Creates thread which blocks SIGINT and SIGTERM, then calls function \p f
      * with arguments \p args
      */
     template<typename Function, typename... Args>
