@@ -70,21 +70,21 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         } else if (c == 'p') {
             curvePublicKey = optarg;
         } else {
-            exit(EXIT_FAILURE);
+            std::exit(EXIT_FAILURE);
         }
     }
 
     if (optind + 1 >= argc) {
         std::cerr << argv[0]
             << ": control and base peer endpoints required" << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     if (curveSecretKey.empty() != curvePublicKey.empty()) {
         std::cerr << argv[0]
             << ": both curve secret and public key must be provided, or neither"
             << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
@@ -92,7 +92,7 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
     if (!init_libTMCG()) {
         log(Bridge::LogLevel::FATAL,
             "Failed to initialize LibTMCG. Exiting.");
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     auto keys = curveSecretKey.empty() ? std::nullopt :

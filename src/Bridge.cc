@@ -99,13 +99,13 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         } else if (c == 'q') {
             cardServerBasePeerEndpoint = optarg;
         } else {
-            exit(EXIT_FAILURE);
+            std::exit(EXIT_FAILURE);
         }
     }
 
     if (optind == argc) {
         std::cerr << argv[0] << ": base endpoint required" << std::endl;
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
