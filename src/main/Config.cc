@@ -3,6 +3,7 @@
 #include "Utility.hh"
 
 #include <array>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -19,6 +20,24 @@ namespace Bridge {
 namespace Main {
 
 namespace {
+
+class LuaPopGuard {
+public:
+    LuaPopGuard(lua_State* lua);
+    ~LuaPopGuard();
+private:
+    lua_State* lua;
+};
+
+LuaPopGuard::LuaPopGuard(lua_State* lua) :
+    lua {lua}
+{
+}
+
+LuaPopGuard::~LuaPopGuard()
+{
+    lua_pop(lua, 1);
+}
 
 constexpr std::size_t READ_CHUNK_SIZE = 4096;
 struct LuaStreamReaderArgs {
@@ -61,18 +80,19 @@ void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
     }
 }
 
-std::string getKeyStringOrEmpty(lua_State* lua, const char* key)
+Blob getKeyOrEmpty(lua_State* lua, const char* key)
 {
-    auto ret = std::string {};
     lua_getglobal(lua, key);
+    LuaPopGuard guard {lua};
     if (const auto* str = lua_tostring(lua, -1)) {
-        ret = str;
-        if (ret.size() != Bridge::Messaging::EXPECTED_CURVE_KEY_SIZE) {
-            log(LogLevel::WARNING, "%s unexpected length: %d", key, ret.size());
+        auto ret = Messaging::decodeKey(str);
+        if (ret.empty()) {
+            log(LogLevel::WARNING, "Failed to decode %s", key);
+        } else {
+            return ret;
         }
     }
-    lua_pop(lua, 1);
-    return ret;
+    return {};
 }
 
 }
@@ -96,8 +116,8 @@ Config::Impl::Impl(std::istream& in)
     luaL_openlibs(lua.get());
     loadAndExecuteFromStream(lua.get(), in);
 
-    const auto secret_key = getKeyStringOrEmpty(lua.get(), "curve_secret_key");
-    const auto public_key = getKeyStringOrEmpty(lua.get(), "curve_public_key");
+    const auto secret_key = getKeyOrEmpty(lua.get(), "curve_secret_key");
+    const auto public_key = getKeyOrEmpty(lua.get(), "curve_public_key");
     if (!secret_key.empty() && !public_key.empty()) {
         curveConfig = Messaging::CurveKeys {
             public_key, secret_key, public_key };

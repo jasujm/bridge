@@ -9,6 +9,7 @@
 using namespace std::string_literals;
 
 using Bridge::Main::Config;
+using Bridge::Messaging::decodeKey;
 
 class ConfigTest : public testing::Test {
 protected:
@@ -49,7 +50,11 @@ curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
     const auto config = Config {in};
     const auto curve = config.getCurveConfig();
     ASSERT_TRUE(curve);
-    EXPECT_EQ("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"s, curve->serverKey);
-    EXPECT_EQ("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6"s, curve->secretKey);
-    EXPECT_EQ("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"s, curve->publicKey);
+    const auto expectedSecretKey =
+        decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6");
+    const auto expectedPublicKey =
+        decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7");
+    EXPECT_EQ(expectedPublicKey, curve->serverKey);
+    EXPECT_EQ(expectedSecretKey, curve->secretKey);
+    EXPECT_EQ(expectedPublicKey, curve->publicKey);
 }

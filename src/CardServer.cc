@@ -47,8 +47,8 @@ private:
 
 CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 {
-    auto curveSecretKey = std::string {};
-    auto curvePublicKey = std::string {};
+    auto curveSecretKey = Blob {};
+    auto curvePublicKey = Blob {};
 
     const auto short_opt = "vs:p:";
     const auto long_opt = std::array {
@@ -66,9 +66,17 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         } else if (c == 'v') {
             ++verbosity;
         } else if (c == 's') {
-            curveSecretKey = optarg;
+            curveSecretKey = Messaging::decodeKey(optarg);
+            if (curveSecretKey.empty()) {
+                std::cerr << argv[0] <<
+                    ": failed to decode secret key" << std::endl;
+            }
         } else if (c == 'p') {
-            curvePublicKey = optarg;
+            curvePublicKey = Messaging::decodeKey(optarg);
+            if (curvePublicKey.empty()) {
+                std::cerr << argv[0] <<
+                    ": failed to decode public key" << std::endl;
+            }
         } else {
             std::exit(EXIT_FAILURE);
         }
