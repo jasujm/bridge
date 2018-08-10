@@ -27,14 +27,13 @@ public:
     BridgeApp(
         zmq::context_t& zmqctx,
         const std::string& configPath,
-        const std::string& baseEndpoint,
         BridgeMain::PositionVector positions,
         const BridgeMain::EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint) :
         app {
-            zmqctx, Main::configFromPath(configPath), baseEndpoint,
-            std::move(positions), peerEndpoints, cardServerControlEndpoint,
+            zmqctx, Main::configFromPath(configPath), std::move(positions),
+            peerEndpoints, cardServerControlEndpoint,
             cardServerBasePeerEndpoint}
     {
         log(Bridge::LogLevel::INFO, "Startup completed");
@@ -103,16 +102,11 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         }
     }
 
-    if (optind == argc) {
-        std::cerr << argv[0] << ": base endpoint required" << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-
     setupLogging(Bridge::getLogLevel(verbosity), std::cerr);
 
     return BridgeApp {
-        zmqctx, std::move(configPath), argv[optind], std::move(positions),
-        peerEndpoints, cardServerControlEndpoint, cardServerBasePeerEndpoint};
+        zmqctx, std::move(configPath), std::move(positions), peerEndpoints,
+        cardServerControlEndpoint, cardServerBasePeerEndpoint};
 }
 
 }

@@ -13,6 +13,7 @@ namespace Bridge {
 
 namespace Messaging {
 
+class EndpointIterator;
 struct CurveKeys;
 
 }
@@ -50,6 +51,15 @@ public:
     /** \brief Move assignment
      */
     Config& operator=(Config&&);
+
+    /** \brief Get endpoint iterator for control and event endpoints
+     *
+     * \return Endpoint iterator returning control and event endpoints as
+     * successive elements
+     *
+     * \sa %Bridge protocol: \ref bridgeprotocolpeer
+     */
+    Messaging::EndpointIterator getEndpointIterator() const;
 
     /** \brief Get CurveZMQ keys
      *

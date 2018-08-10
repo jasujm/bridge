@@ -1,4 +1,5 @@
 #include "main/Config.hh"
+#include "messaging/EndpointIterator.hh"
 
 #include <gtest/gtest.h>
 
@@ -32,6 +33,24 @@ TEST_F(ConfigTest, testBadSyntax)
 {
     in.str("this is invalid"s);
     assertThrows();
+}
+
+TEST_F(ConfigTest, testParseEndpointConfigMissingEndpoint)
+{
+    const auto config = Config {in};
+    const auto endpoint_iterator = config.getEndpointIterator();
+    EXPECT_EQ("tcp://*:5555"s, *endpoint_iterator);
+}
+
+TEST_F(ConfigTest, testParseEndpointConfig)
+{
+    in.str(R"EOF(
+bind_address = "localhost"
+bind_base_port = 1234
+)EOF");
+    const auto config = Config {in};
+    const auto endpoint_iterator = config.getEndpointIterator();
+    EXPECT_EQ("tcp://localhost:1234"s, *endpoint_iterator);
 }
 
 TEST_F(ConfigTest, testParseCurveConfigMissingKeys)

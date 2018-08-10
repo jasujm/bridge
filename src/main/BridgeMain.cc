@@ -78,8 +78,7 @@ public:
 
     Impl(
         zmq::context_t& context, Config config,
-        const std::string& baseEndpoint, PositionVector positions,
-        const EndpointVector& peerEndpoints,
+        PositionVector positions, const EndpointVector& peerEndpoints,
         const std::string& cardServerControlEndpoint,
         const std::string& cardServerBasePeerEndpoint);
 
@@ -151,8 +150,7 @@ std::unique_ptr<CardProtocol> BridgeMain::Impl::makeCardProtocol(
 }
 
 BridgeMain::Impl::Impl(
-    zmq::context_t& context, Config config,
-    const std::string& baseEndpoint, PositionVector positions,
+    zmq::context_t& context, Config config, PositionVector positions,
     const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
@@ -201,7 +199,7 @@ BridgeMain::Impl::Impl(
             }
         }}
 {
-    auto endpointIterator = Messaging::EndpointIterator {baseEndpoint};
+    auto endpointIterator = this->config.getEndpointIterator();
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
@@ -432,14 +430,13 @@ const Player* BridgeMain::Impl::internalGetPlayerFor(
 }
 
 BridgeMain::BridgeMain(
-    zmq::context_t& context, Config config,
-    const std::string& baseEndpoint, PositionVector positions,
+    zmq::context_t& context, Config config, PositionVector positions,
     const EndpointVector& peerEndpoints,
     const std::string& cardServerControlEndpoint,
     const std::string& cardServerBasePeerEndpoint) :
     impl {
         std::make_unique<Impl>(
-            context, std::move(config), baseEndpoint, std::move(positions),
+            context, std::move(config), std::move(positions),
             std::move(peerEndpoints), cardServerControlEndpoint,
             cardServerBasePeerEndpoint)}
 {
