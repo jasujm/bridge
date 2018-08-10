@@ -81,18 +81,11 @@ public:
 
     ~BridgeMain();
 
-    /** \brief Run the backend message queue
+    /** \brief Start receiving and handling messages
      *
-     * This method blocks until terminate() is called.
+     * This method blocks until SIGINT or SIGTERM is received.
      */
     void run();
-
-    /** \brief Terminate the backend message queue
-     *
-     * This method is intended to be called from signal handler for clean
-     * termination.
-     */
-    void terminate();
 
 private:
 

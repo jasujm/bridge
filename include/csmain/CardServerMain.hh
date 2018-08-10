@@ -58,18 +58,11 @@ public:
 
     ~CardServerMain();
 
-    /** \brief Run the card server
+    /** \brief Start receiving and handling messages
      *
-     * This method blocks until terminate() is called.
+     * This method blocks until SIGINT or SIGTERM is received.
      */
     void run();
-
-    /** \brief Terminate the card server
-     *
-     * This method is intended to be called from signal handler for clean
-     * termination.
-     */
-    void terminate();
 
 private:
 
