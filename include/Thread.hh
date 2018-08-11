@@ -40,13 +40,23 @@ public:
     template<typename Function, typename... Args>
     Thread(Function&& f, Args&&... args);
 
+    /** \brief Move constructor
+     *
+     * Move constructs thread from \p other. Leaves \p other thread empty.
+     *
+     * \param other the thread moved from
+     */
+    Thread(Thread&& other) noexcept;
+
     /** \brief Join the thread, if joinable
      */
     ~Thread();
 
     /** \brief Move assignment
      *
-     * Move assigns thread from \p other. Leaves \p *this object empty.
+     * Move assigns thread from \p other. Leaves \p other thread empty.
+     *
+     * \param other the thread moved from
      */
     Thread& operator=(Thread&& other) noexcept;
 

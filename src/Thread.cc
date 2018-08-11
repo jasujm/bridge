@@ -6,6 +6,8 @@ namespace Bridge {
 
 Thread::Thread() noexcept = default;
 
+Thread::Thread(Thread&& other) noexcept = default;
+
 Thread::~Thread()
 {
     if (thread.joinable()) {
