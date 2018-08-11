@@ -38,7 +38,7 @@ SignalGuard::SignalGuard()
         log(LogLevel::FATAL, "Failed to set sigprocmask: %s", strerror(errno));
         std::exit(EXIT_FAILURE);
     }
-    sfd = signalfd(-1, &mask, 0);
+    sfd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (sfd == -1) {
         log(LogLevel::FATAL, "Failed to create signalfd: %s", strerror(errno));
         std::exit(EXIT_FAILURE);
