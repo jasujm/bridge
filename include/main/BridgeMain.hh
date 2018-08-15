@@ -17,23 +17,24 @@
 
 namespace Bridge {
 
-/** \brief The main configuration and high level logic for the bridge backend
+/** \brief The glue code and high level logic for the bridge backend
  *
- * The main class BridgeMain is responsible for configuring the application
- * communicating with peers and clients using the \ref bridgeprotocol.
+ * The main class BridgeMain is responsible for setting up the Bridge backend
+ * application.
  */
 namespace Main {
 
 class Config;
 
-/** \brief Configure and run the event loop for the Bridge backend
+/** \brief Set up and run the Bridge backend
  *
- * When constructed, BridgeMain configures and sets up Bridge peer application
- * and sockets for communicating with clients and other peers. Two sockets are
- * opened into consecutive ports: the control socket and the event socket.
+ * When constructed, BridgeMain configures and sets up Bridge peer application,
+ * including the sockets for communicating with clients and other peers. Two
+ * sockets are opened into consecutive ports: the control socket and the event
+ * socket.
  *
- * The backend starts processing and publishing messages when run() is
- * called. The destructor closes sockets and cleans up the application.
+ * The backend starts processing messages when run() is called. The destructor
+ * closes sockets and cleans up the application.
  *
  * \sa \ref bridgeprotocol
  */

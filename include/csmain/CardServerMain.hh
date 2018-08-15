@@ -26,7 +26,7 @@ namespace CardServer {
 
 /** \brief Entry point for a card server instance
  *
- * The CardServerMain is responsible for configuring a single card server
+ * The CardServerMain is responsible for setting up a single card server
  * instance. A card server is a service intended to execute secure mental card
  * game protocol built on top of LibTMCG (http://nognu.org/libtmcg/).
  *
@@ -34,7 +34,7 @@ namespace CardServer {
  * any other card game. It is the responsibility of the controlling application
  * to use the commands according to the rules of the game.
  *
- * CardServerMain reserves a thread by blocking when run() is called. It
+ * CardServerMain starts processing messages when run() is called. It
  * communicates with other peers and the controlling instance by ZeroMQ
  * messages.
  *
