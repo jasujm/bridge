@@ -2,4 +2,4 @@ add_bridge_test(
   TARGET test-main
   NAME TestMain
   DEPENDS bridge-main bridge-cardserver bridge-engine bridge-messaging
-      bridge-scoring bridge-bridge ${ZEROMQ_LIBRARIES})
+      bridge-scoring bridge-bridge)
