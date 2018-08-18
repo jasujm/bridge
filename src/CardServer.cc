@@ -1,5 +1,6 @@
 #include "messaging/Security.hh"
 #include "csmain/CardServerMain.hh"
+#include "IoUtility.hh"
 #include "Logging.hh"
 
 #include <getopt.h>
@@ -43,6 +44,37 @@ private:
     CardServerMain app;
 };
 
+auto getKeyFromFile(
+    const std::string_view path, const std::string_view prog,
+    const std::string_view name)
+{
+    errno = 0;
+    return processStreamFromPath(
+        path,
+        [prog, name](auto& in)
+        {
+            auto key = std::string {};
+            if (in.bad()) {
+                std::cerr
+                    << prog << ": bad stream while reading " << name
+                    << ": " << strerror(errno) << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            in.clear();
+            in >> key;
+            if (!in.good()) {
+                std::cerr << prog << ": failed to read " << name << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            auto ret = Messaging::decodeKey(key);
+            if (ret.empty()) {
+                std::cerr << prog << ": invalid " << name << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            return ret;
+        });
+}
+
 }
 
 CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
@@ -52,8 +84,8 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
     const auto short_opt = "vs:p:";
     const auto long_opt = std::array {
-        option { "curve-secret-key", required_argument, 0, 's' },
-        option { "curve-public-key", required_argument, 0, 'p' },
+        option { "secret-key-file", required_argument, 0, 's' },
+        option { "public-key-file", required_argument, 0, 'p' },
         option { nullptr, 0, 0, 0 },
     };
     auto verbosity = 0;
@@ -66,17 +98,9 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
         } else if (c == 'v') {
             ++verbosity;
         } else if (c == 's') {
-            curveSecretKey = Messaging::decodeKey(optarg);
-            if (curveSecretKey.empty()) {
-                std::cerr << argv[0] <<
-                    ": failed to decode secret key" << std::endl;
-            }
+            curveSecretKey = getKeyFromFile(optarg, argv[0], "secret key");
         } else if (c == 'p') {
-            curvePublicKey = Messaging::decodeKey(optarg);
-            if (curvePublicKey.empty()) {
-                std::cerr << argv[0] <<
-                    ": failed to decode public key" << std::endl;
-            }
+            curvePublicKey = getKeyFromFile(optarg, argv[0], "public key");
         } else {
             std::exit(EXIT_FAILURE);
         }

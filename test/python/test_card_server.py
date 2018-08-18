@@ -53,11 +53,18 @@ CARD_RANGE = [list(range(i*13, (i+1)*13)) for i in range(len(PEERS))]
 zmqctx = zmq.Context.instance()
 servers = [
     subprocess.Popen(
-        [sys.argv[1],
-         '--curve-secret-key', CURVE_SECRETKEY[:-1].decode(),
-         '--curve-public-key', CURVE_PUBLICKEY[:-1].decode(),
+       [sys.argv[1],
+         '--secret-key-file=-',
+         '--public-key-file=-',
          get_endpoint(peer.control),
-         get_endpoint(peer.endpoint)]) for peer in PEERS]
+         get_endpoint(peer.endpoint)],
+        stdin=subprocess.PIPE) for peer in PEERS]
+for server in servers:
+    server.stdin.write(CURVE_SECRETKEY[:-1])
+    server.stdin.write(b'\n')
+    server.stdin.write(CURVE_PUBLICKEY[:-1])
+    server.stdin.write(b'\n')
+    server.stdin.close()
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
 
 atexit.register(cleanup, servers);
