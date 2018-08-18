@@ -1,6 +1,7 @@
 #include "main/Config.hh"
 
 #include "messaging/EndpointIterator.hh"
+#include "IoUtility.hh"
 #include "Logging.hh"
 #include "Utility.hh"
 
@@ -231,12 +232,10 @@ Config configFromPath(const std::string_view path)
 {
     if (path.empty()) {
         return {};
-    } else if (path == "-") {
-        return {std::cin};
+    } else {
+        return processStreamFromPath(
+            path, [](auto& in) { return Config {in}; });
     }
-    std::ifstream in {path.data()};
-    return {in};
-
 }
 
 }

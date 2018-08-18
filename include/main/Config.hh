@@ -79,7 +79,7 @@ private:
  * Depending on the value the \p path, the function generates the config object
  * in different ways:
  * - If \p path is empty, empty configuration is returned
- * - If \p path is dash (“-”), configuration is read from stdin
+ * - If \p path is hyphen (“-”), configuration is read from stdin
  * - Otherwise \p path is interpreted as path to the configuration file
  *
  * \param path the path of the configuration file

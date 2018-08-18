@@ -10,9 +10,11 @@
 #ifndef IOUTILITY_HH_
 #define IOUTILITY_HH_
 
-#include <istream>
+#include <fstream>
+#include <functional>
+#include <iostream>
 #include <optional>
-#include <ostream>
+#include <string_view>
 #include <variant>
 
 namespace Bridge {
@@ -93,6 +95,34 @@ std::ostream& operator<<(std::ostream& os, const std::variant<T, Ts...>& t)
 {
     std::visit([&os](const auto& v) { os << v; }, t);
     return os;
+}
+
+/** \brief Process file stream or stdin based on \p path
+ *
+ * This function first examines \p path. If \p path is a hyphen (“-”), calls \p
+ * callback with \c std::cin as argument. Otherwise interprets \p path as a
+ * filesystem path, opens the corresponding file and passes reference to the
+ * corresponding \c std::ifstream to the callback. If this function opens a
+ * file, it is closed after the callback returns.
+ *
+ * \param path a filesystem path or hyphen
+ * \param callback a callable that accepts reference to \c std::istream as
+ * argument
+ *
+ * \return the result of invoking \p callback with the reference to the stream
+ */
+decltype(auto) processStreamFromPath(std::string_view path, auto&& callback)
+{
+    using Callback = decltype(callback);
+    auto helper = [&callback](auto& in) -> decltype(auto) {
+        return std::invoke(std::forward<Callback>(callback), in);
+    };
+    if (path == "-") {
+        return helper(std::cin);
+    } else {
+        auto in = std::ifstream {path.data()};
+        return helper(in);
+    }
 }
 
 }
