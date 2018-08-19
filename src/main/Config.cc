@@ -60,9 +60,15 @@ extern "C" {
     {
         auto& args = *reinterpret_cast<LuaStreamReaderArgs*>(data);
         if (args.in) {
+            errno = 0;
             args.in.read(args.buf.data(), args.buf.size());
-            *size = args.in.gcount();
-            return args.buf.data();
+            if (args.in.bad()) {
+                // Would throw exception here but this is extern "C"...
+                log(LogLevel::WARNING, "Failed to read config: %s", strerror(errno));
+            } else {
+                *size = args.in.gcount();
+                return args.buf.data();
+            }
         }
         *size = 0;
         return nullptr;
@@ -84,7 +90,8 @@ void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
             throw std::runtime_error {"Could not process config"};
         }
     } else {
-        throw std::runtime_error {"Could not read config, bad stream"};
+        log(LogLevel::ERROR, "Bad stream while reading config: %s", strerror(errno));
+        throw std::runtime_error {"Failed to read config"};
     }
 }
 
@@ -233,6 +240,7 @@ Config configFromPath(const std::string_view path)
     if (path.empty()) {
         return {};
     } else {
+        errno = 0;
         return processStreamFromPath(
             path, [](auto& in) { return Config {in}; });
     }
