@@ -34,6 +34,7 @@ SignalGuard::SignalGuard()
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGTERM);
+    errno = 0;
     if (sigprocmask(SIG_BLOCK, &mask, &oldMask) != 0) {
         log(LogLevel::FATAL, "Failed to set sigprocmask: %s", strerror(errno));
         std::exit(EXIT_FAILURE);
@@ -47,6 +48,7 @@ SignalGuard::SignalGuard()
 
 SignalGuard::~SignalGuard()
 {
+    errno = 0;
     if (close(sfd) != 0) {
         log(LogLevel::ERROR, "Failed to close signalfd: %s", strerror(errno));
     }
@@ -98,6 +100,7 @@ bool MessageLoop::Impl::run(int sfd)
     static_cast<void>(zmq::poll(pollitems));
     if (pollitems[0].revents & ZMQ_POLLIN) {
         auto fdsi = signalfd_siginfo {};
+        errno = 0;
         const auto s = read(sfd, &fdsi, sizeof(signalfd_siginfo));
         if (s != sizeof(signalfd_siginfo)) {
             log(LogLevel::FATAL, "Failed to read siginfo: %s",
