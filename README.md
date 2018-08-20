@@ -49,6 +49,9 @@ To build and run unit tests for the backend
 
 ## Bridge GUI
 
+Note! I’m in the process of migrating command line arguments into config file
+configurations. Inconsistencies may exist.
+
 This repository only contains code for the backend. In order to play bridge,
 you’ll also need a frontend. A GUI written in Python can be found in my other
 repository at https://github.com/jasujm/bridgegui.
@@ -63,20 +66,20 @@ the GUI framework and [PyZQM](https://github.com/zeromq/pyzmq) for messaging.
 
 Run the backend (server):
 
-    $ bridge --positions=positions --connect=peer‐endpoints   \
-    >   --cs-cntl=cardserver‐control‐endpoint                 \
-    >   --cs-peer=cardserver‐base‐peer‐endpoint endpoint
+    $ bridge --config=config‐file --positions=positions    \
+    >   --connect=peer‐endpoints                           \
+    >   --cs-cntl=cardserver‐control‐endpoint              \
+    >   --cs-peer=cardserver‐base‐peer‐endpoint
 
-The backend opens two sockets into two consequtive ports starting at
-`endpoint`. The first one is used to receive commands from the frontend and
-peers. The second one is for publishing events to the clients.
+The backend opens two sockets into two consequtive ports (by default 5555 and
+5556 unless otherwise configured). The first one is used to receive commands
+from the frontend and peers. The second one is for publishing events to the
+clients.
 
 The options are:
 
-    endpoint   The endpoint for control socket. The endpoint for event socket
-               has the same interface but one greater port, i.e. if the
-               endpoint for control socket is tcp://*:5555, the endpoint
-               for event socket is tcp://*:5556.
+    config     A lua script used to configure the backend. There is a sample
+               config file in sample/config.lua of the repository with comments.
     positions  JSON list containing positions the backend instance controls.
                E.g. ["north"]. If omitted, all positions are controlled.
     connect    JSON list containing the control endpoints of the peers. E.g.
@@ -128,7 +131,7 @@ By using different command line arguments in the backend application, different
 kinds of network topologies can be made. In the pure client‐server model one
 backend controls all positions and all frontends connect to it.
 
-    server@example.com$ bridge tcp://*:5555 &
+    server@example.com$ bridge &
 
     client1@example.com$ bridgegui --create-game tcp://example.com:5555 &
     client234@example.com$ for n in {2..4}; do
@@ -141,8 +144,8 @@ UUID can be omitted to allow the server to pick a random one.
 In pure peer‐to‐peer model each player has their own instance of backend
 application and (presumably) local frontend connecting to it.
 
-    peer@example.com$ bridge --positions='["north"]'                     \
-    >     --connect='["tcp://peer1.example.com:5555",…]' tcp://*:5555 &
+    peer@example.com$ bridge --positions='["north"]'        \
+    >     --connect='["tcp://peer1.example.com:5555",…]' &
     peer@example.com$ bridgegui tcp://localhost:5555
 
 The peers automatically set up a game identified by null UUID. In this case no
@@ -194,7 +197,7 @@ must be accessible to other peers.
 
     peer@example.com$ bridge --positions='["north"]'                           \
     >     --connect='["tcp://peer1.example.com:5555",…]'                       \
-    >     --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 tcp://*:5555 &
+    >     --cs-cntl=tcp://127.0.0.1:5560 --cs-peer=tcp://*:5565 &
     peer@example.com$ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
     peer@example.com$ bridgegui tcp://localhost:5555
 
@@ -221,13 +224,24 @@ mechanism implemented in the ZeroMQ library (http://curvezmq.org/).
 To start the backend with CURVE support, load a configuration file containing
 CURVE keys. There is a sample file in the repository.
 
+    $ export BRIDGE_USE_CURVE=1
     $ bridge --config=sample/config.lua …rest of the args…
 
 The GUI needs to configure the public key of the server. It can be extracted
 from the server configuration script.
 
-    $ PUBKEY=$(lua5.3 -e 'dofile("sample/config.lua"); print(curve_public_key)')
-    $ bridgegui --curve-server-key=$PUBKEY …rest of the args…
+    $ export BRIDGE_USE_CURVE=1
+    $ lua5.3 -e 'dofile("sample/config.lua"); print(curve_public_key)' |      \
+    >     bridgegui --server-key-file=- …rest of the args…
+
+The card server acts both as server and client, and needs both keys
+
+    $ export BRIDGE_USE_CURVE=1
+    $ lua5.3 -e 'dofile("sample/config.lua"); print(curve_public_key); print(curve_public_key)' | \
+    >     bridgecs --secret-key-file=- --public-key-file=- …rest of the args…
+
+Note! Currently all peers and card servers must share the same keypair. When
+conneting to other peers, they authenticate “their” public key.
 
 The backend performs no authentication of the frontend instances connecting to
 it. Clients authenticate the server.
