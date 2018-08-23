@@ -35,6 +35,8 @@ struct TricksWon : private boost::equality_comparable<TricksWon> {
      */
     int tricksWonByEastWest;
 
+    TricksWon() = default;
+
     /** \brief Create new TricksWon
      *
      * \param tricksWonByNorthSouth the number of tricks won by the

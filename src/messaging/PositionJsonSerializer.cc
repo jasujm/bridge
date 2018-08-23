@@ -6,17 +6,15 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
-json JsonConverter<Position>::convertToJson(const Position position)
+void to_json(json& j, const Position position)
 {
-    return enumToJson(position, POSITION_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(position, POSITION_TO_STRING_MAP.left);
 }
 
-Position JsonConverter<Position>::convertFromJson(const json& j)
+void from_json(const json& j, Position& position)
 {
-    return jsonToEnum<Position>(j, POSITION_TO_STRING_MAP.right);
+    position = Messaging::jsonToEnum<Position>(j, POSITION_TO_STRING_MAP.right);
 }
 
-}
 }

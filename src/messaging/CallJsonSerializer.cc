@@ -1,7 +1,6 @@
 #include "messaging/CallJsonSerializer.hh"
 
 #include "messaging/BidJsonSerializer.hh"
-#include "messaging/JsonSerializerUtility.hh"
 #include "messaging/SerializationFailureException.hh"
 
 #include <functional>
@@ -10,7 +9,6 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
 const std::string CALL_TYPE_KEY {"type"};
 const std::string CALL_PASS_TAG {"pass"};
@@ -27,7 +25,7 @@ public:
     auto operator()(Pass) const { return CALL_PASS_TAG; }
     auto operator()(const Bid& bid) const
     {
-        j[CALL_BID_TAG] = toJson(bid);
+        j[CALL_BID_TAG] = bid;
         return CALL_BID_TAG;
     }
     auto operator()(Double) const { return CALL_DOUBLE_TAG; }
@@ -40,28 +38,26 @@ private:
 const auto CALLS = std::map<std::string, std::function<Call(const json&)>> {
     { CALL_PASS_TAG, [](const json&) { return Call {Pass {}}; }},
     { CALL_BID_TAG,
-          [](const json& j) { return Call {checkedGet<Bid>(j, CALL_BID_TAG)}; }
+      [](const json& j) { return Call {j.at(CALL_BID_TAG).get<Bid>()}; }
     },
     { CALL_DOUBLE_TAG, [](const json&) { return Call {Double {}}; }},
     { CALL_REDOUBLE_TAG, [](const json&) { return Call {Redouble {}}; }}};
 
 }
 
-json JsonConverter<Call>::convertToJson(const Call& call)
+void to_json(json& j, const Call& call)
 {
-    json j = json::object();
     j[CALL_TYPE_KEY] = std::visit(JsonSerializerVisitor {j}, call);
-    return j;
 }
 
-Call JsonConverter<Call>::convertFromJson(const nlohmann::json& j)
+void from_json(const nlohmann::json& j, Call& call)
 {
-    const auto iter = CALLS.find(checkedGet<std::string>(j, CALL_TYPE_KEY));
+    const auto iter = CALLS.find(j.at(CALL_TYPE_KEY));
     if (iter != CALLS.end()) {
-        return iter->second(j);
+        call = iter->second(j);
+    } else {
+        throw Messaging::SerializationFailureException {};
     }
-    throw SerializationFailureException {};
 }
 
-}
 }

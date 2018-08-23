@@ -6,6 +6,8 @@
 #ifndef HEXUTILITY_HH_
 #define HEXUTILITY_HH_
 
+#include "Blob.hh"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -81,7 +83,7 @@ struct OutputTypeExtractor<std::back_insert_iterator<Container>> {
  * \return \p out
  */
 template<typename InputIterator, typename OutputIterator>
-OutputIterator toHex(InputIterator first, InputIterator last, OutputIterator out)
+OutputIterator encodeHex(InputIterator first, InputIterator last, OutputIterator out)
 {
     using namespace HexUtilityImpl;
     using InputByte = typename std::iterator_traits<InputIterator>::value_type;
@@ -119,7 +121,7 @@ OutputIterator toHex(InputIterator first, InputIterator last, OutputIterator out
  * odd lenght or contains illegal characters).
  */
 template<typename InputIterator, typename OutputIterator>
-OutputIterator fromHex(InputIterator first, InputIterator last, OutputIterator out)
+OutputIterator decodeHex(InputIterator first, InputIterator last, OutputIterator out)
 {
     using namespace HexUtilityImpl;
     using OutputByte = typename OutputTypeExtractor<OutputIterator>::type;
@@ -135,6 +137,51 @@ OutputIterator fromHex(InputIterator first, InputIterator last, OutputIterator o
         *out++ = (b1 << 4) | b2;
     }
     return out;
+}
+
+/** \brief Return sequence of bytes encoded as hex string
+ *
+ * This function is a wrapper over encodeHex() that accepts a range of bytes and
+ * returns a pre‐allocated string containing the hex encoded bytes.
+ *
+ * \tparam Char the character type for the returned string
+ *
+ * \param bytes the bytes to encode
+ *
+ * \return A string containing \p bytes encoded as hexadecimal string
+ */
+template<typename Char = char>
+auto toHex(const auto& bytes)
+{
+    using std::size;
+    using std::begin;
+    using std::end;
+    auto ret = std::basic_string<Char> {};
+    ret.reserve(2 * size(bytes));
+    encodeHex(begin(bytes), end(bytes), std::back_inserter(ret));
+    return ret;
+}
+
+/** \Brief Return a blob containing bytes from decoded hex string
+ *
+ * This function is a wrapper over decodeHex() that decodes a hex encoded string
+ * and returns a pre‐allocated blob containing the bytes.
+ *
+ * \param string the string to decode
+ *
+ * \return A blob containing \p string decoded as hexadecimal
+ *
+ * \throw See decodeHex()
+ */
+auto fromHex(const auto& string)
+{
+    using std::size;
+    using std::begin;
+    using std::end;
+    auto ret = Blob {};
+    ret.reserve((size(string) + 1) / 2);
+    decodeHex(begin(string), end(string), std::back_inserter(ret));
+    return ret;
 }
 
 /** \brief Check if a range consists of valid hex string
@@ -172,7 +219,8 @@ std::ostream& operator<<(std::ostream& out, const HexFormatter<Data>& formatter)
     std::ostream::sentry s {out};
     if (s) {
         auto outiter = std::ostreambuf_iterator {out};
-        toHex(std::begin(formatter.data), std::end(formatter.data), outiter);
+        encodeHex(
+            std::begin(formatter.data), std::end(formatter.data), outiter);
     }
     return out;
 }

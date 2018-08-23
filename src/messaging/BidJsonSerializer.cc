@@ -6,34 +6,31 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
 const std::string BID_LEVEL_KEY {"level"};
 const std::string BID_STRAIN_KEY {"strain"};
 
-json JsonConverter<Strain>::convertToJson(const Strain strain)
+void to_json(json& j, const Strain strain)
 {
-    return enumToJson(strain, STRAIN_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(strain, STRAIN_TO_STRING_MAP.left);
 }
 
-Strain JsonConverter<Strain>::convertFromJson(const json& j)
+void from_json(const json& j, Strain& strain)
 {
-    return jsonToEnum<Strain>(j, STRAIN_TO_STRING_MAP.right);
+    strain = Messaging::jsonToEnum<Strain>(j, STRAIN_TO_STRING_MAP.right);
 }
 
-json JsonConverter<Bid>::convertToJson(const Bid& bid)
+void to_json(json& j, const Bid& bid)
 {
-    return {
-        {BID_LEVEL_KEY, json(bid.level)},
-        {BID_STRAIN_KEY, toJson(bid.strain)}};
+    j[BID_LEVEL_KEY] = bid.level;
+    j[BID_STRAIN_KEY] = bid.strain;
 }
 
-Bid JsonConverter<Bid>::convertFromJson(const json& j)
+void from_json(const json& j, Bid& bid)
 {
-    return {
-        validate(checkedGet<int>(j, BID_LEVEL_KEY), Bid::levelValid),
-        checkedGet<Strain>(j, BID_STRAIN_KEY)};
+    bid.level = Messaging::validate(
+        j.at(BID_LEVEL_KEY).get<int>(), Bid::levelValid);
+    bid.strain = j.at(BID_STRAIN_KEY);
 }
 
-}
 }

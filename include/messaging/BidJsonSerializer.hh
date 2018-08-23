@@ -21,7 +21,7 @@
 #ifndef MESSAGING_BIDJSONSERIALIZER_HH_
 #define MESSAGING_BIDJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 #include <string>
 
@@ -29,8 +29,6 @@ namespace Bridge {
 
 enum class Strain;
 class Bid;
-
-namespace Messaging {
 
 /** \brief Key for Bid::level in JSON object
  *
@@ -44,39 +42,22 @@ extern const std::string BID_LEVEL_KEY;
  */
 extern const std::string BID_STRAIN_KEY;
 
-/** \brief JSON converter for Strain
- *
- * \sa JsonSerializer.hh, \ref jsonbid
+/** \brief Convert Strain to JSON
  */
-template<>
-struct JsonConverter<Strain>
-{
-    /** \brief Convert Strain to JSON
-     */
-    static nlohmann::json convertToJson(Strain strain);
+void to_json( nlohmann::json&, Strain);
 
-    /** \brief Convert JSON to Strain
-     */
-    static Strain convertFromJson(const nlohmann::json& j);
-};
-
-/** \brief JSON converter for Bid
- *
- * \sa JsonSerializer.hh, \ref jsonbid
+/** \brief Convert JSON to Strain
  */
-template<>
-struct JsonConverter<Bid>
-{
-    /** \brief Convert Bid to JSON
-     */
-    static nlohmann::json convertToJson(const Bid& strain);
+void from_json(const nlohmann::json&, Strain&);
 
-    /** \brief Convert JSON to Bid
-     */
-    static Bid convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert Bid to JSON
+ */
+void to_json(nlohmann::json&, const Bid&);
 
-}
+/** \brief Convert JSON to Bid
+ */
+void from_json(const nlohmann::json&, Bid&);
+
 }
 
 #endif // MESSAGING_BIDJSONSERIALIZER_HH_

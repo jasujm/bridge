@@ -6,31 +6,20 @@
 #ifndef MESSAGING_PARTNERSHIPJSONSERIALIZER_HH_
 #define MESSAGING_PARTNERSHIPJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 namespace Bridge {
 
 enum class Partnership;
 
-namespace Messaging {
-
-/** \brief JSON converter for Partnership
- *
- * \sa JsonSerializer.hh
+/** \brief Convert Partnership to JSON
  */
-template<>
-struct JsonConverter<Partnership>
-{
-    /** \brief Convert Partnership to JSON
-     */
-    static nlohmann::json convertToJson(Partnership partnership);
+void to_json(nlohmann::json&, Partnership);
 
-    /** \brief Convert JSON to Partnership
-     */
-    static Partnership convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to Partnership
+ */
+void from_json(const nlohmann::json&, Partnership&);
 
-}
 }
 
 #endif // MESSAGING_PARTNERSHIPJSONSERIALIZER_HH_

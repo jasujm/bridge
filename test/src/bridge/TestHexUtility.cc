@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+using Bridge::encodeHex;
+using Bridge::decodeHex;
 using Bridge::toHex;
 using Bridge::fromHex;
 using Bridge::isValidHex;
@@ -26,14 +28,15 @@ const auto HEX = "0123456789abcdef"s;
 TEST(HexUtilityTest, testEncode)
 {
     auto output = std::string(16, '\0');
-    EXPECT_EQ(output.end(), toHex(BYTES.begin(), BYTES.end(), output.begin()));
+    EXPECT_EQ(
+        output.end(), encodeHex(BYTES.begin(), BYTES.end(), output.begin()));
     EXPECT_EQ(output, HEX);
 }
 
 TEST(HexUtilityTest, testDecode)
 {
     auto output = std::vector<std::byte>(8);
-    EXPECT_EQ(output.end(), fromHex(HEX.begin(), HEX.end(), output.begin()));
+    EXPECT_EQ(output.end(), decodeHex(HEX.begin(), HEX.end(), output.begin()));
     EXPECT_EQ(output, BYTES);
 }
 
@@ -42,7 +45,7 @@ TEST(HexUtilityTest, testInvalidLength)
     const auto input = "012"s;
     auto output = std::vector<std::byte>(input.size());
     EXPECT_THROW(
-        fromHex(input.begin(), input.end(), output.begin()),
+        decodeHex(input.begin(), input.end(), output.begin()),
         std::runtime_error);
 }
 
@@ -51,7 +54,7 @@ TEST(HexUtilityTest, testInvalidCharacters)
     const auto input = "xx"s;
     auto output = std::vector<std::byte>(input.size());
     EXPECT_THROW(
-        fromHex(input.begin(), input.end(), output.begin()),
+        decodeHex(input.begin(), input.end(), output.begin()),
         std::runtime_error);
 }
 
@@ -69,6 +72,14 @@ TEST(HexUtilityTest, testInvalidHexInvalidChars)
 {
     const auto input = "xx"s;
     EXPECT_FALSE(isValidHex(input.begin(), input.end()));
+}
+
+TEST(HexUtilityTest, testToHex) {
+    EXPECT_EQ(HEX, toHex(BYTES));
+}
+
+TEST(HexUtilityTest, testFromHex) {
+    EXPECT_EQ(BYTES, fromHex(HEX));
 }
 
 TEST(HexUtilityTest, testFormatHex)

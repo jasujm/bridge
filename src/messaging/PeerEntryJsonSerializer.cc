@@ -3,32 +3,24 @@
 #include "cardserver/PeerEntry.hh"
 #include "messaging/JsonSerializerUtility.hh"
 
-namespace Bridge {
-namespace Messaging {
-
-using CardServer::PeerEntry;
 using nlohmann::json;
+
+namespace Bridge {
+namespace CardServer {
 
 const std::string IDENTITY_KEY {"id"};
 const std::string ENDPOINT_KEY {"endpoint"};
 
-json JsonConverter<PeerEntry>::convertToJson(const PeerEntry& entry)
+void to_json(json& j, const PeerEntry& entry)
 {
-    auto j = json {
-        {
-            IDENTITY_KEY,
-            toJson(entry.identity)
-        }
-    };
-    optionalPut(j, ENDPOINT_KEY, entry.endpoint);
-    return j;
+    j[IDENTITY_KEY] = Messaging::blobToJson(entry.identity);
+    j[ENDPOINT_KEY] = entry.endpoint;
 }
 
-PeerEntry JsonConverter<PeerEntry>::convertFromJson(const json& j)
+void from_json(const json& j, PeerEntry& entry)
 {
-    return PeerEntry {
-        checkedGet<Identity>(j, IDENTITY_KEY),
-        optionalGet<std::string>(j, ENDPOINT_KEY)};
+    entry.identity = Messaging::jsonToBlob(j.at(IDENTITY_KEY));
+    entry.endpoint = j.at(ENDPOINT_KEY).get<decltype(entry.endpoint)>();
 }
 
 }

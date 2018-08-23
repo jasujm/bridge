@@ -7,34 +7,30 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
 const std::string CONTRACT_BID_KEY {"bid"};
 const std::string CONTRACT_DOUBLING_KEY {"doubling"};
 
-json JsonConverter<Doubling>::convertToJson(const Doubling doubling)
+void to_json(json& j, const Doubling doubling)
 {
-    return enumToJson(doubling, DOUBLING_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(doubling, DOUBLING_TO_STRING_MAP.left);
 }
 
-Doubling JsonConverter<Doubling>::convertFromJson(const json& j)
+void from_json(const json& j, Doubling& doubling)
 {
-    return jsonToEnum<Doubling>(j, DOUBLING_TO_STRING_MAP.right);
+    doubling = Messaging::jsonToEnum<Doubling>(j, DOUBLING_TO_STRING_MAP.right);
 }
 
-json JsonConverter<Contract>::convertToJson(const Contract& contract)
+void to_json(json& j, const Contract& contract)
 {
-    return {
-        {CONTRACT_BID_KEY, toJson(contract.bid)},
-        {CONTRACT_DOUBLING_KEY, toJson(contract.doubling)}};
+    j[CONTRACT_BID_KEY] = contract.bid;
+    j[CONTRACT_DOUBLING_KEY] = contract.doubling;
 }
 
-Contract JsonConverter<Contract>::convertFromJson(const json& j)
+void from_json(const json& j, Contract& contract)
 {
-    return {
-        checkedGet<Bid>(j, CONTRACT_BID_KEY),
-        checkedGet<Doubling>(j, CONTRACT_DOUBLING_KEY)};
+    contract.bid = j.at(CONTRACT_BID_KEY);
+    contract.doubling = j.at(CONTRACT_DOUBLING_KEY);
 }
 
-}
 }

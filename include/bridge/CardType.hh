@@ -115,6 +115,8 @@ struct CardType : private boost::equality_comparable<CardType> {
     Rank rank;  ///< \brief Rank of the card
     Suit suit;  ///< \brief Suit of the card
 
+    CardType() = default;
+
     /** \brief Create new card type
      *
      * \param rank the rank of the card

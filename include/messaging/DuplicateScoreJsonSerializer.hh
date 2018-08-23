@@ -22,17 +22,14 @@
 #ifndef MESSAGING_DUPLICATESCOREJSONSERIALIZER_HH_
 #define MESSAGING_DUPLICATESCOREJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 #include <string>
 
 namespace Bridge {
-
 namespace Scoring {
-class DuplicateScore;
-}
 
-namespace Messaging {
+class DuplicateScore;
 
 /** \brief Key for Scoring::DuplicateScore::partnership
  *
@@ -46,21 +43,13 @@ extern const std::string DUPLICATE_SCORE_PARTNERSHIP_KEY;
  */
 extern const std::string DUPLICATE_SCORE_SCORE_KEY;
 
-/** \brief JSON converter for DuplicateScore
- *
- * \sa JsonSerializer.hh, \ref jsonduplicatescore
+/** \brief Convert DuplicateScore to JSON
  */
-template<>
-struct JsonConverter<Scoring::DuplicateScore>
-{
-    /** \brief Convert DuplicateScore to JSON
-     */
-    static nlohmann::json convertToJson(const Scoring::DuplicateScore& cardType);
+void to_json(nlohmann::json&, const DuplicateScore&);
 
-    /** \brief Convert JSON to DuplicateScore
-     */
-    static Scoring::DuplicateScore convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to DuplicateScore
+ */
+void from_json(const nlohmann::json& j, DuplicateScore&);
 
 }
 }

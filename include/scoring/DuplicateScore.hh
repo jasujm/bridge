@@ -24,6 +24,8 @@ struct DuplicateScore : private boost::equality_comparable<DuplicateScore> {
     Partnership partnership;  ///< \brief The partnership scoring
     int score;                ///< \brief The amount of score
 
+    DuplicateScore() = default;
+
     /** \brief Create new duplicate score
      *
      * \param partnership see \ref partnership

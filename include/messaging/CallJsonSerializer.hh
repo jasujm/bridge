@@ -32,12 +32,12 @@
 #define MESSAGING_CALLJSONSERIALIZER_HH_
 
 #include "bridge/Call.hh"
-#include "messaging/JsonSerializer.hh"
+
+#include <json.hpp>
 
 #include <string>
 
 namespace Bridge {
-namespace Messaging {
 
 /** \brief Key for Call type
  *
@@ -69,23 +69,14 @@ extern const std::string CALL_DOUBLE_TAG;
  */
 extern const std::string CALL_REDOUBLE_TAG;
 
-/** \brief JSON converter for Call
- *
- * \sa JsonSerializer.hh, \ref jsoncall
+/** \brief Convert Call to JSON
  */
-template<>
-struct JsonConverter<Call>
-{
-    /** \brief Convert Call to JSON
-     */
-    static nlohmann::json convertToJson(const Call& call);
+void to_json(nlohmann::json& j, const Call& call);
 
-    /** \brief Convert JSON to Call
-     */
-    static Call convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to Call
+ */
+void from_json(const nlohmann::json& j, Call& call);
 
-}
 }
 
 #endif // MESSAGING_CALLJSONSERIALIZER_HH_

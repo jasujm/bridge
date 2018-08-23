@@ -24,7 +24,7 @@
 #ifndef MESSAGING_CARDJSONSERIALIZER_HH_
 #define MESSAGING_CARDJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 #include <string>
 
@@ -33,8 +33,6 @@ namespace Bridge {
 class CardType;
 enum class Rank;
 enum class Suit;
-
-namespace Messaging {
 
 /** \brief Key for CardType::rank
  *
@@ -48,55 +46,30 @@ extern const std::string CARD_TYPE_RANK_KEY;
  */
 extern const std::string CARD_TYPE_SUIT_KEY;
 
-/** \brief JSON converter for Rank
- *
- * \sa JsonSerializer.hh, \ref jsoncardtype
+/** \brief Convert Rank to JSON
  */
-template<>
-struct JsonConverter<Rank>
-{
-    /** \brief Convert Rank to JSON
-     */
-    static nlohmann::json convertToJson(Rank rank);
+void to_json(nlohmann::json&, Rank);
 
-    /** \brief Convert JSON to Rank
-     */
-    static Rank convertFromJson(const nlohmann::json& j);
-};
-
-/** \brief JSON converter for Suit
- *
- * \sa JsonSerializer.hh, \ref jsoncardtype
+/** \brief Convert JSON to Rank
  */
-template<>
-struct JsonConverter<Suit>
-{
-    /** \brief Convert Suit to JSON
-     */
-    static nlohmann::json convertToJson(Suit suit);
+void from_json(const nlohmann::json&, Rank&);
 
-    /** \brief Convert JSON to Suit
-     */
-    static Suit convertFromJson(const nlohmann::json& j);
-};
-
-/** \brief JSON converter for CardType
- *
- * \sa JsonSerializer.hh, \ref jsoncardtype
+/** \brief Convert Suit to JSON
  */
-template<>
-struct JsonConverter<CardType>
-{
-    /** \brief Convert CardType to JSON
-     */
-    static nlohmann::json convertToJson(const CardType& cardType);
+void to_json(nlohmann::json&, Suit);
 
-    /** \brief Convert JSON to CardType
-     */
-    static CardType convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to Suit
+ */
+void from_json(const nlohmann::json&, Suit&);
 
-}
+/** \brief Convert CardType to JSON
+ */
+void to_json(nlohmann::json&, const CardType&);
+
+/** \brief Convert JSON to CardType
+ */
+void from_json(const nlohmann::json& j, CardType&);
+
 }
 
 #endif // MESSAGING_CARDJSONSERIALIZER_HH_

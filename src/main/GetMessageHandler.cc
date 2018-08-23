@@ -44,7 +44,6 @@ namespace {
 using Engine::BridgeEngine;
 using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
-using Messaging::toJson;
 
 const auto ALL_KEYS = std::vector<std::string> {
     POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
@@ -124,7 +123,7 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
                 CardTypeVector(
                     std::distance(hand->begin(), hand->end()), std::nullopt);
             const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
-            cards[position_str] = toJson(cards_in_hand);
+            cards[position_str] = cards_in_hand;
         }
     }
     return cards.dump();

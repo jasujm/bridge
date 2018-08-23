@@ -6,44 +6,40 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
 const std::string CARD_TYPE_RANK_KEY {"rank"};
 const std::string CARD_TYPE_SUIT_KEY {"suit"};
 
-json JsonConverter<Rank>::convertToJson(const Rank rank)
+void to_json(json& j, const Rank rank)
 {
-    return enumToJson(rank, RANK_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(rank, RANK_TO_STRING_MAP.left);
 }
 
-Rank JsonConverter<Rank>::convertFromJson(const json& j)
+void from_json(const json& j, Rank& rank)
 {
-    return jsonToEnum<Rank>(j, RANK_TO_STRING_MAP.right);
+    rank = Messaging::jsonToEnum<Rank>(j, RANK_TO_STRING_MAP.right);
 }
 
-json JsonConverter<Suit>::convertToJson(const Suit suit)
+void to_json(json& j, const Suit suit)
 {
-    return enumToJson(suit, SUIT_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(suit, SUIT_TO_STRING_MAP.left);
 }
 
-Suit JsonConverter<Suit>::convertFromJson(const json& j)
+void from_json(const json& j, Suit& suit)
 {
-    return jsonToEnum<Suit>(j, SUIT_TO_STRING_MAP.right);
+    suit = Messaging::jsonToEnum<Suit>(j, SUIT_TO_STRING_MAP.right);
 }
 
-json JsonConverter<CardType>::convertToJson(const CardType& cardType)
+void to_json(json& j, const CardType& cardType)
 {
-    return {
-        {CARD_TYPE_RANK_KEY, toJson(cardType.rank)},
-        {CARD_TYPE_SUIT_KEY, toJson(cardType.suit)}};
+    j[CARD_TYPE_RANK_KEY] = cardType.rank;
+    j[CARD_TYPE_SUIT_KEY] = cardType.suit;
 }
 
-CardType JsonConverter<CardType>::convertFromJson(const json& j)
+void from_json(const json& j, CardType& cardType)
 {
-    return {
-        checkedGet<Rank>(j, CARD_TYPE_RANK_KEY),
-        checkedGet<Suit>(j, CARD_TYPE_SUIT_KEY)};
+    cardType.rank = j.at(CARD_TYPE_RANK_KEY);
+    cardType.suit = j.at(CARD_TYPE_SUIT_KEY);
 }
 
-}
 }

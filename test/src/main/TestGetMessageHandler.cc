@@ -52,7 +52,6 @@ using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::Identity;
 using Bridge::Messaging::JsonSerializer;
-using Bridge::Messaging::fromJson;
 
 using testing::ReturnPointee;
 
@@ -268,10 +267,10 @@ TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
     EXPECT_EQ(CALLS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
     for (auto&& t : boost::combine(j, POSITIONS, CALLS)) {
-        const auto position = fromJson<Position>(
-            t.get<0>().at(POSITION_COMMAND));
+        const auto position =
+            t.get<0>().at(POSITION_COMMAND).get<Position>();
         EXPECT_EQ(t.get<1>(), position);
-        const auto call = fromJson<Call>(t.get<0>().at(CALL_COMMAND));
+        const auto call = t.get<0>().at(CALL_COMMAND).get<Call>();
         EXPECT_EQ(t.get<2>(), call);
     }
 }
@@ -351,8 +350,8 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
     EXPECT_EQ(CARDS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
     for (const auto position : POSITIONS) {
-        const auto actual = fromJson<OptionalCardVector>(
-            j.at(POSITION_TO_STRING_MAP.left.at(position)));
+        const auto actual =
+            j.at(POSITION_TO_STRING_MAP.left.at(position)).get<OptionalCardVector>();
         const auto expected = (position == Position::NORTH) ?
             OptionalCardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS_PER_PLAYER)) :
             OptionalCardVector(N_CARDS_PER_PLAYER, std::nullopt);

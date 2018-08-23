@@ -92,6 +92,8 @@ struct Bid : private boost::totally_ordered<Bid> {
         return level >= MINIMUM_LEVEL && level <= MAXIMUM_LEVEL;
     }
 
+    Bid() = default;
+
     /** \brief Create new bid
      *
      * \throw std::invalid_argument if levelValid(level) == false

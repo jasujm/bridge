@@ -6,29 +6,27 @@
 #ifndef MESSAGING_UUIDJSONSERIALIZER_HH_
 #define MESSAGING_UUIDJSONSERIALIZER_HH_
 
+#include <json.hpp>
+
 #include "bridge/Uuid.hh"
-#include "messaging/JsonSerializer.hh"
 
-namespace Bridge {
-namespace Messaging {
+namespace nlohmann {
 
-/** \brief JSON converter for UUID
- *
- * \sa JsonSerializer.hh
+/** \brief Explicit specialization of adl_serializer for Uuid
  */
 template<>
-struct JsonConverter<Uuid>
-{
+struct adl_serializer<Bridge::Uuid> {
+
     /** \brief Convert UUID to JSON
      */
-    static nlohmann::json convertToJson(const Uuid& uuid);
+    static void to_json(json&, const Bridge::Uuid&);
 
     /** \brief Convert JSON to UUID
      */
-    static Uuid convertFromJson(const nlohmann::json& j);
+    static void from_json(const json&, Bridge::Uuid&);
+
 };
 
-}
 }
 
 #endif // MESSAGING_UUIDJSONSERIALIZER_HH_

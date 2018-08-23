@@ -15,7 +15,8 @@
  * \endcode
  *
  * - &lt;id&gt; is a opaque hex encoded binary string identifying the peer
- * - &lt;endpoint&gt; is a string containing the endpoint of the peer. Optional.
+ * - &lt;endpoint&gt; is a string containing the endpoint of the peer, or null
+ *   if the peer will connect instead of binding
  *
  * \sa \ref cardserverprotocol
  */
@@ -23,15 +24,12 @@
 #ifndef MESSAGING_PEERENTRYJSONSERIALIZER_HH_
 #define MESSAGING_PEERENTRYJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 namespace Bridge {
-
 namespace CardServer {
-struct PeerEntry;
-}
 
-namespace Messaging {
+struct PeerEntry;
 
 /** \brief Key for PeerEntry::identity
  *
@@ -45,21 +43,13 @@ extern const std::string IDENTITY_KEY;
  */
 extern const std::string ENDPOINT_KEY;
 
-/** \brief JSON converter for CardServer::PeerEntry
- *
- * \sa JsonSerializer.hh, \ref jsonpeerentry
+/** \brief Convert CardServer::PeerEntry to JSON
  */
-template<>
-struct JsonConverter<CardServer::PeerEntry>
-{
-    /** \brief Convert CardServer::PeerEntry to JSON
-     */
-    static nlohmann::json convertToJson(const CardServer::PeerEntry& peerEntry);
+void to_json(nlohmann::json&, const PeerEntry&);
 
-    /** \brief Convert JSON to CardServer::PeerEntry
-     */
-    static CardServer::PeerEntry convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to CardServer::PeerEntry
+ */
+void from_json(const nlohmann::json&, PeerEntry&);
 
 }
 }

@@ -28,6 +28,8 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
     Messaging::Identity identity;         ///< \brief Peer identity
     std::optional<std::string> endpoint;  ///< \brief Card server endpoint
 
+    PeerEntry() = default;
+
     /** \brief Create new peer entry
      *
      * \param identity see \ref identity

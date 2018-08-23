@@ -11,31 +11,20 @@
 #ifndef MESSAGING_POSITIONJSONSERIALIZER_HH_
 #define MESSAGING_POSITIONJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 namespace Bridge {
 
 enum class Position;
 
-namespace Messaging {
-
-/** \brief JSON converter for Position
- *
- * \sa JsonSerializer.hh
+/** \brief Convert Position to JSON
  */
-template<>
-struct JsonConverter<Position>
-{
-    /** \brief Convert Position to JSON
-     */
-    static nlohmann::json convertToJson(Position position);
+void to_json(nlohmann::json&, Position);
 
-    /** \brief Convert JSON to Position
-     */
-    static Position convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to Position
+ */
+void from_json(const nlohmann::json&, Position&);
 
-}
 }
 
 #endif // MESSAGING_POSITIONJSONSERIALIZER_HH_

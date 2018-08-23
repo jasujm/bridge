@@ -23,7 +23,7 @@
 #ifndef MESSAGING_CONTRACTJSONSERIALIZER_HH_
 #define MESSAGING_CONTRACTJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 #include <string>
 
@@ -31,8 +31,6 @@ namespace Bridge {
 
 class Contract;
 enum class Doubling;
-
-namespace Messaging {
 
 /** \brief Key for Contract::bid in JSON object
  *
@@ -46,39 +44,22 @@ extern const std::string CONTRACT_BID_KEY;
  */
 extern const std::string CONTRACT_DOUBLING_KEY;
 
-/** \brief JSON converter for Doubling
- *
- * \sa JsonSerializer.hh, \ref jsoncontract
+/** \brief Convert Doubling to JSON
  */
-template<>
-struct JsonConverter<Doubling>
-{
-    /** \brief Convert Doubling to JSON
-     */
-    static nlohmann::json convertToJson(Doubling doubling);
+void to_json(nlohmann::json&, Doubling);
 
-    /** \brief Convert JSON to Doubling
-     */
-    static Doubling convertFromJson(const nlohmann::json& j);
-};
-
-/** \brief JSON converter for Contract
- *
- * \sa JsonSerializer.hh, \ref jsoncontract
+/** \brief Convert JSON to Doubling
  */
-template<>
-struct JsonConverter<Contract>
-{
-    /** \brief Convert Contract to JSON
-     */
-    static nlohmann::json convertToJson(const Contract& doubling);
+void from_json(const nlohmann::json&, Doubling&);
 
-    /** \brief Convert JSON to Contract
-     */
-    static Contract convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert Contract to JSON
+ */
+void to_json(nlohmann::json&, const Contract&);
 
-}
+/** \brief Convert JSON to Contract
+ */
+void from_json(const nlohmann::json&, Contract&);
+
 }
 
 #endif // MESSAGING_CONTRACTJSONSERIALIZER_HH_

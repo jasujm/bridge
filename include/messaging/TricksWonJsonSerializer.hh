@@ -23,31 +23,20 @@
 #ifndef MESSAGING_TRICKSWONJSONSERIALIZER_HH_
 #define MESSAGING_TRICKSWONJSONSERIALIZER_HH_
 
-#include "messaging/JsonSerializer.hh"
+#include <json.hpp>
 
 namespace Bridge {
 
 class TricksWon;
 
-namespace Messaging {
-
-/** \brief JSON converter for TricksWon
- *
- * \sa JsonSerializer.hh, \ref jsontrickswon
+/** \brief Convert TricksWon to JSON
  */
-template<>
-struct JsonConverter<TricksWon>
-{
-    /** \brief Convert TricksWon to JSON
-     */
-    static nlohmann::json convertToJson(const TricksWon& tricksWon);
+void to_json(nlohmann::json&, const TricksWon&);
 
-    /** \brief Convert JSON to TricksWon
-     */
-    static TricksWon convertFromJson(const nlohmann::json& j);
-};
+/** \brief Convert JSON to TricksWon
+ */
+void from_json(const nlohmann::json&, TricksWon&);
 
-}
 }
 
 #endif // MESSAGING_TRICKSWONJSONSERIALIZER_HH_

@@ -7,31 +7,21 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
-nlohmann::json JsonConverter<TricksWon>::convertToJson(
-    const TricksWon& tricksWon)
+void to_json(nlohmann::json& j, const TricksWon& tricksWon)
 {
-    return {
-        {
-            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH),
-            tricksWon.tricksWonByNorthSouth
-        },
-        {
-            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST),
-            tricksWon.tricksWonByEastWest
-        }
-    };
+    j[PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)] =
+        tricksWon.tricksWonByNorthSouth;
+    j[PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST)] =
+        tricksWon.tricksWonByEastWest;
 }
 
-TricksWon JsonConverter<TricksWon>::convertFromJson(const nlohmann::json& j)
+void from_json(const nlohmann::json& j, TricksWon& tricksWon)
 {
-    return {
-        checkedGet<int>(
-            j, PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)),
-        checkedGet<int>(
-            j, PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST))};
+    tricksWon.tricksWonByNorthSouth =
+        j.at(PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH));
+    tricksWon.tricksWonByEastWest =
+        j.at(PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST));
 }
 
-}
 }

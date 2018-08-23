@@ -6,17 +6,16 @@
 using nlohmann::json;
 
 namespace Bridge {
-namespace Messaging {
 
-json JsonConverter<Partnership>::convertToJson(const Partnership partnership)
+void to_json(json& j, const Partnership partnership)
 {
-    return enumToJson(partnership, PARTNERSHIP_TO_STRING_MAP.left);
+    j = Messaging::enumToJson(partnership, PARTNERSHIP_TO_STRING_MAP.left);
 }
 
-Partnership JsonConverter<Partnership>::convertFromJson(const json& j)
+void from_json(const json& j, Partnership& partnership)
 {
-    return jsonToEnum<Partnership>(j, PARTNERSHIP_TO_STRING_MAP.right);
+    partnership = Messaging::jsonToEnum<Partnership>(
+        j, PARTNERSHIP_TO_STRING_MAP.right);
 }
 
-}
 }

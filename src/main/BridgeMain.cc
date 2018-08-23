@@ -405,7 +405,7 @@ void BridgeMain::Impl::internalInitializePeers(
         std::make_pair(std::cref(VERSION_COMMAND), VersionVector {0}),
         std::tie(ROLE_COMMAND, PEER_ROLE));
     auto args = makePeerArgsForCardServerProxy(cardServerBasePeerEndpoint);
-    args[POSITIONS_COMMAND] = Messaging::toJson(positions);
+    args[POSITIONS_COMMAND] = positions;
     peerCommandSender.sendCommand(
         JsonSerializer {},
         GAME_COMMAND,

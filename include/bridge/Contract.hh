@@ -68,6 +68,8 @@ struct Contract : private boost::equality_comparable<Contract> {
     Bid bid;            ///< \brief The winning bid
     Doubling doubling;  ///< \brief The doubling status of the contract
 
+    Contract() = default;
+
     /** \brief Create new contract
      *
      * \param bid the winning bid

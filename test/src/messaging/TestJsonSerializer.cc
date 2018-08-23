@@ -139,7 +139,9 @@ TEST_F(JsonSerializerTest, testCallPass)
 TEST_F(JsonSerializerTest, testCallBid)
 {
     const auto j = json {
-        {CALL_TYPE_KEY, json(CALL_BID_TAG)}, {CALL_BID_TAG, toJson(BID)}};
+        {CALL_TYPE_KEY, CALL_BID_TAG},
+        {CALL_BID_TAG, BID}
+    };
     const auto call = Call {BID};
     testHelper(call, j);
 }
@@ -244,15 +246,15 @@ TEST_F(JsonSerializerTest, testVulnerabilityEastWestInvalid)
 TEST_F(JsonSerializerTest, testContract)
 {
     const auto j = json {
-        {CONTRACT_BID_KEY, toJson(BID)},
-        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+        {CONTRACT_BID_KEY, BID},
+        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}};
     testHelper(CONTRACT, j);
 }
 
 TEST_F(JsonSerializerTest, testContractMissingBid)
 {
     const auto j = json {
-        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}};
     testFailedDeserializationHelper<Contract>(j);
 }
 
@@ -260,21 +262,22 @@ TEST_F(JsonSerializerTest, testContractInvalidBid)
 {
     const auto j = json {
         {CONTRACT_BID_KEY, nullptr},
-        {CONTRACT_DOUBLING_KEY, toJson(Doubling::DOUBLED)}};
+        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}
+    };
     testFailedDeserializationHelper<Contract>(j);
 }
 
 TEST_F(JsonSerializerTest, testContractMissingDoubling)
 {
     const auto j = json {
-        {CONTRACT_BID_KEY, toJson(BID)}};
+        {CONTRACT_BID_KEY, BID}};
     testFailedDeserializationHelper<Contract>(j);
 }
 
 TEST_F(JsonSerializerTest, testContractInvalidDoubling)
 {
     const auto j = json {
-        {CONTRACT_BID_KEY, toJson(BID)},
+        {CONTRACT_BID_KEY, BID},
         {CONTRACT_DOUBLING_KEY, nullptr}};
     testFailedDeserializationHelper<Contract>(j);
 }
@@ -321,11 +324,11 @@ TEST_F(JsonSerializerTest, testPeerEntry)
 {
     const auto j = json {
         {
-            IDENTITY_KEY,
+            CardServer::IDENTITY_KEY,
             PEER_IDENTITY_HEX
         },
         {
-            ENDPOINT_KEY,
+            CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
         }
     };
@@ -337,7 +340,7 @@ TEST_F(JsonSerializerTest, testPeerEntryIdentityMissing)
 {
     const auto j = json {
         {
-            ENDPOINT_KEY,
+            CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
         }
     };
@@ -348,11 +351,11 @@ TEST_F(JsonSerializerTest, testPeerEntryIdentityInvalid)
 {
     const auto j = json {
         {
-            IDENTITY_KEY,
+            CardServer::IDENTITY_KEY,
             nullptr
         },
         {
-            ENDPOINT_KEY,
+            CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
         }
     };
@@ -363,23 +366,22 @@ TEST_F(JsonSerializerTest, testPeerEntryEndpointMissing)
 {
     const auto j = json {
         {
-            IDENTITY_KEY,
+            CardServer::IDENTITY_KEY,
             PEER_IDENTITY_HEX
         },
     };
-    const auto peerEntry = CardServer::PeerEntry {PEER_IDENTITY};
-    testHelper(peerEntry, j);
+    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntryEndpointInvalid)
 {
     const auto j = json {
         {
-            IDENTITY_KEY,
+            CardServer::IDENTITY_KEY,
             PEER_IDENTITY
         },
         {
-            ENDPOINT_KEY,
+            CardServer::ENDPOINT_KEY,
             123
         }
     };
@@ -411,10 +413,10 @@ TEST_F(JsonSerializerTest, testDuplicateScore)
 {
     const auto j = json {
         {
-            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
             PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
         },
-        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
     const auto score = DuplicateScore {Partnership::NORTH_SOUTH, 100};
     testHelper(score, j);
 }
@@ -422,15 +424,15 @@ TEST_F(JsonSerializerTest, testDuplicateScore)
 TEST_F(JsonSerializerTest, testDuplicateScorePartnershipMissing)
 {
     const auto j = json {
-        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
     testFailedDeserializationHelper<DuplicateScore>(j);
 }
 
 TEST_F(JsonSerializerTest, testDuplicateScorePartnershipInvalid)
 {
     const auto j = json {
-        {DUPLICATE_SCORE_PARTNERSHIP_KEY, "invalid"},
-        {DUPLICATE_SCORE_SCORE_KEY, 100}};
+        {Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY, "invalid"},
+        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
     testFailedDeserializationHelper<DuplicateScore>(j);
 }
 
@@ -438,7 +440,7 @@ TEST_F(JsonSerializerTest, testDuplicateScoreScoreMissing)
 {
     const auto j = json {
         {
-            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
             PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
         }
     };
@@ -449,9 +451,9 @@ TEST_F(JsonSerializerTest, testDuplicateScoreScoreInvalid)
 {
     const auto j = json {
         {
-            DUPLICATE_SCORE_PARTNERSHIP_KEY,
+            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
             PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
         },
-        {DUPLICATE_SCORE_SCORE_KEY, "invalid"}};
+        {Scoring::DUPLICATE_SCORE_SCORE_KEY, "invalid"}};
     testFailedDeserializationHelper<DuplicateScore>(j);
 }
