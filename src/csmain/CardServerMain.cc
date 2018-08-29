@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -83,10 +84,12 @@ void failUnless(const bool condition)
 extern "C"
 void cardservermain_handle_signal(int signal)
 {
+    // Formally undefined behavior to do any I/O from signal handler, but in
+    // practice we rely on more lax POSIX guarantees for signal safe functions
     log(LogLevel::INFO,
         "%s received while executing protocol. Exiting immediately.",
         strsignal(signal));
-    std::exit(EXIT_SUCCESS);
+    std::quick_exit(EXIT_SUCCESS);
 }
 
 // Protocols performed by LibTMCG are based on multiple successive blocking
