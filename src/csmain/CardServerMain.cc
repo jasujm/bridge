@@ -80,14 +80,13 @@ void failUnless(const bool condition)
     }
 }
 
-extern "C" {
-    void cardservermain_handle_signal(int signal)
-    {
-        log(LogLevel::INFO,
-            "%s received while executing protocol. Exiting immediately.",
-            strsignal(signal));
-        std::exit(EXIT_SUCCESS);
-    }
+extern "C"
+void cardservermain_handle_signal(int signal)
+{
+    log(LogLevel::INFO,
+        "%s received while executing protocol. Exiting immediately.",
+        strsignal(signal));
+    std::exit(EXIT_SUCCESS);
 }
 
 // Protocols performed by LibTMCG are based on multiple successive blocking

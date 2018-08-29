@@ -54,25 +54,24 @@ struct LuaStreamReaderArgs {
     std::array<char, READ_CHUNK_SIZE> buf;
 };
 
-extern "C" {
-    const char* config_lua_reader(
-        lua_State*, void* data, std::size_t* size)
-    {
-        auto& args = *static_cast<LuaStreamReaderArgs*>(data);
-        if (args.in) {
-            errno = 0;
-            args.in.read(args.buf.data(), args.buf.size());
-            if (args.in.bad()) {
-                // Would throw exception here but this is extern "C"...
-                log(LogLevel::WARNING, "Failed to read config: %s", strerror(errno));
-            } else {
-                *size = args.in.gcount();
-                return args.buf.data();
-            }
+extern "C"
+const char* config_lua_reader(
+    lua_State*, void* data, std::size_t* size)
+{
+    auto& args = *static_cast<LuaStreamReaderArgs*>(data);
+    if (args.in) {
+        errno = 0;
+        args.in.read(args.buf.data(), args.buf.size());
+        if (args.in.bad()) {
+            // Would throw exception here but this is extern "C"...
+            log(LogLevel::WARNING, "Failed to read config: %s", strerror(errno));
+        } else {
+            *size = args.in.gcount();
+            return args.buf.data();
         }
-        *size = 0;
-        return nullptr;
     }
+    *size = 0;
+    return nullptr;
 }
 
 void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
