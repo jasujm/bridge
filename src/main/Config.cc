@@ -58,7 +58,7 @@ extern "C" {
     const char* config_lua_reader(
         lua_State*, void* data, std::size_t* size)
     {
-        auto& args = *reinterpret_cast<LuaStreamReaderArgs*>(data);
+        auto& args = *static_cast<LuaStreamReaderArgs*>(data);
         if (args.in) {
             errno = 0;
             args.in.read(args.buf.data(), args.buf.size());
