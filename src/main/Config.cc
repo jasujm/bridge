@@ -1,17 +1,22 @@
 #include "main/Config.hh"
 
 #include "messaging/EndpointIterator.hh"
+#include "main/BridgeGameConfig.hh"
 #include "IoUtility.hh"
 #include "Logging.hh"
 #include "Utility.hh"
 
 #include <array>
 #include <cstring>
+#include <exception>
 #include <fstream>
 #include <iostream>
+#include <new>
 #include <optional>
 #include <stdexcept>
-#include <tuple>
+
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/string_generator.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -25,6 +30,11 @@ namespace Main {
 using namespace std::string_literals;
 
 namespace {
+
+struct GameConfigTag {};
+GameConfigTag gameConfigTag;
+
+const auto GAME_CONFIG_UUID = "uuid"s;
 
 const auto DEFAULT_BIND_ADDRESS = "*"s;
 const auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
@@ -79,10 +89,17 @@ void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
     std::istream::sentry s {in, true};
     if (s) {
         const auto reader_args = std::make_unique<LuaStreamReaderArgs>(in);
-        const auto error =
-            lua_load(
-                lua, config_lua_reader, reader_args.get(), "config", nullptr) ||
-            lua_pcall(lua, 0, 0, 0);
+        auto error = lua_load(
+            lua, config_lua_reader, reader_args.get(), "config", nullptr);
+        if (!error) {
+            // Just for the duration of executing lots and lots of C
+            // code... let's just die if out of memory instead of handling the
+            // exception
+            const auto out_of_memory_handler =
+                std::set_new_handler(std::terminate);
+            error = lua_pcall(lua, 0, 0, 0);
+            std::set_new_handler(out_of_memory_handler);
+        }
         if (error) {
             log(LogLevel::ERROR, "Error while running config script: %s",
                 lua_tostring(lua, -1));
@@ -136,6 +153,40 @@ std::optional<int> getInt(lua_State* lua, const char* key)
     return std::nullopt;
 }
 
+extern "C"
+int config_lua_game(lua_State* lua) {
+    // Lua uses longjmp to handle errors. Care must be taken that non-trivially
+    // destructible objects are not in scope when calling Lua API functions that
+    // can potentially cause errors.
+
+    luaL_checktype(lua, 1, LUA_TTABLE);
+    lua_pushlightuserdata(lua, &gameConfigTag);
+    lua_rawget(lua, LUA_REGISTRYINDEX);
+    auto& configVector = *static_cast<Config::GameConfigVector*>(
+        lua_touserdata(lua, -1));
+    auto& config = configVector.emplace_back();
+
+    lua_pushstring(lua, GAME_CONFIG_UUID.c_str());
+    lua_rawget(lua, 1);
+    {
+        const auto* uuid_string = lua_tostring(lua, -1);
+        if (!uuid_string) {
+            configVector.pop_back();
+            luaL_error(lua, "expected argument to contain uuid");
+        }
+        try {
+            auto uuid_generator = boost::uuids::string_generator {};
+            config.uuid = uuid_generator(uuid_string);
+        } catch (...) {
+            configVector.pop_back();
+            luaL_error(lua, "invalid uuid");
+        }
+    }
+    lua_pop(lua, 1);
+
+    return 0;
+}
+
 }
 
 class Config::Impl {
@@ -146,6 +197,7 @@ public:
 
     Messaging::EndpointIterator getEndpointIterator() const;
     const Messaging::CurveKeys* getCurveConfig() const;
+    const GameConfigVector& getGameConfigs() const;
 
 private:
 
@@ -155,6 +207,7 @@ private:
     Messaging::EndpointIterator endpointIterator {
         DEFAULT_BIND_ADDRESS, DEFAULT_BIND_BASE_ENDPOINT};
     std::optional<Messaging::CurveKeys> curveConfig {};
+    GameConfigVector gameConfigs {};
 };
 
 Config::Impl::Impl() = default;
@@ -167,6 +220,14 @@ Config::Impl::Impl(std::istream& in)
     const auto lua = std::unique_ptr<lua_State, decltype(closer)> {
         luaL_newstate(), closer};
     luaL_openlibs(lua.get());
+
+    lua_pushcfunction(lua.get(), config_lua_game);
+    lua_setglobal(lua.get(), "game");
+
+    lua_pushlightuserdata(lua.get(), &gameConfigTag);
+    lua_pushlightuserdata(lua.get(), &gameConfigs);
+    lua_settable(lua.get(), LUA_REGISTRYINDEX);
+
     loadAndExecuteFromStream(lua.get(), in);
 
     createBaseEndpointConfig(lua.get());
@@ -206,6 +267,11 @@ const Messaging::CurveKeys* Config::Impl::getCurveConfig() const
     return getPtr(curveConfig);
 }
 
+const Config::GameConfigVector& Config::Impl::getGameConfigs() const
+{
+    return gameConfigs;
+}
+
 Config::Config() :
     impl {std::make_unique<Impl>()}
 {
@@ -232,6 +298,12 @@ const Messaging::CurveKeys* Config::getCurveConfig() const
 {
     assert(impl);
     return impl->getCurveConfig();
+}
+
+const Config::GameConfigVector& Config::getGameConfigs() const
+{
+    assert(impl);
+    return impl->getGameConfigs();
 }
 
 Config configFromPath(const std::string_view path)

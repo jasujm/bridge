@@ -1,6 +1,9 @@
+#include "main/BridgeGameConfig.hh"
 #include "main/Config.hh"
 #include "messaging/EndpointIterator.hh"
 
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include <gtest/gtest.h>
 
 #include <sstream>
@@ -76,4 +79,38 @@ curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
     EXPECT_EQ(expectedPublicKey, curve->serverKey);
     EXPECT_EQ(expectedSecretKey, curve->secretKey);
     EXPECT_EQ(expectedPublicKey, curve->publicKey);
+}
+
+TEST_F(ConfigTest, testParseGameConfig)
+{
+    in.str(R"EOF(
+game { uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490"}
+)EOF"s);
+    const auto config = Config {in};
+    const auto& games = config.getGameConfigs();
+    ASSERT_EQ(1u, games.size());
+    auto uuid_generator = boost::uuids::string_generator {};
+    EXPECT_EQ(
+        uuid_generator("575332b4-fa13-4d65-acf6-9f24b5e2e490"),
+        games.front().uuid);
+}
+
+TEST_F(ConfigTest, testParseGameConfigWrongArgumentType)
+{
+    in.str("game(1)"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigMissingUuid)
+{
+    in.str("game {}"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigInvalidUuid)
+{
+    in.str(R"EOF(
+game { uuid = "not uuid"}
+)EOF"s);
+    assertThrows();
 }

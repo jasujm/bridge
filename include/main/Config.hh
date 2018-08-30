@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Bridge {
 
@@ -20,12 +21,18 @@ struct CurveKeys;
 
 namespace Main {
 
+class BridgeGameConfig;
+
 /** \brief Configuration file processing utility
  *
  * \todo documentation
  */
 class Config {
 public:
+
+    /** \brief Vector of bridge game configurations
+     */
+    using GameConfigVector = std::vector<BridgeGameConfig>;
 
     /** \brief Create empty configs
      */
@@ -67,6 +74,12 @@ public:
      * are available
      */
     const Messaging::CurveKeys* getCurveConfig() const;
+
+    /** \brief Get bridge game configurations
+     *
+     * \return reference to bridge game configs
+     */
+    const GameConfigVector& getGameConfigs() const;
 
 private:
 

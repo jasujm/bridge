@@ -13,3 +13,7 @@ if os.getenv("BRIDGE_USE_CURVE") then
    curve_secret_key = "JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6"
    curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
 end
+
+game {
+   uuid = "61b431d1-386b-4b16-a99d-d48dd35f1a4e",
+}
