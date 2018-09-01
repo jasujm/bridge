@@ -89,8 +89,12 @@ protected:
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
         auto reply = std::vector<std::string> {};
         const auto success =
-            dereference(messageHandlers.at(DEAL_COMMAND)).handle(
-                identity, args.begin(), args.end(), std::back_inserter(reply));
+            dereference(messageHandlers.at(stringToBlob(DEAL_COMMAND))).handle(
+                identity, args.begin(), args.end(),
+                [&reply](const auto& b)
+                {
+                    reply.emplace_back(blobToString(b));
+                });
         EXPECT_TRUE(reply.empty());
         return success;
     }

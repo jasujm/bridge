@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -55,7 +56,7 @@ private:
 };
 
 template<typename T>
-T parseArgument(const char* arg)
+T parseArgument(const std::string_view arg)
 {
     auto serializer = JsonSerializer {};
     return serializer.deserialize<T>(arg);

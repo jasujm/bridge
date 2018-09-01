@@ -123,13 +123,20 @@ protected:
         const Identity& identity, String&&... keys)
     {
         const auto keys_ = StringVector {std::forward<String>(keys)...};
-        const auto args = {
+        auto args = std::vector {
             GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
-            KEYS_COMMAND, JsonSerializer::serialize(keys_),
         };
+        if (!keys_.empty()) {
+            args.emplace_back(KEYS_COMMAND);
+            args.emplace_back(JsonSerializer::serialize(keys_));
+        }
         EXPECT_TRUE(
             handler.handle(
-                identity, args.begin(), args.end(), std::back_inserter(reply)));
+                identity, args.begin(), args.end(),
+                [this](const auto& b)
+                {
+                    reply.emplace_back(Bridge::blobToString(b));
+                }));
     }
 
     void testEmptyRequestReply(
@@ -172,8 +179,8 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
     };
     EXPECT_FALSE(
         handler.handle(
-            Identity {}, args.begin(), args.end(), std::back_inserter(reply)));
-    EXPECT_TRUE(reply.empty());
+            Identity {}, args.begin(), args.end(),
+            [](const auto&) { FAIL(); }));
 }
 
 TEST_F(GetMessageHandlerTest, testRequestWithoutGameIsRejected)
@@ -184,7 +191,7 @@ TEST_F(GetMessageHandlerTest, testRequestWithoutGameIsRejected)
     };
     EXPECT_FALSE(
         handler.handle(
-            PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
+            PLAYER1, args.begin(), args.end(), [](const auto&) { FAIL(); }));
     EXPECT_TRUE(reply.empty());
 }
 
@@ -197,8 +204,7 @@ TEST_F(GetMessageHandlerTest, testRequestWithInvalidGameIsRejected)
     };
     EXPECT_FALSE(
         handler.handle(
-            PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
-    EXPECT_TRUE(reply.empty());
+            PLAYER1, args.begin(), args.end(), [](const auto&) { FAIL(); }));
 }
 
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)
@@ -206,9 +212,7 @@ TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)
     const auto args = {
         GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
     };
-    EXPECT_TRUE(
-        handler.handle(
-            PLAYER1, args.begin(), args.end(), std::back_inserter(reply)));
+    request(PLAYER1);
     const auto keys = boost::adaptors::stride(reply, 2);
     const auto expected = GetMessageHandler::getAllKeys();
     EXPECT_THAT(keys, testing::UnorderedElementsAreArray(expected));

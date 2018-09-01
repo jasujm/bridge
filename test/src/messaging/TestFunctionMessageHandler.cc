@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 
+using Bridge::Blob;
 using Bridge::Messaging::Identity;
 using Bridge::Messaging::MessageHandler;
 using Bridge::Messaging::Reply;
@@ -91,11 +92,11 @@ public:
 
 class FailingPolicy {
 public:
-    template<typename T> T deserialize(const std::string& s);
+    template<typename T> T deserialize(Bridge::ByteSpan s);
 };
 
 template<typename T>
-T FailingPolicy::deserialize(const std::string&)
+T FailingPolicy::deserialize(Bridge::ByteSpan)
 {
     throw Bridge::Messaging::SerializationFailureException {};
 }
@@ -114,7 +115,11 @@ protected:
             expectedSuccess,
             handler.handle(
                 IDENTITY, params.begin(), params.end(),
-                std::back_inserter(output)));
+                [this](const auto& b)
+                {
+                    output.emplace_back(
+                        reinterpret_cast<const char*>(b.data()), b.size());
+                }));
         EXPECT_THAT(output, ElementsAreArray(expectedOutput));
     }
 

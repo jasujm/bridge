@@ -45,14 +45,14 @@ public:
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
 
-    const std::vector<MessageHandlerVector::value_type> messageHandlers {{
+    const std::vector<MessageHandlerVector::value_type> messageHandlers {
         {
-            DEAL_COMMAND,
+            stringToBlob(DEAL_COMMAND),
             Messaging::makeMessageHandler(
                 *this, &Impl::deal, JsonSerializer {},
                 std::make_tuple(CARDS_COMMAND))
         },
-    }};
+    };
 
 private:
 

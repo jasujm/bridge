@@ -189,27 +189,27 @@ bool GetMessageHandler::doHandle(
         const auto& engine = game->getEngine();
         for (const auto& key : keys) {
             if (internalContainsKey(key, POSITION_COMMAND, sink)) {
-                sink(getPosition(engine, *player));
+                sink(asBytes(getPosition(engine, *player)));
             } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
-                sink(getPositionInTurn(engine));
+                sink(asBytes(getPositionInTurn(engine)));
             } else if (internalContainsKey(key, DECLARER_COMMAND, sink)) {
-                sink(getBiddingResult(engine, &Bidding::getDeclarerPosition));
+                sink(asBytes(getBiddingResult(engine, &Bidding::getDeclarerPosition)));
             } else if (internalContainsKey(key, CONTRACT_COMMAND, sink)) {
-                sink(getBiddingResult(engine, &Bidding::getContract));
+                sink(asBytes(getBiddingResult(engine, &Bidding::getContract)));
             } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
-                sink(getAllowedCalls(engine, *player));
+                sink(asBytes(getAllowedCalls(engine, *player)));
             } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
-                sink(getCalls(engine));
+                sink(asBytes(getCalls(engine)));
             } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
-                sink(getAllowedCards(engine, *player));
+                sink(asBytes(getAllowedCards(engine, *player)));
             } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
-                sink(getCards(*player, engine));
+                sink(asBytes(getCards(*player, engine)));
             } else if (internalContainsKey(key, TRICK_COMMAND, sink)) {
-                sink(getTrick(engine));
+                sink(asBytes(getTrick(engine)));
             } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
-                sink(getTricksWon(engine));
+                sink(asBytes(getTricksWon(engine)));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
-                sink(getVulnerability(game->getGameManager()));
+                sink(asBytes(getVulnerability(game->getGameManager())));
             }
         }
         return true;
@@ -221,7 +221,7 @@ bool GetMessageHandler::internalContainsKey(
     const std::string& key, const std::string& expected, OutputSink& sink) const
 {
     if (key == expected) {
-        sink(key);
+        sink(asBytes(key));
         return true;
     }
     return false;

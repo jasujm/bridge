@@ -445,35 +445,35 @@ CardServerMain::Impl::Impl(
         Messaging::MessageQueue {
             {
                 {
-                    INIT_COMMAND,
-                        makeMessageHandler(
-                            *this, &Impl::init, JsonSerializer {},
-                            std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
+                    stringToBlob(INIT_COMMAND),
+                    makeMessageHandler(
+                        *this, &Impl::init, JsonSerializer {},
+                        std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
                 },
                 {
-                    SHUFFLE_COMMAND,
-                        makeMessageHandler(
-                            *this, &Impl::shuffle, JsonSerializer {})
+                    stringToBlob(SHUFFLE_COMMAND),
+                    makeMessageHandler(
+                        *this, &Impl::shuffle, JsonSerializer {})
                 },
                 {
-                    DRAW_COMMAND,
-                        makeMessageHandler(
-                            *this, &Impl::draw, JsonSerializer {},
-                            std::make_tuple(CARDS_COMMAND),
-                            std::make_tuple(CARDS_COMMAND))
+                    stringToBlob(DRAW_COMMAND),
+                    makeMessageHandler(
+                        *this, &Impl::draw, JsonSerializer {},
+                        std::make_tuple(CARDS_COMMAND),
+                        std::make_tuple(CARDS_COMMAND))
                 },
                 {
-                    REVEAL_COMMAND,
-                        makeMessageHandler(
-                            *this, &Impl::reveal, JsonSerializer {},
-                            std::make_tuple(ID_COMMAND, CARDS_COMMAND))
+                    stringToBlob(REVEAL_COMMAND),
+                    makeMessageHandler(
+                        *this, &Impl::reveal, JsonSerializer {},
+                        std::make_tuple(ID_COMMAND, CARDS_COMMAND))
                 },
                 {
-                    REVEAL_ALL_COMMAND,
-                        makeMessageHandler(
-                            *this, &Impl::revealAll, JsonSerializer {},
-                            std::make_tuple(CARDS_COMMAND),
-                            std::make_tuple(CARDS_COMMAND))
+                    stringToBlob(REVEAL_ALL_COMMAND),
+                    makeMessageHandler(
+                        *this, &Impl::revealAll, JsonSerializer {},
+                        std::make_tuple(CARDS_COMMAND),
+                        std::make_tuple(CARDS_COMMAND))
                 },
             }
         });

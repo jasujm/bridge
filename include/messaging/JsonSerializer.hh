@@ -13,6 +13,7 @@
 #define MESSAGING_JSONSERIALIZER_HH_
 
 #include "messaging/SerializationFailureException.hh"
+#include "Blob.hh"
 
 #include <json.hpp>
 
@@ -59,10 +60,10 @@ struct JsonSerializer {
      * \throw SerializationFailureException in case any exception is caught from
      * the JSON library
      */
-    template<typename T> static T deserialize(const std::string& s)
+    template<typename T> static T deserialize(const auto& s)
     {
         try {
-            return nlohmann::json::parse(s).get<T>();
+            return nlohmann::json::parse(s).template get<T>();
         } catch (const nlohmann::json::exception&) {
             throw SerializationFailureException {};
         }

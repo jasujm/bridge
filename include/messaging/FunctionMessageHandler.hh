@@ -9,6 +9,8 @@
 #include "messaging/Identity.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
+#include "Blob.hh"
+#include "BlobMap.hh"
 
 #include <array>
 #include <cassert>
@@ -145,7 +147,7 @@ inline auto failure()
  *
  * \code{.cc}
  * Reply<std::vector<std::string>> getFiles(
- *     const std::string& identity, const std::string& credentials)
+ *     const Blob& identity, const Blob& credentials)
  * {
  *     if (checkCredentials(identity, credentials)) {
  *         return success(getFilesForUser(identity));
@@ -263,8 +265,8 @@ private:
 
     using ParamTuple = std::tuple<typename ParamTraits<Args>::WrappedType...>;
     using InitFunction =
-        bool (FunctionMessageHandler::*)(const std::string&, ParamTuple&);
-    using InitFunctionMap = std::map<std::string, InitFunction>;
+        bool (FunctionMessageHandler::*)(ByteSpan, ParamTuple&);
+    using InitFunctionMap = BlobMap<InitFunction>;
     using ResultType = typename std::result_of_t<
         Function(Identity, typename ParamTraits<Args>::DeserializedType...)>;
     static constexpr auto REPLY_SIZE =
@@ -310,7 +312,7 @@ private:
     auto makeReplyKeys(ReplyKeys keys, std::index_sequence<Ns...>);
 
     template<std::size_t N>
-    bool internalInitParam(const std::string& arg, ParamTuple& params);
+    bool internalInitParam(ByteSpan arg, ParamTuple& params);
 
     template<std::size_t... Ns>
     bool internalCallFunction(
@@ -376,7 +378,7 @@ makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>)
     static_cast<void>(keys);  // Suppress compiler warning if keys is empty
     return InitFunctionMap {
         {
-            std::move(std::get<Ns>(keys)),
+            stringToBlob(std::move(std::get<Ns>(keys))),
             &FunctionMessageHandler::internalInitParam<Ns>
         }...
     };
@@ -468,8 +470,8 @@ ReplyVisitor::internalReplySuccessHelper(
     using ArgType = typename std::tuple_element<N, std::tuple<Args2...>>::type;
     const auto& arg = std::get<N>(args);
     if (ParamTraits<ArgType>::shouldSerialize(arg)) {
-        sink(std::get<N>(replyKeys));
-        sink(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg)));
+        sink(asBytes(std::get<N>(replyKeys)));
+        sink(asBytes(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg))));
     }
     return internalReplySuccess<N+1>(args);
 }
@@ -477,7 +479,7 @@ ReplyVisitor::internalReplySuccessHelper(
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<std::size_t N>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-internalInitParam(const std::string& arg, ParamTuple& params)
+internalInitParam(ByteSpan arg, ParamTuple& params)
 {
     using ArgType = typename std::tuple_element<N, std::tuple<Args...>>::type;
     using DeserializedType = typename ParamTraits<ArgType>::DeserializedType;

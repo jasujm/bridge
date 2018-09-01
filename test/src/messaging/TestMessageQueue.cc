@@ -13,6 +13,8 @@
 #include <string>
 #include <utility>
 
+using Bridge::asBytes;
+using Bridge::Blob;
 using namespace Bridge::Messaging;
 
 using testing::_;
@@ -25,9 +27,11 @@ using namespace std::string_literals;
 
 namespace {
 const auto IDENTITY = Identity { std::byte {123}, std::byte {32} };
+const auto PARAM1 = Blob { std::byte {123} };
+const auto PARAM2 = Blob { std::byte {32} };
 const auto ENDPOINT = "inproc://testing"s;
-const auto COMMAND = "command"s;
-const auto OTHER_COMMAND = "other"s;
+const auto COMMAND = Blob { std::byte {65}, std::byte {66} };
+const auto OTHER_COMMAND = Blob { std::byte {67}, std::byte {68} };
 }
 
 class MessageQueueTest : public testing::Test {
@@ -40,13 +44,14 @@ protected:
     }
 
     void assertReply(
-        bool success, std::optional<std::string> command, bool more = false)
+        bool success, std::optional<Blob> command, bool more = false)
     {
-        const auto status = recvMessage(frontSocket);
+        const auto status = recvMessage<Blob>(frontSocket);
         EXPECT_EQ(success, isSuccessful(getStatusCode(status.first)));
         if (command) {
             ASSERT_TRUE(status.second);
-            EXPECT_EQ(std::make_pair(*command, more), recvMessage(frontSocket));
+            EXPECT_EQ(
+                std::make_pair(*command, more), recvMessage<Blob>(frontSocket));
         } else {
             ASSERT_FALSE(status.second);
         }
@@ -55,7 +60,7 @@ protected:
     zmq::context_t context;
     zmq::socket_t frontSocket {context, zmq::socket_type::req};
     zmq::socket_t backSocket {context, zmq::socket_type::router};
-    std::map<std::string, std::shared_ptr<MockMessageHandler>> handlers {
+    std::map<Blob, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue {
         MessageQueue::HandlerMap(handlers.begin(), handlers.end())};
@@ -63,15 +68,13 @@ protected:
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 {
-    const auto p1 = "p1"s;
-    const auto p2 = "p2"s;
-
     EXPECT_CALL(
-        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
+        *handlers.at(COMMAND),
+        doHandle(IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
         .WillOnce(Return(true));
     sendMessage(frontSocket, COMMAND, true);
-    sendMessage(frontSocket, p1, true);
-    sendMessage(frontSocket, p2);
+    sendMessage(frontSocket, PARAM1, true);
+    sendMessage(frontSocket, PARAM2);
 
     messageQueue(backSocket);
     assertReply(true, COMMAND);
@@ -79,15 +82,13 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 {
-    const auto p1 = "p1"s;
-    const auto p2 = "p2"s;
-
     EXPECT_CALL(
-        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(p1, p2), _))
+        *handlers.at(COMMAND),
+        doHandle(IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
         .WillOnce(Return(false));
     sendMessage(frontSocket, COMMAND, true);
-    sendMessage(frontSocket, p1, true);
-    sendMessage(frontSocket, p2);
+    sendMessage(frontSocket, PARAM1, true);
+    sendMessage(frontSocket, PARAM2);
 
     messageQueue(backSocket);
     assertReply(false, COMMAND);
@@ -96,16 +97,16 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
-    sendMessage(frontSocket, "invalid");
+    sendMessage(frontSocket, OTHER_COMMAND);
 
     messageQueue(backSocket);
 
-    assertReply(false, std::nullopt);
+    assertReply(false, OTHER_COMMAND);
 }
 
 TEST_F(MessageQueueTest, testReply)
 {
-    const auto outputs = {"output1"s, "output2"s};
+    const auto outputs = { PARAM1, PARAM2 };
 
     EXPECT_CALL(
         *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(), _))
@@ -119,9 +120,11 @@ TEST_F(MessageQueueTest, testReply)
 
     assertReply(true, COMMAND, true);
     EXPECT_EQ(
-        std::make_pair(outputs.begin()[0], true), recvMessage(frontSocket));
+        std::make_pair(outputs.begin()[0], true),
+        recvMessage<Blob>(frontSocket));
     EXPECT_EQ(
-        std::make_pair(outputs.begin()[1], false), recvMessage(frontSocket));
+        std::make_pair(outputs.begin()[1], false),
+        recvMessage<Blob>(frontSocket));
 }
 
 TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)

@@ -1,6 +1,8 @@
 #ifndef MOCKSERIALIZATIONPOLICY_HH_
 #define MOCKSERIALIZATIONPOLICY_HH_
 
+#include "Blob.hh"
+
 #include <boost/lexical_cast.hpp>
 
 #include <string>
@@ -11,7 +13,7 @@ namespace Messaging {
 class MockSerializationPolicy {
 public:
     template<typename T> std::string serialize(const T& t);
-    template<typename T> T deserialize(const std::string& s);
+    template<typename T> T deserialize(ByteSpan b);
 };
 
 template<typename T>
@@ -21,9 +23,9 @@ std::string MockSerializationPolicy::serialize(const T& t)
 }
 
 template<typename T>
-T MockSerializationPolicy::deserialize(const std::string& s)
+T MockSerializationPolicy::deserialize(ByteSpan s)
 {
-    return boost::lexical_cast<T>(s);
+    return boost::lexical_cast<T>(blobToString(s));
 }
 
 }

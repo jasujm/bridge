@@ -57,7 +57,7 @@ protected:
         // require them to be successful)
         EXPECT_TRUE(j == json::parse(serializer.serialize(t)))
             << "Failed to serialize:\n" << t;
-        EXPECT_TRUE(t == serializer.deserialize<T>(j.dump()))
+        EXPECT_TRUE(t == serializer.deserialize<T>(asBytes(j.dump())))
             << "Failed to deserialize:\n" << j;
     }
 
@@ -65,7 +65,7 @@ protected:
     void testFailedDeserializationHelper(const json& j)
     {
         EXPECT_THROW(
-            serializer.deserialize<T>(j.dump()),
+            serializer.deserialize<T>(asBytes(j.dump())),
             SerializationFailureException);
     }
 

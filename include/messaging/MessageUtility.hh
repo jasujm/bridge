@@ -20,6 +20,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "Blob.hh"
+
 namespace Bridge {
 namespace Messaging {
 
@@ -173,6 +175,10 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  *
  * \param out output iterator the messages are written to
  * \param socket socket used to receive the messages
+ *
+ * \deprecated Do not use for router sockets. More robust identity handling
+ * implemented in the MessageQueue class which the only class in the messaging
+ * framework currently properly supporting router sockets.
  */
 template<typename MessageType = std::string, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
@@ -183,6 +189,20 @@ void recvAll(OutputIterator out, zmq::socket_t& socket)
         *out++ = std::move(message.first);
         more = message.second;
     }
+}
+
+/** \brief Get view to the bytes \p message consists of
+ *
+ * \param message the message
+ *
+ * \return ByteSpan object over the bytes \p message consists of
+ */
+inline ByteSpan messageView(zmq::message_t& message)
+{
+    const auto* data = message.data<ByteSpan::value_type>();
+    const auto size = static_cast<ByteSpan::index_type>(
+        message.size() * sizeof(*data));
+    return {data, size};
 }
 
 }

@@ -83,6 +83,9 @@
  * consist of printable ASCII characters. The argument values MUST be JSON
  * documents encoded in UTF‐8.
  *
+ * \note The motivation for restricting commands and keys to printable ASCII is
+ * to ensure that they can be matched by simple binary comparison.
+ *
  * \b Example. A valid command to play seven of diamonds from the south hand
  * would consist of the following eight frames:
  *
@@ -106,14 +109,17 @@
  *
  * \section bridgeprotocolreplymessage Reply messages
  *
- * The peer MUST reply to properly formatted messages. The reply to the command
- * MUST consist of an empty frame, status frame, frame identifying the command
- * and command dependent number of reply arguments consisting of alternating key
- * and value frames. The status MUST be a four byte big endian integer which is
- * equal or greater than zero if the command was successfully handled, or less
- * than zero otherwise. The identification frame MUST be the same as the command
- * frame of the message it replies to. The arguments MUST be JSON documents
- * encoded in UTF‐8. A failed reply MUST NOT be accompanied by parameters.
+ * The peer MUST reply to a message consisting of at least the initial empty
+ * frame and the command frame, whether or not it recognizes the command or the
+ * arguments are correct. The reply to the command MUST consist of an empty
+ * frame, status frame, frame containing the command and (in case of reply to a
+ * recognized message successfully handled) command dependent number of reply
+ * arguments consisting of alternating key and value frames. The status MUST be
+ * a four byte big endian integer which is equal or greater than zero if the
+ * command was successfully handled, or less than zero otherwise. The
+ * identification frame MUST be the same as the command frame of the message it
+ * replies to. The arguments MUST be JSON documents encoded in UTF‐8. A failed
+ * reply MUST NOT be accompanied by parameters.
  *
  * \b Example. A successful reply to a get command requesting the position of
  * the current player consists of the following five frames:

@@ -163,20 +163,20 @@ BridgeMain::Impl::Impl(
     messageQueue {
         {
             {
-                HELLO_COMMAND,
+                stringToBlob(HELLO_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::hello, JsonSerializer {},
                     std::make_tuple(VERSION_COMMAND, ROLE_COMMAND))
             },
             {
-                GAME_COMMAND,
+                stringToBlob(GAME_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::game, JsonSerializer {},
                     std::make_tuple(GAME_COMMAND, ARGS_COMMAND),
                     std::make_tuple(GAME_COMMAND))
             },
             {
-                JOIN_COMMAND,
+                stringToBlob(JOIN_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::join, JsonSerializer {},
                     std::make_tuple(
@@ -184,13 +184,13 @@ BridgeMain::Impl::Impl(
                     std::make_tuple(GAME_COMMAND))
             },
             {
-                CALL_COMMAND,
+                stringToBlob(CALL_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::call, JsonSerializer {},
                     std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, CALL_COMMAND))
             },
             {
-                PLAY_COMMAND,
+                stringToBlob(PLAY_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::play, JsonSerializer {},
                     std::make_tuple(
@@ -232,7 +232,7 @@ BridgeMain::Impl::Impl(
                 callbackScheduler));
     }
     messageQueue.trySetHandler(
-        GET_COMMAND,
+        stringToBlob(GET_COMMAND),
         std::make_shared<GetMessageHandler>(
             [this](const Uuid& uuid) { return internalGetGame(uuid); },
             nodePlayerControl));

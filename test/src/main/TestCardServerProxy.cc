@@ -70,7 +70,7 @@ MATCHER_P(
     ::testing::PrintToString(value))
 {
     const auto arg_ = JsonSerializer::deserialize<
-        std::decay_t<decltype(value)>>(arg);
+        std::decay_t<decltype(value)>>(asBytes(arg));
     return value == arg_;
 }
 
