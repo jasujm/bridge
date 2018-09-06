@@ -126,7 +126,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
     assertCardManagerHasShuffledDeck(*card_manager);
 
     auto command = std::vector<std::string> {};
-    recvAll(std::back_inserter(command), backSocket);
+    recvAll<std::string>(std::back_inserter(command), backSocket);
     EXPECT_THAT(
         command, ElementsAre(DEAL_COMMAND, CARDS_COMMAND, IsShuffledDeck()));
 }

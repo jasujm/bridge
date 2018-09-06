@@ -16,7 +16,6 @@
 #include <zmq.hpp>
 
 #include <iterator>
-#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -53,7 +52,7 @@ void sendMessage(
  * multipart message.
  *
  * \tparam MessageType the type of the message. It must be a standard container
- * (vector, string etc.) holding scalar values.
+ * (blob, vector, string etc.) holding scalar values.
  *
  * \param socket socket used for sending the message
  * \param first iterator to the first message to be sent
@@ -111,14 +110,14 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
 {
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
-        sendMessage(socket, std::string {}, true);
+        socket.send(zmq::message_t {}, ZMQ_SNDMORE);
     }
 }
 
 /** \brief Receive message sent through socket
  *
  * \tparam MessageType the type of the message. It must be a standard container
- * (vector, string etc.) holding scalar values.
+ * (blob, vector, string etc.) holding scalar values.
  *
  * \param socket the socket used to receive the message
  *
@@ -126,7 +125,7 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
  *   - the message (single frame)
  *   - boolean indicating whether there are more parts in the message
  */
-template<typename MessageType = std::string>
+template<typename MessageType>
 std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
 {
     static_assert(
@@ -156,12 +155,12 @@ std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
 inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
 {
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
-    auto more = true;
     if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
-        const auto message = recvMessage(socket);
-        more = message.second;
+        auto empty_frame = zmq::message_t {};
+        assert(socket.recv(&empty_frame));
+        return empty_frame.more();
     }
-    return more;
+    return true;
 }
 
 /** \brief Receive all parts of a multipart message
@@ -171,7 +170,7 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  * other means.
  *
  * \tparam MessageType the type of the message. It must be a standard container
- * (vector, string etc.) holding scalar values.
+ * (blob, vector, string etc.) holding scalar values.
  *
  * \param out output iterator the messages are written to
  * \param socket socket used to receive the messages
@@ -180,7 +179,7 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  * implemented in the MessageQueue class which the only class in the messaging
  * framework currently properly supporting router sockets.
  */
-template<typename MessageType = std::string, typename OutputIterator>
+template<typename MessageType, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
 {
     auto more = recvEmptyFrameIfNecessary(socket);

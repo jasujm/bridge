@@ -94,7 +94,7 @@ protected:
     void assertMessage(Matchers&&... matchers)
     {
         auto message = std::vector<std::string> {};
-        recvAll(std::back_inserter(message), proxySocket);
+        recvAll<std::string>(std::back_inserter(message), proxySocket);
         EXPECT_THAT(
             message,
             ElementsAre(std::forward<Matchers>(matchers)...));

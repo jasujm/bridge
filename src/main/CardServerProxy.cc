@@ -395,7 +395,7 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
 
     if (&socket == sockets.front().first.get()) {
         auto reply = std::vector<std::string> {};
-        recvAll(std::back_inserter(reply), socket);
+        recvAll<std::string>(std::back_inserter(reply), socket);
         const auto iter = isSuccessfulReply(reply.begin(), reply.end());
         if (iter == reply.end()) {
             log(LogLevel::WARNING,

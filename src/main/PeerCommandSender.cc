@@ -59,7 +59,7 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
         throw std::invalid_argument("Socket is not peer socket");
     }
     auto message = Message {};
-    recvAll(std::back_inserter(message), socket);
+    recvAll<std::string>(std::back_inserter(message), socket);
     if (messages.empty()) {
         return;
     }

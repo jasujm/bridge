@@ -49,10 +49,10 @@ protected:
 
     void checkMessage(zmq::socket_t& socket, const std::string& command)
     {
-        ASSERT_EQ(std::make_pair(""s, true), recvMessage(socket));
-        ASSERT_EQ(std::make_pair(command, true), recvMessage(socket));
-        ASSERT_EQ(std::make_pair(KEY, true), recvMessage(socket));
-        EXPECT_EQ(std::make_pair(ARG, false), recvMessage(socket));
+        ASSERT_EQ(std::make_pair(""s, true), recvMessage<std::string>(socket));
+        ASSERT_EQ(std::make_pair(command, true), recvMessage<std::string>(socket));
+        ASSERT_EQ(std::make_pair(KEY, true), recvMessage<std::string>(socket));
+        EXPECT_EQ(std::make_pair(ARG, false), recvMessage<std::string>(socket));
     }
 
     void checkReceive(

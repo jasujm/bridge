@@ -34,7 +34,7 @@ protected:
                 Invoke(
                     [this](auto& socket)
                     {
-                        const auto msg = recvMessage(socket);
+                        const auto msg = recvMessage<std::string>(socket);
                         EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
                         std::raise(SIGTERM);
                     }));
@@ -82,7 +82,7 @@ TEST_F(MessageLoopTest, testMultipleMessages)
             Invoke(
                 [this](auto& socket)
                 {
-                    const auto msg = recvMessage(socket);
+                    const auto msg = recvMessage<std::string>(socket);
                     EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
                     sendMessage(frontSockets[1], DEFAULT_MSG);
                 }));
@@ -98,7 +98,7 @@ TEST_F(MessageLoopTest, testTerminate)
             Invoke(
                 [this](auto& socket)
                 {
-                    const auto msg = recvMessage(socket);
+                    const auto msg = recvMessage<std::string>(socket);
                     EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
                     std::raise(SIGTERM);
                 }));

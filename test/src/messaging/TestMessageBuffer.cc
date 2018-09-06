@@ -42,7 +42,7 @@ TEST_F(MessageBufferTest, testOutputMessage)
     std::ostream out {&buffer};
     out << MESSAGE << " " << NUMBER << std::endl;
 
-    const auto message = recvMessage(*backSocket);
+    const auto message = recvMessage<std::string>(*backSocket);
     EXPECT_EQ(std::make_pair(WHOLE_MESSAGE, false), message);
 }
 
