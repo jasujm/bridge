@@ -153,16 +153,13 @@ OutputIterator decodeHex(InputIterator first, InputIterator last, OutputIterator
 template<typename Char = char>
 auto toHex(const auto& bytes)
 {
-    using std::size;
-    using std::begin;
-    using std::end;
     auto ret = std::basic_string<Char> {};
-    ret.reserve(2 * size(bytes));
-    encodeHex(begin(bytes), end(bytes), std::back_inserter(ret));
+    ret.reserve(2 * std::size(bytes));
+    encodeHex(std::begin(bytes), std::end(bytes), std::back_inserter(ret));
     return ret;
 }
 
-/** \Brief Return a blob containing bytes from decoded hex string
+/** \brief Return a blob containing bytes from decoded hex string
  *
  * This function is a wrapper over decodeHex() that decodes a hex encoded string
  * and returns a pre‐allocated blob containing the bytes.
@@ -175,12 +172,9 @@ auto toHex(const auto& bytes)
  */
 auto fromHex(const auto& string)
 {
-    using std::size;
-    using std::begin;
-    using std::end;
     auto ret = Blob {};
-    ret.reserve((size(string) + 1) / 2);
-    decodeHex(begin(string), end(string), std::back_inserter(ret));
+    ret.reserve((std::size(string) + 1) / 2);
+    decodeHex(std::begin(string), std::end(string), std::back_inserter(ret));
     return ret;
 }
 
