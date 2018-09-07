@@ -36,7 +36,7 @@
  * \subsection bridgeprotocolpeer Peers
  *
  * - MUST open a control socket (ROUTER) other nodes connect to
- * - SHOULD open an event socket (PUB) other nodes can subscribe for events
+ * - MUST open an event socket (PUB) other nodes can subscribe for events
  * - Are REQUIRED to keep record of the full state of each game they take part
  *   in
  * - MAY represent multiple players in each game they take part in
@@ -55,19 +55,21 @@
  *
  * \subsection bridgeprotocolclients Clients
  *
- * - SHOULD connect to one peer (control and event sockets) at a time to control
- *   one of the players it represents
+ * - MUST communicate with a peer using \ref bridgeprotocolcontrolmessage to
+ *   control the actions of a player it represents
+ * - SHOULD subscribe to the event socket the peer provides
  * - MAY rely on the peer to track the full state of the game
  * - SHOULD set identity to a value that is unique with high probability (such
- *   as binary presentation of UUID it generates)
+ *   as binary presentation of an UUID it generates)
  *
  * \subsection bridgeprotocolplayers Players
  *
- * In each game, a peer represents one or more players with the intention of
- * delegating control of the to the clients connecting to the peer. Before the
- * game the peers which players each one represents. A peer representing a
- * player or a client to whom the control of a player is delegated to is said to
- * be allowed to act for that player.
+ * In each game, a peer represents one or more players, possibly with the
+ * intention of delegating control of the actions of the player to the clients
+ * connecting to the peer. Before the game the peers negotiate which players
+ * each one represents. A peer representing a player or a client to whom the
+ * control of a player is delegated to is said to be allowed to act for that
+ * player.
  *
  * The bridge protocol allows multiple network topologies. In pure client‐server
  * model a single peer represents all players and all clients connect to the
