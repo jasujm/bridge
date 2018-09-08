@@ -61,16 +61,16 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
     if (iter == peers.end()) {
         throw std::invalid_argument("Socket is not peer socket");
     }
-    auto message = std::vector<Blob> {};
-    recvAll<Blob>(std::back_inserter(message), socket);
+    auto message = std::vector<zmq::message_t> {};
+    recvEmptyFrameIfNecessary(socket);
+    recvMultipart(socket, std::back_inserter(message));
     if (messages.empty()) {
         return;
     }
     const auto& current_message = messages.front();
     assert(!current_message.empty());
     const auto reply_iter = isSuccessfulReply(message.begin(), message.end());
-    if (reply_iter != message.end() &&
-        asBytes(*reply_iter) == messageView(current_message.front())) {
+    if (reply_iter != message.end() && *reply_iter == current_message.front()) {
         iter->success = true;
         if (
             std::all_of(

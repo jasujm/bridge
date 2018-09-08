@@ -46,14 +46,15 @@ protected:
     void assertReply(
         bool success, std::optional<Blob> command, bool more = false)
     {
-        const auto status = recvMessage<Blob>(frontSocket);
-        EXPECT_EQ(success, isSuccessful(getStatusCode(status.first)));
+        auto status_message = zmq::message_t {};
+        frontSocket.recv(&status_message);
+        EXPECT_EQ(success, isSuccessful(getStatusCode(status_message)));
         if (command) {
-            ASSERT_TRUE(status.second);
+            ASSERT_TRUE(status_message.more());
             EXPECT_EQ(
                 std::make_pair(*command, more), recvMessage<Blob>(frontSocket));
         } else {
-            ASSERT_FALSE(status.second);
+            ASSERT_FALSE(status_message.more());
         }
     }
 

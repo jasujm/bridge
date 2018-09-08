@@ -7,10 +7,10 @@
 #define MESSAGING_REPLIES_HH_
 
 #include <boost/endian/conversion.hpp>
+#include <zmq.hpp>
 
 #include <iterator>
 #include <optional>
-#include <string>
 
 namespace Bridge {
 namespace Messaging {
@@ -49,30 +49,19 @@ constexpr StatusCode REPLY_FAILURE = -12234158;
 bool isSuccessful(std::optional<StatusCode> code);
 
 /**
- * \brief Interpret status code
+ * \brief Interpret message as status code
  *
- * The input to this function is a byte string encoding a four byte big endian
- * integer. This function is used to convert the string into a native StatusCode
- * value.
+ * The input to this function is a zmq::message_t object containing a four byte
+ * big endian integer. This function is used to convert the string into a native
+ * StatusCode value.
  *
- * \param status status code as byte string
+ * \param statusMessage the message containing the status code
  *
  * \return status code, or none if the input does not contain four bytes
  */
-template<typename MessageString>
-std::optional<StatusCode> getStatusCode(const MessageString& status)
-{
-    const auto d = std::data(status);
-    const auto s = std::size(status) * sizeof(*d);
-    if (s == sizeof(StatusCode)) {
-        auto ret = StatusCode {};
-        std::memcpy(&ret, d, s);
-        return boost::endian::big_to_native(ret);
-    }
-    return std::nullopt;
-}
+std::optional<StatusCode> getStatusCode(const zmq::message_t& statusMessage);
 
-/** \brief Determine whether or not message is a successful reply
+/** \brief Determine whether or not a multipart message is a successful reply
  *
  * A successful reply begins with a status frame containing positive status
  * code, and a frame containing the command the reply is for. Because the user
@@ -80,12 +69,12 @@ std::optional<StatusCode> getStatusCode(const MessageString& status)
  * function does not check for specific command but instead returns iterator to
  * the frame, letting the caller do further checking.
  *
- * \note The possible initial empty frame must be stripped before passing the
- * message to this function. For example recvAll() does the stripping
- * automatically.
+ * \note The range passed to this function must not contain the initial empty
+ * frame in case of message received through dealer/router socket. The first
+ * frame is interpreted as status code.
  *
  * \tparam MessageIterator An input iterator that, when dereferenced, returns a
- * string containing part of the message.
+ * zmq::message_t objects.
  *
  * \param first iterator to the first part of the message examined
  * \param last iterator one past the last part of the message examined

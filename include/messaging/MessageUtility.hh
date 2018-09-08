@@ -32,6 +32,9 @@ namespace Messaging {
  * \param socket socket used for sending the message
  * \param message the message to be sent (typically a string)
  * \param more true if there are more parts in the message, false otherwise
+ *
+ * \deprecated Use messageFromValue() or messageFromContainer() with the ZMQ API
+ * for more flexibility.
  */
 template<typename MessageType>
 void sendMessage(
@@ -39,8 +42,8 @@ void sendMessage(
 {
     static_assert(
         std::is_scalar_v<
-            typename std::iterator_traits<
-                decltype(std::begin(message))>::value_type>,
+        typename std::iterator_traits<
+        decltype(std::begin(message))>::value_type>,
         "Message type must contain scalar values");
     const auto flags = more ? ZMQ_SNDMORE : 0;
     socket.send(std::begin(message), std::end(message), flags);
@@ -58,6 +61,9 @@ void sendMessage(
  * \param first iterator to the first message to be sent
  * \param last iterator one past the last message to be sent
  * \param more true if there are more parts in the message, false otherwise
+ *
+ * \deprecated Use messageFromValue() or messageFromContainer() with
+ * sendMultipart() for more flexibility.
  */
 template<typename MessageIterator>
 void sendMessage(
@@ -83,6 +89,8 @@ void sendMessage(
  * \param socket socket used for sending the message
  * \param v the value to send
  * \param more true if there are more parts in the message, false otherwise
+ *
+ * \deprecated Use messageFromValue() with the ZMQ API for more flexibility.
  */
 template<typename EndianReversible>
 void sendValue(
@@ -124,6 +132,8 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
  * \return A pair containing the following
  *   - the message (single frame)
  *   - boolean indicating whether there are more parts in the message
+ *
+ * \deprecated Use ZMQ API with serializers for more flexibility.
  */
 template<typename MessageType>
 std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
@@ -178,6 +188,8 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  * \deprecated Do not use for router sockets. More robust identity handling
  * implemented in the MessageQueue class which the only class in the messaging
  * framework currently properly supporting router sockets.
+ *
+ * \deprecated Use recvMultipart(), ZMQ API and serializers for more flexibility.
  */
 template<typename MessageType, typename OutputIterator>
 void recvAll(OutputIterator out, zmq::socket_t& socket)
@@ -187,6 +199,57 @@ void recvAll(OutputIterator out, zmq::socket_t& socket)
         auto message = recvMessage<MessageType>(socket);
         *out++ = std::move(message.first);
         more = message.second;
+    }
+}
+
+/** \brief Send multiple ZMQ frames as single multipart message
+ *
+ * This function takes a range of zmq::message_t objects as input and sends them
+ * using \p socket as single multipart message.
+ *
+ * \tparam MessageIterator input iterator over zmq::message_t objects
+ *
+ * \param socket the socket
+ * \param first iterator to the first frame to be sent
+ * \param last iterator one past the last frame to be sent
+ * \param flags flags to be passed to socket.send() method
+ *
+ * \note ZMQ_SNDMORE flag is always or’d with \p flags for all frames except the
+ * last one. ZMQ_SNDMORE can still be passed as \p flags to this function, and
+ * it will then be applied to the last frame too, allowing the multipart message
+ * to continue after the parts sent using the function invocation.
+ */
+template<typename MessageIterator>
+void sendMultipart(
+    zmq::socket_t& socket, MessageIterator first, MessageIterator last,
+    int flags = 0)
+{
+    while (first != last) {
+        const auto next = std::next(first);
+        socket.send(*first, (next == last) ? flags : (flags | ZMQ_SNDMORE));
+        first = next;
+    }
+}
+
+/** \brief Receive multipart ZMQ message as individual frames
+ *
+ * This function receives as many frames from \p socket as the next message
+ * contains and writes them to \p out.
+ *
+ * \tparam MessageIterator output iterator accepting zmq::message_t objects
+ *
+ * \param socket the socket
+ * \param out the output iterator the frames are written to
+ */
+template<typename MessageIterator>
+void recvMultipart(zmq::socket_t& socket, MessageIterator out)
+{
+    auto more = true;
+    while (more) {
+        auto next_message = zmq::message_t {};
+        socket.recv(&next_message);
+        more = next_message.more();
+        *out++ = std::move(next_message);
     }
 }
 
@@ -207,21 +270,41 @@ inline ByteSpan messageView(const zmq::message_t& message)
 /** \brief Create ZMQ message from the content of a container
  *
  * Given a contiguous \p container of trivially copyable elements, create and
- * return a \c zmq::message_t object containing it’s contents as data.
+ * return a \c zmq::message_t object containing its contents as data.
  *
  * \param container the container
  *
- * \return message containing the contents of \p container as it’s data
+ * \return message containing the contents of \p container as its data
  */
 zmq::message_t messageFromContainer(const auto& container)
 {
     const auto* data = std::data(container);
-    using ValueType = std::remove_reference_t<decltype(*data)>;
+    using ValueType = std::remove_cv_t<
+        std::remove_reference_t<decltype(*data)>>;
+    static_assert(
+        std::is_trivially_copyable_v<ValueType>,
+        "Argument must contain trivially copyable elements");
+    const auto size = std::size(container) * sizeof(ValueType);
+    return {data, size};
+}
+
+/** \brief Create ZMQ message from a value
+ *
+ * Given a trivially copyable \p value, create and return a \c zmq::message_t
+ * object containing its object representation as data.
+ *
+ * \param value the value
+ *
+ * \return message containing the object representation of \p value as its data
+ */
+zmq::message_t messageFromValue(const auto& value)
+{
+    using ValueType = std::remove_cv_t<
+        std::remove_reference_t<decltype(value)>>;
     static_assert(
         std::is_trivially_copyable_v<ValueType>,
         "Argument must be trivially copyable");
-    const auto size = std::size(container) * sizeof(ValueType);
-    return {data, size};
+    return {std::addressof(value), sizeof(ValueType)};
 }
 
 }

@@ -8,5 +8,18 @@ bool isSuccessful(std::optional<StatusCode> code)
     return code && *code >= 0;
 }
 
+std::optional<StatusCode> getStatusCode(
+    const zmq::message_t& statusMessage)
+{
+    const auto* data = statusMessage.data();
+    const auto size = statusMessage.size();
+    if (size == sizeof(StatusCode)) {
+        auto ret = StatusCode {};
+        std::memcpy(&ret, data, size);
+        return boost::endian::big_to_native(ret);
+    }
+    return std::nullopt;
+}
+
 }
 }

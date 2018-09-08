@@ -394,8 +394,8 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
     using namespace Messaging;
 
     if (&socket == sockets.front().first.get()) {
-        auto reply = std::vector<std::string> {};
-        recvAll<std::string>(std::back_inserter(reply), socket);
+        auto reply = std::vector<zmq::message_t> {};
+        recvMultipart(socket, std::back_inserter(reply));
         const auto iter = isSuccessfulReply(reply.begin(), reply.end());
         if (iter == reply.end()) {
             log(LogLevel::WARNING,
@@ -403,16 +403,16 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
                 "It is unlikely that the protocol can proceed.");
             return;
         }
-        log(LogLevel::DEBUG, "Card server proxy: Reply received for %s", *iter);
-        if (*iter == CardServer::SHUFFLE_COMMAND) {
+        const auto command_view = messageView(*iter);
+        if (command_view == asBytes(CardServer::SHUFFLE_COMMAND)) {
             functionQueue(
                 [this]() { process_event(ShuffleSuccessfulEvent {}); });
-        } else if (*iter == CardServer::REVEAL_COMMAND) {
+        } else if (command_view == asBytes(CardServer::REVEAL_COMMAND)) {
             functionQueue(
                 [this]() { process_event(RevealSuccessfulEvent {}); });
-        } else if (*iter == CardServer::DRAW_COMMAND) {
+        } else if (command_view == asBytes(CardServer::DRAW_COMMAND)) {
             enqueueIfHasCardsParam<DrawSuccessfulEvent>(iter, reply.end());
-        } else if (*iter == CardServer::REVEAL_ALL_COMMAND) {
+        } else if (command_view == asBytes(CardServer::REVEAL_ALL_COMMAND)) {
             enqueueIfHasCardsParam<RevealAllSuccessfulEvent>(iter, reply.end());
         }
     }

@@ -13,7 +13,6 @@
 
 #include <memory>
 #include <sstream>
-#include <tuple>
 #include <utility>
 
 namespace Bridge {
@@ -87,7 +86,7 @@ int BasicMessageBuffer<Char, Traits, Allocator>::sync()
 {
     const auto& msg = this->str();
     if (!msg.empty()) {
-        sendMessage(dereference(this->socket), msg);
+        dereference(this->socket).send(msg.data(), msg.size() * sizeof(Char));
         this->str({});
     }
     return 0;
@@ -104,13 +103,16 @@ underflow()
     }
 
     using String = std::basic_string<Char, Traits, Allocator>;
-    auto msg = String {};
-    auto more = false;
-    while (msg.empty()) {
-        std::tie(msg, more) = recvMessage<String>(dereference(this->socket));
-    }
-    this->str(msg);
-    return Traits::to_int_type(msg.front());
+    auto msg = zmq::message_t {};
+    auto size = 0u;
+    do {
+        dereference(this->socket).recv(&msg);
+        size = msg.size();
+    } while (size == 0u);
+    const auto* data = msg.data<Char>();
+    const auto count = size / sizeof(Char);
+    this->str(String(data, count));
+    return Traits::to_int_type(*data);
 }
 
 /** \brief BasicMessageBuffer specialization for regular char

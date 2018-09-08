@@ -7,6 +7,7 @@
 #include "Utility.hh"
 #include "Blob.hh"
 
+#include <boost/endian/conversion.hpp>
 #include <zmq.hpp>
 
 #include <iterator>
@@ -38,13 +39,7 @@ bool MessageQueue::trySetHandler(
 void MessageQueue::operator()(zmq::socket_t& socket)
 {
     auto input_frames = MessageVector {};
-    for(;;) {
-        auto& current_frame = input_frames.emplace_back();
-        socket.recv(&current_frame);
-        if (!current_frame.more()) {
-            break;
-        }
-    }
+    recvMultipart(socket, std::back_inserter(input_frames));
 
     auto identity_view = ByteSpan {};
     auto first_payload_frame = input_frames.begin();
@@ -85,24 +80,20 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     }
 
     // Echo back everything before first payload, i.e. routing info
-    auto send_func = [&socket](auto& message)
-    {
-        socket.send(message, ZMQ_SNDMORE);
-    };
-    std::for_each(input_frames.begin(), first_payload_frame, send_func);
+    sendMultipart(
+        socket, input_frames.begin(), first_payload_frame, ZMQ_SNDMORE);
 
     // Send status
-    sendValue(socket, success ? REPLY_SUCCESS : REPLY_FAILURE, true);
+    const auto status = success ? REPLY_SUCCESS : REPLY_FAILURE;
+    socket.send(
+        messageFromValue(boost::endian::native_to_big(status)), ZMQ_SNDMORE);
 
     // Send command
     socket.send(*first_payload_frame, output_frames.empty() ? 0 : ZMQ_SNDMORE);
 
     // Send all output
     if (!output_frames.empty()) {
-        const auto second_to_last_output_frame = output_frames.end() - 1;
-        std::for_each(
-            output_frames.begin(), second_to_last_output_frame, send_func);
-        socket.send(output_frames.back(), 0);
+        sendMultipart(socket, output_frames.begin(), output_frames.end());
     }
 }
 
