@@ -93,7 +93,7 @@ public:
 
 private:
 
-    using Message = std::vector<std::string>;
+    using Message = std::vector<zmq::message_t>;
 
     struct Peer {
         Peer(
@@ -121,9 +121,10 @@ void PeerCommandSender::sendCommand(
 {
     if (!peers.empty()) {
         constexpr auto count = 1u + 2 * sizeof...(params);
-        auto message = Message(count);
+        auto message = Message {};
+        message.reserve(count);
         makeCommand(
-            message.begin(),
+            std::back_inserter(message),
             std::forward<SerializationPolicy>(serializer),
             std::forward<CommandString>(command),
             std::forward<Params>(params)...);

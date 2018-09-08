@@ -196,11 +196,31 @@ void recvAll(OutputIterator out, zmq::socket_t& socket)
  *
  * \return ByteSpan object over the bytes \p message consists of
  */
-inline ByteSpan messageView(zmq::message_t& message)
+inline ByteSpan messageView(const zmq::message_t& message)
 {
     const auto* data = message.data<ByteSpan::value_type>();
     const auto size = static_cast<ByteSpan::index_type>(
         message.size() * sizeof(*data));
+    return {data, size};
+}
+
+/** \brief Create ZMQ message from the content of a container
+ *
+ * Given a contiguous \p container of trivially copyable elements, create and
+ * return a \c zmq::message_t object containing it’s contents as data.
+ *
+ * \param container the container
+ *
+ * \return message containing the contents of \p container as it’s data
+ */
+zmq::message_t messageFromContainer(const auto& container)
+{
+    const auto* data = std::data(container);
+    using ValueType = std::remove_reference_t<decltype(*data)>;
+    static_assert(
+        std::is_trivially_copyable_v<ValueType>,
+        "Argument must be trivially copyable");
+    const auto size = std::size(container) * sizeof(ValueType);
     return {data, size};
 }
 

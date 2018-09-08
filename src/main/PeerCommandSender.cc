@@ -8,6 +8,9 @@
 #include <stdexcept>
 #include <utility>
 
+#include "Blob.hh"
+#include "Enumerate.hh"
+
 namespace Bridge {
 namespace Main {
 
@@ -58,15 +61,16 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
     if (iter == peers.end()) {
         throw std::invalid_argument("Socket is not peer socket");
     }
-    auto message = Message {};
-    recvAll<std::string>(std::back_inserter(message), socket);
+    auto message = std::vector<Blob> {};
+    recvAll<Blob>(std::back_inserter(message), socket);
     if (messages.empty()) {
         return;
     }
     const auto& current_message = messages.front();
     assert(!current_message.empty());
     const auto reply_iter = isSuccessfulReply(message.begin(), message.end());
-    if (reply_iter != message.end() && *reply_iter == current_message.front()) {
+    if (reply_iter != message.end() &&
+        asBytes(*reply_iter) == messageView(current_message.front())) {
         iter->success = true;
         if (
             std::all_of(
@@ -90,9 +94,15 @@ void PeerCommandSender::processReply(zmq::socket_t& socket)
 void PeerCommandSender::internalSendMessage(zmq::socket_t& socket)
 {
     assert(!messages.empty());
-    const auto& message = messages.front();
+    auto& message = messages.front();
     sendEmptyFrameIfNecessary(socket);
-    sendMessage(socket, message.begin(), message.end());
+    for (auto&& e : enumerate(message)) {
+        auto msg = zmq::message_t {};
+        msg.copy(&e.second);
+        socket.send(
+            msg, static_cast<std::size_t>(e.first) + 1u < message.size() ?
+                ZMQ_SNDMORE : 0);
+    }
 }
 
 void PeerCommandSender::internalSendMessageToAll()

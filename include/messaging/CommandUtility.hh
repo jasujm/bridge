@@ -41,8 +41,9 @@ OutputIterator makeCommandHelper(
     Head&& head, Rest&&... rest)
 {
     using std::get;
-    *out++ = get<0>(std::forward<Head>(head));
-    *out++ = serializer.serialize(get<1>(std::forward<Head>(head)));
+    *out++ = messageFromContainer(get<0>(std::forward<Head>(head)));
+    *out++ = messageFromContainer(
+        serializer.serialize(get<1>(std::forward<Head>(head))));
     return makeCommandHelper(
         out,
         std::forward<SerializationPolicy>(serializer),
@@ -65,15 +66,15 @@ OutputIterator makeCommandHelper(
  *
  * \code{.cc}
  * using namespace std::string_literals;
- * auto parts = std::vector<std::string> {};
+ * auto parts = std::vector<zmq::message_t> {};
  * makeCommand(
  *     std::back_inserter(parts), serializer,
  *     "command"s, std::make_pair("argument"s, 123));
  * \endcode
  *
- * \p parts contains strings “command”, “argument” and “123”.
+ * \p parts contains messages “command”, “argument” and “123”.
  *
- * \param out an output iterator the parts are written to
+ * \param out the output iterator the parts are written to
  * \param serializer the serialization policy, see \ref serializationpolicy
  * \param command the command sent as the first part of the message
  * \param params the key–value pairs making the subsequent parts of the message
@@ -89,7 +90,7 @@ OutputIterator makeCommand(
     CommandString&& command,
     Params&&... params)
 {
-    *out++ = command;
+    *out++ = messageFromContainer(command);
     return Impl::makeCommandHelper(
         std::move(out), std::forward<SerializationPolicy>(serializer),
         std::forward<Params>(params)...);
@@ -121,9 +122,13 @@ void sendCommand(
     sendEmptyFrameIfNecessary(socket);
     makeCommand(
         boost::make_function_output_iterator(
-            [&socket, &count](const auto& str)
+            [&socket, &count](const zmq::message_t& msg)
             {
-                sendMessage(socket, str, count < 2 * sizeof...(params));
+                // const_cast because boost function output iterator passes the
+                // parameter as const although it's unnecessary here
+                socket.send(
+                    const_cast<zmq::message_t&>(msg),
+                    count < 2 * sizeof...(params) ? ZMQ_SNDMORE : 0);
                 ++count;
             }),
         std::forward<SerializationPolicy>(serializer),
