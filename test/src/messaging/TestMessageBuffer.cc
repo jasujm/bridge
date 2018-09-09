@@ -1,5 +1,5 @@
 #include "messaging/MessageBuffer.hh"
-#include "messaging/MessageUtility.hh"
+#include "messaging/MessageHelper.hh"
 
 #include <gtest/gtest.h>
 #include <zmq.hpp>

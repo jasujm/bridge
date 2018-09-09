@@ -1,5 +1,5 @@
+#include "messaging/MessageHelper.hh"
 #include "messaging/MessageLoop.hh"
-#include "messaging/MessageUtility.hh"
 #include "MockMessageLoopCallback.hh"
 
 #include <boost/range/combine.hpp>

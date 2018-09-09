@@ -1,4 +1,4 @@
-#include "messaging/MessageUtility.hh"
+#include "messaging/MessageHelper.hh"
 #include "messaging/Replies.hh"
 #include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"

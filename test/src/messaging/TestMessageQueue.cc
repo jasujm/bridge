@@ -1,7 +1,7 @@
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageHandler.hh"
+#include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
-#include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
 #include "MockMessageHandler.hh"
 

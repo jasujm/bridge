@@ -12,6 +12,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/MessageHandler.hh"
+#include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "Utility.hh"
 
