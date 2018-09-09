@@ -362,9 +362,8 @@ private:
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<typename ReplyKeys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-makeReplyKeys(ReplyKeys replyKeys, std::index_sequence<Ns...>)
+makeReplyKeys([[maybe_unused]] ReplyKeys replyKeys, std::index_sequence<Ns...>)
 {
-    static_cast<void>(replyKeys);  // Suppress compiler warning if keys is empty
     return ReplyKeysArray {{
         std::move(std::get<Ns>(replyKeys))...
     }};
@@ -373,9 +372,8 @@ makeReplyKeys(ReplyKeys replyKeys, std::index_sequence<Ns...>)
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<typename Keys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>)
+makeInitFunctionMap([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
 {
-    static_cast<void>(keys);  // Suppress compiler warning if keys is empty
     return InitFunctionMap {
         {
             stringToBlob(std::move(std::get<Ns>(keys))),

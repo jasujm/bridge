@@ -138,7 +138,8 @@ void CallbackScheduler::operator()(zmq::socket_t& socket)
     if (&socket == backSocket.get()) {
         while (socket.getsockopt<std::uint32_t>(ZMQ_EVENTS) & ZMQ_POLLIN) {
             unsigned long callback_id {};
-            const auto n_recv = socket.recv(&callback_id, sizeof(callback_id));
+            [[maybe_unused ]]const auto n_recv =
+                socket.recv(&callback_id, sizeof(callback_id));
             assert(n_recv == sizeof(callback_id));
             const auto iter = callbacks.find(callback_id);
             if (iter != callbacks.end()) {
