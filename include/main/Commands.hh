@@ -112,16 +112,14 @@
  * \section bridgeprotocolreplymessage Reply messages
  *
  * The peer MUST reply to a message consisting of at least the initial empty
- * frame and the command frame, whether or not it recognizes the command or the
- * arguments are correct. The reply to the command MUST consist of an empty
- * frame, status frame, frame containing the command and (in case of reply to a
- * recognized message successfully handled) command dependent number of reply
- * arguments consisting of alternating key and value frames. The status MUST be
- * a four byte big endian integer which is equal or greater than zero if the
- * command was successfully handled, or less than zero otherwise. The
- * identification frame MUST be the same as the command frame of the message it
- * replies to. The arguments MUST be JSON documents encoded in UTF‐8. A failed
- * reply MUST NOT be accompanied by parameters.
+ * frame and a command frame it recognizes. The reply to the command MUST
+ * consist of an empty frame, status frame, frame containing the command and any
+ * reply arguments specified for the command. The status MUST be a four byte big
+ * endian integer which is equal or greater than zero if the command was
+ * successfully handled, or less than zero otherwise. The command frame MUST be
+ * the same as the command frame of the message it replies to. The arguments
+ * MUST be alternating pairs of keys and values following same format as command
+ * arguments.
  *
  * \b Example. A successful reply to a get command requesting the position of
  * the current player consists of the following five frames:
@@ -145,21 +143,25 @@
  *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not
- * accepted. The reply to any of the previous MUST be failure.
+ * accepted. The reply to any of the previous MUST be failure. The peer SHOULD
+ * NOT reply to messages which do not contain the empty frame and the command
+ * frame.
  *
- * A peer MUST NOT send any messages through the control socket except replies
- * to the commands received.
+ * A peer MUST NOT send any other messages through the control socket than
+ * replies to the commands received.
  *
  * \section bridgeprotocoleventmessage Event messages
  *
- * The messages the peer publishes through the event socket MUST follow the
- * structure of the commands sent to the control socket, except that they MUST
- * NOT be prepended by the empty frame.
+ * The messages the peer publishes through the event socket MUST consist of an
+ * event frame followed by event dependent number of arguments. The event frame
+ * MUST consist of UUID of the game in the canonical form, a colon, and event
+ * type. The event type MUST consist of printable ASCII characters. The
+ * arguments MUST be alternating pairs of keys and values following the same
+ * format as command arguments.
  *
- * The first frame of an event MUST consist of UUID of the game, colon and event
- * type identifier.
- *
- * \note This is to allow clients to subscribe to events by game.
+ * \note The motivation for having event frame contain the UUID of the game
+ * first is to allow the clients to subscribe to events from specific game by
+ * using its UUID as prefix.
  *
  * \b Example. A notification about card being played would consist of the
  * following frames:
