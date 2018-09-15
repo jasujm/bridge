@@ -37,9 +37,9 @@ class PeerCommandSender;
 
 /** \brief Single hosted bridge game
  *
- * An instance of BridgeGame contains all information required to host a bridge
- * game, including state of the game and list of all nodes taking part in the
- * game.
+ * Each BridgeGame instance glues together an BridgeEngine object, CardProtocol
+ * and necessary sockets to communicate with clients and peers. It provides high
+ * level interface oriented to handling \ref bridgeprotocolcontrol commands.
  */
 class BridgeGame : public BridgeGameInfo, private boost::noncopyable {
 public:

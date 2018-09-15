@@ -12,11 +12,7 @@ class DuplicateGameManager;
 
 namespace Main {
 
-/** \brief Provide read‐only access to bridge game
- *
- * This interface provides read access to Engine::BridgeEngine and
- * Engine::GameManager objects for a single bridge game instance. It is meant to
- * be implemented by class configuring the game.
+/** \brief Provide read‐only access to a bridge game
  */
 class BridgeGameInfo {
 public:
@@ -36,7 +32,7 @@ public:
      * \return Reference to Engine::GameManager object containing the state of
      * the game. The reference is invalidated when the lifetime of
      * BridgeGameInfo object ends.
-
+     *
      * \todo Ideally this would return more generic GameManager object and
      * different score formats would be handled indirectly.
      */
