@@ -39,7 +39,8 @@ class PeerCommandSender;
  *
  * Each BridgeGame instance glues together an BridgeEngine object, CardProtocol
  * and necessary sockets to communicate with clients and peers. It provides high
- * level interface oriented to handling \ref bridgeprotocolcontrol commands.
+ * level interface oriented to handling \ref bridgeprotocolcontrolmessage
+ * commands.
  */
 class BridgeGame : public BridgeGameInfo, private boost::noncopyable {
 public:
