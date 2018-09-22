@@ -1,5 +1,6 @@
 #include "main/Config.hh"
 
+#include "bridge/Position.hh"
 #include "messaging/EndpointIterator.hh"
 #include "main/BridgeGameConfig.hh"
 #include "IoUtility.hh"
@@ -35,6 +36,9 @@ struct GameConfigTag {};
 GameConfigTag gameConfigTag;
 
 const auto GAME_CONFIG_UUID = "uuid"s;
+const auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"s;
+const auto GAME_CONFIG_PEERS = "peers"s;
+const auto GAME_CONFIG_ENDPOINT = "endpoint"s;
 
 const auto DEFAULT_BIND_ADDRESS = "*"s;
 const auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
@@ -180,6 +184,57 @@ int config_lua_game(lua_State* lua) {
         } catch (...) {
             configVector.pop_back();
             luaL_error(lua, "invalid uuid");
+        }
+    }
+    lua_pop(lua, 1);
+
+    lua_pushstring(lua, GAME_CONFIG_POSITIONS_CONTROLLED.c_str());
+    if (lua_rawget(lua, 1) == LUA_TTABLE) {
+        for (auto i = 1;; ++i) {
+            lua_rawgeti(lua, -1, i);
+            if (lua_isnil(lua, -1)) {
+                lua_pop(lua, 1);
+                break;
+            }
+            const auto* position_string = lua_tostring(lua, -1);
+            if (!position_string) {
+                configVector.pop_back();
+                luaL_error(lua, "unexpected position value");
+            }
+            const auto iter = POSITION_TO_STRING_MAP.right.find(position_string);
+            if (iter != POSITION_TO_STRING_MAP.right.end()) {
+                config.positionsControlled.emplace_back(iter->second);
+                lua_pop(lua, 1);
+            } else {
+                configVector.pop_back();
+                luaL_error(lua, "unexpected position string");
+            }
+        }
+    }
+    lua_pop(lua, 1);
+
+    lua_pushstring(lua, GAME_CONFIG_PEERS.c_str());
+    if (lua_rawget(lua, 1) == LUA_TTABLE) {
+        for (auto i = 1;; ++i) {
+            lua_rawgeti(lua, -1, i);
+            if (lua_isnil(lua, -1)) {
+                lua_pop(lua, 1);
+                break;
+            }
+            if (!lua_istable(lua, -1)) {
+                configVector.pop_back();
+                luaL_error(lua, "expected peer descriptor to be table");
+            }
+            lua_pushstring(lua, GAME_CONFIG_ENDPOINT.c_str());
+            lua_rawget(lua, -2);
+            const auto* peer_endpoint = lua_tostring(lua, -1);
+            if (!peer_endpoint) {
+                configVector.pop_back();
+                luaL_error(lua, "expected peer endpoint");
+            }
+            config.peers.emplace_back(
+                BridgeGameConfig::PeerConfig {peer_endpoint});
+            lua_pop(lua, 2);
         }
     }
     lua_pop(lua, 1);

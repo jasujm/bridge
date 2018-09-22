@@ -10,6 +10,7 @@
 #include "messaging/Security.hh"
 
 #include <boost/core/noncopyable.hpp>
+#include <boost/iterator/transform_iterator.hpp>
 #include <zmq.hpp>
 
 #include <chrono>
@@ -88,8 +89,22 @@ public:
      * it is a successful reply. If not, the command is resent.
      *
      * \throw std::invalid_argument if socket is not one added using addPeer()
+     *
+     * \deprecated The preferred way to integrate to message loop is by using
+     * getSockets()
      */
     void processReply(zmq::socket_t& socket);
+
+    /** \brief Get socket–callback pairs for handling replies
+     *
+     * This method generates a range of pairs containing ZMQ sockets and
+     * callbacks handling reply from that socket. The intention is to register
+     * all pairs returned by the method to a Messaging::MessageLoop object to
+     * ensure the proper functioning of the callback scheduler object.
+     *
+     * \return Range containing socket–callback pairs
+     */
+    auto getSockets();
 
 private:
 
@@ -123,13 +138,25 @@ void PeerCommandSender::sendCommand(
         constexpr auto count = 1u + 2 * sizeof...(params);
         auto message = Message {};
         message.reserve(count);
-        makeCommand(
+        Messaging::makeCommand(
             std::back_inserter(message),
             std::forward<SerializationPolicy>(serializer),
             std::forward<CommandString>(command),
             std::forward<Params>(params)...);
         internalAddMessage(std::move(message));
     }
+}
+
+inline auto PeerCommandSender::getSockets()
+{
+    auto callback = [this](auto& socket) { processReply(socket); };
+    auto create_socket_cb_pair = [&callback](const auto& peer)
+    {
+        return std::pair {peer.socket, callback};
+    };
+    return std::vector<decltype(create_socket_cb_pair(peers.front()))>(
+        boost::make_transform_iterator(peers.begin(), create_socket_cb_pair),
+        boost::make_transform_iterator(peers.end(), create_socket_cb_pair));
 }
 
 }

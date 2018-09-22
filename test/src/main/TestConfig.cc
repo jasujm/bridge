@@ -1,3 +1,4 @@
+#include "bridge/Position.hh"
 #include "main/BridgeGameConfig.hh"
 #include "main/Config.hh"
 #include "messaging/EndpointIterator.hh"
@@ -111,6 +112,89 @@ TEST_F(ConfigTest, testParseGameConfigInvalidUuid)
 {
     in.str(R"EOF(
 game { uuid = "not uuid"}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigPositionsControlled)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    positions_controlled = { "north", "south" },
+}
+)EOF"s);
+    const auto config = Config {in};
+    const auto& games = config.getGameConfigs();
+    ASSERT_EQ(1u, games.size());
+    const auto expected_positions = std::vector {
+        Bridge::Position::NORTH, Bridge::Position::SOUTH };
+    EXPECT_EQ(expected_positions, games.front().positionsControlled);
+}
+
+TEST_F(ConfigTest, testParseGameConfigPositionsControlledInvalidPositionType)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    positions_controlled = { 1, 2, 3 },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigPositionsControlledInvalidPositionEnum)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    positions_controlled = { "invalid" },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigPeers)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    peers = {
+        { endpoint = "test-endpoint-1" },
+        { endpoint = "test-endpoint-2" },
+    },
+}
+)EOF"s);
+    const auto config = Config {in};
+    const auto& games = config.getGameConfigs();
+    ASSERT_EQ(1u, games.size());
+    const auto expected_peers = std::vector {
+        Bridge::Main::BridgeGameConfig::PeerConfig {"test-endpoint-1"s},
+        Bridge::Main::BridgeGameConfig::PeerConfig {"test-endpoint-2"s},
+    };
+    EXPECT_EQ(expected_peers, games.front().peers);
+}
+
+TEST_F(ConfigTest, testParseGameConfigPeersInvalidPeer)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    peers = { 123 },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigPeersPeerEndpointMissing)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    peers = {
+        { key_which_is_not_endpoint = "something" }.
+    },
+}
 )EOF"s);
     assertThrows();
 }

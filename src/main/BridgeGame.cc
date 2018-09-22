@@ -119,6 +119,10 @@ public:
 
     Engine::DuplicateGameManager& getGameManager();
 
+    PeerCommandSender* getPeerCommandSender();
+
+    CardProtocol* getCardProtocol();
+
 private:
 
     template<typename... Args>
@@ -347,6 +351,18 @@ Engine::DuplicateGameManager& BridgeGame::Impl::getGameManager()
     return *gameManager;
 }
 
+PeerCommandSender* BridgeGame::Impl::getPeerCommandSender()
+{
+    assert(peerCommandSender);
+    return peerCommandSender.get();
+}
+
+CardProtocol* BridgeGame::Impl::getCardProtocol()
+{
+    assert(cardProtocol);
+    return cardProtocol.get();
+}
+
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
 {
     log(LogLevel::DEBUG, "Deal started. Opener: %s. Vulnerability: %s",
@@ -496,6 +512,18 @@ bool BridgeGame::play(
 {
     assert(impl);
     return impl->play(identity, player, card, index);
+}
+
+PeerCommandSender* BridgeGame::getPeerCommandSender()
+{
+    assert(impl);
+    return impl->getPeerCommandSender();
+}
+
+CardProtocol* BridgeGame::getCardProtocol()
+{
+    assert(impl);
+    return impl->getCardProtocol();
 }
 
 const BridgeEngine& BridgeGame::handleGetEngine() const

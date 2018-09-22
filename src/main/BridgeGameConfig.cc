@@ -1,0 +1,84 @@
+#include "main/BridgeGameConfig.hh"
+
+#include "main/Commands.hh"
+#include "main/BridgeGame.hh"
+#include "main/PeerCommandSender.hh"
+#include "main/SimpleCardProtocol.hh"
+#include "messaging/JsonSerializer.hh"
+#include "messaging/JsonSerializerUtility.hh"
+#include "messaging/PositionJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
+#include "Logging.hh"
+
+#include <boost/uuid/uuid_io.hpp>
+#include <json.hpp>
+
+#include <string>
+
+namespace Bridge {
+namespace Main {
+
+namespace {
+
+using namespace std::string_literals;
+
+const auto VERSION_VECTOR = std::vector {0};
+const auto PEER_ROLE = "peer"s;
+
+}
+
+bool operator==(
+    const BridgeGameConfig::PeerConfig& lhs,
+    const BridgeGameConfig::PeerConfig& rhs)
+{
+    return lhs.endpoint == rhs.endpoint;
+}
+
+BridgeGame gameFromConfig(
+    const BridgeGameConfig& config,
+    zmq::context_t& context,
+    std::shared_ptr<zmq::socket_t> eventSocket,
+    std::shared_ptr<CallbackScheduler> callbackScheduler)
+{
+    if (config.peers.empty()) {
+        log(LogLevel::INFO, "Configuring game %s, no peers", config.uuid);
+        return {
+            config.uuid, std::move(eventSocket), std::move(callbackScheduler)};
+    } else {
+        log(LogLevel::INFO,
+            "Configuring game %s, simple card protocol", config.uuid);
+        auto peer_command_sender =
+            std::make_shared<PeerCommandSender>(callbackScheduler);
+        for (const auto& peer : config.peers) {
+            // TODO: Curve keys
+            peer_command_sender->addPeer(context, nullptr, peer.endpoint);
+        }
+        peer_command_sender->sendCommand(
+            Messaging::JsonSerializer {},
+            HELLO_COMMAND,
+            std::make_tuple(
+                std::cref(VERSION_COMMAND), std::cref(VERSION_VECTOR)),
+            std::make_tuple(std::cref(ROLE_COMMAND), std::cref(PEER_ROLE)));
+        peer_command_sender->sendCommand(
+            Messaging::JsonSerializer {},
+            GAME_COMMAND,
+            std::make_pair(std::cref(GAME_COMMAND), std::cref(config.uuid)),
+            std::make_pair(
+                std::cref(ARGS_COMMAND),
+                nlohmann::json {
+                    { POSITIONS_COMMAND, config.positionsControlled },
+                }));
+        auto card_protocol =
+            std::make_unique<SimpleCardProtocol>(peer_command_sender);
+        auto positions = BridgeGame::PositionSet(
+            config.positionsControlled.begin(),
+            config.positionsControlled.end());
+        return {
+            config.uuid, std::move(positions), std::move(eventSocket),
+            std::move(card_protocol), std::move(peer_command_sender),
+            std::move(callbackScheduler)};
+    }
+}
+
+}
+}

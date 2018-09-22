@@ -6,7 +6,6 @@
 #include "messaging/Identity.hh"
 #include "main/BridgeGameInfo.hh"
 
-#include <boost/core/noncopyable.hpp>
 #include <json.hpp>
 #include <zmq.hpp>
 
@@ -42,7 +41,7 @@ class PeerCommandSender;
  * level interface oriented to handling \ref bridgeprotocolcontrolmessage
  * commands.
  */
-class BridgeGame : public BridgeGameInfo, private boost::noncopyable {
+class BridgeGame : public BridgeGameInfo {
 public:
 
     /** \brief Set of positions
@@ -89,6 +88,14 @@ public:
     BridgeGame(
         const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
         std::shared_ptr<CallbackScheduler> callbackScheduler);
+
+    /** \brief Move constructor
+     */
+    BridgeGame(BridgeGame&&) = default;
+
+    /** \brief Move assignment
+     */
+    BridgeGame& operator=(BridgeGame&&) = default;
 
     /** \brief Handle handshake from a peer
      *
@@ -184,6 +191,20 @@ public:
         const Messaging::Identity& identity, const Player& player,
         const std::optional<CardType>& card,
         const std::optional<std::size_t>& index);
+
+    /** \brief Get non‐owning pointer to peer command sender
+     *
+     * \return The peer command sender object the game uses, or nullptr if the
+     * game is peerless
+     */
+    PeerCommandSender* getPeerCommandSender();
+
+    /** \brief Get non‐owning pointer to card protocol
+     *
+     * \return The card protocol object the game uses, or nullptr if the game is
+     * peerless
+     */
+    CardProtocol* getCardProtocol();
 
 private:
 

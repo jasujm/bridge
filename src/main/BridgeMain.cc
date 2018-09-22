@@ -8,10 +8,12 @@
 #include "main/BridgeGame.hh"
 #include "main/BridgeGameConfig.hh"
 #include "main/CallbackScheduler.hh"
+#include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/Config.hh"
 #include "main/GetMessageHandler.hh"
 #include "main/NodePlayerControl.hh"
+#include "main/PeerCommandSender.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
@@ -161,12 +163,23 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
     eventSocket->bind(*endpointIterator);
     for (auto& gameConfig : this->config.getGameConfigs()) {
         const auto& uuid = gameConfig.uuid;
-        const auto game = games.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(uuid),
-            std::forward_as_tuple(uuid, eventSocket, callbackScheduler));
-        if (game.second) {
-            availableGames.emplace(uuid, &game.first->second);
+        const auto emplaced_game = games.emplace(
+            uuid,
+            gameFromConfig(
+                gameConfig, context, eventSocket, callbackScheduler));
+        if (emplaced_game.second) {
+            auto& game = emplaced_game.first->second;
+            availableGames.emplace(uuid, &game);
+            if (const auto peer_command_sender = game.getPeerCommandSender()) {
+                for (auto&& [socket, cb] : peer_command_sender->getSockets()) {
+                    messageLoop.addSocket(std::move(socket), std::move(cb));
+                }
+            }
+            if (const auto card_protocol = game.getCardProtocol()) {
+                for (auto&& [cmd, hdl] : card_protocol->getMessageHandlers()) {
+                    messageQueue.trySetHandler(std::move(cmd), std::move(hdl));
+                }
+            }
         }
     }
     messageQueue.trySetHandler(
