@@ -374,18 +374,16 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
     shuffle();
     makeBidding();
     const auto& hand = dereference(engine->getHand(Position::EAST));
-    const auto expected = std::make_pair(
-        Position::EAST,
-        dereference(dereference(hand.getCard(0)).getType()));
+    const auto expected_card_type =
+        dereference(dereference(hand.getCard(0)).getType());
     engine->play(*players[1], hand, 0);
     request(PLAYER1, TRICK_COMMAND);
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(TRICK_COMMAND, reply[0]);
     const auto trick = nlohmann::json::parse(reply[1]);
     ASSERT_EQ(1u, trick.size());
-    const auto actual = Bridge::Messaging::jsonToPair<Position, CardType>(
-        trick[0], POSITION_COMMAND, CARD_COMMAND);
-    EXPECT_EQ(expected, actual);
+    EXPECT_EQ(Position::EAST, trick[0].at(POSITION_COMMAND).get<Position>());
+    EXPECT_EQ(expected_card_type, trick[0].at(CARD_COMMAND).get<CardType>());
 }
 
 TEST_F(GetMessageHandlerTest, testTricksWon)

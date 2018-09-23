@@ -108,52 +108,6 @@ E jsonToEnum(const nlohmann::json& j, const MapType& map)
     throw SerializationFailureException {};
 }
 
-/** \brief Convert pair to JSON object
- *
- * The returned JSON object contains two key‐value pairs with \p key1 and \p
- * key2 mapping to each member of the pair converted to JSON.
- *
- * \param p the pair to convert
- * \param key1 the key for the first member in \p p
- * \param key2 the key for the second member in \p p
- *
- * \return JSON representation of the pair
- *
- * \sa jsonToPair()
- */
-template<typename T1, typename T2>
-nlohmann::json pairToJson(
-    const std::pair<T1, T2>& p, const nlohmann::json::object_t::key_type& key1,
-    const nlohmann::json::object_t::key_type& key2)
-{
-    return {
-        { key1, p.first },
-        { key2, p.second }
-    };
-}
-
-/** \brief Convert JSON object to pair
- *
- * The function excepts a JSON object with two key‐value pair. Keys \p key1
- * and \p key2 are converted to the first and second element of the returned
- * pair, respectively.
- *
- * \param j the JSON object to convert
- * \param key1 the key of the first member of the pair
- * \param key2 the key of the first member of the pair
- *
- * \return The pair constructed from \p j
- *
- * \sa jsonToPair()
- */
-template<typename T1, typename T2>
-std::pair<T1, T2> jsonToPair(
-    const nlohmann::json& j, const nlohmann::json::object_t::key_type& key1,
-    const nlohmann::json::object_t::key_type& key2)
-{
-    return { j.at(key1), j.at(key2) };
-}
-
 /** \brief Convert blob to JSON
  *
  * \param blob the blob to convert

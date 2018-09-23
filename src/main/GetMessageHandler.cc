@@ -76,9 +76,12 @@ std::string getCalls(const BridgeEngine& engine)
 {
     auto calls = nlohmann::json::array();
     if (const auto& bidding = engine.getBidding()) {
-        for (const auto& pair : *bidding) {
+        for (const auto& [ position, call ] : *bidding) {
             calls.push_back(
-                Messaging::pairToJson(pair, POSITION_COMMAND, CALL_COMMAND));
+                nlohmann::json {
+                    { POSITION_COMMAND, position },
+                    { CALL_COMMAND, call }
+                });
         }
     }
     return calls.dump();
@@ -137,9 +140,10 @@ std::string getTrick(const BridgeEngine& engine)
             const auto position = engine.getPosition(pair.first);
             const auto card = pair.second.getType();
             cards.push_back(
-                Messaging::pairToJson(
-                    std::make_pair(position, card),
-                    POSITION_COMMAND, CARD_COMMAND));
+                nlohmann::json {
+                    { POSITION_COMMAND, position },
+                    { CARD_COMMAND, card },
+                });
         }
     }
     return cards.dump();
