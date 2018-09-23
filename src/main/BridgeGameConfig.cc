@@ -69,7 +69,8 @@ BridgeGame gameFromConfig(
                     { POSITIONS_COMMAND, config.positionsControlled },
                 }));
         auto card_protocol =
-            std::make_unique<SimpleCardProtocol>(peer_command_sender);
+            std::make_unique<SimpleCardProtocol>(
+                config.uuid, peer_command_sender);
         auto positions = BridgeGame::PositionSet(
             config.positionsControlled.begin(),
             config.positionsControlled.end());

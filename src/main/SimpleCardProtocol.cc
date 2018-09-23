@@ -12,6 +12,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
 #include "HexUtility.hh"
 #include "Logging.hh"
 
@@ -33,32 +34,55 @@ using Messaging::JsonSerializer;
 using Messaging::Reply;
 using Messaging::success;
 
+class SimpleCardProtocol::DealCommandDispatcher {
+public:
+
+    void register_(
+        const Uuid& gameUuid,
+        std::shared_ptr<SimpleCardProtocol::Impl> protocol);
+    void unregister(const Uuid& gameUuid);
+
+    Reply<> deal(
+        const Identity& identity, const Uuid& gameUuid,
+        const CardVector& cards);
+
+private:
+    std::map<Uuid, std::shared_ptr<SimpleCardProtocol::Impl>> protocols;
+};
+
+SimpleCardProtocol::DealCommandDispatcher SimpleCardProtocol::dispatcher;
+
+void SimpleCardProtocol::DealCommandDispatcher::register_(
+    const Uuid& gameUuid, std::shared_ptr<SimpleCardProtocol::Impl> protocol)
+{
+    protocols.try_emplace(gameUuid, std::move(protocol));
+}
+
+void SimpleCardProtocol::DealCommandDispatcher::unregister(const Uuid& gameUuid)
+{
+    protocols.erase(gameUuid);
+}
+
 class SimpleCardProtocol::Impl :
     public Bridge::Observer<CardManager::ShufflingState> {
 public:
 
-    Impl(std::shared_ptr<PeerCommandSender> peerCommandSender);
+    Impl(
+        const Uuid& gameUuid,
+        std::shared_ptr<PeerCommandSender> peerCommandSender);
 
     bool acceptPeer(
         const Identity& identity, const PositionVector& positions);
 
+    Reply<> deal(const Identity& identity, const CardVector& cards);
+
+    const Uuid gameUuid;
     const std::shared_ptr<Engine::SimpleCardManager> cardManager {
         std::make_shared<Engine::SimpleCardManager>()};
-
-    const std::vector<MessageHandlerVector::value_type> messageHandlers {
-        {
-            stringToBlob(DEAL_COMMAND),
-            Messaging::makeMessageHandler(
-                *this, &Impl::deal, JsonSerializer {},
-                std::make_tuple(CARDS_COMMAND))
-        },
-    };
 
 private:
 
     void handleNotify(const CardManager::ShufflingState& state) override;
-
-    Reply<> deal(const Identity& identity, const CardVector& cards);
 
     bool expectingCards {false};
     std::optional<Identity> leaderIdentity;
@@ -66,7 +90,9 @@ private:
 };
 
 SimpleCardProtocol::Impl::Impl(
+    const Uuid& gameUuid,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
+    gameUuid {gameUuid},
     peerCommandSender {std::move(peerCommandSender)}
 {
 }
@@ -83,7 +109,9 @@ void SimpleCardProtocol::Impl::handleNotify(
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
                 JsonSerializer {},
-                DEAL_COMMAND, std::tie(CARDS_COMMAND, cards));
+                DEAL_COMMAND,
+                std::tie(GAME_COMMAND, gameUuid),
+                std::tie(CARDS_COMMAND, cards));
         } else {
             log(LogLevel::DEBUG,
                 "Simple card protocol: Expecting deck");
@@ -114,13 +142,30 @@ Reply<> SimpleCardProtocol::Impl::deal(
     return failure();
 }
 
+Reply<> SimpleCardProtocol::DealCommandDispatcher::deal(
+    const Identity& identity, const Uuid& gameUuid, const CardVector& cards)
+{
+    const auto iter = protocols.find(gameUuid);
+    if (iter != protocols.end()) {
+        return dereference(iter->second).deal(identity, cards);
+    }
+    return failure();
+}
+
 SimpleCardProtocol::SimpleCardProtocol(
+    const Uuid& gameUuid,
     std::shared_ptr<PeerCommandSender> peerCommandSender) :
     impl {
-        std::make_shared<Impl>(std::move(peerCommandSender))}
+        std::make_shared<Impl>(gameUuid, std::move(peerCommandSender))}
 {
     assert(impl->cardManager);
     impl->cardManager->subscribe(impl);
+    dispatcher.register_(gameUuid, impl);
+}
+
+SimpleCardProtocol::~SimpleCardProtocol()
+{
+    dispatcher.unregister(impl->gameUuid);
 }
 
 bool SimpleCardProtocol::handleAcceptPeer(
@@ -138,8 +183,15 @@ void SimpleCardProtocol::handleInitialize()
 CardProtocol::MessageHandlerVector
 SimpleCardProtocol::handleGetMessageHandlers()
 {
-    assert(impl);
-    return impl->messageHandlers;
+    static const auto ret = MessageHandlerVector {
+        {
+            stringToBlob(DEAL_COMMAND),
+            Messaging::makeMessageHandler(
+                dispatcher, &DealCommandDispatcher::deal, JsonSerializer {},
+                std::make_tuple(GAME_COMMAND, CARDS_COMMAND))
+        }
+    };
+    return ret;
 }
 
 SimpleCardProtocol::SocketVector SimpleCardProtocol::handleGetSockets()
