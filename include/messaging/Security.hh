@@ -27,10 +27,9 @@ namespace Messaging {
  */
 constexpr std::size_t EXPECTED_CURVE_KEY_SIZE = 32;
 
-/** \brief Collection of CurveZMQ keys
+/** \brief CurveZMQ keypair
  */
 struct CurveKeys {
-    Blob serverKey;  ///< \brief Server public key (clients only)
     Blob secretKey;  ///< \brief Secret key
     Blob publicKey;  ///< \brief Public key
 };
@@ -50,7 +49,7 @@ Blob decodeKey(std::string_view encodedKey);
  * as curve server.
  *
  * \param socket the socket that will act as curve server
- * \param keys the CurveZMQ keys
+ * \param keys the server keypair
  *
  * \todo Do not fail silently if \p keys are wrong size
  */
@@ -62,11 +61,13 @@ void setupCurveServer(zmq::socket_t& socket, const CurveKeys* keys);
  * as curve client.
  *
  * \param socket the socket that will act as curve client
- * \param keys the CurveZMQ keys
+ * \param keys the client keypair
+ * \param serverKey the server public key
  *
  * \todo Do not fail silently if \p keys are wrong size
  */
-void setupCurveClient(zmq::socket_t& socket, const CurveKeys* keys);
+void setupCurveClient(
+    zmq::socket_t& socket, const CurveKeys* keys, ByteSpan serverKey);
 
 }
 }

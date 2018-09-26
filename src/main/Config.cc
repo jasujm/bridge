@@ -307,8 +307,7 @@ void Config::Impl::createCurveConfig(lua_State* lua)
     const auto secret_key = getKeyOrEmpty(lua, "curve_secret_key");
     const auto public_key = getKeyOrEmpty(lua, "curve_public_key");
     if (!secret_key.empty() && !public_key.empty()) {
-        curveConfig = Messaging::CurveKeys {
-            public_key, secret_key, public_key };
+        curveConfig = Messaging::CurveKeys { secret_key, public_key };
     }
 }
 

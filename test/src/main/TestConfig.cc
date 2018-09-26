@@ -77,7 +77,6 @@ curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
         decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6");
     const auto expectedPublicKey =
         decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7");
-    EXPECT_EQ(expectedPublicKey, curve->serverKey);
     EXPECT_EQ(expectedSecretKey, curve->secretKey);
     EXPECT_EQ(expectedPublicKey, curve->publicKey);
 }

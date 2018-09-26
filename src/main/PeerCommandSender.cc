@@ -33,7 +33,8 @@ PeerCommandSender::Peer::Peer(
     resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
-    setupCurveClient(*socket, keys);
+    // TODO: Configure peer with its server key
+    setupCurveClient(*socket, keys, keys ? keys->publicKey : ByteSpan {});
     socket->connect(endpoint);
 }
 

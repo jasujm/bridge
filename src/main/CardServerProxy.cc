@@ -214,7 +214,8 @@ Impl::Impl(
     }},
     controlSocket {*sockets.front().first}
 {
-    Messaging::setupCurveClient(controlSocket, keys);
+    Messaging::setupCurveClient(
+        controlSocket, keys, keys ? keys->publicKey : ByteSpan {});
     controlSocket.connect(controlEndpoint);
 }
 
