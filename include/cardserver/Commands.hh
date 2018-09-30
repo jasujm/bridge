@@ -108,10 +108,11 @@
  *
  * The peers parameter MUST contain an array of peer entries. There MUST be one
  * entry for each card server peer. Each peer entry object MUST contain the
- * identity used to refer to that peer in later communication and the base peer
- * endpoint of that peer (if applicable). The order of the peer entries MUST be
- * the same as the order of peers, except that there is no entry for the
- * controlled card server instance itself.
+ * identity used to refer to that peer in later communication, the base peer
+ * endpoint of that peer and CURVE server key used when communicating with that
+ * peer (if applicable). The order of the peer entries MUST be the same as the
+ * order of peers, except that there is no entry for the controlled card server
+ * instance itself.
  *
  * \note The identity is an opaque hex encoded binary object. The controlling
  * peer may use for example the ZeroMQ socket identity of its peers.
@@ -124,13 +125,14 @@
  *
  * When receiving this command, the card server MUST examine the entries and
  * connect to each card server peer for whom the entry contains base endpoint,
- * and listen to the connection from a peer for whom the endpoint is
+ * and listen to the connection from a peer whose the endpoint is
  * omitted. The rules for choosing the endpoint are the following:
  * - A socket is bound to the same interface as the base endpoint, but with port
  * number increased by the order of the peer
  * - A socket is connected to the same interface as the base endpoint of the
  * peer, but with port number increased by the order of the controlled card
- * server itself
+ * server itself. If CurveZMQ is uses, the connecting socket uses the server key
+ * in the peer entry.
  *
  * \note The bridge peers is responsible for providing the correct base
  * endpoints to he controlled card server (which it learns from the \ref

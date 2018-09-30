@@ -10,13 +10,16 @@
  * \code{.json}
  * {
  *     { "id": <identity> },
- *     { "endpoint": <endpoint> }
+ *     { "endpoint": <endpoint> },
+ *     { "serverKey": <serverKey> }
  * }
  * \endcode
  *
  * - &lt;id&gt; is a opaque hex encoded binary string identifying the peer
  * - &lt;endpoint&gt; is a string containing the endpoint of the peer, or null
  *   if the peer will connect instead of binding
+ * - &lt;serverKey&gt; is a hex encoded binary string containing the CurveZMQ
+ *   server key of the peer, or null if CURVE mechanism is not used (optional)
  *
  * \sa \ref cardserverprotocol
  */
@@ -42,6 +45,12 @@ extern const std::string IDENTITY_KEY;
  * \sa \ref jsonpeerentry
  */
 extern const std::string ENDPOINT_KEY;
+
+/** \brief Key for PeerEntry::serverKey
+ *
+ * \sa \ref jsonpeerentry
+ */
+extern const std::string SERVER_KEY_KEY;
 
 /** \brief Convert CardServer::PeerEntry to JSON
  */

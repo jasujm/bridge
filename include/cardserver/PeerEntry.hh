@@ -6,6 +6,7 @@
 #ifndef CARDSERVER_PEERENTRY_HH_
 #define CARDSERVER_PEERENTRY_HH_
 
+#include "Blob.hh"
 #include "messaging/Identity.hh"
 
 #include <boost/operators.hpp>
@@ -19,14 +20,17 @@ namespace CardServer {
 
 /** \brief Peer entry in card server protocol
  *
- * This struct is the internal representation of a peer of card server. The
- * init command in card server protocol consumes a list of peer entries.
+ * This struct is the internal representation of a peer card server (card
+ * servers connect to each other as well as the controlling bridge
+ * application). The init command in card server protocol consumes a list of
+ * peer entries.
  *
- ,* \sa \ref cardserverprotocol
+ * \sa \ref cardserverprotocol
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
     Messaging::Identity identity;         ///< \brief Peer identity
     std::optional<std::string> endpoint;  ///< \brief Card server endpoint
+    std::optional<Blob> serverKey;        ///< \brief The CurveZMQ server key
 
     PeerEntry() = default;
 
@@ -34,10 +38,12 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
      *
      * \param identity see \ref identity
      * \param endpoint see \ref endpoint
+     * \param serverKey see \ref serverKey
      */
     explicit PeerEntry(
         Messaging::Identity identity,
-        std::optional<std::string> endpoint = std::nullopt);
+        std::optional<std::string> endpoint = std::nullopt,
+        std::optional<Blob> serverKey = std::nullopt);
 };
 
 /** \brief Equality operator for peer entries
