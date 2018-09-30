@@ -13,6 +13,13 @@
 #include <zmq.hpp>
 
 namespace Bridge {
+
+namespace Messaging {
+
+struct CurveKeys;
+
+}
+
 namespace Main {
 
 class BridgeGame;
@@ -32,6 +39,7 @@ struct BridgeGameConfig {
      */
     struct PeerConfig {
         std::string endpoint;          ///< Peer endpoint
+        Blob serverKey;                ///< Peer server key
     };
 
     // Explicitly instantiate to preserve aggregate-ness of PeerConfig
@@ -57,6 +65,7 @@ bool operator==(
  *
  * \param config the game configurations
  * \param context the ZeroMQ context
+ * \param keys the CurveZMQ keys for the peer
  * \param eventSocket the event socket passed to BridgeGame constructor
  * \param callbackScheduler the callback scheduler passed to BridgeGame
  *        constructor
@@ -64,6 +73,7 @@ bool operator==(
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
     zmq::context_t& context,
+    const Messaging::CurveKeys* keys,
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::shared_ptr<CallbackScheduler> callbackScheduler);
 

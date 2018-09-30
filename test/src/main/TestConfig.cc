@@ -2,6 +2,7 @@
 #include "main/BridgeGameConfig.hh"
 #include "main/Config.hh"
 #include "messaging/EndpointIterator.hh"
+#include "messaging/Security.hh"
 
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/string_generator.hpp>
@@ -10,8 +11,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 
 using Bridge::Main::Config;
 using Bridge::Messaging::decodeKey;
@@ -159,8 +162,13 @@ TEST_F(ConfigTest, testParseGameConfigPeers)
 game {
     uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
     peers = {
-        { endpoint = "test-endpoint-1" },
-        { endpoint = "test-endpoint-2" },
+        {
+            endpoint = "test-endpoint-1",
+            server_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7",
+        },
+        {
+            endpoint = "test-endpoint-2",
+        },
     },
 }
 )EOF"s);
@@ -168,8 +176,11 @@ game {
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     const auto expected_peers = std::vector {
-        Bridge::Main::BridgeGameConfig::PeerConfig {"test-endpoint-1"s},
-        Bridge::Main::BridgeGameConfig::PeerConfig {"test-endpoint-2"s},
+        Bridge::Main::BridgeGameConfig::PeerConfig {
+            "test-endpoint-1"s,
+            decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv)
+        },
+        Bridge::Main::BridgeGameConfig::PeerConfig { "test-endpoint-2"s, {} },
     };
     EXPECT_EQ(expected_peers, games.front().peers);
 }
@@ -192,6 +203,19 @@ game {
     uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
     peers = {
         { key_which_is_not_endpoint = "something" }.
+    },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigPeersInvalidServerKey)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    peers = {
+        { endpoint = "test-endpoint-1", server_key = "invalid" },
     },
 }
 )EOF"s);

@@ -14,6 +14,7 @@
 #include <json.hpp>
 
 #include <string>
+#include <tuple>
 
 namespace Bridge {
 namespace Main {
@@ -31,12 +32,14 @@ bool operator==(
     const BridgeGameConfig::PeerConfig& lhs,
     const BridgeGameConfig::PeerConfig& rhs)
 {
-    return lhs.endpoint == rhs.endpoint;
+    return std::tie(lhs.endpoint, lhs.serverKey) ==
+        std::tie(rhs.endpoint, rhs.serverKey);
 }
 
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
     zmq::context_t& context,
+    const Messaging::CurveKeys* keys,
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::shared_ptr<CallbackScheduler> callbackScheduler)
 {
@@ -50,8 +53,8 @@ BridgeGame gameFromConfig(
         auto peer_command_sender =
             std::make_shared<PeerCommandSender>(callbackScheduler);
         for (const auto& peer : config.peers) {
-            // TODO: Curve keys
-            peer_command_sender->addPeer(context, nullptr, peer.endpoint);
+            peer_command_sender->addPeer(
+                context, peer.endpoint, keys, peer.serverKey);
         }
         peer_command_sender->sendCommand(
             Messaging::JsonSerializer {},

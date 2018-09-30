@@ -27,22 +27,21 @@ const auto MAX_RESEND_TIMEOUT =
 }
 
 PeerCommandSender::Peer::Peer(
-    zmq::context_t& context, const CurveKeys* const keys,
-    const std::string& endpoint) :
+    zmq::context_t& context, const std::string& endpoint,
+    const CurveKeys* const keys, const ByteSpan serverKey) :
     socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
     resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
-    // TODO: Configure peer with its server key
-    setupCurveClient(*socket, keys, keys ? keys->publicKey : ByteSpan {});
+    setupCurveClient(*socket, keys, serverKey);
     socket->connect(endpoint);
 }
 
 std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
-    zmq::context_t& context, const CurveKeys* const keys,
-    const std::string& endpoint)
+    zmq::context_t& context, const std::string& endpoint,
+    const CurveKeys* const keys, const ByteSpan serverKey)
 {
-    peers.emplace_back(context, keys, endpoint);
+    peers.emplace_back(context, endpoint, keys, serverKey);
     return peers.back().socket;
 }
 

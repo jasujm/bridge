@@ -153,20 +153,21 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
             }
         }}
 {
+    const auto keys = this->config.getCurveConfig();
     auto endpointIterator = this->config.getEndpointIterator();
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
-    Messaging::setupCurveServer(*controlSocket, this->config.getCurveConfig());
+    Messaging::setupCurveServer(*controlSocket, keys);
     controlSocket->bind(*endpointIterator++);
-    Messaging::setupCurveServer(*eventSocket, this->config.getCurveConfig());
+    Messaging::setupCurveServer(*eventSocket, keys);
     eventSocket->bind(*endpointIterator);
     for (auto& gameConfig : this->config.getGameConfigs()) {
         const auto& uuid = gameConfig.uuid;
         const auto emplaced_game = games.emplace(
             uuid,
             gameFromConfig(
-                gameConfig, context, eventSocket, callbackScheduler));
+                gameConfig, context, keys, eventSocket, callbackScheduler));
         if (emplaced_game.second) {
             auto& game = emplaced_game.first->second;
             availableGames.emplace(uuid, &game);

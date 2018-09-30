@@ -39,6 +39,7 @@ const auto GAME_CONFIG_UUID = "uuid"s;
 const auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"s;
 const auto GAME_CONFIG_PEERS = "peers"s;
 const auto GAME_CONFIG_ENDPOINT = "endpoint"s;
+const auto GAME_CONFIG_SERVER_KEY = "server_key"s;
 
 const auto DEFAULT_BIND_ADDRESS = "*"s;
 const auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
@@ -232,8 +233,20 @@ int config_lua_game(lua_State* lua) {
                 configVector.pop_back();
                 luaL_error(lua, "expected peer endpoint");
             }
+            lua_pop(lua, 1);
+            lua_pushstring(lua, GAME_CONFIG_SERVER_KEY.c_str());
+            lua_rawget(lua, -2);
+            auto peer_server_key = Blob {};
+            if (const auto* encoded_key = lua_tostring(lua, -1)) {
+                auto decoded_key = Messaging::decodeKey(encoded_key);
+                if (decoded_key.empty()) {
+                    configVector.pop_back();
+                    luaL_error(lua, "failed to decode peer server key");
+                }
+                peer_server_key = std::move(decoded_key);
+            }
             config.peers.emplace_back(
-                BridgeGameConfig::PeerConfig {peer_endpoint});
+                BridgeGameConfig::PeerConfig {peer_endpoint, peer_server_key});
             lua_pop(lua, 2);
         }
     }

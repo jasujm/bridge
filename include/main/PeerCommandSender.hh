@@ -52,15 +52,17 @@ public:
      * created using this method.
      *
      * \param context the ZeroMQ context of the new socket
-     * \param keys the CurveZMQ keys used for connections, or nullptr if curve
-     * security isn’t used
      * \param endpoint the endpoint of the peer
+     * \param keys the CurveZMQ keys used for connections, or nullptr if the
+     * curve security isn’t used
+     * \param serverKey the CurveZMQ server key for the remote peer, or
+     * empty if the curve security isn’t used
      *
      * \return the socket created by the method
      */
     std::shared_ptr<zmq::socket_t> addPeer(
-        zmq::context_t& context, const Messaging::CurveKeys* keys,
-        const std::string& endpoint);
+        zmq::context_t& context, const std::string& endpoint,
+        const Messaging::CurveKeys* keys = nullptr, ByteSpan serverKey = {});
 
     /** \brief Send command to all peers
      *
@@ -112,8 +114,8 @@ private:
 
     struct Peer {
         Peer(
-            zmq::context_t& context, const Messaging::CurveKeys* keys,
-            const std::string& endpoint);
+            zmq::context_t& context, const std::string& endpoint,
+            const Messaging::CurveKeys* keys, ByteSpan serverKey);
         std::shared_ptr<zmq::socket_t> socket;
         std::chrono::milliseconds resendTimeout;
         bool success;

@@ -82,7 +82,7 @@ protected:
     virtual void SetUp()
     {
         backSocket.bind(ENDPOINT);
-        frontSocket = peerCommandSender->addPeer(context, nullptr, ENDPOINT);
+        frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
         for (auto&& handler : protocol.getMessageHandlers()) {
             messageHandlers.emplace(handler);
         }
