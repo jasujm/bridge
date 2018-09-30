@@ -1,3 +1,8 @@
+/** \file
+ *
+ * \brief Utilities for shuffling deck
+ */
+
 #ifndef CARDSHUFFLE_HH_
 #define CARDSHUFFLE_HH_
 

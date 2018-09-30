@@ -1,3 +1,7 @@
+/** \file
+ *
+ * \brief Definition of Bridge::Uuid
+ */
 #ifndef UUID_HH_
 #define UUID_HH_
 

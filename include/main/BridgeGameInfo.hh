@@ -1,3 +1,8 @@
+/** \file
+ *
+ * \brief Definition of Bridge::Main::BridgeGameInfo interface
+ */
+
 #ifndef MAIN_BRIDGEGAMEINFO_HH_
 #define MAIN_BRIDGEGAMEINFO_HH_
 

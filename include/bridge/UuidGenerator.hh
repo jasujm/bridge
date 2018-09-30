@@ -1,3 +1,8 @@
+/** \file
+ *
+ * \brief Definition of UUID generator utilities
+ */
+
 #ifndef UUIDGENERATOR_HH_
 #define UUIDGENERATOR_HH_
 

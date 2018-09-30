@@ -1,3 +1,8 @@
+/** \file
+ *
+ * \brief Definition of Bridge::Main::BridgeGame class
+ */
+
 #ifndef MAIN_BRIDGEGAME_HH_
 #define MAIN_BRIDGEGAME_HH_
 
