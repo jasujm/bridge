@@ -16,6 +16,7 @@
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
+using Bridge::Main::BridgeGameConfig;
 using Bridge::Main::Config;
 using Bridge::Messaging::decodeKey;
 
@@ -176,11 +177,11 @@ game {
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     const auto expected_peers = std::vector {
-        Bridge::Main::BridgeGameConfig::PeerConfig {
+        BridgeGameConfig::PeerConfig {
             "test-endpoint-1"s,
             decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv)
         },
-        Bridge::Main::BridgeGameConfig::PeerConfig { "test-endpoint-2"s, {} },
+        BridgeGameConfig::PeerConfig { "test-endpoint-2"s, {} },
     };
     EXPECT_EQ(expected_peers, games.front().peers);
 }
@@ -216,6 +217,51 @@ game {
     uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
     peers = {
         { endpoint = "test-endpoint-1", server_key = "invalid" },
+    },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigCardServer)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    card_server = {
+        control_endpoint = "control-endpoint",
+        base_peer_endpoint = "base-peer-endpoint",
+    },
+}
+)EOF"s);
+    const auto config = Config {in};
+    const auto& games = config.getGameConfigs();
+    ASSERT_EQ(1u, games.size());
+    const auto expected_cs_config = BridgeGameConfig::CardServerConfig {
+        "control-endpoint"s, "base-peer-endpoint"s};
+    EXPECT_EQ(expected_cs_config, games.front().cardServer);
+}
+
+TEST_F(ConfigTest, testParseGameConfigCardServerMissingControlEndpoint)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    card_server = {
+        base_peer_endpoint = "base-peer-endpoint",
+    },
+}
+)EOF"s);
+    assertThrows();
+}
+
+TEST_F(ConfigTest, testParseGameConfigCardServerMissingBasePeerEndpoint)
+{
+    in.str(R"EOF(
+game {
+    uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
+    card_server = {
+        control_endpoint = "control-endpoint",
     },
 }
 )EOF"s);

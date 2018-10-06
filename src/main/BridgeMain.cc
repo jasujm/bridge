@@ -180,6 +180,9 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 for (auto&& [cmd, hdl] : card_protocol->getMessageHandlers()) {
                     messageQueue.trySetHandler(std::move(cmd), std::move(hdl));
                 }
+                for (auto&& [socket, cb] : card_protocol->getSockets()) {
+                    messageLoop.addSocket(std::move(socket), std::move(cb));
+                }
             }
         }
     }

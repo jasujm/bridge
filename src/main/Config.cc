@@ -40,6 +40,9 @@ const auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"s;
 const auto GAME_CONFIG_PEERS = "peers"s;
 const auto GAME_CONFIG_ENDPOINT = "endpoint"s;
 const auto GAME_CONFIG_SERVER_KEY = "server_key"s;
+const auto GAME_CONFIG_CARD_SERVER = "card_server"s;
+const auto GAME_CONFIG_CONTROL_ENDPOINT = "control_endpoint"s;
+const auto GAME_CONFIG_BASE_PEER_ENDPOINT = "base_peer_endpoint"s;
 
 const auto DEFAULT_BIND_ADDRESS = "*"s;
 const auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
@@ -249,6 +252,29 @@ int config_lua_game(lua_State* lua) {
                 BridgeGameConfig::PeerConfig {peer_endpoint, peer_server_key});
             lua_pop(lua, 2);
         }
+    }
+    lua_pop(lua, 1);
+
+    lua_pushstring(lua, GAME_CONFIG_CARD_SERVER.c_str());
+    if (lua_rawget(lua, 1) == LUA_TTABLE) {
+        lua_pushstring(lua, GAME_CONFIG_CONTROL_ENDPOINT.c_str());
+        lua_rawget(lua, -2);
+        const auto* control_endpoint = lua_tostring(lua, -1);
+        if (!control_endpoint) {
+            configVector.pop_back();
+            luaL_error(lua, "expected card server control endpoint");
+        }
+        lua_pop(lua, 1);
+        lua_pushstring(lua, GAME_CONFIG_BASE_PEER_ENDPOINT.c_str());
+        lua_rawget(lua, -2);
+        const auto* base_peer_endpoint = lua_tostring(lua, -1);
+        if (!base_peer_endpoint) {
+            configVector.pop_back();
+            luaL_error(lua, "expected card server base peer endpoint");
+        }
+        config.cardServer = BridgeGameConfig::CardServerConfig {
+            control_endpoint, base_peer_endpoint};
+        lua_pop(lua, 2);
     }
     lua_pop(lua, 1);
 

@@ -14,6 +14,7 @@
 #include <boost/operators.hpp>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <zmq.hpp>
@@ -48,18 +49,34 @@ struct BridgeGameConfig {
         Blob serverKey;                ///< Peer server key
     };
 
-    // Explicitly instantiate to preserve aggregate-ness of PeerConfig
+    /** \brief Bridge game card server config
+     */
+    struct CardServerConfig {
+        std::string controlEndpoint;
+        std::string basePeerEndpoint;
+    };
+
+    // Explicitly instantiate to preserve aggregate-ness of PeerConfig and
+    // CardServerConfig
     struct boost::equality_comparable<PeerConfig>;
+    struct boost::equality_comparable<CardServerConfig>;
 
     Uuid uuid;                         ///< Game UUID
     std::vector<Position> positionsControlled; ///< Positions controlled by self
     std::vector<PeerConfig> peers;     ///< Peers taking part in the game
+    std::optional<CardServerConfig> cardServer; ///< Card server config
 };
 
 /** \brief Equality comparison between peer config objects
  */
 bool operator==(
     const BridgeGameConfig::PeerConfig&, const BridgeGameConfig::PeerConfig&);
+
+/** \brief Equality comparison between card server config objects
+ */
+bool operator==(
+    const BridgeGameConfig::CardServerConfig&,
+    const BridgeGameConfig::CardServerConfig&);
 
 /** \brief Construct bridge game object from config
  *
