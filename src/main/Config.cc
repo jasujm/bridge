@@ -35,6 +35,9 @@ namespace {
 struct GameConfigTag {};
 GameConfigTag gameConfigTag;
 
+const auto CURVE_PUBLIC_KEY = "curve_public_key"s;
+const auto CURVE_SECRET_KEY = "curve_secret_key"s;
+
 const auto GAME_CONFIG_UUID = "uuid"s;
 const auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"s;
 const auto GAME_CONFIG_PEERS = "peers"s;
@@ -273,7 +276,8 @@ int config_lua_game(lua_State* lua) {
             luaL_error(lua, "expected card server base peer endpoint");
         }
         config.cardServer = BridgeGameConfig::CardServerConfig {
-            control_endpoint, base_peer_endpoint};
+            control_endpoint, base_peer_endpoint,
+            getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.c_str()) };
         lua_pop(lua, 2);
     }
     lua_pop(lua, 1);
@@ -343,8 +347,8 @@ void Config::Impl::createBaseEndpointConfig(lua_State* lua)
 
 void Config::Impl::createCurveConfig(lua_State* lua)
 {
-    const auto secret_key = getKeyOrEmpty(lua, "curve_secret_key");
-    const auto public_key = getKeyOrEmpty(lua, "curve_public_key");
+    const auto secret_key = getKeyOrEmpty(lua, CURVE_SECRET_KEY.c_str());
+    const auto public_key = getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.c_str());
     if (!secret_key.empty() && !public_key.empty()) {
         curveConfig = Messaging::CurveKeys { secret_key, public_key };
     }

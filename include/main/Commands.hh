@@ -223,13 +223,19 @@
  * has accepted.
  *
  * If the card server protocol is used, args MUST also contain the base peer
- * endpoint of the card server the peer uses. For instance, if the base peer
- * endpoint is tcp://example.com:5555, the object would be the following:
+ * endpoint of the card server the peer uses. If CURVE mechanism is used to
+ * secure communication between the card server peers, args MUST also contain
+ * the server key of the card server as hex encoded string. For instance, if the
+ * base peer endpoint is tcp://example.com:5555 with CURVE server key, the
+ * object would be the following:
  *
  * \code{.json}
  * {
  *     "positions": ["north", "east"],        // positions are example only
- *     "endpoint": "tcp://example.com:5555",
+ *     "cardServer": {
+ *          "endpoint": "tcp://example.com:5555",
+ *          "serverKey": "54FCBA24E93249969316FB617C872BB0C1D1FF14800427C594CBFACF1BC2D652"
+ *     }
  * }
  * \endcode
  *
@@ -558,7 +564,15 @@ extern const std::string ARGS_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
+extern const std::string CARD_SERVER_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
 extern const std::string ENDPOINT_COMMAND;
+
+/** \brief See \ref bridgeprotocolcontrolgame
+ */
+extern const std::string SERVER_KEY_COMMAND;
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

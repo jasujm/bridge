@@ -180,10 +180,8 @@ The card server acts both as server and client, and needs both keys
     $ bridgecs --secret-key-file=secret-key --public-key-file=server-key       \
     >     …rest of the args…
 
-Due to the limitations of the current implementation there is no way for the
-card server to learn the server keys of its peers. It tries to use its own
-public key as the remote server key. Consequently all peers need to share the
-same public key.
+The current implementation requires that a bridge backend and its card server
+must share the same CURVE keypair.
 
 The backend performs no authentication of the peers and clients connecting to
 it. Clients authenticate the server.

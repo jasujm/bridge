@@ -80,6 +80,16 @@ auto makeCardIterator(IndexIterator iter)
     return boost::make_transform_iterator(iter, enumerateCardType);
 }
 
+nlohmann::json makePeerArgsForCardServerProxy(const std::string& endpoint)
+{
+    return {
+        {
+            CARD_SERVER_COMMAND,
+            {{ ENDPOINT_COMMAND, endpoint }},
+        }
+    };
+}
+
 }
 
 class CardServerProxyTest : public testing::Test {
@@ -147,7 +157,12 @@ TEST_F(CardServerProxyTest, testAcceptPeerInvalidArgs)
 
 TEST_F(CardServerProxyTest, testAcceptPeerWithInvalidEndpoint)
 {
-    const auto args = nlohmann::json {{ENDPOINT_COMMAND, nullptr}};
+    const auto args = nlohmann::json {
+        {
+            CARD_SERVER_COMMAND,
+            { ENDPOINT_COMMAND, nullptr }
+        }
+    };
     EXPECT_FALSE(
         protocol.acceptPeer(
             PEER, {Position::SOUTH}, CardProtocol::OptionalArgs {args}));

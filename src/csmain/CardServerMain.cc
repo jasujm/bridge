@@ -197,9 +197,9 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     identity {std::move(entry.identity)}
 {
     if (entry.endpoint) {
-        // TODO: Configure peer with its server key
         Messaging::setupCurveClient(
-            *socket, keys, keys ? keys->publicKey : ByteSpan {});
+            *socket, keys,
+            entry.serverKey ? ByteSpan {*entry.serverKey} : ByteSpan {});
         auto endpointIterator = EndpointIterator {*entry.endpoint};
         socket->connect(*(endpointIterator += order));
     } else {

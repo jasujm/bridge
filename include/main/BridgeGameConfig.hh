@@ -54,6 +54,7 @@ struct BridgeGameConfig {
     struct CardServerConfig {
         std::string controlEndpoint;
         std::string basePeerEndpoint;
+        Blob serverKey;
     };
 
     // Explicitly instantiate to preserve aggregate-ness of PeerConfig and

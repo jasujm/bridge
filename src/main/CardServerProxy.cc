@@ -84,10 +84,12 @@ struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
         const Identity& identity,
         CardProtocol::PositionVector& positions,
         std::string& cardServerBasePeerEndpoint,
+        std::optional<Blob>& cardServerKey,
         bool& ret) :
         identity {identity},
         positions {positions},
         cardServerBasePeerEndpoint {cardServerBasePeerEndpoint},
+        cardServerKey {cardServerKey},
         ret {ret}
     {
     }
@@ -95,6 +97,7 @@ struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
     const Identity& identity;
     CardProtocol::PositionVector& positions;
     std::string& cardServerBasePeerEndpoint;
+    std::optional<Blob>& cardServerKey;
     bool& ret;
 };
 struct InitializeEvent : public sc::event<InitializeEvent> {};
@@ -149,7 +152,7 @@ public:
 
     bool acceptPeer(
         const Identity& identity, PositionVector positions,
-        std::string endpoint);
+        std::string endpoint, std::optional<Blob> serverKey);
     void initializeProtocol();
 
     template<typename Event, typename ParamIterator>
@@ -221,15 +224,17 @@ Impl::Impl(
 
 bool Impl::acceptPeer(
     const Identity& identity, PositionVector positions,
-    std::string cardServerBasePeerEndpoint)
+    std::string cardServerBasePeerEndpoint, std::optional<Blob> serverKey)
 {
     auto ret = true;
     functionQueue(
-        [this, &identity, &positions, &cardServerBasePeerEndpoint, &ret]()
+        [this, &identity, &positions, &cardServerBasePeerEndpoint, &serverKey,
+         &ret]()
         {
             process_event(
                 AcceptPeerEvent {
-                    identity, positions, cardServerBasePeerEndpoint, ret});
+                    identity, positions, cardServerBasePeerEndpoint, serverKey,
+                    ret });
         });
     return ret;
 }
@@ -439,7 +444,7 @@ public:
 private:
     bool internalAddPeer(
         const Identity& identity, PositionVector positions,
-        std::string&& endpoint);
+        std::string&& endpoint, std::optional<Blob>&& serverKey);
     void internalInitCardServer();
 
     PositionVector selfPositions;
@@ -455,7 +460,8 @@ sc::result Initializing::react(const AcceptPeerEvent& event)
 {
     event.ret = internalAddPeer(
         event.identity, std::move(event.positions),
-        std::move(event.cardServerBasePeerEndpoint));
+        std::move(event.cardServerBasePeerEndpoint),
+        std::move(event.cardServerKey));
     return discard_event();
 }
 
@@ -467,7 +473,7 @@ sc::result Initializing::react(const InitializeEvent&)
 
 bool Initializing::internalAddPeer(
     const Identity& identity, PositionVector positions,
-    std::string&& endpoint)
+    std::string&& endpoint, std::optional<Blob>&& serverKey)
 {
     if (!positions.empty()) {
         std::sort(positions.begin(), positions.end());
@@ -479,7 +485,8 @@ bool Initializing::internalAddPeer(
         peers.emplace_back(
             std::piecewise_construct,
             std::forward_as_tuple(std::move(positions)),
-            std::forward_as_tuple(identity, std::move(endpoint)));
+            std::forward_as_tuple(
+                identity, std::move(endpoint), std::move(serverKey)));
         return true;
     }
     return false;
@@ -662,10 +669,18 @@ bool CardServerProxy::handleAcceptPeer(
     const OptionalArgs& args)
 {
     if (args) {
-        const auto iter = args->find(ENDPOINT_COMMAND);
-        if (iter != args->end() && iter->is_string()) {
-            assert(impl);
-            return impl->acceptPeer(identity, positions, *iter);
+        const auto cs_iter = args->find(CARD_SERVER_COMMAND);
+        if (cs_iter != args->end()) {
+            const auto endpoint_iter = cs_iter->find(ENDPOINT_COMMAND);
+            const auto key_iter = cs_iter->find(SERVER_KEY_COMMAND);
+            if (endpoint_iter != cs_iter->end() && endpoint_iter->is_string() &&
+                (key_iter == cs_iter->end() || key_iter->is_string())) {
+                assert(impl);
+                return impl->acceptPeer(
+                    identity, positions, *endpoint_iter,
+                    key_iter == cs_iter->end() ?
+                        std::nullopt : std::make_optional(key_iter->get<Blob>()));
+            }
         }
     }
     return false;
@@ -692,11 +707,6 @@ CardServerProxy::SocketVector CardServerProxy::handleGetSockets()
 std::shared_ptr<CardManager> CardServerProxy::handleGetCardManager()
 {
     return impl;
-}
-
-nlohmann::json makePeerArgsForCardServerProxy(const std::string& endpoint)
-{
-    return {{ ENDPOINT_COMMAND, endpoint }};
 }
 
 }

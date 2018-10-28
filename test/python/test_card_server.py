@@ -1,15 +1,17 @@
 from collections import namedtuple
 import atexit
-import itertools
+import binascii
 import signal
 import subprocess
 import sys
 import json
 
 import zmq
+from zmq.utils import z85
 
 IDENTITY_KEY = "id"
 ENDPOINT_KEY = "endpoint"
+SERVER_KEY_KEY = "serverKey"
 CONTROL_KEY = "control"
 CARDS_KEY = "cards"
 RANK_KEY = "rank"
@@ -28,9 +30,12 @@ PEERS_COMMAND = b'peers'
 CARDS_COMMAND = b'cards'
 IDENTITY_COMMAND = b'id'
 
-CURVE_SERVERKEY = b"rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7\0"
-CURVE_SECRETKEY = b"JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6\0"
-CURVE_PUBLICKEY = b"rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7\0"
+CURVE_KEYS = [
+    ("G-Lq6{EbJ/C</gpvtK3V:4Sx[hsdePYi7[]4a3Nx","}Nd:*=$4Fvzi5ehoQw/ew8tZ/XKI.C8o5YBqJcMR"),
+    ("yR#}WrT5Dl1s3Xxw+G%BvUcY<NHQu%Av&[M>C+E5","G#y%?EjwByGvT8Rv8Rz*J/(jDz%n-$WYUF+3L=i1"),
+    (".&)GUnu8a70oXRWHHjngNH1<J0N7Y7P<3k*>Y{c2","f+M<*^Z+G[W(I:u3#63BrjDz<u]T9y!)DPrHaY/C"),
+    ("f:9%CxV-I3m})?r>oTj0hh1=fGOkQL??m45m?P2v","Rxh16PWco1Eq]L>d5l#k5Udw([NsxUFi}h24G3}J"),
+]
 
 def get_endpoint(port):
     return "tcp://127.0.0.1:%d" % port
@@ -59,10 +64,10 @@ servers = [
          get_endpoint(peer.control),
          get_endpoint(peer.endpoint)],
         stdin=subprocess.PIPE) for peer in PEERS]
-for server in servers:
-    server.stdin.write(CURVE_SECRETKEY[:-1])
+for server, keys in zip(servers, CURVE_KEYS):
+    server.stdin.write(keys[0].encode())
     server.stdin.write(b'\n')
-    server.stdin.write(CURVE_PUBLICKEY[:-1])
+    server.stdin.write(keys[1].encode())
     server.stdin.write(b'\n')
     server.stdin.close()
 sockets = [zmqctx.socket(zmq.PAIR) for peer in PEERS]
@@ -71,14 +76,17 @@ atexit.register(cleanup, servers);
 
 print("Init...")
 
-for (n, (socket, peer)) in enumerate(zip(sockets, PEERS)):
+for (n, (socket, peer, keys)) in enumerate(zip(sockets, PEERS, CURVE_KEYS)):
     entries = [
-        {IDENTITY_KEY: other.id,
-         ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None} for
-        (m, other) in enumerate(PEERS) if n != m]
-    socket.curve_serverkey = CURVE_SERVERKEY
-    socket.curve_publickey = CURVE_PUBLICKEY
-    socket.curve_secretkey = CURVE_SECRETKEY
+        {
+            IDENTITY_KEY: other.id,
+            ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None,
+            SERVER_KEY_KEY: binascii.hexlify(z85.decode(other_keys[1])).decode()
+        } for (m, (other, other_keys)) in enumerate(zip(PEERS, CURVE_KEYS)) if n != m
+    ]
+    socket.curve_serverkey = keys[1].encode() + b'\0'
+    socket.curve_publickey = keys[1].encode() + b'\0'
+    socket.curve_secretkey = keys[0].encode() + b'\0'
     socket.connect(get_endpoint(peer.control))
     socket.send(INIT_COMMAND, flags=zmq.SNDMORE)
     socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)
