@@ -128,29 +128,31 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
  *
  * \param m the lower bound
  * \param n the upper bound
+ * \param step the step size
  *
  * \return A range from \p m to \p n (exclusive upper bound)
  *
  * \sa to()
  */
-template<typename Integer1, typename Integer2>
-auto from_to(Integer1 m, Integer2 n)
+template<typename Integer1, typename Integer2, typename StepSize=Integer1>
+auto from_to(Integer1 m, Integer2 n, StepSize step=StepSize {1})
 {
-    return boost::irange(Integer2 {m}, n);
+    return boost::irange(m, static_cast<Integer1>(n), step);
 }
 
 /** \brief Shorthand for from_to(0, n)
  *
  * \param n the upper bound of the range
+ * \param step the step size
  *
  * \return A range from 0 to \p n (exclusive upper bound)
  *
  * \sa from_to()
  */
-template<typename Integer>
-auto to(Integer n)
+template<typename Integer, typename StepSize=Integer>
+auto to(Integer n, StepSize step=StepSize {1})
 {
-    return from_to(Integer {}, n);
+    return from_to(Integer {}, n, step);
 }
 
 }
