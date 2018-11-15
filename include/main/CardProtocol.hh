@@ -50,11 +50,6 @@ public:
      */
     using PositionVector = std::vector<Position>;
 
-    /** \brief Return value of getMessageHandlers()
-     */
-    using MessageHandlerVector = std::vector<
-        Messaging::MessageQueue::HandlerMap::value_type>;
-
     /** \brief Return value of getSockets()
      */
     using SocketVector = std::vector<
@@ -96,10 +91,16 @@ public:
 
     /** \brief Get message handlers necessary for executing the protocol
      *
-     * \return A vector of command–message handler pairs that should be added
-     * to a message queue handling messages from the peers.
+     * A card protocol may take use of the deal command defined in \ref
+     * bridgeprotocol. This method returns a message handler for handling the
+     * deal command targeted to the game using this CardProtocol instance. The
+     * client is responsible for dispatching to the correct handler based on the
+     * game parameter.
+     *
+     * \return A pointer to the message handler for handling deal command for
+     * the game, or nullptr if no message handler is required for the protocol.
      */
-    MessageHandlerVector getMessageHandlers();
+    std::shared_ptr<Messaging::MessageHandler> getDealMessageHandler();
 
     /** \brief Get additional sockets that need to be polled
      *
@@ -140,12 +141,12 @@ private:
      */
     virtual void handleInitialize() = 0;
 
-    /** \brief Handle for returning the message handlers required for the
-     * protocol
+    /** \brief Handle for returning the deal message handler
      *
-     * \sa getMessageHandlers()
+     * \sa getDealMessageHandler()
      */
-    virtual MessageHandlerVector handleGetMessageHandlers() = 0;
+    virtual std::shared_ptr<Messaging::MessageHandler>
+    handleGetDealMessageHandler() = 0;
 
     /** \brief Handle for returning sockets required for the protocol
      *

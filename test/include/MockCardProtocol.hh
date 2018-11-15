@@ -14,7 +14,9 @@ public:
             const Messaging::Identity& identity, const PositionVector&,
             const std::optional<nlohmann::json>&));
     MOCK_METHOD0(handleInitialize, void());
-    MOCK_METHOD0(handleGetMessageHandlers, MessageHandlerVector());
+    MOCK_METHOD0(
+        handleGetDealMessageHandler,
+        std::shared_ptr<Messaging::MessageHandler>());
     MOCK_METHOD0(handleGetSockets, SocketVector());
     MOCK_METHOD0(handleGetCardManager, std::shared_ptr<Engine::CardManager>());
 };

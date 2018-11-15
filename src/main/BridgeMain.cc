@@ -17,6 +17,7 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
+#include "messaging/DispatchingMessageHandler.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/Identity.hh"
 #include "messaging/JsonSerializer.hh"
@@ -102,6 +103,8 @@ private:
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
     std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
+    std::shared_ptr<
+        Messaging::DispatchingMessageHandler<Uuid, JsonSerializer>> dealMessageHandler;
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
     std::map<Uuid, BridgeGame> games;
@@ -114,6 +117,9 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
     callbackScheduler {std::make_shared<CallbackScheduler>(context)},
+    dealMessageHandler {
+        Messaging::makeDispatchingMessageHandler<Uuid>(
+            stringToBlob(GAME_COMMAND), JsonSerializer {})},
     messageQueue {
         {
             {
@@ -150,7 +156,11 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                     std::make_tuple(
                         GAME_COMMAND, PLAYER_COMMAND, CARD_COMMAND,
                         INDEX_COMMAND))
-            }
+            },
+            {
+                stringToBlob(DEAL_COMMAND),
+                dealMessageHandler
+            },
         }}
 {
     const auto keys = this->config.getCurveConfig();
@@ -177,8 +187,8 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 }
             }
             if (const auto card_protocol = game.getCardProtocol()) {
-                for (auto&& [cmd, hdl] : card_protocol->getMessageHandlers()) {
-                    messageQueue.trySetHandler(std::move(cmd), std::move(hdl));
+                if (auto&& hdl = card_protocol->getDealMessageHandler()) {
+                    dealMessageHandler->trySetDelegate(uuid, std::move(hdl));
                 }
                 for (auto&& [socket, cb] : card_protocol->getSockets()) {
                     messageLoop.addSocket(std::move(socket), std::move(cb));

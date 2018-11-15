@@ -137,9 +137,9 @@ protected:
     std::vector<std::optional<CardType>> allCards;
 };
 
-TEST_F(CardServerProxyTest, testNoMessageHandlers)
+TEST_F(CardServerProxyTest, testNoDealMessageHandlers)
 {
-    EXPECT_TRUE(protocol.getMessageHandlers().empty());
+    EXPECT_FALSE(protocol.getDealMessageHandler());
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerMissingArgs)

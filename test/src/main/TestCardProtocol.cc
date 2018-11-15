@@ -47,19 +47,11 @@ TEST_F(CardProtocolTest, testInitialize)
 
 TEST_F(CardProtocolTest, testGetMessageHandlers)
 {
-    CardProtocol::MessageHandlerVector expected_handlers {
-        {
-            Bridge::Blob {std::byte {123}, std::byte {32}},
-            std::make_shared<Bridge::Messaging::MockMessageHandler>()
-        }
-    };
-    EXPECT_CALL(protocol, handleGetMessageHandlers())
-        .WillOnce(Return(expected_handlers));
-    const auto actual_handlers = protocol.getMessageHandlers();
-    EXPECT_TRUE(
-        std::equal(
-            expected_handlers.begin(), expected_handlers.end(),
-            actual_handlers.begin(), actual_handlers.end()));
+    const auto expected_handler =
+        std::make_shared<Bridge::Messaging::MockMessageHandler>();
+    EXPECT_CALL(protocol, handleGetDealMessageHandler())
+        .WillOnce(Return(expected_handler));
+    EXPECT_EQ(expected_handler, protocol.getDealMessageHandler());
 }
 
 TEST_F(CardProtocolTest, testGetSockets)

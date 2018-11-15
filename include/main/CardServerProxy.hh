@@ -64,7 +64,8 @@ private:
 
     void handleInitialize() override;
 
-    MessageHandlerVector handleGetMessageHandlers() override;
+    std::shared_ptr<Messaging::MessageHandler>
+    handleGetDealMessageHandler() override;
 
     SocketVector handleGetSockets() override;
 

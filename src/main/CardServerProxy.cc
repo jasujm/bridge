@@ -193,7 +193,6 @@ private:
         const IndexVector& deckNs, const IndexVector& handNs);
     void internalHandleCardServerMessage(zmq::socket_t& socket);
 
-    const MessageHandlerVector messageHandlers;
     const SocketVector sockets;
     zmq::socket_t& controlSocket;
     std::vector<PeerPosition> peerPositions;
@@ -692,10 +691,10 @@ void CardServerProxy::handleInitialize()
     impl->initializeProtocol();
 }
 
-CardProtocol::MessageHandlerVector
-CardServerProxy::handleGetMessageHandlers()
+std::shared_ptr<Messaging::MessageHandler>
+CardServerProxy::handleGetDealMessageHandler()
 {
-    return {};
+    return nullptr;
 }
 
 CardServerProxy::SocketVector CardServerProxy::handleGetSockets()

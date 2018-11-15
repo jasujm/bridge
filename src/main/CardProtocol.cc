@@ -17,9 +17,9 @@ void CardProtocol::initialize()
     handleInitialize();
 }
 
-CardProtocol::MessageHandlerVector CardProtocol::getMessageHandlers()
+std::shared_ptr<Messaging::MessageHandler> CardProtocol::getDealMessageHandler()
 {
-    return handleGetMessageHandlers();
+    return handleGetDealMessageHandler();
 }
 
 CardProtocol::SocketVector CardProtocol::getSockets()

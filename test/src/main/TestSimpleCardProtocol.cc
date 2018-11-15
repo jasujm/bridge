@@ -83,22 +83,17 @@ protected:
     {
         backSocket.bind(ENDPOINT);
         frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
-        for (auto&& handler : protocol.getMessageHandlers()) {
-            messageHandlers.emplace(handler);
-        }
     }
 
-    bool dealCommand(const Identity& identity, const Uuid& gameUuid = GAME_UUID)
+    bool dealCommand(const Identity& identity)
     {
         const auto args = {
-            GAME_COMMAND,
-            JsonSerializer::serialize(gameUuid),
             CARDS_COMMAND,
             JsonSerializer::serialize(
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
         auto reply = std::vector<std::string> {};
         const auto success =
-            dereference(messageHandlers.at(stringToBlob(DEAL_COMMAND))).handle(
+            dereference(dealHandler).handle(
                 identity, args.begin(), args.end(),
                 [&reply](const auto& b)
                 {
@@ -116,7 +111,8 @@ protected:
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>(callbackScheduler)};
     SimpleCardProtocol protocol {GAME_UUID, peerCommandSender};
-    MessageQueue::HandlerMap messageHandlers;
+    std::shared_ptr<Messaging::MessageHandler> dealHandler {
+        protocol.getDealMessageHandler()};
 };
 
 TEST_F(SimpleCardProtocolTest, testLeader)
@@ -156,7 +152,6 @@ TEST_F(SimpleCardProtocolTest, testNotLeader)
     card_manager->requestShuffle();
 
     EXPECT_FALSE(dealCommand(PEER));
-    EXPECT_FALSE(dealCommand(LEADER, Bridge::Uuid {}));
     EXPECT_TRUE(dealCommand(LEADER));
 
     assertCardManagerHasShuffledDeck(*card_manager);

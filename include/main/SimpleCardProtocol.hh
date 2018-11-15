@@ -23,12 +23,6 @@ class PeerCommandSender;
  * SimpleCardProtocol implements a simple plaintext card protocol where one
  * player generates the cards and sends them to all, unencrypted. This protocl
  * should only be used between trusted parties.
- *
- * \todo Dispatching commands to correct protocol is based on static mapping
- * between game UUIDs and SimpleCardProtocol instances. The users of
- * SimpleCardProtocol have very little control of this mapping, or error
- * handling related to UUID collisions. More transparent interface for
- * dispatching is required.
  */
 class SimpleCardProtocol : public CardProtocol, private boost::noncopyable {
 public:
@@ -43,8 +37,6 @@ public:
         const Uuid& gameUuid,
         std::shared_ptr<PeerCommandSender> peerCommandSender);
 
-    ~SimpleCardProtocol();
-
 private:
 
     bool handleAcceptPeer(
@@ -53,7 +45,8 @@ private:
 
     void handleInitialize() override;
 
-    MessageHandlerVector handleGetMessageHandlers() override;
+    std::shared_ptr<Messaging::MessageHandler>
+    handleGetDealMessageHandler() override;
 
     SocketVector handleGetSockets() override;
 
