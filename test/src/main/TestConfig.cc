@@ -238,7 +238,7 @@ game {
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     const auto expected_cs_config = BridgeGameConfig::CardServerConfig {
-        "control-endpoint"s, "base-peer-endpoint"s};
+        "control-endpoint"s, "base-peer-endpoint"s, {}};
     EXPECT_EQ(expected_cs_config, games.front().cardServer);
 }
 
