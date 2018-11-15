@@ -163,9 +163,9 @@ std::string getVulnerability(const DuplicateGameManager& gameManager)
 }
 
 GetMessageHandler::GetMessageHandler(
-    GetGameFunction games,
+    std::weak_ptr<const BridgeGameInfo> game,
     std::shared_ptr<const NodePlayerControl> nodePlayerControl) :
-    games {std::move(games)},
+    game {std::move(game)},
     nodePlayerControl {std::move(nodePlayerControl)}
 {
 }
@@ -179,18 +179,13 @@ bool GetMessageHandler::doHandle(
     const Messaging::Identity& identity, const ParameterVector& params,
     OutputSink sink)
 {
-    const auto game_uuid = Messaging::deserializeParam<Uuid>(
-        JsonSerializer {}, params.begin(), params.end(), GAME_COMMAND);
-    if (!game_uuid) {
-        return false;
-    }
-    const auto game = games(*game_uuid);
     const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
     const auto& keys = bool(keys_param) ? *keys_param : ALL_KEYS;
+    const auto game_ = game.lock();
     const auto player = dereference(nodePlayerControl).getPlayer(identity);
-    if (game && player) {
-        const auto& engine = game->getEngine();
+    if (game_ && player) {
+        const auto& engine = game_->getEngine();
         for (const auto& key : keys) {
             if (internalContainsKey(key, POSITION_COMMAND, sink)) {
                 sink(asBytes(getPosition(engine, *player)));
@@ -213,7 +208,7 @@ bool GetMessageHandler::doHandle(
             } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
                 sink(asBytes(getTricksWon(engine)));
             } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
-                sink(asBytes(getVulnerability(game->getGameManager())));
+                sink(asBytes(getVulnerability(game_->getGameManager())));
             }
         }
         return true;

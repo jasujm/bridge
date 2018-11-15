@@ -54,6 +54,14 @@ using Messaging::success;
 namespace {
 
 using VersionVector = std::vector<int>;
+using GameMessageHandler = Messaging::DispatchingMessageHandler<
+    Uuid, JsonSerializer>;
+
+auto initializeGameMessageHandler()
+{
+    return Messaging::makeDispatchingMessageHandler<Uuid>(
+        stringToBlob(GAME_COMMAND), JsonSerializer {});
+}
 
 const std::string PEER_ROLE {"peer"};
 const std::string CLIENT_ROLE {"client"};
@@ -103,8 +111,10 @@ private:
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
     std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
-    std::shared_ptr<
-        Messaging::DispatchingMessageHandler<Uuid, JsonSerializer>> dealMessageHandler;
+    std::shared_ptr<GameMessageHandler> dealMessageHandler {
+        initializeGameMessageHandler()};
+    std::shared_ptr<GameMessageHandler> getMessageHandler {
+        initializeGameMessageHandler()};
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
     std::map<Uuid, BridgeGame> games;
@@ -117,9 +127,6 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
     callbackScheduler {std::make_shared<CallbackScheduler>(context)},
-    dealMessageHandler {
-        Messaging::makeDispatchingMessageHandler<Uuid>(
-            stringToBlob(GAME_COMMAND), JsonSerializer {})},
     messageQueue {
         {
             {
@@ -161,6 +168,10 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 stringToBlob(DEAL_COMMAND),
                 dealMessageHandler
             },
+            {
+                stringToBlob(GET_COMMAND),
+                getMessageHandler
+            }
         }}
 {
     const auto keys = this->config.getCurveConfig();
@@ -190,17 +201,16 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 if (auto&& hdl = card_protocol->getDealMessageHandler()) {
                     dealMessageHandler->trySetDelegate(uuid, std::move(hdl));
                 }
+                getMessageHandler->trySetDelegate(
+                    uuid,
+                    std::make_shared<GetMessageHandler>(
+                        game.getInfo(), nodePlayerControl));
                 for (auto&& [socket, cb] : card_protocol->getSockets()) {
                     messageLoop.addSocket(std::move(socket), std::move(cb));
                 }
             }
         }
     }
-    messageQueue.trySetHandler(
-        stringToBlob(GET_COMMAND),
-        std::make_shared<GetMessageHandler>(
-            [this](const Uuid& uuid) { return internalGetGame(uuid); },
-            nodePlayerControl));
     messageLoop.addSocket(
         callbackScheduler->getSocket(),
         [callbackScheduler = this->callbackScheduler](auto& socket)
@@ -261,7 +271,13 @@ Reply<Uuid> BridgeMain::Impl::game(
                 std::make_tuple(uuid_for_game),
                 std::make_tuple(uuid_for_game, eventSocket, callbackScheduler));
             if (game.second) {
-                availableGames.emplace(uuid_for_game, &game.first->second);
+                assert(getMessageHandler);
+                auto& game_ = game.first->second;
+                getMessageHandler->trySetDelegate(
+                    uuid_for_game,
+                    std::make_shared<GetMessageHandler>(
+                        game_.getInfo(), nodePlayerControl));
+                availableGames.emplace(uuid_for_game, &game_);
                 return success(uuid_for_game);
             }
         }

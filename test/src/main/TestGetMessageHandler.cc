@@ -53,6 +53,7 @@ using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::Identity;
 using Bridge::Messaging::JsonSerializer;
 
+using testing::NiceMock;
 using testing::ReturnPointee;
 
 using namespace Bridge::Main;
@@ -91,9 +92,9 @@ class GetMessageHandlerTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        ON_CALL(gameInfo, handleGetEngine())
+        ON_CALL(*gameInfo, handleGetEngine())
             .WillByDefault(ReturnPointee(engine));
-        ON_CALL(gameInfo, handleGetGameManager())
+        ON_CALL(*gameInfo, handleGetGameManager())
             .WillByDefault(ReturnPointee(gameManager));
         players[0] = nodePlayerControl->createPlayer(PLAYER1, std::nullopt);
         players[1] = nodePlayerControl->createPlayer(PLAYER2, std::nullopt);
@@ -123,9 +124,7 @@ protected:
         const Identity& identity, String&&... keys)
     {
         const auto keys_ = StringVector {std::forward<String>(keys)...};
-        auto args = std::vector {
-            GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
-        };
+        auto args = std::vector<std::string> {};
         if (!keys_.empty()) {
             args.emplace_back(KEYS_COMMAND);
             args.emplace_back(JsonSerializer::serialize(keys_));
@@ -156,24 +155,17 @@ protected:
     std::array<std::shared_ptr<Player>, 4> players;
     std::shared_ptr<BridgeEngine> engine {
         std::make_shared<BridgeEngine>(cardManager, gameManager)};
-    testing::NiceMock<MockBridgeGameInfo> gameInfo;
+    std::shared_ptr<NiceMock<MockBridgeGameInfo>> gameInfo {
+        std::make_shared<NiceMock<MockBridgeGameInfo>>()};
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
-    GetMessageHandler handler {
-        [this](const auto& uuid) -> const BridgeGameInfo*
-        {
-            if (uuid == VALID_GAME) {
-                return &gameInfo;
-            }
-            return nullptr;
-        }, nodePlayerControl};
+    GetMessageHandler handler {gameInfo, nodePlayerControl};
     std::vector<std::string> reply;
 };
 
 TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
 {
     const auto args = {
-        GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
         KEYS_COMMAND,
         JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
     };
@@ -183,35 +175,8 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
             [](const auto&) { FAIL(); }));
 }
 
-TEST_F(GetMessageHandlerTest, testRequestWithoutGameIsRejected)
-{
-    const auto args = {
-        KEYS_COMMAND,
-        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
-    };
-    EXPECT_FALSE(
-        handler.handle(
-            PLAYER1, args.begin(), args.end(), [](const auto&) { FAIL(); }));
-    EXPECT_TRUE(reply.empty());
-}
-
-TEST_F(GetMessageHandlerTest, testRequestWithInvalidGameIsRejected)
-{
-    const auto args = {
-        GAME_COMMAND, JsonSerializer::serialize(INVALID_GAME),
-        KEYS_COMMAND,
-        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
-    };
-    EXPECT_FALSE(
-        handler.handle(
-            PLAYER1, args.begin(), args.end(), [](const auto&) { FAIL(); }));
-}
-
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)
 {
-    const auto args = {
-        GAME_COMMAND, JsonSerializer::serialize(VALID_GAME),
-    };
     request(PLAYER1);
     const auto keys = boost::adaptors::stride(reply, 2);
     const auto expected = GetMessageHandler::getAllKeys();

@@ -9,7 +9,6 @@
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
 #include "messaging/Identity.hh"
-#include "main/BridgeGameInfo.hh"
 
 #include <json.hpp>
 #include <zmq.hpp>
@@ -35,6 +34,7 @@ class DuplicateGameManager;
 
 namespace Main {
 
+class BridgeGameInfo;
 class CallbackScheduler;
 class CardProtocol;
 class PeerCommandSender;
@@ -46,7 +46,7 @@ class PeerCommandSender;
  * level interface oriented to handling \ref bridgeprotocolcontrolmessage
  * commands.
  */
-class BridgeGame : public BridgeGameInfo {
+class BridgeGame {
 public:
 
     /** \brief Set of positions
@@ -211,11 +211,13 @@ public:
      */
     CardProtocol* getCardProtocol();
 
+    /** \brief Get info object for this game
+     *
+     * \return BridgeGameInfo object describing this game
+     */
+    std::weak_ptr<const BridgeGameInfo> getInfo() const;
+
 private:
-
-    const Engine::BridgeEngine& handleGetEngine() const override;
-
-    const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
     class Impl;
     std::shared_ptr<Impl> impl;

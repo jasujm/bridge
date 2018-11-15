@@ -29,27 +29,14 @@ class GetMessageHandler :
     public Messaging::MessageHandler, private boost::noncopyable {
 public:
 
-    /** \brief Function used to retrieve game information
-     *
-     * The function is expected to take UUID of the game as argument and return
-     * pointer BridgeGameInfo object for it, or nullptr if there is no game with
-     * the UUID.
-     *
-     * The pointer is not stored so the lifetime of the object does not need to
-     * extend after the caller has returned.
-     *
-     * \sa GetMessageHandler()
-     */
-    using GetGameFunction = std::function<const BridgeGameInfo*(const Uuid&)>;
-
     /** \brief Create new get message handler
      *
-     * \param games Function for retrieving BridgeGameInfo object
+     * \param game The game the info is retrieved from
      * \param nodePlayerControl The node player control object used to identify
      * the node
      */
     GetMessageHandler(
-        GetGameFunction games,
+        std::weak_ptr<const BridgeGameInfo> game,
         std::shared_ptr<const NodePlayerControl> nodePlayerControl);
 
     /** \brief Get list on all supported keys
@@ -69,7 +56,7 @@ private:
         const std::string& key, const std::string& expected,
         OutputSink& sink) const;
 
-    const GetGameFunction games;
+    const std::weak_ptr<const BridgeGameInfo> game;
     const std::shared_ptr<const NodePlayerControl> nodePlayerControl;
 };
 

@@ -10,6 +10,7 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
+#include "main/BridgeGameInfo.hh"
 #include "main/CallbackScheduler.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
@@ -85,7 +86,8 @@ class BridgeGame::Impl  :
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::TrickCompleted>,
     public Observer<BridgeEngine::DummyRevealed>,
-    public Observer<BridgeEngine::DealEnded> {
+    public Observer<BridgeEngine::DealEnded>,
+    public BridgeGameInfo {
 public:
 
     Impl(
@@ -117,8 +119,6 @@ public:
 
     BridgeEngine& getEngine();
 
-    Engine::DuplicateGameManager& getGameManager();
-
     PeerCommandSender* getPeerCommandSender();
 
     CardProtocol* getCardProtocol();
@@ -144,6 +144,9 @@ private:
     void handleNotify(const BridgeEngine::TrickCompleted&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
+
+    const BridgeEngine& handleGetEngine() const override;
+    const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
     const Uuid uuid;
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
@@ -345,12 +348,6 @@ BridgeEngine& BridgeGame::Impl::getEngine()
     return engine;
 }
 
-Engine::DuplicateGameManager& BridgeGame::Impl::getGameManager()
-{
-    assert(gameManager);
-    return *gameManager;
-}
-
 PeerCommandSender* BridgeGame::Impl::getPeerCommandSender()
 {
     assert(peerCommandSender);
@@ -442,6 +439,17 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         [&engine = this->engine] { engine.startDeal(); });
 }
 
+const BridgeEngine& BridgeGame::Impl::handleGetEngine() const
+{
+    return engine;
+}
+
+const Engine::DuplicateGameManager& BridgeGame::Impl::handleGetGameManager() const
+{
+    assert(gameManager);
+    return *gameManager;
+}
+
 BridgeGame::BridgeGame(
     const Uuid& uuid,
     PositionSet positionsControlled,
@@ -526,16 +534,9 @@ CardProtocol* BridgeGame::getCardProtocol()
     return impl->getCardProtocol();
 }
 
-const BridgeEngine& BridgeGame::handleGetEngine() const
+std::weak_ptr<const BridgeGameInfo> BridgeGame::getInfo() const
 {
-    assert(impl);
-    return impl->getEngine();
-}
-
-const Engine::DuplicateGameManager& BridgeGame::handleGetGameManager() const
-{
-    assert(impl);
-    return impl->getGameManager();
+    return impl;
 }
 
 }
