@@ -187,6 +187,24 @@ ByteSpan asBytes(const auto& c)
     return {data, static_cast<ByteSpan::index_type>(size)};
 }
 
+inline namespace BlobLiterals {
+
+/** \brief Convert string literal into blob
+ *
+ * \param str the string literal
+ * \param len the length of the string
+ *
+ * \return Blob with the characters of \p str interpreted as raw memory
+ */
+inline Blob operator"" _B(const char* str, std::size_t len)
+{
+    return Blob(
+        reinterpret_cast<const std::byte*>(str),
+        reinterpret_cast<const std::byte*>(str + len));
+}
+
+}
+
 }
 
 #endif // Bridge
