@@ -26,7 +26,7 @@ struct ScheduledCallback {
 
 // CallbackScheduler workflow:
 // - callOnce() -> store callback and send message to worker thread for waiting
-// - worker thread -> wait until it's time to execute a callback, send it's id
+// - worker thread -> wait until it's time to execute a callback, send its id
 //   back to main thread
 // - operator()() -> when the back socket receives message, callback is executed
 
@@ -80,7 +80,7 @@ void callbackSchedulerWorker(
             }
         }
         // Poll did timeout -- it's time to execute the next callback by sending
-        // it's id back to CallbackScheduler
+        // its id back to CallbackScheduler
         else {
             assert(!queue.empty());
             const auto callback_id = queue.top().callback_id;
