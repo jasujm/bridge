@@ -3,14 +3,15 @@
  * \brief Definition of Bridge::Messaging::DispatchingMessageHandler class
  */
 
+#ifndef MESSAGING_DISPATCHINGMESSAGEHANDLER_HH_
+#define MESSAGING_DISPATCHINGMESSAGEHANDLER_HH_
+
 #include "messaging/MessageHandler.hh"
 #include "Blob.hh"
 #include "Utility.hh"
 
 #include <map>
 #include <memory>
-
-#include <iostream>
 
 namespace Bridge {
 namespace Messaging {
@@ -135,3 +136,5 @@ auto makeDispatchingMessageHandler(
 
 }
 }
+
+#endif // MESSAGING_DISPATCHINGMESSAGEHANDLER_HH_
