@@ -38,8 +38,11 @@ public:
     /** \brief Create new message loop
      *
      * The message loop is initially empty.
+     *
+     * \param context The ZeroMQ context used by sockets registered to the
+     * message loop
      */
-    MessageLoop();
+    MessageLoop(zmq::context_t& context);
 
     ~MessageLoop();
 
@@ -48,6 +51,10 @@ public:
      * Add new socket to the message loop and associate a callback to handle
      * messages received from the socket. The invocation of the callbacks
      * starts when run() is called.
+     *
+     * It is assumed that all sockets registered with this interface share the
+     * same context, which is also the same that is passed to the MessageLoop()
+     * constructor when constructing the object.
      *
      * \note The \p socket is accepted as shared pointer and stored for the
      * whole lifetime of the loop. It is the responsibility of the client to
@@ -77,6 +84,21 @@ public:
      * other exceptions are propagated as is.
      */
     void run();
+
+    /** \brief Create socket that is notified when the message loop terminates
+     *
+     * This method creates and returns a SUB socket. It is automatically
+     * subscribed to an internal PUB socket that will send a single empty frame
+     * when the message loop exists. Both the internal PUB socket and the
+     * created SUB socket share the context passed to the MessageLoop()
+     * constructor.
+     *
+     * The intention is to use this socket to notify other threads when they
+     * need to exit.
+     *
+     * \return Socket that will be notified when the message loop exits
+     */
+    zmq::socket_t createTerminationSubscriber();
 
 private:
 

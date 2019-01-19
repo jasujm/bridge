@@ -172,7 +172,8 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 stringToBlob(GET_COMMAND),
                 getMessageHandler
             }
-        }}
+        }},
+    messageLoop {context}
 {
     const auto keys = this->config.getCurveConfig();
     auto endpointIterator = this->config.getEndpointIterator();

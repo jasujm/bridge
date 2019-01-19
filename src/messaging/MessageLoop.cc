@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <queue>
+#include <sstream>
 #include <vector>
 #include <utility>
 
@@ -67,17 +68,32 @@ int SignalGuard::getSfd()
 
 class MessageLoop::Impl {
 public:
+    Impl(zmq::context_t& context);
+
     void addSocket(
         std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
     bool run(int sfd);
+    zmq::socket_t createTerminationSubscriber();
 
 private:
+
+    std::string getTerminationPubSubEndpoint();
+
+    zmq::context_t& context;
+    zmq::socket_t terminationPublisher;
     std::vector<zmq::pollitem_t> pollitems {
         { nullptr, 0, ZMQ_POLLIN, 0 }
     };
     std::vector<
         std::pair<SocketCallback, std::shared_ptr<zmq::socket_t>>> callbacks;
 };
+
+MessageLoop::Impl::Impl(zmq::context_t& context) :
+    context {context},
+    terminationPublisher {context, zmq::socket_type::pub}
+{
+    terminationPublisher.bind(getTerminationPubSubEndpoint());
+}
 
 void MessageLoop::Impl::addSocket(
     std::shared_ptr<zmq::socket_t> socket, SocketCallback callback)
@@ -109,6 +125,7 @@ bool MessageLoop::Impl::run(int sfd)
         }
         log(LogLevel::DEBUG, "Signal received: %s", strsignal(fdsi.ssi_signo));
         if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+            terminationPublisher.send(&fdsi.ssi_signo, sizeof(fdsi.ssi_signo));
             return false;
         }
     }
@@ -124,7 +141,23 @@ bool MessageLoop::Impl::run(int sfd)
     return true;
 }
 
-MessageLoop::MessageLoop() : impl {std::make_unique<Impl>()}
+zmq::socket_t MessageLoop::Impl::createTerminationSubscriber()
+{
+    auto subscriber = zmq::socket_t {context, zmq::socket_type::sub};
+    subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+    subscriber.connect(getTerminationPubSubEndpoint());
+    return subscriber;
+}
+
+std::string MessageLoop::Impl::getTerminationPubSubEndpoint()
+{
+    std::ostringstream os;
+    os << "inproc://bridge.messageloop.term." << this;
+    return os.str();
+}
+
+MessageLoop::MessageLoop(zmq::context_t& context) :
+    impl {std::make_unique<Impl>(context)}
 {
 }
 
@@ -153,6 +186,12 @@ void MessageLoop::run()
             }
         }
     }
+}
+
+zmq::socket_t MessageLoop::createTerminationSubscriber()
+{
+    assert(impl);
+    return impl->createTerminationSubscriber();
 }
 
 }

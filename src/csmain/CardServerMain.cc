@@ -436,7 +436,8 @@ CardServerMain::Impl::Impl(
     const std::string& controlEndpoint, const std::string& basePeerEndpoint) :
     context {context},
     keys {std::move(keys)},
-    peerEndpointIterator {basePeerEndpoint}
+    peerEndpointIterator {basePeerEndpoint},
+    messageLoop {context}
 {
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::pair);

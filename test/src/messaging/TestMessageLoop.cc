@@ -65,7 +65,7 @@ protected:
     std::array<
         testing::StrictMock<Bridge::Messaging::MockMessageLoopCallback>,
         N_SOCKETS> callbacks;
-    Bridge::Messaging::MessageLoop loop;
+    Bridge::Messaging::MessageLoop loop {context};
 };
 
 TEST_F(MessageLoopTest, testSingleMessage)
@@ -103,6 +103,9 @@ TEST_F(MessageLoopTest, testTerminate)
                     std::raise(SIGTERM);
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1]))).Times(0);
+    auto termination_subscriber = loop.createTerminationSubscriber();
     sendMessage(frontSockets[0], OTHER_MSG);
     loop.run();
+    auto msg = zmq::message_t {};
+    EXPECT_TRUE(termination_subscriber.recv(&msg, ZMQ_DONTWAIT));
 }
