@@ -1,3 +1,4 @@
+#include "messaging/TerminationGuard.hh"
 #include "main/CallbackScheduler.hh"
 #include "CallbackSchedulerUtility.hh"
 
@@ -8,6 +9,7 @@
 #include <stdexcept>
 
 using namespace std::chrono_literals;
+using Bridge::Messaging::TerminationGuard;
 
 namespace {
 
@@ -22,7 +24,9 @@ class CallbackSchedulerTest : public testing::Test {
 protected:
     zmq::context_t context;
     MockCallback callback;
-    Bridge::Main::CallbackScheduler scheduler {context};
+    Bridge::Main::CallbackScheduler scheduler {
+        context, TerminationGuard::createTerminationSubscriber(context)};
+    TerminationGuard terminationGuard {context};
 };
 
 TEST_F(CallbackSchedulerTest, testCallOnce)

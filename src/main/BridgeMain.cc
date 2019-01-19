@@ -110,13 +110,13 @@ private:
     std::map<Identity, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     std::shared_ptr<zmq::socket_t> eventSocket;
-    std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
     std::shared_ptr<GameMessageHandler> dealMessageHandler {
         initializeGameMessageHandler()};
     std::shared_ptr<GameMessageHandler> getMessageHandler {
         initializeGameMessageHandler()};
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
+    std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
 };
@@ -126,7 +126,6 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
     nodePlayerControl {std::make_shared<NodePlayerControl>()},
     eventSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
-    callbackScheduler {std::make_shared<CallbackScheduler>(context)},
     messageQueue {
         {
             {
@@ -173,7 +172,10 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                 getMessageHandler
             }
         }},
-    messageLoop {context}
+    messageLoop {context},
+    callbackScheduler {
+        std::make_shared<CallbackScheduler>(
+            context, messageLoop.createTerminationSubscriber())}
 {
     const auto keys = this->config.getCurveConfig();
     auto endpointIterator = this->config.getEndpointIterator();

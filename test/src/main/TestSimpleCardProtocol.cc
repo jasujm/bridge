@@ -14,6 +14,7 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/TerminationGuard.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "Utility.hh"
 
@@ -107,12 +108,14 @@ protected:
     zmq::socket_t backSocket {context, zmq::socket_type::dealer};
     std::shared_ptr<zmq::socket_t> frontSocket;
     std::shared_ptr<CallbackScheduler> callbackScheduler {
-        std::make_shared<CallbackScheduler>(context)};
+        std::make_shared<CallbackScheduler>(
+            context, TerminationGuard::createTerminationSubscriber(context))};
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>(callbackScheduler)};
     SimpleCardProtocol protocol {GAME_UUID, peerCommandSender};
     std::shared_ptr<Messaging::MessageHandler> dealHandler {
         protocol.getDealMessageHandler()};
+    TerminationGuard terminationGuard {context};
 };
 
 TEST_F(SimpleCardProtocolTest, testLeader)

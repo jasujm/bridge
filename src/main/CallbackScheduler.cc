@@ -1,6 +1,7 @@
 #include "main/CallbackScheduler.hh"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <queue>
 #include <sstream>
@@ -47,28 +48,34 @@ bool operator<(const ScheduledCallback& cb1, const ScheduledCallback& cb2)
 }
 
 void callbackSchedulerWorker(
-    zmq::context_t& context, const std::string& bAddr, const std::string& fAddr)
+    zmq::context_t& context, const std::string& bAddr, const std::string& fAddr,
+    zmq::socket_t terminationSubscriber)
 {
     auto queue = std::priority_queue<ScheduledCallback> {};
     auto fs = zmq::socket_t {context, zmq::socket_type::pair};
     auto bs = zmq::socket_t {context, zmq::socket_type::pair};
     fs.connect(fAddr);
     bs.connect(bAddr);
-    auto pollitem = zmq::pollitem_t { static_cast<void*>(fs), 0, ZMQ_POLLIN, 0 };
+    auto pollitems = std::array {
+        zmq::pollitem_t {
+            static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
+        zmq::pollitem_t { static_cast<void*>(fs), 0, ZMQ_POLLIN, 0 },
+    };
     while (true) {
         // Poll until it's time to execute the next callback
         const auto next_timeout = millisecondsUntilCallback(queue);
-        static_cast<void>(zmq::poll(&pollitem, 1, next_timeout));
+        static_cast<void>(zmq::poll(pollitems.data(), pollitems.size(), next_timeout));
+        // Termination notification
+        if (pollitems[0].revents & ZMQ_POLLIN) {
+            break;
+        }
         // Poll didn't timeout -- there is new callback info to be received
-        if (pollitem.revents & ZMQ_POLLIN) {
+        else if (pollitems[1].revents & ZMQ_POLLIN) {
             const auto now = Clk::now();
             while (fs.getsockopt<std::uint32_t>(ZMQ_EVENTS) & ZMQ_POLLIN) {
                 auto info = CallbackInfo {};
-                const auto n_recv = fs.recv(&info, sizeof(info));
-                // Zero length message is the signal for terminating the thread
-                if (n_recv == 0) {
-                    return;
-                }
+                [[maybe_unused]] const auto n_recv = fs.recv(&info, sizeof(info));
+                assert(n_recv == sizeof(info));
                 // No need to schedule anything if there is no timeout
                 if (info.timeout == Ms::zero()) {
                     bs.send(&info.callback_id, sizeof(info.callback_id));
@@ -99,7 +106,8 @@ std::string generateSocketName(const std::string& prefix, const void* addr)
 
 }
 
-CallbackScheduler::CallbackScheduler(zmq::context_t& context) :
+CallbackScheduler::CallbackScheduler(
+    zmq::context_t& context, zmq::socket_t terminationSubscriber) :
     frontSocket {context, zmq::socket_type::pair},
     backSocket {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)},
@@ -111,12 +119,7 @@ CallbackScheduler::CallbackScheduler(zmq::context_t& context) :
     frontSocket.bind(front_name);
     worker = Thread {
         callbackSchedulerWorker, std::ref(context), std::move(back_name),
-        std::move(front_name) };
-}
-
-CallbackScheduler::~CallbackScheduler()
-{
-    frontSocket.send(zmq::message_t {});
+        std::move(front_name), std::move(terminationSubscriber) };
 }
 
 void CallbackScheduler::callOnce(Callback callback, const Ms timeout)

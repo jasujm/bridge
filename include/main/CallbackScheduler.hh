@@ -26,8 +26,10 @@ namespace Main {
  * registering a socket that is internally use to notify a CallbackScheduler
  * object of callbacks to be executed.
  *
- * CallbackScheduler creates a thread on creation and joins it on
- * destruction. This thread is required to support delayed callbacks.
+ * CallbackScheduler creates a thread in the constructor and joins it in the
+ * destructor. In order to properly terminate the thread, a termination
+ * notification must be sent before entering the destructor. The thread is
+ * required to support delayed callbacks.
  */
 class CallbackScheduler : private boost::noncopyable {
 public:
@@ -39,10 +41,12 @@ public:
     /** \brief Create new callback scheduler
      *
      * \param context ZeroMQ context
+     * \param terminationSubscriber Socket that will receive notification about
+     * termination of the thread
      */
-    CallbackScheduler(zmq::context_t& context);
-
-    ~CallbackScheduler();
+    CallbackScheduler(
+        zmq::context_t& context,
+        zmq::socket_t terminationSubscriber);
 
     /** \brief Schedule new callback
      *

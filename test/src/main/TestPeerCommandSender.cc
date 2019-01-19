@@ -1,5 +1,6 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/Replies.hh"
+#include "messaging/TerminationGuard.hh"
 #include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"
 #include "CallbackSchedulerUtility.hh"
@@ -18,6 +19,7 @@ using Bridge::Main::PeerCommandSender;
 using Bridge::Messaging::MockSerializationPolicy;
 using Bridge::Messaging::recvMessage;
 using Bridge::Messaging::sendMessage;
+using Bridge::Messaging::TerminationGuard;
 
 namespace {
 using namespace std::string_literals;
@@ -90,8 +92,10 @@ protected:
     }};
     std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets;
     std::shared_ptr<CallbackScheduler> callbackScheduler {
-        std::make_shared<CallbackScheduler>(context)};
+        std::make_shared<CallbackScheduler>(
+            context, TerminationGuard::createTerminationSubscriber(context))};
     PeerCommandSender sender {callbackScheduler};
+    TerminationGuard terminationGuard {context};
 };
 
 TEST_F(PeerCommandSenderTest, testSendToAll)
