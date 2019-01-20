@@ -1,6 +1,6 @@
 /** \file
  *
- * \brief Definition of Bridge::Identity
+ * \brief Definition of Bridge::Messaging::Identity
  */
 
 #ifndef MESSAGING_IDENTITY_HH_

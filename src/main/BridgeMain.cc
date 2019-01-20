@@ -14,6 +14,7 @@
 #include "main/GetMessageHandler.hh"
 #include "main/NodePlayerControl.hh"
 #include "main/PeerCommandSender.hh"
+#include "messaging/Authenticator.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
@@ -116,6 +117,7 @@ private:
         initializeGameMessageHandler()};
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
+    Messaging::Authenticator authenticator;
     std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
@@ -173,10 +175,12 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
             }
         }},
     messageLoop {context},
+    authenticator {context, messageLoop.createTerminationSubscriber()},
     callbackScheduler {
         std::make_shared<CallbackScheduler>(
             context, messageLoop.createTerminationSubscriber())}
 {
+    authenticator.ensureRunning();
     const auto keys = this->config.getCurveConfig();
     auto endpointIterator = this->config.getEndpointIterator();
     auto controlSocket = std::make_shared<zmq::socket_t>(

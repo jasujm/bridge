@@ -16,6 +16,7 @@
 #include <zmq.hpp>
 
 #include <iterator>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -97,26 +98,58 @@ void sendMultipart(
     }
 }
 
+/** \brief Ignore the rest of the message
+ *
+ * This function repeatedly receives message parts from \p socket until there
+ * are no more parts in the current message. The parts are immediately
+ * discarded. At least one part is always received.
+ *
+ * \return number of frames discarded
+ */
+inline int discardMessage(zmq::socket_t& socket)
+{
+    auto n_parts = 0;
+    char buf[0];
+    do {
+        static_cast<void>(socket.recv(&buf, 0));
+        ++n_parts;
+    } while (socket.getsockopt<int>(ZMQ_RCVMORE));
+    return n_parts;
+}
+
 /** \brief Receive multipart ZMQ message as individual frames
  *
  * This function receives as many frames from \p socket as the next message
- * contains and writes them to \p out.
+ * contains and writes them to \p out. The caller may specify maximum number of
+ * parts received. If this limit is reached, the rest of the message is
+ * discarded. This may be useful for example in case where \p out points to a
+ * range capable of holding a limited number of messages only.
  *
  * \tparam MessageIterator output iterator accepting zmq::message_t objects
  *
  * \param socket the socket
  * \param out the output iterator the frames are written to
+ * \param maximumParts the maximum number of parts to receive
+ *
+ * \return number of parts received, including the ignored parts
  */
 template<typename MessageIterator>
-void recvMultipart(zmq::socket_t& socket, MessageIterator out)
+std::pair<MessageIterator, int> recvMultipart(
+    zmq::socket_t& socket, MessageIterator out, int maximumParts = std::numeric_limits<int>::max())
 {
+    auto n_parts = 0;
     auto more = true;
-    while (more) {
+    while (more && n_parts < maximumParts) {
         auto next_message = zmq::message_t {};
         socket.recv(&next_message);
         more = next_message.more();
         *out++ = std::move(next_message);
+        ++n_parts;
     }
+    if (more) {
+        n_parts += discardMessage(socket);
+    }
+    return {out, n_parts};
 }
 
 /** \brief Get view to the bytes \p message consists of

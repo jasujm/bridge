@@ -9,6 +9,7 @@
 #include "bridge/BridgeConstants.hh"
 #include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
+#include "messaging/Authenticator.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
@@ -429,6 +430,7 @@ private:
     const EndpointIterator peerEndpointIterator;
     std::optional<TMCG> tmcg;
     Messaging::MessageLoop messageLoop;
+    Messaging::Authenticator authenticator;
 };
 
 CardServerMain::Impl::Impl(
@@ -437,7 +439,8 @@ CardServerMain::Impl::Impl(
     context {context},
     keys {std::move(keys)},
     peerEndpointIterator {basePeerEndpoint},
-    messageLoop {context}
+    messageLoop {context},
+    authenticator {context, messageLoop.createTerminationSubscriber()}
 {
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::pair);
