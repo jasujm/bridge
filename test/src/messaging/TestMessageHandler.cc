@@ -19,8 +19,9 @@ using testing::Return;
 using testing::StrictMock;
 
 namespace {
-const auto IDENTITY = Bridge::Messaging::Identity {
-    std::byte {123}, std::byte {32} };
+using namespace Bridge::BlobLiterals;
+using namespace std::string_literals;
+const auto IDENTITY = Bridge::Messaging::Identity { ""s, "identity"_B };
 const auto PARAMS = std::array {
     Blob { std::byte {23} },
     Blob { std::byte {34} },

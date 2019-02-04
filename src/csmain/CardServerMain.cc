@@ -157,7 +157,7 @@ public:
         PeerVector&& peers, EndpointIterator peerEndpointIterator);
 
     bool shuffle();
-    bool reveal(const Identity& identity, const IndexVector& ns);
+    bool reveal(const Blob& peerId, const IndexVector& ns);
     bool revealAll(const IndexVector& ns);
     bool draw(const IndexVector& ns);
 
@@ -175,7 +175,7 @@ private:
         Messaging::MessageBuffer outbuffer;
         std::istream instream;
         std::ostream outstream;
-        Identity identity;
+        Blob peerId;
     };
 
     bool revealHelper(PeerStreamEntry& peer, const IndexVector& ns);
@@ -195,7 +195,7 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     outbuffer {socket},
     instream(&inbuffer),
     outstream(&outbuffer),
-    identity {std::move(entry.identity)}
+    peerId {std::move(entry.id)}
 {
     if (entry.endpoint) {
         Messaging::setupCurveClient(
@@ -295,7 +295,7 @@ bool TMCG::shuffle()
                     peer->instream, peer->outstream)) {
                 log(LogLevel::WARNING,
                     "Failed to verify stack equality. Prover: %s",
-                    formatHex(peer->identity));
+                    formatHex(peer->peerId));
                 return false;
             }
         } else {
@@ -319,13 +319,13 @@ bool TMCG::shuffle()
     return true;
 }
 
-bool TMCG::reveal(const Identity& identity, const IndexVector& ns)
+bool TMCG::reveal(const Blob& peerId, const IndexVector& ns)
 {
     const auto iter = std::find_if(
         peers.begin(), peers.end(),
-        [&identity](const auto& peer)
+        [&peerId](const auto& peer)
         {
-            return peer && peer->identity == identity;
+            return peer && peer->peerId == peerId;
         });
     if (iter != peers.end()) {
         assert(*iter);
@@ -371,7 +371,7 @@ bool TMCG::draw(const IndexVector& ns)
                         card, p_vtmf, peer->instream, peer->outstream)) {
                     log(LogLevel::WARNING,
                         "Failed to verify card secret. Prover: %s",
-                        formatHex(peer->identity));
+                        formatHex(peer->peerId));
                     return false;
                 }
             }
@@ -422,7 +422,7 @@ private:
     Reply<> shuffle(const Identity&);
     Reply<CardVector> draw(const Identity&, const IndexVector& ns);
     Reply<> reveal(
-        const Identity&, const Identity& identity, const IndexVector& ns);
+        const Identity&, const Blob& peerId, const IndexVector& ns);
     Reply<CardVector> revealAll(const Identity&, const IndexVector& ns);
 
     zmq::context_t& context;
@@ -529,11 +529,11 @@ Reply<CardVector> CardServerMain::Impl::draw(
 }
 
 Reply<> CardServerMain::Impl::reveal(
-    const Identity&, const Identity& identity, const IndexVector& ns)
+    const Identity&, const Blob& peerId, const IndexVector& ns)
 {
     log(LogLevel::DEBUG, "Revealing %d cards to %s", ns.size(),
-        formatHex(identity));
-    if (tmcg && tmcg->reveal(identity, ns)) {
+        formatHex(peerId));
+    if (tmcg && tmcg->reveal(peerId, ns)) {
         return success();
     }
     log(LogLevel::WARNING, "Revealing failed");

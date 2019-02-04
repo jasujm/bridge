@@ -7,7 +7,6 @@
 #define CARDSERVER_PEERENTRY_HH_
 
 #include "Blob.hh"
-#include "messaging/Identity.hh"
 
 #include <boost/operators.hpp>
 
@@ -28,7 +27,7 @@ namespace CardServer {
  * \sa \ref cardserverprotocol
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
-    Messaging::Identity identity;         ///< \brief Peer identity
+    Blob id;   ///< \brief Opaque object identifying the peer
     std::optional<std::string> endpoint;  ///< \brief Card server endpoint
     std::optional<Blob> serverKey;        ///< \brief The CurveZMQ server key
 
@@ -36,12 +35,12 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
 
     /** \brief Create new peer entry
      *
-     * \param identity see \ref identity
+     * \param id see \ref id
      * \param endpoint see \ref endpoint
      * \param serverKey see \ref serverKey
      */
     explicit PeerEntry(
-        Messaging::Identity identity,
+        Blob id,
         std::optional<std::string> endpoint = std::nullopt,
         std::optional<Blob> serverKey = std::nullopt);
 };

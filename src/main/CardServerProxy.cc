@@ -130,13 +130,13 @@ struct RevealAllSuccessfulEvent :
 
 struct PeerPosition {
     PeerPosition(
-        std::optional<Identity> identity, PositionVector positions) :
-        identity {std::move(identity)},
+        std::optional<Blob> id, PositionVector positions) :
+        id {std::move(id)},
         positions {std::move(positions)}
     {
     }
 
-    std::optional<Identity> identity;
+    std::optional<Blob> id;
     PositionVector positions;
 };
 
@@ -277,12 +277,12 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
     for (const auto& peer : peerPositions) {
         auto deckNs = cardsFor(
             peer.positions.begin(), peer.positions.end());
-        if (peer.identity) {
+        if (peer.id) {
             log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
-                formatHex(*peer.identity));
+                formatHex(*peer.id));
             sendCommand(
                 CardServer::REVEAL_COMMAND,
-                std::tie(CardServer::ID_COMMAND, *peer.identity),
+                std::tie(CardServer::ID_COMMAND, peer.id),
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
         } else {
             log(LogLevel::DEBUG, "Card server proxy: Drawing cards");
@@ -485,7 +485,7 @@ bool Initializing::internalAddPeer(
             std::piecewise_construct,
             std::forward_as_tuple(std::move(positions)),
             std::forward_as_tuple(
-                identity, std::move(endpoint), std::move(serverKey)));
+                identity.routingId, std::move(endpoint), std::move(serverKey)));
         return true;
     }
     return false;
@@ -512,7 +512,7 @@ void Initializing::internalInitCardServer()
             peers.emplace_back(std::move(entry));
             ++order;
         } else {
-            peers.emplace_back(std::move(entry.identity));
+            peers.emplace_back(std::move(entry.id));
         }
     }
     // Send initialization and the initial shuffle commands
@@ -530,7 +530,7 @@ void Initializing::internalInitCardServer()
         } else {
             const auto n2 = n - (n > order);
             auto&& positions = this->peers[n2].first;
-            impl.emplacePeer(peers[n2].identity, std::move(positions));
+            impl.emplacePeer(peers[n2].id, std::move(positions));
         }
     }
 }

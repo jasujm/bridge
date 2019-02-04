@@ -38,6 +38,7 @@ using namespace Bridge::Messaging;
 using testing::ElementsAre;
 
 using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
 
 using CardVector = std::vector<CardType>;
 
@@ -70,8 +71,8 @@ MATCHER(IsShuffledDeck, "")
 }
 
 const auto ENDPOINT = "inproc://test"s;
-const auto LEADER = Identity { std::byte {123}, std::byte {32} };
-const auto PEER = Identity { std::byte {234}, std::byte {43} };
+const auto LEADER = Identity { ""s, "leader"_B };
+const auto PEER = Identity { ""s, "peer"_B };
 
 boost::uuids::string_generator STRING_GENERATOR;
 const auto GAME_UUID = STRING_GENERATOR("0650f2b2-f9d3-411a-99b2-ddb703065265");

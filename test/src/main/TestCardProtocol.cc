@@ -27,9 +27,10 @@ protected:
 
 TEST_P(CardProtocolTest, testAcceptPeer)
 {
+    using namespace Bridge::BlobLiterals;
+    using namespace std::string_literals;
     const auto success = GetParam();
-    const auto identity = Bridge::Messaging::Identity {
-        std::byte {123}, std::byte {32} };
+    const auto identity = Bridge::Messaging::Identity { ""s, "identity"_B };
     const auto positions = CardProtocol::PositionVector {
         Bridge::Position::NORTH, Bridge::Position::SOUTH};
     const auto args = std::make_optional(nlohmann::json {123});

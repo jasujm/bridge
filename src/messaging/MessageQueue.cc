@@ -41,7 +41,7 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     auto input_frames = MessageVector {};
     recvMultipart(socket, std::back_inserter(input_frames));
 
-    auto identity_view = ByteSpan {};
+    auto* identity_msg = static_cast<zmq::message_t*>(nullptr);
     auto first_payload_frame = input_frames.begin();
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     if (type == zmq::socket_type::router) {
@@ -52,7 +52,7 @@ void MessageQueue::operator()(zmq::socket_t& socket)
         if (first_payload_frame == input_frames.begin()) {
             return;
         }
-        identity_view = messageView(first_payload_frame[-1]);
+        identity_msg = &first_payload_frame[-1];
         // If the empty frame is missing, silently drop it and don't reply
         if (first_payload_frame == input_frames.end()) {
             return;
@@ -71,7 +71,7 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     if (command_handler_entry != handlers.end()) {
         auto& handler = dereference(command_handler_entry->second);
         success = handler.handle(
-            Identity(identity_view.begin(), identity_view.end()),
+            identityFromMessage(*first_payload_frame, identity_msg),
             first_payload_frame+1, input_frames.end(),
             [&output_frames](const auto& bytes)
             {

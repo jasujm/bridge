@@ -56,6 +56,7 @@ using Bridge::Messaging::JsonSerializer;
 using testing::NiceMock;
 using testing::ReturnPointee;
 
+using namespace Bridge::BlobLiterals;
 using namespace Bridge::Main;
 
 using StringVector = std::vector<std::string>;
@@ -63,16 +64,18 @@ using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using OptionalCardVector = std::vector<std::optional<Bridge::CardType>>;
 
+using namespace std::string_literals;
+
 boost::uuids::string_generator STRING_GENERATOR;
 const auto VALID_GAME = STRING_GENERATOR(
     "884b458d-1e8f-4734-b997-4bb206497d8d");
 const auto INVALID_GAME = STRING_GENERATOR(
     "b4c36d82-a19c-488e-9ed7-36095dc90598");
 
-const auto PLAYER1 = Identity { std::byte {1} };
-const auto PLAYER2 = Identity { std::byte {2} };
-const auto PLAYER3 = Identity { std::byte {3} };
-const auto PLAYER4 = Identity { std::byte {4} };
+const auto PLAYER1 = Identity { ""s, "player1"_B };
+const auto PLAYER2 = Identity { ""s, "player2"_B };
+const auto PLAYER3 = Identity { ""s, "player3"_B };
+const auto PLAYER4 = Identity { ""s, "player4"_B };
 
 std::array<Call, 4> CALLS {{
     Bridge::Bid {1, Bridge::Strain::CLUBS},

@@ -9,9 +9,9 @@ namespace Bridge {
 namespace CardServer {
 
 PeerEntry::PeerEntry(
-    Messaging::Identity identity, std::optional<std::string> endpoint,
+    Blob id, std::optional<std::string> endpoint,
     std::optional<Blob> serverKey) :
-    identity {std::move(identity)},
+    id {std::move(id)},
     endpoint {std::move(endpoint)},
     serverKey {std::move(serverKey)}
 {
@@ -19,13 +19,13 @@ PeerEntry::PeerEntry(
 
 bool operator==(const PeerEntry& lhs, const PeerEntry& rhs)
 {
-    return std::tie(lhs.identity, lhs.endpoint, lhs.serverKey) ==
-        std::tie(rhs.identity, rhs.endpoint, rhs.serverKey);
+    return std::tie(lhs.id, lhs.endpoint, lhs.serverKey) ==
+        std::tie(rhs.id, rhs.endpoint, rhs.serverKey);
 }
 
 std::ostream& operator<<(std::ostream& os, const PeerEntry& entry)
 {
-    os << formatHex(entry.identity);
+    os << formatHex(entry.id);
     if (entry.endpoint) {
         os << " " << *entry.endpoint;
     }

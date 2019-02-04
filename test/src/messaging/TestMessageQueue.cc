@@ -20,13 +20,13 @@ using namespace Bridge::Messaging;
 using testing::_;
 using testing::ElementsAre;
 using testing::Invoke;
-using testing::IsEmpty;
 using testing::Return;
 
 using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
 
 namespace {
-const auto IDENTITY = Identity { std::byte {123}, std::byte {32} };
+const auto IDENTITY = Identity { ""s, "identity"_B };
 const auto PARAM1 = Blob { std::byte {123} };
 const auto PARAM2 = Blob { std::byte {32} };
 const auto ENDPOINT = "inproc://testing"s;
@@ -39,7 +39,8 @@ protected:
     virtual void SetUp()
     {
         backSocket.bind(ENDPOINT);
-        frontSocket.setsockopt(ZMQ_IDENTITY, IDENTITY.data(), IDENTITY.size());
+        frontSocket.setsockopt(
+            ZMQ_IDENTITY, IDENTITY.routingId.data(), IDENTITY.routingId.size());
         frontSocket.connect(ENDPOINT);
     }
 
@@ -136,7 +137,7 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     repSocket.bind(ENDPOINT);
     frontSocket.connect(ENDPOINT);
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IsEmpty(), ElementsAre(), _))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(Identity {}, ElementsAre(), _))
         .WillOnce(Return(true));
 
     sendMessage(frontSocket, COMMAND, false);

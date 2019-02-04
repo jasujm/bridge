@@ -15,8 +15,6 @@
 #include <boost/noncopyable.hpp>
 #include <zmq.hpp>
 
-#include <string>
-
 namespace Bridge {
 namespace Messaging {
 
@@ -39,7 +37,7 @@ public:
 
     /** \brief Mapping between public keys and node identities
      */
-    using NodeMap = BlobMap<std::string>;
+    using NodeMap = BlobMap<UserId>;
 
     /** \brief Create authenticator
      *

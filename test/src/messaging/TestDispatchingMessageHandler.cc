@@ -22,7 +22,7 @@ using Bridge::stringToBlob;
 using namespace std::string_literals;
 using namespace Bridge::BlobLiterals;
 
-const auto IDENTITY = "identity"_B;
+const auto IDENTITY = Bridge::Messaging::Identity {""s, "identity"_B};
 const auto KEY = "key"_B;
 const auto HANDLER1 = "handler1"s;
 const auto HANDLER2 = "handler2"s;

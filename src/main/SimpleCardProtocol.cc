@@ -13,7 +13,6 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
-#include "HexUtility.hh"
 #include "Logging.hh"
 
 #include <algorithm>
@@ -104,7 +103,7 @@ bool SimpleCardProtocol::Impl::acceptPeer(
 Reply<> SimpleCardProtocol::Impl::deal(
     const Identity& identity, const CardVector& cards)
 {
-    log(LogLevel::DEBUG, "Deal command from %s", formatHex(identity));
+    log(LogLevel::DEBUG, "Deal command from %s", identity);
     if (expectingCards && leaderIdentity == identity) {
         cardManager->shuffle(cards.begin(), cards.end());
         expectingCards = false;

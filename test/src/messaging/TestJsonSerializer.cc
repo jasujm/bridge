@@ -39,14 +39,15 @@ using nlohmann::json;
 
 using namespace std::string_literals;
 using namespace std::string_view_literals;
+using namespace Bridge::BlobLiterals;
 
 namespace {
 const auto BID = Bid {4, Strain::HEARTS};
 const auto CONTRACT = Contract {BID, Doubling::DOUBLED};
 const auto VULNERABILITY = Vulnerability {true, false};
 const auto TRICKS_WON = TricksWon {5, 6};
-const auto PEER_IDENTITY = Identity { std::byte {123}, std::byte {32} };
-const auto PEER_IDENTITY_HEX = "7b20"s;
+const auto PEER_IDENTITY = "peer"_B;
+const auto PEER_IDENTITY_HEX = "70656572"s;
 const auto PEER_ENDPOINT = "inproc://test"s;
 const auto PEER_SERVER_KEY = decodeKey(
     "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv);

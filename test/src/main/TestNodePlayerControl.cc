@@ -8,10 +8,10 @@
 #include <string>
 
 namespace {
-const auto NODE = Bridge::Messaging::Identity {
-    std::byte {123}, std::byte {32} };
-const auto OTHER_NODE = Bridge::Messaging::Identity {
-    std::byte {234}, std::byte {43} };
+using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
+const auto NODE = Bridge::Messaging::Identity { ""s, "node"_B };
+const auto OTHER_NODE = Bridge::Messaging::Identity { ""s, "other"_B };
 boost::uuids::string_generator STRING_GENERATOR;
 }
 

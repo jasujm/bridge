@@ -94,7 +94,7 @@ public:
      *
      * \note MessageQueue passes the identity received from the socket as
      * argument to the MessageHandler instances. If \p socket is not router, the
-     * identity passed to the message handler is always an empty blob.
+     * Identity::routingId is always an empty blob.
      *
      * \param socket the socket the message is received from and the reply is
      * sent to

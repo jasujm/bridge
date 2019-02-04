@@ -46,7 +46,8 @@ std::ostream& operator<<(
 namespace {
 
 using namespace std::string_literals;
-const auto IDENTITY = Identity { std::byte {123}, std::byte {32} };
+using namespace Bridge::BlobLiterals;
+const auto IDENTITY = Identity { ""s, "identity"_B };
 const auto KEY1 = "key1"s;
 const auto KEY2 = "key2"s;
 const auto REPLY_KEY1 = "replykey1"s;
