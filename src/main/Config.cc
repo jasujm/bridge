@@ -16,6 +16,7 @@
 #include <optional>
 #include <stdexcept>
 
+#include <boost/format.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/string_generator.hpp>
 
@@ -296,6 +297,7 @@ public:
     Messaging::EndpointIterator getEndpointIterator() const;
     const Messaging::CurveKeys* getCurveConfig() const;
     const GameConfigVector& getGameConfigs() const;
+    const Messaging::Authenticator::NodeMap& getKnownPeers() const;
 
 private:
 
@@ -306,6 +308,7 @@ private:
         DEFAULT_BIND_ADDRESS, DEFAULT_BIND_BASE_ENDPOINT};
     std::optional<Messaging::CurveKeys> curveConfig {};
     GameConfigVector gameConfigs {};
+    Messaging::Authenticator::NodeMap knownPeers {};
 };
 
 Config::Impl::Impl() = default;
@@ -330,6 +333,20 @@ Config::Impl::Impl(std::istream& in)
 
     createBaseEndpointConfig(lua.get());
     createCurveConfig(lua.get());
+
+    for (const auto& game_config : gameConfigs) {
+        for (const auto& peer : game_config.peers) {
+            if (!peer.serverKey.empty()) {
+                const auto [peer_iter, created] =
+                    knownPeers.try_emplace(peer.serverKey);
+                if (created) {
+                    const auto user_id =
+                        boost::format("peer%1%") % knownPeers.size();
+                    peer_iter->second = user_id.str();
+                }
+            }
+        }
+    }
 
     log(LogLevel::INFO, "Reading configs completed");
 }
@@ -369,6 +386,11 @@ const Config::GameConfigVector& Config::Impl::getGameConfigs() const
     return gameConfigs;
 }
 
+const Messaging::Authenticator::NodeMap& Config::Impl::getKnownPeers() const
+{
+    return knownPeers;
+}
+
 Config::Config() :
     impl {std::make_unique<Impl>()}
 {
@@ -401,6 +423,12 @@ const Config::GameConfigVector& Config::getGameConfigs() const
 {
     assert(impl);
     return impl->getGameConfigs();
+}
+
+const Messaging::Authenticator::NodeMap& Config::getKnownPeers() const
+{
+    assert(impl);
+    return impl->getKnownPeers();
 }
 
 Config configFromPath(const std::string_view path)

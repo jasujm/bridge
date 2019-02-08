@@ -3,6 +3,7 @@
  * \brief Definition of Bridge::Main::Config class
  */
 
+#include "messaging/Authenticator.hh"
 #include "messaging/Security.hh"
 
 #include <iosfwd>
@@ -80,6 +81,12 @@ public:
      * \return reference to bridge game configs
      */
     const GameConfigVector& getGameConfigs() const;
+
+    /** \brief Get known peers
+     *
+     * \return mapping from known peer public keys to their user IDs
+     */
+    const Messaging::Authenticator::NodeMap& getKnownPeers() const;
 
 private:
 

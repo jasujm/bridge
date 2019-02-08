@@ -176,14 +176,18 @@ game {
     const auto config = Config {in};
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
+    const auto decoded_key =
+        decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv);
     const auto expected_peers = std::vector {
         BridgeGameConfig::PeerConfig {
             "test-endpoint-1"s,
-            decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv)
+            decoded_key
         },
         BridgeGameConfig::PeerConfig { "test-endpoint-2"s, {} },
     };
     EXPECT_EQ(expected_peers, games.front().peers);
+    const auto& known_peers = config.getKnownPeers();
+    EXPECT_TRUE(known_peers.find(decoded_key) != known_peers.end());
 }
 
 TEST_F(ConfigTest, testParseGameConfigPeersInvalidPeer)

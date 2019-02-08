@@ -174,7 +174,9 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
             }
         }},
     messageLoop {context},
-    authenticator {context, messageLoop.createTerminationSubscriber()},
+    authenticator {
+        context, messageLoop.createTerminationSubscriber(),
+        this->config.getKnownPeers()},
     callbackScheduler {
         std::make_shared<CallbackScheduler>(
             context, messageLoop.createTerminationSubscriber())}
