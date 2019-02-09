@@ -183,8 +183,15 @@ The card server acts both as server and client, and needs both keys
 The current implementation requires that a bridge backend and its card server
 must share the same CURVE keypair.
 
-The backend performs no authentication of the peers and clients connecting to
-it. Clients authenticate the server.
+The backend partially authenticates peers connecting to it by checking that only
+peers with known public keys (those that are known to belong to peers taking
+part in the game) are allowed to join a game. Connections from clients are not
+authenticated.
+
+Card server does not currently authenticate incoming connections.
+
+All clients, peers and card servers authenticate outgoing connections as part of
+the ZeroMQ CURVE mechanism.
 
 Please see LibTMCG documentation for further information about its security
 model and assumptions, in particular the honest‐but‐curious security model.
@@ -206,7 +213,7 @@ for this project are:
 
 ## Copyright
 
-Copyright © 2015–2018 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2019 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
