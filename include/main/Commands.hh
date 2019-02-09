@@ -239,6 +239,10 @@
  * }
  * \endcode
  *
+ * The peer MAY reject a client or other peer from setting up a game. A possible
+ * reason for rejection is an unknown peer trying to take part in a game. If
+ * rejected, the command MUST fail without effect.
+ *
  * \todo The card exchange protocol is now fixed per instance. It should instead
  * be negotiable on game basis.
  *
@@ -260,12 +264,10 @@
  * The game argument is the UUID of the game being joined. Clients MAY omit it
  * in which case the peer SHOULD select an available game for the client.
  *
- * Clients SHOULD only join once per game and a peer MAY reject multiple join
- * commands from a single client. A client MAY omit the player argument. If
- * omitted, the peer SHOULD generate UUID for the player controlled by a newly
- * joining node. A client MAY use position argument to announce the preferred
- * position in the game. If not present, the peer MUST choose any free position
- * for the client.
+ * A client MAY omit the player argument. If omitted, the peer SHOULD generate
+ * UUID for the player controlled by a newly joining node. A client MAY use
+ * position argument to announce the preferred position in the game. If not
+ * present, the peer MUST choose any free position for the client.
  *
  * Peers MUST provide both player and position arguments. The position MUST be
  * one of the positions the peer has reserved in the previous game command. The
@@ -278,6 +280,9 @@
  * the position is occupied by some other player, the command is coming from a
  * peer who has not reserved the position, or the command is coming from a peer
  * requesting a position the peer itself has not reserved.
+ *
+ * The peer MAY reject a client or other peer from joining the game. If
+ * rejected, the command MUST fail without effect.
  *
  * \subsection bridgeprotocolcontrolget get
  *
