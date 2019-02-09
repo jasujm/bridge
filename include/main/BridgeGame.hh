@@ -55,6 +55,10 @@ public:
      */
     using PositionSet = std::set<Position>;
 
+    /** \brief Set of user identities
+     */
+    using IdentitySet = std::set<Messaging::UserId>;
+
     /** \brief Create new bridge game
      *
      * The client who creates an instance of BridgeGame is responsible for
@@ -64,6 +68,10 @@ public:
      * PeerCommandSender. It’s not necessary for the peers to have initiated
      * their handshake and have been accepted.
      *
+     * If \p participants is a non‐empty set, all peers added to the game will
+     * be matched against the set. Only the known peers are allowed to join the
+     * game.
+     *
      * \param uuid the UUID of the game
      * \param positionsControlled the positions controlled by the node
      * \param eventSocket ZeroMQ socket used to publish events about the game
@@ -72,6 +80,7 @@ public:
      * \param peerCommandSender the peer command sender object used to send
      * commands to the peers taking part in the game
      * \param callbackScheduler a callback scheduler object
+     * \param participants list of known participants
      */
     BridgeGame(
         const Uuid& uuid,
@@ -79,7 +88,8 @@ public:
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
-        std::shared_ptr<CallbackScheduler> callbackScheduler);
+        std::shared_ptr<CallbackScheduler> callbackScheduler,
+        IdentitySet participants);
 
     /** \brief Create new bridge game without peers
      *
@@ -108,6 +118,9 @@ public:
      * bridgeprotocolcontrolgame command in the bridge protocol. The call
      * returns true if the peer is successfully accepted, or false if not, in
      * which case the call has no effect.
+     *
+     * If a list of participants was provided for the game, a peer is only
+     * allowed to join the game if their user ID is in the participants list.
      *
      * \param identity the identity of the peer
      * \param args arguments for initializing the game (parameter to \ref

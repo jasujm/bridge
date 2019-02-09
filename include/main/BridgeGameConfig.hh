@@ -9,6 +9,7 @@
 
 #include "bridge/Uuid.hh"
 #include "bridge/Position.hh"
+#include "messaging/Authenticator.hh"
 #include "Blob.hh"
 
 #include <boost/operators.hpp>
@@ -93,13 +94,15 @@ bool operator==(
  * \param eventSocket the event socket passed to BridgeGame constructor
  * \param callbackScheduler the callback scheduler passed to BridgeGame
  *        constructor
+ * \param knownPeers the mapping of known peer public keys and their identities
  */
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
     zmq::context_t& context,
     const Messaging::CurveKeys* keys,
     std::shared_ptr<zmq::socket_t> eventSocket,
-    std::shared_ptr<CallbackScheduler> callbackScheduler);
+    std::shared_ptr<CallbackScheduler> callbackScheduler,
+    const Messaging::Authenticator::NodeMap& knownPeers);
 
 }
 }

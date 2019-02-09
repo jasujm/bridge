@@ -50,7 +50,8 @@ BridgeGame gameFromConfig(
     zmq::context_t& context,
     const Messaging::CurveKeys* keys,
     std::shared_ptr<zmq::socket_t> eventSocket,
-    std::shared_ptr<CallbackScheduler> callbackScheduler)
+    std::shared_ptr<CallbackScheduler> callbackScheduler,
+    const Messaging::Authenticator::NodeMap& knownPeers)
 {
     if (config.peers.empty()) {
         log(LogLevel::INFO, "Configuring game %s, no peers", config.uuid);
@@ -62,9 +63,13 @@ BridgeGame gameFromConfig(
             config.cardServer ? "card server" : "simple");
         auto peer_command_sender =
             std::make_shared<PeerCommandSender>(callbackScheduler);
+        auto participants = BridgeGame::IdentitySet {};
         for (const auto& peer : config.peers) {
             peer_command_sender->addPeer(
                 context, peer.endpoint, keys, peer.serverKey);
+            if (!peer.serverKey.empty()) {
+                participants.emplace(knownPeers.at(peer.serverKey));
+            }
         }
         peer_command_sender->sendCommand(
             Messaging::JsonSerializer {},
@@ -104,7 +109,7 @@ BridgeGame gameFromConfig(
         return {
             config.uuid, std::move(positions), std::move(eventSocket),
             std::move(card_protocol), std::move(peer_command_sender),
-            std::move(callbackScheduler)};
+            std::move(callbackScheduler), std::move(participants)};
     }
 }
 

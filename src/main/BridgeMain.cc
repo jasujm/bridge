@@ -196,7 +196,8 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
         const auto emplaced_game = games.emplace(
             uuid,
             gameFromConfig(
-                gameConfig, context, keys, eventSocket, callbackScheduler));
+                gameConfig, context, keys, eventSocket, callbackScheduler,
+                this->config.getKnownPeers()));
         if (emplaced_game.second) {
             auto& game = emplaced_game.first->second;
             availableGames.emplace(uuid, &game);
