@@ -7,6 +7,7 @@ endmacro()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_subdirectory(main)
+add_subdirectory(coroutines)
 add_subdirectory(messaging)
 add_subdirectory(cardserver)
 add_subdirectory(engine)
