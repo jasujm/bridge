@@ -358,13 +358,11 @@ BridgeEngine& BridgeGame::Impl::getEngine()
 
 PeerCommandSender* BridgeGame::Impl::getPeerCommandSender()
 {
-    assert(peerCommandSender);
     return peerCommandSender.get();
 }
 
 CardProtocol* BridgeGame::Impl::getCardProtocol()
 {
-    assert(cardProtocol);
     return cardProtocol.get();
 }
 
