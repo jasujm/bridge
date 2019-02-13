@@ -4,8 +4,8 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <queue>
 #include <sstream>
+#include <variant>
 #include <vector>
 #include <utility>
 
@@ -17,21 +17,64 @@ namespace Messaging {
 
 namespace {
 
-class SignalGuard {
-public:
-    SignalGuard();
-    ~SignalGuard();
+using SocketCallbackPair = std::pair<
+    MessageLoop::SocketCallback, std::shared_ptr<zmq::socket_t>>;
+using FdCallbackPair = std::pair<std::function<void(int)>, int>;
+using CallbackPair = std::variant<SocketCallbackPair, FdCallbackPair>;
 
-    int getSfd();
-
-private:
-    sigset_t mask {};
-    sigset_t oldMask {};
-    int sfd {};
+struct CallbackVisitor {
+    void operator()(SocketCallbackPair& cb)
+    {
+        assert(cb.second);
+        cb.first(*cb.second);
+    }
+    void operator()(FdCallbackPair& cb)
+    {
+        cb.first(cb.second);
+    }
 };
 
-SignalGuard::SignalGuard()
+}
+
+class MessageLoop::Impl {
+public:
+    Impl(zmq::context_t& context);
+
+    void addSocket(
+        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
+    void run();
+    zmq::socket_t createTerminationSubscriber();
+
+private:
+
+    class SignalGuard {
+    public:
+        SignalGuard(Impl& impl);
+        ~SignalGuard();
+
+        bool go() const { return !signalReceived; }
+
+    private:
+        bool signalReceived {};
+        int sfd {};
+        sigset_t oldMask {};
+    };
+
+    std::string getTerminationPubSubEndpoint();
+
+    zmq::context_t& context;
+    zmq::socket_t terminationPublisher;
+    std::vector<zmq::pollitem_t> pollitems {
+        { nullptr, 0, ZMQ_POLLIN, 0 }
+    };
+    std::vector<CallbackPair> callbacks {
+        FdCallbackPair {}
+    };
+};
+
+MessageLoop::Impl::SignalGuard::SignalGuard(Impl& impl)
 {
+    sigset_t mask {};
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGTERM);
@@ -45,48 +88,39 @@ SignalGuard::SignalGuard()
         log(LogLevel::FATAL, "Failed to create signalfd: %s", strerror(errno));
         std::exit(EXIT_FAILURE);
     }
+    impl.pollitems[0].fd = sfd;
+    auto& signal_callback = std::get<FdCallbackPair>(impl.callbacks[0]);
+    signal_callback.first = [this, &impl](auto sfd) {
+        auto fdsi = signalfd_siginfo {};
+        errno = 0;
+        const auto s = read(sfd, &fdsi, sizeof(signalfd_siginfo));
+        if (s != sizeof(signalfd_siginfo)) {
+            log(LogLevel::FATAL, "Failed to read siginfo: %s",
+                strerror(errno));
+            std::exit(EXIT_FAILURE);
+        }
+        log(LogLevel::DEBUG, "Signal received: %s", strsignal(fdsi.ssi_signo));
+        if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+            impl.terminationPublisher.send(
+                &fdsi.ssi_signo, sizeof(fdsi.ssi_signo));
+            signalReceived = true;
+        }
+    };
+    signal_callback.second = sfd;
 }
 
-SignalGuard::~SignalGuard()
+MessageLoop::Impl::SignalGuard::~SignalGuard()
 {
     errno = 0;
     if (close(sfd) != 0) {
         log(LogLevel::ERROR, "Failed to close signalfd: %s", strerror(errno));
     }
+    errno = 0;
     if (sigprocmask(SIG_SETMASK, &oldMask, nullptr) != 0) {
         log(LogLevel::ERROR, "Failed to restore sigprocmask: %s",
             strerror(errno));
     }
 }
-
-int SignalGuard::getSfd()
-{
-    return sfd;
-}
-
-}
-
-class MessageLoop::Impl {
-public:
-    Impl(zmq::context_t& context);
-
-    void addSocket(
-        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
-    bool run(int sfd);
-    zmq::socket_t createTerminationSubscriber();
-
-private:
-
-    std::string getTerminationPubSubEndpoint();
-
-    zmq::context_t& context;
-    zmq::socket_t terminationPublisher;
-    std::vector<zmq::pollitem_t> pollitems {
-        { nullptr, 0, ZMQ_POLLIN, 0 }
-    };
-    std::vector<
-        std::pair<SocketCallback, std::shared_ptr<zmq::socket_t>>> callbacks;
-};
 
 MessageLoop::Impl::Impl(zmq::context_t& context) :
     context {context},
@@ -102,43 +136,34 @@ void MessageLoop::Impl::addSocket(
         zmq::pollitem_t {
             static_cast<void*>(dereference(socket)), 0, ZMQ_POLLIN, 0});
     try {
-        callbacks.emplace_back(std::move(callback), std::move(socket));
+        callbacks.emplace_back(
+            SocketCallbackPair {std::move(callback), std::move(socket)});
     } catch (...) {
         pollitems.pop_back();
         throw;
     }
 }
 
-bool MessageLoop::Impl::run(int sfd)
+void MessageLoop::Impl::run()
 {
-    assert(!pollitems.empty());
-    pollitems[0].fd = sfd;
-    static_cast<void>(zmq::poll(pollitems));
-    if (pollitems[0].revents & ZMQ_POLLIN) {
-        auto fdsi = signalfd_siginfo {};
-        errno = 0;
-        const auto s = read(sfd, &fdsi, sizeof(signalfd_siginfo));
-        if (s != sizeof(signalfd_siginfo)) {
-            log(LogLevel::FATAL, "Failed to read siginfo: %s",
-                strerror(errno));
-            std::exit(EXIT_FAILURE);
-        }
-        log(LogLevel::DEBUG, "Signal received: %s", strsignal(fdsi.ssi_signo));
-        if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
-            terminationPublisher.send(&fdsi.ssi_signo, sizeof(fdsi.ssi_signo));
-            return false;
-        }
-    }
-    for (auto i = 0u; i < callbacks.size(); ++i) {
-        assert(i+1 < pollitems.size());
-        const auto& item = pollitems[i+1];
-        auto& callback = callbacks[i];
-        if (item.revents & ZMQ_POLLIN) {
-            assert(callback.second);
-            callback.first(*callback.second);
+    SignalGuard guard {*this};
+    while (guard.go()) {
+        static_cast<void>(zmq::poll(pollitems));
+        assert(callbacks.size() == pollitems.size());
+        for (auto i = 0u; i < callbacks.size(); ++i) {
+            try {
+                if (pollitems[i].revents & ZMQ_POLLIN) {
+                    std::visit(CallbackVisitor {}, callbacks[i]);
+                }
+            } catch (const zmq::error_t& e) {
+                // If receiving failed because of interrupt signal, continue
+                // Otherwise rethrow
+                if (e.num() != EINTR) {
+                    throw;
+                }
+            }
         }
     }
-    return true;
 }
 
 zmq::socket_t MessageLoop::Impl::createTerminationSubscriber()
@@ -172,20 +197,8 @@ void MessageLoop::addSocket(
 
 void MessageLoop::run()
 {
-    SignalGuard guard;
-    auto go = true;
-    while (go) {
-        try {
-            assert(impl);
-            go = impl->run(guard.getSfd());
-        } catch (const zmq::error_t& e) {
-            // If receiving failed because of interrupt signal, continue
-            // Otherwise rethrow
-            if (e.num() != EINTR) {
-                throw;
-            }
-        }
-    }
+    assert(impl);
+    impl->run();
 }
 
 zmq::socket_t MessageLoop::createTerminationSubscriber()
