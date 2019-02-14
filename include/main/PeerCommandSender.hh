@@ -92,10 +92,11 @@ public:
      *
      * \throw std::invalid_argument if socket is not one added using addPeer()
      *
-     * \deprecated The preferred way to integrate to message loop is by using
-     * getSockets()
+     * \note getSockets() can be used to receive pairs containing socket and
+     * callback and is the preferred way to integrate PeerCommandSender to a
+     * message loop.
      */
-    void processReply(zmq::socket_t& socket);
+    void operator()(zmq::socket_t& socket);
 
     /** \brief Get socket–callback pairs for handling replies
      *
@@ -151,10 +152,9 @@ void PeerCommandSender::sendCommand(
 
 inline auto PeerCommandSender::getSockets()
 {
-    auto callback = [this](auto& socket) { processReply(socket); };
-    auto create_socket_cb_pair = [&callback](const auto& peer)
+    auto create_socket_cb_pair = [this](const auto& peer)
     {
-        return std::pair {peer.socket, callback};
+        return std::pair {peer.socket, std::ref(*this)};
     };
     return std::vector<decltype(create_socket_cb_pair(peers.front()))>(
         boost::make_transform_iterator(peers.begin(), create_socket_cb_pair),

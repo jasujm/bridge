@@ -53,7 +53,7 @@ PeerCommandSender::PeerCommandSender(
 {
 }
 
-void PeerCommandSender::processReply(zmq::socket_t& socket)
+void PeerCommandSender::operator()(zmq::socket_t& socket)
 {
     auto iter = std::find_if(
         peers.begin(), peers.end(),

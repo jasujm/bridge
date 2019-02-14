@@ -110,7 +110,7 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
     checkReceive();
     sendMessage(
         frontSockets[0], FAILURE_MESSAGE.begin(), FAILURE_MESSAGE.end());
-    sender.processReply(*backSockets[0]);
+    sender(*backSockets[0]);
     pollAndExecuteCallbacks(*callbackScheduler);
     checkReceive(true, false);
 }
@@ -123,7 +123,7 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive(false, false);
     for (auto&& t : boost::combine(frontSockets, backSockets)) {
         sendMessage(t.get<0>(), SUCCESS_MESSAGE.begin(), SUCCESS_MESSAGE.end());
-        sender.processReply(*t.get<1>());
+        sender(*t.get<1>());
     }
     checkReceive(true, true, NEXT);
 }
@@ -131,6 +131,6 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
 TEST_F(PeerCommandSenderTest, testProcessReplyFailsIfNotPeerSocket)
 {
     EXPECT_THROW(
-        sender.processReply(frontSockets.front()),
+        sender(frontSockets.front()),
         std::invalid_argument);
 }
