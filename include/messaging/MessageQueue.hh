@@ -14,6 +14,7 @@
 
 #include "Blob.hh"
 #include "BlobMap.hh"
+#include "messaging/MessageHandler.hh"
 
 namespace Bridge {
 
@@ -23,8 +24,6 @@ namespace Bridge {
  * different threads and processes in the Bridge application.
  */
 namespace Messaging {
-
-class MessageHandler;
 
 /** \brief Message queue for communicating between threads and processes
  *

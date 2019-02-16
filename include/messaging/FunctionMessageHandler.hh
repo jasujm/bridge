@@ -200,8 +200,8 @@ public:
 private:
 
     bool doHandle(
-        const Identity& identity, const ParameterVector& params,
-        OutputSink sink) override;
+        SynchronousExecutionPolicy&, const Identity& identity,
+        const ParameterVector& params, OutputSink sink) override;
 
     template<typename T>
     struct ParamTraitsImplBase {
@@ -409,8 +409,8 @@ FunctionMessageHandler(
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    const Identity& identity, const ParameterVector& params,
-    OutputSink sink)
+    SynchronousExecutionPolicy&, const Identity& identity,
+    const ParameterVector& params, OutputSink sink)
 {
     return internalCallFunction(
         identity, params, sink, std::index_sequence_for<Args...>());

@@ -176,8 +176,8 @@ std::vector<std::string> GetMessageHandler::getAllKeys()
 }
 
 bool GetMessageHandler::doHandle(
-    const Messaging::Identity& identity, const ParameterVector& params,
-    OutputSink sink)
+    Messaging::SynchronousExecutionPolicy&, const Messaging::Identity& identity,
+    const ParameterVector& params, OutputSink sink)
 {
     const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);

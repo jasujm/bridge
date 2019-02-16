@@ -12,6 +12,7 @@ using Bridge::Messaging::MockMessageHandler;
 using Bridge::Messaging::MockSerializationPolicy;
 using testing::_;
 using testing::ElementsAre;
+using testing::Ref;
 using testing::Return;
 
 namespace {
@@ -36,6 +37,7 @@ protected:
 
     std::shared_ptr<testing::StrictMock<MockMessageHandler>> delegate {
         std::make_shared<testing::StrictMock<MockMessageHandler>>()};
+    Bridge::Messaging::SynchronousExecutionPolicy execution;
     HandlerType handler {
         KEY, MockSerializationPolicy {}, {{ HANDLER1, delegate }}};
 };
@@ -45,7 +47,8 @@ TEST_F(DispatchingMessageHandlerTest, testNoDelegateParameter)
     const auto params = std::array<Blob, 0> {};
     EXPECT_FALSE(
         handler.handle(
-            IDENTITY, params.begin(), params.end(), [](auto&&) { FAIL(); }));
+            execution, IDENTITY, params.begin(), params.end(),
+            [](auto&&) { FAIL(); }));
 }
 
 TEST_F(DispatchingMessageHandlerTest, testInvalidMatchingParameter)
@@ -53,7 +56,8 @@ TEST_F(DispatchingMessageHandlerTest, testInvalidMatchingParameter)
     const auto params = std::array { KEY };
     EXPECT_FALSE(
         handler.handle(
-            IDENTITY, params.begin(), params.end(), [](auto&&) { FAIL(); }));
+            execution, IDENTITY, params.begin(), params.end(),
+            [](auto&&) { FAIL(); }));
 }
 
 TEST_F(DispatchingMessageHandlerTest, testNonexistingDelegate)
@@ -61,7 +65,8 @@ TEST_F(DispatchingMessageHandlerTest, testNonexistingDelegate)
     const auto params = std::array { KEY, stringToBlob(HANDLER2) };
     EXPECT_FALSE(
         handler.handle(
-            IDENTITY, params.begin(), params.end(), [](auto&&) { FAIL(); }));
+            execution, IDENTITY, params.begin(), params.end(),
+            [](auto&&) { FAIL(); }));
 }
 
 TEST_F(DispatchingMessageHandlerTest, testDelegate)
@@ -69,11 +74,14 @@ TEST_F(DispatchingMessageHandlerTest, testDelegate)
     const auto params = std::array { KEY, stringToBlob(HANDLER1) };
     EXPECT_CALL(
         *delegate,
-        doHandle(IDENTITY, ElementsAre(asBytes(KEY), asBytes(HANDLER1)), _))
+        doHandle(
+            Ref(execution), IDENTITY,
+            ElementsAre(asBytes(KEY), asBytes(HANDLER1)), _))
         .WillOnce(Return(true));
     EXPECT_TRUE(
         handler.handle(
-            IDENTITY, params.begin(), params.end(), [](auto&&) { FAIL(); }));
+            execution, IDENTITY, params.begin(), params.end(),
+            [](auto&&) { FAIL(); }));
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
@@ -84,11 +92,14 @@ TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
     const auto params = std::array { KEY, stringToBlob(HANDLER2) };
     EXPECT_CALL(
         *other_delegate,
-        doHandle(IDENTITY, ElementsAre(asBytes(KEY), asBytes(HANDLER2)), _))
+        doHandle(
+            Ref(execution), IDENTITY,
+            ElementsAre(asBytes(KEY), asBytes(HANDLER2)), _))
         .WillOnce(Return(true));
     EXPECT_TRUE(
         handler.handle(
-            IDENTITY, params.begin(), params.end(), [](auto&&) { FAIL(); }));
+            execution, IDENTITY, params.begin(), params.end(),
+            [](auto&&) { FAIL(); }));
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegateWithExistingKey)

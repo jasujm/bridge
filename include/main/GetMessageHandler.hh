@@ -49,8 +49,9 @@ public:
 private:
 
     bool doHandle(
-        const Messaging::Identity& identity, const ParameterVector& params,
-        OutputSink sink) override;
+        Messaging::SynchronousExecutionPolicy&,
+        const Messaging::Identity& identity,
+        const ParameterVector& params, OutputSink sink) override;
 
     bool internalContainsKey(
         const std::string& key, const std::string& expected,

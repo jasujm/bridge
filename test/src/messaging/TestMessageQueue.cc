@@ -72,7 +72,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 {
     EXPECT_CALL(
         *handlers.at(COMMAND),
-        doHandle(IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
+        doHandle(_, IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
         .WillOnce(Return(true));
     sendMessage(frontSocket, COMMAND, true);
     sendMessage(frontSocket, PARAM1, true);
@@ -86,7 +86,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 {
     EXPECT_CALL(
         *handlers.at(COMMAND),
-        doHandle(IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
+        doHandle(_, IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
         .WillOnce(Return(false));
     sendMessage(frontSocket, COMMAND, true);
     sendMessage(frontSocket, PARAM1, true);
@@ -98,7 +98,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _)).Times(0);
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, _, _, _)).Times(0);
     sendMessage(frontSocket, OTHER_COMMAND);
 
     messageQueue(backSocket);
@@ -111,7 +111,7 @@ TEST_F(MessageQueueTest, testReply)
     const auto outputs = { PARAM1, PARAM2 };
 
     EXPECT_CALL(
-        *handlers.at(COMMAND), doHandle(IDENTITY, ElementsAre(), _))
+        *handlers.at(COMMAND), doHandle(_, IDENTITY, ElementsAre(), _))
         .WillOnce(
             Invoke(
                 MockMessageHandler::writeToSink(
@@ -137,7 +137,7 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     repSocket.bind(ENDPOINT);
     frontSocket.connect(ENDPOINT);
 
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(Identity {}, ElementsAre(), _))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, Identity {}, ElementsAre(), _))
         .WillOnce(Return(true));
 
     sendMessage(frontSocket, COMMAND, false);
@@ -149,7 +149,7 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForNewCommand)
 {
     const auto other_handler = std::make_shared<MockMessageHandler>();
     EXPECT_TRUE(messageQueue.trySetHandler(OTHER_COMMAND, other_handler));
-    EXPECT_CALL(*other_handler, doHandle(IDENTITY, _, _))
+    EXPECT_CALL(*other_handler, doHandle(_, IDENTITY, _, _))
         .WillOnce(Return(true));
     sendMessage(frontSocket, OTHER_COMMAND);
     messageQueue(backSocket);
@@ -161,7 +161,7 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
     EXPECT_FALSE(
         messageQueue.trySetHandler(
             COMMAND, std::make_shared<MockMessageHandler>()));
-    EXPECT_CALL(*handlers.at(COMMAND), doHandle(IDENTITY, _, _))
+    EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, IDENTITY, _, _))
         .WillOnce(Return(true));
     sendMessage(frontSocket, COMMAND);
     messageQueue(backSocket);

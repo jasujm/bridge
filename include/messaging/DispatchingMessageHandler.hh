@@ -60,8 +60,8 @@ public:
 private:
 
     bool doHandle(
-        const Identity& identity, const ParameterVector& params,
-        OutputSink sink) override;
+        SynchronousExecutionPolicy& execution, const Identity& identity,
+        const ParameterVector& params, OutputSink sink) override;
 
     Blob dispatchKey;
     SerializationPolicy serializer;
@@ -82,8 +82,8 @@ DispatchingMessageHandler(
 template<typename DispatchArgument, typename SerializationPolicy>
 bool DispatchingMessageHandler<DispatchArgument, SerializationPolicy>::
 doHandle(
-    const Identity& identity, const ParameterVector& params,
-    OutputSink sink)
+    SynchronousExecutionPolicy& execution, const Identity& identity,
+    const ParameterVector& params, OutputSink sink)
 {
     for (auto i : to(params.size(), 2u)) {
         if (params[i] == dispatchKey) {
@@ -93,7 +93,8 @@ doHandle(
                 if (const auto iter = delegates.find(value);
                     iter != delegates.end()) {
                     return dereference(iter->second).handle(
-                        identity, params.begin(), params.end(), std::move(sink));
+                        execution, identity, params.begin(), params.end(),
+                        std::move(sink));
                 }
             }
         }

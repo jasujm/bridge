@@ -15,6 +15,7 @@ using testing::_;
 using testing::ElementsAre;
 using testing::ElementsAreArray;
 using testing::Invoke;
+using testing::Ref;
 using testing::Return;
 using testing::StrictMock;
 
@@ -36,6 +37,7 @@ class MessageHandlerTest : public testing::Test
 {
 protected:
     std::vector<Blob> output;
+    Bridge::Messaging::SynchronousExecutionPolicy execution;
     StrictMock<MockMessageHandler> messageHandler;
 };
 
@@ -43,33 +45,39 @@ TEST_F(MessageHandlerTest, testMessageHandlerSuccess)
 {
     EXPECT_CALL(
         messageHandler,
-        doHandle(IDENTITY, ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
+        doHandle(
+            Ref(execution), IDENTITY,
+            ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
         .WillOnce(Return(true));
     EXPECT_TRUE(
         messageHandler.handle(
-            IDENTITY, PARAMS.begin(), PARAMS.end(), [](const auto&) {}));
+            execution, IDENTITY, PARAMS.begin(), PARAMS.end(),
+            [](const auto&) {}));
 }
 
 TEST_F(MessageHandlerTest, testMessageHandlerFailure)
 {
     EXPECT_CALL(
         messageHandler,
-        doHandle(IDENTITY, ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
+        doHandle(
+            Ref(execution), IDENTITY,
+            ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
         .WillOnce(Return(false));
     EXPECT_FALSE(
         messageHandler.handle(
-            IDENTITY, PARAMS.begin(), PARAMS.end(), [](const auto&) {}));
+            execution, IDENTITY, PARAMS.begin(), PARAMS.end(),
+            [](const auto&) {}));
 }
 
 TEST_F(MessageHandlerTest, testMessageHandlerOutput)
 {
-    EXPECT_CALL(messageHandler, doHandle(_, _, _))
+    EXPECT_CALL(messageHandler, doHandle(Ref(execution), _, _, _))
         .WillOnce(
             Invoke(
                 MockMessageHandler::writeToSink(
                     OUTPUTS.begin(), OUTPUTS.end())));
     messageHandler.handle(
-        IDENTITY, PARAMS.begin(), PARAMS.end(),
+        execution, IDENTITY, PARAMS.begin(), PARAMS.end(),
         [this](const auto& b)
         {
             output.emplace_back(b.begin(), b.end());

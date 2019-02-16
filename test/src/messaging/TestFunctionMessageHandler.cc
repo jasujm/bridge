@@ -112,10 +112,11 @@ protected:
         const bool expectedSuccess,
         const std::vector<std::string> expectedOutput = {})
     {
+        Bridge::Messaging::SynchronousExecutionPolicy execution;
         EXPECT_EQ(
             expectedSuccess,
             handler.handle(
-                IDENTITY, params.begin(), params.end(),
+                execution, IDENTITY, params.begin(), params.end(),
                 [this](const auto& b)
                 {
                     output.emplace_back(

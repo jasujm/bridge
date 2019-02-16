@@ -94,9 +94,10 @@ protected:
             JsonSerializer::serialize(
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
         auto reply = std::vector<std::string> {};
+        SynchronousExecutionPolicy execution;
         const auto success =
             dereference(dealHandler).handle(
-                identity, args.begin(), args.end(),
+                execution, identity, args.begin(), args.end(),
                 [&reply](const auto& b)
                 {
                     reply.emplace_back(blobToString(b));

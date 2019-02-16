@@ -1,7 +1,6 @@
 #include "messaging/MessageQueue.hh"
 
 #include "messaging/Identity.hh"
-#include "messaging/MessageHandler.hh"
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
 #include "Utility.hh"
@@ -70,8 +69,9 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     auto output_frames = MessageVector {};
     if (command_handler_entry != handlers.end()) {
         auto& handler = dereference(command_handler_entry->second);
+        auto execution = SynchronousExecutionPolicy {};
         success = handler.handle(
-            identityFromMessage(*first_payload_frame, identity_msg),
+            execution, identityFromMessage(*first_payload_frame, identity_msg),
             first_payload_frame+1, input_frames.end(),
             [&output_frames](const auto& bytes)
             {

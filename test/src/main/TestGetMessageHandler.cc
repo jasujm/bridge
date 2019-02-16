@@ -134,7 +134,7 @@ protected:
         }
         EXPECT_TRUE(
             handler.handle(
-                identity, args.begin(), args.end(),
+                execution, identity, args.begin(), args.end(),
                 [this](const auto& b)
                 {
                     reply.emplace_back(Bridge::blobToString(b));
@@ -162,6 +162,7 @@ protected:
         std::make_shared<NiceMock<MockBridgeGameInfo>>()};
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
+    Bridge::Messaging::SynchronousExecutionPolicy execution;
     GetMessageHandler handler {gameInfo, nodePlayerControl};
     std::vector<std::string> reply;
 };
@@ -174,7 +175,7 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
     };
     EXPECT_FALSE(
         handler.handle(
-            Identity {}, args.begin(), args.end(),
+            execution, Identity {}, args.begin(), args.end(),
             [](const auto&) { FAIL(); }));
 }
 
