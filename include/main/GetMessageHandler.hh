@@ -48,14 +48,14 @@ public:
 
 private:
 
-    bool doHandle(
+    void doHandle(
         Messaging::SynchronousExecutionPolicy&,
         const Messaging::Identity& identity,
-        const ParameterVector& params, OutputSink sink) override;
+        const ParameterVector& params, Messaging::Response& response) override;
 
     bool internalContainsKey(
         const std::string& key, const std::string& expected,
-        OutputSink& sink) const;
+        Messaging::Response& response) const;
 
     const std::weak_ptr<const BridgeGameInfo> game;
     const std::shared_ptr<const NodePlayerControl> nodePlayerControl;

@@ -2,10 +2,9 @@
 #define MOCKMESSAGEHANDLER_HH_
 
 #include "messaging/MessageHandler.hh"
+#include "Blob.hh"
 
 #include <gmock/gmock.h>
-
-#include <algorithm>
 
 namespace Bridge {
 namespace Messaging {
@@ -14,27 +13,33 @@ class MockMessageHandler : public MessageHandler {
 public:
     MOCK_METHOD4(
         doHandle,
-        bool(
+        void(
             SynchronousExecutionPolicy& execution, const Identity&,
-            const ParameterVector&, OutputSink));
-
-    // Create functor that writes to sink given as parameter to
-    // doHandler. Intended to use with the Invoke action.
-    template<typename Iterator>
-    static auto writeToSink(Iterator first, Iterator last, bool success = true);
+            const ParameterVector&, Response&));
 };
 
-template<typename Iterator>
-auto MockMessageHandler::writeToSink(
-    Iterator first, Iterator last, bool success)
+class MockResponse : public Response {
+public:
+    MOCK_METHOD1(handleSetStatus, void(StatusCode));
+    MOCK_METHOD1(handleAddFrame, void(ByteSpan));
+};
+
+template<typename... Args>
+auto Respond(StatusCode status, const Args&... frames)
 {
-    return [first, last, success](
-        SynchronousExecutionPolicy&, const Identity&, ParameterVector,
-        OutputSink sink)
-    {
-        std::for_each(first, last, sink);
-        return success;
-    };
+    using namespace Messaging;
+    return ::testing::WithArg<3>(
+        ::testing::Invoke(
+            [status, frames...](Response& response)
+            {
+                response.setStatus(status);
+                if constexpr (sizeof...(frames) > 0) {
+                    const auto _frames = { asBytes(frames)... };
+                    for (const auto& frame : _frames) {
+                        response.addFrame(frame);
+                    }
+                }
+            }));
 }
 
 }

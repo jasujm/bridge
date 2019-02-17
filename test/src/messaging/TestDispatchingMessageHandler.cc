@@ -9,19 +9,23 @@
 #include <string>
 
 using Bridge::Messaging::MockMessageHandler;
+using Bridge::Messaging::MockResponse;
 using Bridge::Messaging::MockSerializationPolicy;
+using Bridge::Messaging::Respond;
 using testing::_;
 using testing::ElementsAre;
 using testing::Ref;
 using testing::Return;
 
-namespace {
-
 using Bridge::asBytes;
 using Bridge::Blob;
 using Bridge::stringToBlob;
+using Bridge::Messaging::REPLY_SUCCESS;
+using Bridge::Messaging::REPLY_FAILURE;
 using namespace std::string_literals;
 using namespace Bridge::BlobLiterals;
+
+namespace {
 
 const auto IDENTITY = Bridge::Messaging::Identity {""s, "identity"_B};
 const auto KEY = "key"_B;
@@ -38,6 +42,7 @@ protected:
     std::shared_ptr<testing::StrictMock<MockMessageHandler>> delegate {
         std::make_shared<testing::StrictMock<MockMessageHandler>>()};
     Bridge::Messaging::SynchronousExecutionPolicy execution;
+    testing::StrictMock<MockResponse> response;
     HandlerType handler {
         KEY, MockSerializationPolicy {}, {{ HANDLER1, delegate }}};
 };
@@ -45,43 +50,39 @@ protected:
 TEST_F(DispatchingMessageHandlerTest, testNoDelegateParameter)
 {
     const auto params = std::array<Blob, 0> {};
-    EXPECT_FALSE(
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(),
-            [](auto&&) { FAIL(); }));
+    EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
+    handler.handle(
+        execution, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testInvalidMatchingParameter)
 {
     const auto params = std::array { KEY };
-    EXPECT_FALSE(
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(),
-            [](auto&&) { FAIL(); }));
+    EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
+    handler.handle(
+        execution, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testNonexistingDelegate)
 {
     const auto params = std::array { KEY, stringToBlob(HANDLER2) };
-    EXPECT_FALSE(
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(),
-            [](auto&&) { FAIL(); }));
+    EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
+    handler.handle(
+        execution, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testDelegate)
 {
     const auto params = std::array { KEY, stringToBlob(HANDLER1) };
+    EXPECT_CALL(response, handleSetStatus(REPLY_SUCCESS));
     EXPECT_CALL(
         *delegate,
         doHandle(
             Ref(execution), IDENTITY,
-            ElementsAre(asBytes(KEY), asBytes(HANDLER1)), _))
-        .WillOnce(Return(true));
-    EXPECT_TRUE(
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(),
-            [](auto&&) { FAIL(); }));
+            ElementsAre(asBytes(KEY), asBytes(HANDLER1)), Ref(response)))
+        .WillOnce(Respond(REPLY_SUCCESS));
+    handler.handle(
+        execution, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
@@ -90,16 +91,15 @@ TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
         std::make_shared<testing::StrictMock<MockMessageHandler>>()};
     EXPECT_TRUE(handler.trySetDelegate(HANDLER2, other_delegate));
     const auto params = std::array { KEY, stringToBlob(HANDLER2) };
+    EXPECT_CALL(response, handleSetStatus(REPLY_SUCCESS));
     EXPECT_CALL(
         *other_delegate,
         doHandle(
             Ref(execution), IDENTITY,
-            ElementsAre(asBytes(KEY), asBytes(HANDLER2)), _))
-        .WillOnce(Return(true));
-    EXPECT_TRUE(
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(),
-            [](auto&&) { FAIL(); }));
+            ElementsAre(asBytes(KEY), asBytes(HANDLER2)), Ref(response))).
+        WillOnce(Respond(REPLY_SUCCESS));
+    handler.handle(
+        execution, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegateWithExistingKey)

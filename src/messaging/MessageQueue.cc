@@ -2,7 +2,6 @@
 
 #include "messaging/Identity.hh"
 #include "messaging/MessageUtility.hh"
-#include "messaging/Replies.hh"
 #include "Utility.hh"
 #include "Blob.hh"
 
@@ -15,7 +14,30 @@
 namespace Bridge {
 namespace Messaging {
 
+namespace {
+
 using MessageVector = std::vector<zmq::message_t>;
+
+class BasicResponse : public Response {
+public:
+    void handleSetStatus(StatusCode status) override;
+    void handleAddFrame(ByteSpan frame) override;
+
+    StatusCode status {REPLY_FAILURE};
+    MessageVector frames {};
+};
+
+void BasicResponse::handleSetStatus(StatusCode status)
+{
+    this->status = status;
+}
+
+void BasicResponse::handleAddFrame(ByteSpan frame)
+{
+    this->frames.emplace_back(frame.data(), frame.size());
+}
+
+}
 
 MessageQueue::MessageQueue(HandlerMap handlers) :
     handlers {std::move(handlers)}
@@ -65,18 +87,13 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     }
     const auto command = messageView(*first_payload_frame);
     const auto command_handler_entry = handlers.find(command);
-    auto success = false;
-    auto output_frames = MessageVector {};
+    auto response = BasicResponse {};
     if (command_handler_entry != handlers.end()) {
         auto& handler = dereference(command_handler_entry->second);
         auto execution = SynchronousExecutionPolicy {};
-        success = handler.handle(
+        handler.handle(
             execution, identityFromMessage(*first_payload_frame, identity_msg),
-            first_payload_frame+1, input_frames.end(),
-            [&output_frames](const auto& bytes)
-            {
-                output_frames.emplace_back(bytes.begin(), bytes.end());
-            });
+            first_payload_frame+1, input_frames.end(), response);
     }
 
     // Echo back everything before first payload, i.e. routing info
@@ -84,16 +101,17 @@ void MessageQueue::operator()(zmq::socket_t& socket)
         socket, input_frames.begin(), first_payload_frame, ZMQ_SNDMORE);
 
     // Send status
-    const auto status = success ? REPLY_SUCCESS : REPLY_FAILURE;
     socket.send(
-        messageFromValue(boost::endian::native_to_big(status)), ZMQ_SNDMORE);
+        messageFromValue(boost::endian::native_to_big(response.status)),
+        ZMQ_SNDMORE);
 
     // Send command
-    socket.send(*first_payload_frame, output_frames.empty() ? 0 : ZMQ_SNDMORE);
+    socket.send(
+        *first_payload_frame, response.frames.empty() ? 0 : ZMQ_SNDMORE);
 
     // Send all output
-    if (!output_frames.empty()) {
-        sendMultipart(socket, output_frames.begin(), output_frames.end());
+    if (!response.frames.empty()) {
+        sendMultipart(socket, response.frames.begin(), response.frames.end());
     }
 }
 

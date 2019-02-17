@@ -73,7 +73,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     EXPECT_CALL(
         *handlers.at(COMMAND),
         doHandle(_, IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
-        .WillOnce(Return(true));
+        .WillOnce(Respond(REPLY_SUCCESS));
     sendMessage(frontSocket, COMMAND, true);
     sendMessage(frontSocket, PARAM1, true);
     sendMessage(frontSocket, PARAM2);
@@ -87,7 +87,7 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
     EXPECT_CALL(
         *handlers.at(COMMAND),
         doHandle(_, IDENTITY, ElementsAre(asBytes(PARAM1), asBytes(PARAM2)), _))
-        .WillOnce(Return(false));
+        .WillOnce(Respond(REPLY_FAILURE));
     sendMessage(frontSocket, COMMAND, true);
     sendMessage(frontSocket, PARAM1, true);
     sendMessage(frontSocket, PARAM2);
@@ -112,10 +112,7 @@ TEST_F(MessageQueueTest, testReply)
 
     EXPECT_CALL(
         *handlers.at(COMMAND), doHandle(_, IDENTITY, ElementsAre(), _))
-        .WillOnce(
-            Invoke(
-                MockMessageHandler::writeToSink(
-                    outputs.begin(), outputs.end())));
+        .WillOnce(Respond(REPLY_SUCCESS, PARAM1, PARAM2));
     sendMessage(frontSocket, COMMAND, false);
 
     messageQueue(backSocket);
@@ -138,7 +135,7 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     frontSocket.connect(ENDPOINT);
 
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, Identity {}, ElementsAre(), _))
-        .WillOnce(Return(true));
+        .WillOnce(Respond(REPLY_SUCCESS));
 
     sendMessage(frontSocket, COMMAND, false);
     messageQueue(repSocket);
@@ -150,7 +147,7 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForNewCommand)
     const auto other_handler = std::make_shared<MockMessageHandler>();
     EXPECT_TRUE(messageQueue.trySetHandler(OTHER_COMMAND, other_handler));
     EXPECT_CALL(*other_handler, doHandle(_, IDENTITY, _, _))
-        .WillOnce(Return(true));
+        .WillOnce(Respond(REPLY_SUCCESS));
     sendMessage(frontSocket, OTHER_COMMAND);
     messageQueue(backSocket);
     assertReply(true, OTHER_COMMAND);
@@ -162,7 +159,7 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
         messageQueue.trySetHandler(
             COMMAND, std::make_shared<MockMessageHandler>()));
     EXPECT_CALL(*handlers.at(COMMAND), doHandle(_, IDENTITY, _, _))
-        .WillOnce(Return(true));
+        .WillOnce(Respond(REPLY_SUCCESS));
     sendMessage(frontSocket, COMMAND);
     messageQueue(backSocket);
     assertReply(true, COMMAND);

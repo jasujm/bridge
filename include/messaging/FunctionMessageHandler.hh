@@ -199,9 +199,9 @@ public:
 
 private:
 
-    bool doHandle(
+    void doHandle(
         SynchronousExecutionPolicy&, const Identity& identity,
-        const ParameterVector& params, OutputSink sink) override;
+        const ParameterVector& params, Response& response) override;
 
     template<typename T>
     struct ParamTraitsImplBase {
@@ -267,41 +267,31 @@ private:
     using InitFunction =
         bool (FunctionMessageHandler::*)(ByteSpan, ParamTuple&);
     using InitFunctionMap = BlobMap<InitFunction>;
-    using ResultType = typename std::result_of_t<
-        Function(Identity, typename ParamTraits<Args>::DeserializedType...)>;
+    using ResultType = typename std::invoke_result_t<
+        Function, Identity, typename ParamTraits<Args>::DeserializedType...>;
     static constexpr auto REPLY_SIZE =
         std::tuple_size<typename ResultType::Types>::value;
     using ReplyKeysArray = std::array<std::string, REPLY_SIZE>;
-    template<std::size_t N, typename... Args2>
-    using IsLast = typename std::integral_constant<bool, sizeof...(Args2) == N>;
 
     class ReplyVisitor {
     public:
 
         ReplyVisitor(
-            SerializationPolicy& serializer, OutputSink& sink,
+            SerializationPolicy& serializer, Response& response,
             ReplyKeysArray& replyKeys);
 
-        bool operator()(ReplyFailure) const;
+        void operator()(ReplyFailure) const;
 
         template<typename... Args2>
-        bool operator()(const ReplySuccess<Args2...>& reply) const;
+        void operator()(const ReplySuccess<Args2...>& reply) const;
 
     private:
 
-        template<std::size_t N = 0, typename... Args2>
-        bool internalReplySuccess(const std::tuple<Args2...>& args) const;
-
         template<std::size_t N, typename... Args2>
-        bool internalReplySuccessHelper(
-            const std::tuple<Args2...>& args, std::true_type) const;
-
-        template<std::size_t N, typename... Args2>
-        bool internalReplySuccessHelper(
-            const std::tuple<Args2...>& args, std::false_type) const;
+        void internalReplySuccessHelper(const std::tuple<Args2...>& args) const;
 
         SerializationPolicy& serializer;
-        OutputSink& sink;
+        Response& response;
         ReplyKeysArray& replyKeys;
     };
 
@@ -315,9 +305,9 @@ private:
     bool internalInitParam(ByteSpan arg, ParamTuple& params);
 
     template<std::size_t... Ns>
-    bool internalCallFunction(
+    void internalCallFunction(
         const Identity& identity, const ParameterVector& params,
-        OutputSink& sink, std::index_sequence<Ns...>)
+        Response& response, std::index_sequence<Ns...>)
     {
         auto first = params.begin();
         const auto last = params.end();
@@ -326,13 +316,15 @@ private:
         while (first != last) {
             const auto iter = initFunctions.find(*first++);
             if (first == last) {
-                return false;
+                response.setStatus(REPLY_FAILURE);
+                return;
             }
             if (iter != initFunctions.end()) {
                 const auto memfn = iter->second;
                 const auto success = (this->*memfn)(*first, args);
                 if (!success) {
-                    return false;
+                    response.setStatus(REPLY_FAILURE);
+                    return;
                 }
             }
             ++first;
@@ -342,15 +334,16 @@ private:
             ParamTraits<Args>::isValid(std::get<Ns>(args))...}};
         for (const auto initialized : all_initialized) {
             if (!initialized) {
-                return false;
+                response.setStatus(REPLY_FAILURE);
+                return;
             }
         }
         // Call the function
         auto&& result = function(
             identity,
             ParamTraits<Args>::unwrap(std::get<Ns>(args))...);
-        return std::visit(
-            ReplyVisitor {serializer, sink, replyKeys}, result.reply);
+        std::visit(
+            ReplyVisitor {serializer, response, replyKeys}, result.reply);
     }
 
     Function function;
@@ -408,70 +401,57 @@ FunctionMessageHandler(
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
+void FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     SynchronousExecutionPolicy&, const Identity& identity,
-    const ParameterVector& params, OutputSink sink)
+    const ParameterVector& params, Response& response)
 {
-    return internalCallFunction(
-        identity, params, sink, std::index_sequence_for<Args...>());
+    internalCallFunction(
+        identity, params, response, std::index_sequence_for<Args...>());
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::ReplyVisitor(
-    SerializationPolicy& serializer, OutputSink& sink,
+    SerializationPolicy& serializer, Response& response,
     ReplyKeysArray& replyKeys) :
     serializer {serializer},
-    sink {sink},
+    response {response},
     replyKeys {replyKeys}
 {
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::operator()(ReplyFailure) const
 {
-    return false;
+    response.setStatus(REPLY_FAILURE);
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<typename... Args2>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
 ReplyVisitor::operator()(const ReplySuccess<Args2...>& reply) const
 {
-    return internalReplySuccess(reply.arguments);
+    response.setStatus(REPLY_SUCCESS);
+    if constexpr (0 < sizeof...(Args2)) {
+        internalReplySuccessHelper<0>(reply.arguments);
+    }
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<std::size_t N, typename... Args2>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::internalReplySuccess(const std::tuple<Args2...>& args) const
-{
-    return internalReplySuccessHelper<N>(args, IsLast<N, Args2...> {});
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N, typename... Args2>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::internalReplySuccessHelper(
-    const std::tuple<Args2...>&, std::true_type) const
-{
-    return true;
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N, typename... Args2>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::internalReplySuccessHelper(
-    const std::tuple<Args2...>& args, std::false_type) const
+void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+ReplyVisitor::internalReplySuccessHelper(const std::tuple<Args2...>& args) const
 {
     using ArgType = typename std::tuple_element<N, std::tuple<Args2...>>::type;
     const auto& arg = std::get<N>(args);
     if (ParamTraits<ArgType>::shouldSerialize(arg)) {
-        sink(asBytes(std::get<N>(replyKeys)));
-        sink(asBytes(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg))));
+        response.addFrame(asBytes(std::get<N>(replyKeys)));
+        response.addFrame(asBytes(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg))));
     }
-    return internalReplySuccess<N+1>(args);
+    if constexpr (N+1 < sizeof...(Args2)) {
+        internalReplySuccessHelper<N+1>(args);
+    }
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>

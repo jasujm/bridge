@@ -24,6 +24,7 @@
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "MockBridgeGameInfo.hh"
+#include "MockMessageHandler.hh"
 
 #include <boost/range/adaptor/strided.hpp>
 #include <boost/range/combine.hpp>
@@ -52,9 +53,13 @@ using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
 using Bridge::Messaging::Identity;
 using Bridge::Messaging::JsonSerializer;
+using Bridge::Messaging::REPLY_FAILURE;
+using Bridge::Messaging::REPLY_SUCCESS;
 
+using testing::_;
 using testing::NiceMock;
 using testing::ReturnPointee;
+using testing::NiceMock;
 
 using namespace Bridge::BlobLiterals;
 using namespace Bridge::Main;
@@ -132,13 +137,16 @@ protected:
             args.emplace_back(KEYS_COMMAND);
             args.emplace_back(JsonSerializer::serialize(keys_));
         }
-        EXPECT_TRUE(
-            handler.handle(
-                execution, identity, args.begin(), args.end(),
-                [this](const auto& b)
-                {
-                    reply.emplace_back(Bridge::blobToString(b));
-                }));
+        EXPECT_CALL(response, handleSetStatus(REPLY_SUCCESS));
+        EXPECT_CALL(response, handleAddFrame(_))
+            .WillRepeatedly(
+                testing::Invoke(
+                    [this](auto&& frame)
+                    {
+                        reply.emplace_back(blobToString(frame));
+                    }));
+        handler.handle(
+            execution, identity, args.begin(), args.end(), response);
     }
 
     void testEmptyRequestReply(
@@ -163,6 +171,7 @@ protected:
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
     Bridge::Messaging::SynchronousExecutionPolicy execution;
+    testing::StrictMock<Bridge::Messaging::MockResponse> response;
     GetMessageHandler handler {gameInfo, nodePlayerControl};
     std::vector<std::string> reply;
 };
@@ -173,10 +182,9 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
         KEYS_COMMAND,
         JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
     };
-    EXPECT_FALSE(
-        handler.handle(
-            execution, Identity {}, args.begin(), args.end(),
-            [](const auto&) { FAIL(); }));
+    EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
+    handler.handle(
+        execution, Identity {}, args.begin(), args.end(), response);
 }
 
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)

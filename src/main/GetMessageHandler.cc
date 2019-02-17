@@ -19,6 +19,7 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/Replies.hh"
 #include "messaging/SerializationUtility.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
@@ -175,9 +176,9 @@ std::vector<std::string> GetMessageHandler::getAllKeys()
     return ALL_KEYS;
 }
 
-bool GetMessageHandler::doHandle(
+void GetMessageHandler::doHandle(
     Messaging::SynchronousExecutionPolicy&, const Messaging::Identity& identity,
-    const ParameterVector& params, OutputSink sink)
+    const ParameterVector& params, Messaging::Response& response)
 {
     const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
@@ -187,40 +188,42 @@ bool GetMessageHandler::doHandle(
     if (game_ && player) {
         const auto& engine = game_->getEngine();
         for (const auto& key : keys) {
-            if (internalContainsKey(key, POSITION_COMMAND, sink)) {
-                sink(asBytes(getPosition(engine, *player)));
-            } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, sink)) {
-                sink(asBytes(getPositionInTurn(engine)));
-            } else if (internalContainsKey(key, DECLARER_COMMAND, sink)) {
-                sink(asBytes(getBiddingResult(engine, &Bidding::getDeclarerPosition)));
-            } else if (internalContainsKey(key, CONTRACT_COMMAND, sink)) {
-                sink(asBytes(getBiddingResult(engine, &Bidding::getContract)));
-            } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, sink)) {
-                sink(asBytes(getAllowedCalls(engine, *player)));
-            } else if (internalContainsKey(key, CALLS_COMMAND, sink)) {
-                sink(asBytes(getCalls(engine)));
-            } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, sink)) {
-                sink(asBytes(getAllowedCards(engine, *player)));
-            } else if (internalContainsKey(key, CARDS_COMMAND, sink)) {
-                sink(asBytes(getCards(*player, engine)));
-            } else if (internalContainsKey(key, TRICK_COMMAND, sink)) {
-                sink(asBytes(getTrick(engine)));
-            } else if (internalContainsKey(key, TRICKS_WON_COMMAND, sink)) {
-                sink(asBytes(getTricksWon(engine)));
-            } else if (internalContainsKey(key, VULNERABILITY_COMMAND, sink)) {
-                sink(asBytes(getVulnerability(game_->getGameManager())));
+            if (internalContainsKey(key, POSITION_COMMAND, response)) {
+                response.addFrame(asBytes(getPosition(engine, *player)));
+            } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, response)) {
+                response.addFrame(asBytes(getPositionInTurn(engine)));
+            } else if (internalContainsKey(key, DECLARER_COMMAND, response)) {
+                response.addFrame(asBytes(getBiddingResult(engine, &Bidding::getDeclarerPosition)));
+            } else if (internalContainsKey(key, CONTRACT_COMMAND, response)) {
+                response.addFrame(asBytes(getBiddingResult(engine, &Bidding::getContract)));
+            } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, response)) {
+                response.addFrame(asBytes(getAllowedCalls(engine, *player)));
+            } else if (internalContainsKey(key, CALLS_COMMAND, response)) {
+                response.addFrame(asBytes(getCalls(engine)));
+            } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, response)) {
+                response.addFrame(asBytes(getAllowedCards(engine, *player)));
+            } else if (internalContainsKey(key, CARDS_COMMAND, response)) {
+                response.addFrame(asBytes(getCards(*player, engine)));
+            } else if (internalContainsKey(key, TRICK_COMMAND, response)) {
+                response.addFrame(asBytes(getTrick(engine)));
+            } else if (internalContainsKey(key, TRICKS_WON_COMMAND, response)) {
+                response.addFrame(asBytes(getTricksWon(engine)));
+            } else if (internalContainsKey(key, VULNERABILITY_COMMAND, response)) {
+                response.addFrame(asBytes(getVulnerability(game_->getGameManager())));
             }
         }
-        return true;
+        response.setStatus(Messaging::REPLY_SUCCESS);
+    } else {
+        response.setStatus(Messaging::REPLY_FAILURE);
     }
-    return false;
 }
 
 bool GetMessageHandler::internalContainsKey(
-    const std::string& key, const std::string& expected, OutputSink& sink) const
+    const std::string& key, const std::string& expected,
+    Messaging::Response& response) const
 {
     if (key == expected) {
-        sink(asBytes(key));
+        response.addFrame(asBytes(key));
         return true;
     }
     return false;

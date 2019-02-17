@@ -7,6 +7,7 @@
 #define MESSAGING_MESSAGEHANDLER_HH_
 
 #include "messaging/Identity.hh"
+#include "messaging/Replies.hh"
 #include "Blob.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -17,6 +18,40 @@
 
 namespace Bridge {
 namespace Messaging {
+
+/** \brief MessageHandler response collector
+ *
+ * Response is an interface for a MessageHandler object to communicate the
+ * response of an invocation of the handler to its driver. A response consists
+ * of numeric status and zero or more response frames.
+ */
+class Response {
+public:
+
+    virtual ~Response();
+
+    /** \brief Set the status of the response
+     *
+     * \param status the status
+     */
+    void setStatus(StatusCode status);
+
+    /** \brief Add another frame to the response
+     *
+     * \param frame the next frame
+     */
+    void addFrame(ByteSpan frame);
+
+private:
+
+    /** \brief Handle for setStatus()
+     */
+    virtual void handleSetStatus(StatusCode status) = 0;
+
+    /** \brief Handle for addFrame()
+     */
+    virtual void handleAddFrame(ByteSpan frame) = 0;
+};
 
 /** \brief Interface for handling messages
  *
@@ -42,10 +77,6 @@ template<typename ExecutionPolicy>
 class BasicMessageHandler {
 public:
 
-    /** \brief Output sink the MessageHandler writes its reply arguments to
-     */
-    using OutputSink = std::function<void(ByteSpan)>;
-
     virtual ~BasicMessageHandler() = default;
 
     /** \brief Handle message
@@ -58,15 +89,14 @@ public:
      * \param identity the identity of the sender of the message
      * \param first iterator to the first parameter of the message
      * \param last iterator one past the last parameter of the message
-     * \param out function to be invoked once for each reply parameter of the
-     * message
+     * \param response the response object used to communicate with the driver
      *
      * \return true if the message was handled successfully, false otherwise
      */
     template<typename ParameterIterator>
-    bool handle(
+    void handle(
         ExecutionPolicy& execution, const Identity& identity,
-        ParameterIterator first, ParameterIterator last, OutputSink out);
+        ParameterIterator first, ParameterIterator last, Response& response);
 
 protected:
 
@@ -81,30 +111,30 @@ private:
      * \param execution the execution context
      * \param identity the identity of the sender of the message
      * \param params vector containing the parameters of the message
-     * \param sink
+     * \param respones the response object
      *
      * \return true if the message was handled successfully, false otherwise
      *
      * \sa handle()
      */
-    virtual bool doHandle(
+    virtual void doHandle(
         ExecutionPolicy& execution, const Identity& identity,
-        const ParameterVector& params, OutputSink sink) = 0;
+        const ParameterVector& params, Response& response) = 0;
 };
 
 template<typename ExecutionPolicy>
 template<typename ParameterIterator>
-bool BasicMessageHandler<ExecutionPolicy>::handle(
+void BasicMessageHandler<ExecutionPolicy>::handle(
     ExecutionPolicy& execution, const Identity& identity,
-    ParameterIterator first, ParameterIterator last, OutputSink out)
+    ParameterIterator first, ParameterIterator last, Response& response)
 {
     const auto to_bytes = [](const auto& p) { return asBytes(p); };
-    return doHandle(
+    doHandle(
         execution, identity,
         ParameterVector(
             boost::make_transform_iterator(first, to_bytes),
             boost::make_transform_iterator(last, to_bytes)),
-        std::move(out));
+        response);
 }
 
 /** \brief Synchronous execution policy for message handlers

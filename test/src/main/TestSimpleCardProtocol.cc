@@ -16,6 +16,7 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TerminationGuard.hh"
 #include "messaging/UuidJsonSerializer.hh"
+#include "MockMessageHandler.hh"
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -87,23 +88,17 @@ protected:
         frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
     }
 
-    bool dealCommand(const Identity& identity)
+    void dealCommand(const Identity& identity, StatusCode expectedStatus)
     {
         const auto args = {
             CARDS_COMMAND,
             JsonSerializer::serialize(
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
-        auto reply = std::vector<std::string> {};
         SynchronousExecutionPolicy execution;
-        const auto success =
-            dereference(dealHandler).handle(
-                execution, identity, args.begin(), args.end(),
-                [&reply](const auto& b)
-                {
-                    reply.emplace_back(blobToString(b));
-                });
-        EXPECT_TRUE(reply.empty());
-        return success;
+        testing::StrictMock<MockResponse> response;
+        EXPECT_CALL(response, handleSetStatus(expectedStatus));
+        dereference(dealHandler).handle(
+            execution, identity, args.begin(), args.end(), response);
     }
 
     zmq::context_t context;
@@ -131,7 +126,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
     ASSERT_TRUE(card_manager);
     card_manager->requestShuffle();
 
-    EXPECT_FALSE(dealCommand(PEER));
+    dealCommand(PEER, REPLY_FAILURE);
 
     assertCardManagerHasShuffledDeck(*card_manager);
 
@@ -156,8 +151,8 @@ TEST_F(SimpleCardProtocolTest, testNotLeader)
     ASSERT_TRUE(card_manager);
     card_manager->requestShuffle();
 
-    EXPECT_FALSE(dealCommand(PEER));
-    EXPECT_TRUE(dealCommand(LEADER));
+    dealCommand(PEER, REPLY_FAILURE);
+    dealCommand(LEADER, REPLY_SUCCESS);
 
     assertCardManagerHasShuffledDeck(*card_manager);
 }
