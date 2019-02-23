@@ -2,6 +2,7 @@
 #include "Logging.hh"
 #include "Utility.hh"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <sstream>
@@ -41,6 +42,7 @@ public:
     Impl(zmq::context_t& context);
 
     void addPollable(PollableSocket socket, SocketCallback callback);
+    void removePollable(zmq::socket_t& socket);
     void run();
     zmq::socket_t createTerminationSubscriber();
 
@@ -144,6 +146,21 @@ void MessageLoop::Impl::addPollable(
     }
 }
 
+void MessageLoop::Impl::removePollable(zmq::socket_t& socket)
+{
+    const auto iter = std::find_if(
+        pollitems.begin(), pollitems.end(),
+        [socket_ptr = static_cast<void*>(socket)](const auto& pollitem)
+        {
+            return pollitem.socket == socket_ptr;
+        });
+    if (iter != pollitems.end()) {
+        pollitems.erase(iter);
+        const auto n = std::distance(pollitems.begin(), iter);
+        callbacks.erase(callbacks.begin() + n);
+    }
+}
+
 void MessageLoop::Impl::run()
 {
     SignalGuard guard {*this};
@@ -195,8 +212,10 @@ void MessageLoop::handleAddPollable(
     impl->addPollable(std::move(socket), std::move(callback));
 }
 
-void MessageLoop::handleRemovePollable(zmq::socket_t&)
+void MessageLoop::handleRemovePollable(zmq::socket_t& socket)
 {
+    assert(impl);
+    impl->removePollable(socket);
 }
 
 void MessageLoop::run()

@@ -109,3 +109,13 @@ TEST_F(MessageLoopTest, testTerminate)
     auto msg = zmq::message_t {};
     EXPECT_TRUE(termination_subscriber.recv(&msg, ZMQ_DONTWAIT));
 }
+
+TEST_F(MessageLoopTest, testRemove)
+{
+    loop.removePollable(*backSockets[0]);
+    sendMessage(frontSockets[0], DEFAULT_MSG);
+    sendMessage(frontSockets[1], DEFAULT_MSG);
+    EXPECT_CALL(callbacks[0], call(_)).Times(0);
+    EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
+    loop.run();
+}
