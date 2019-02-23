@@ -40,7 +40,7 @@ protected:
                     }));
             t.get<2>()->bind(t.get<0>());
             t.get<1>().connect(t.get<0>());
-            loop.addSocket(
+            loop.addPollable(
                 t.get<2>(),
                 [&callback = t.get<3>()](auto& socket)
                 {

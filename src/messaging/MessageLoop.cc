@@ -18,7 +18,7 @@ namespace Messaging {
 namespace {
 
 using SocketCallbackPair = std::pair<
-    MessageLoop::SocketCallback, std::shared_ptr<zmq::socket_t>>;
+    Poller::SocketCallback, Poller::PollableSocket>;
 using FdCallbackPair = std::pair<std::function<void(int)>, int>;
 using CallbackPair = std::variant<SocketCallbackPair, FdCallbackPair>;
 
@@ -40,8 +40,7 @@ class MessageLoop::Impl {
 public:
     Impl(zmq::context_t& context);
 
-    void addSocket(
-        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
+    void addPollable(PollableSocket socket, SocketCallback callback);
     void run();
     zmq::socket_t createTerminationSubscriber();
 
@@ -129,12 +128,13 @@ MessageLoop::Impl::Impl(zmq::context_t& context) :
     terminationPublisher.bind(getTerminationPubSubEndpoint());
 }
 
-void MessageLoop::Impl::addSocket(
-    std::shared_ptr<zmq::socket_t> socket, SocketCallback callback)
+void MessageLoop::Impl::addPollable(
+    PollableSocket socket, SocketCallback callback)
 {
+    assert(socket);
     pollitems.emplace_back(
         zmq::pollitem_t {
-            static_cast<void*>(dereference(socket)), 0, ZMQ_POLLIN, 0});
+            static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0});
     try {
         callbacks.emplace_back(
             SocketCallbackPair {std::move(callback), std::move(socket)});
@@ -188,11 +188,15 @@ MessageLoop::MessageLoop(zmq::context_t& context) :
 
 MessageLoop::~MessageLoop() = default;
 
-void MessageLoop::addSocket(
-    std::shared_ptr<zmq::socket_t> socket, SocketCallback callback)
+void MessageLoop::handleAddPollable(
+    PollableSocket socket, SocketCallback callback)
 {
     assert(impl);
-    impl->addSocket(std::move(socket), std::move(callback));
+    impl->addPollable(std::move(socket), std::move(callback));
+}
+
+void MessageLoop::handleRemovePollable(zmq::socket_t&)
+{
 }
 
 void MessageLoop::run()

@@ -203,7 +203,7 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
             availableGames.emplace(uuid, &game);
             if (const auto peer_command_sender = game.getPeerCommandSender()) {
                 for (auto&& [socket, cb] : peer_command_sender->getSockets()) {
-                    messageLoop.addSocket(std::move(socket), std::move(cb));
+                    messageLoop.addPollable(std::move(socket), std::move(cb));
                 }
             }
             if (const auto card_protocol = game.getCardProtocol()) {
@@ -215,19 +215,19 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
                     std::make_shared<GetMessageHandler>(
                         game.getInfo(), nodePlayerControl));
                 for (auto&& [socket, cb] : card_protocol->getSockets()) {
-                    messageLoop.addSocket(std::move(socket), std::move(cb));
+                    messageLoop.addPollable(std::move(socket), std::move(cb));
                 }
             }
         }
     }
-    messageLoop.addSocket(
+    messageLoop.addPollable(
         callbackScheduler->getSocket(),
         [callbackScheduler = this->callbackScheduler](auto& socket)
         {
             assert(callbackScheduler);
             (*callbackScheduler)(socket);
         }),
-    messageLoop.addSocket(
+    messageLoop.addPollable(
         std::move(controlSocket),
         [&queue = this->messageQueue](auto& socket) { queue(socket); });
 }

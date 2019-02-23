@@ -6,12 +6,10 @@
 #ifndef MESSAGING_MESSAGELOOP_HH_
 #define MESSAGING_MESSAGELOOP_HH_
 
+#include "messaging/Poller.hh"
+
 #include <boost/noncopyable.hpp>
 #include <zmq.hpp>
-
-#include <functional>
-#include <memory>
-#include <vector>
 
 namespace Bridge {
 namespace Messaging {
@@ -23,17 +21,14 @@ namespace Messaging {
  * polled. The application is then signaled by calling a callback. The sockets
  * are shared if the client of the class wishes to retain ownership.
  *
+ * Sockets and callbacks are manager through Poller::addPollable() and
+ * Poller::removePollable() interface. Polling starts when calling run().
+ *
  * In addition to handling incoming ZeroMQ messages, MessageLoop handles SIGTERM
  * and SIGINT signals by terminating cleanly.
  */
-class MessageLoop : private boost::noncopyable {
+class MessageLoop : public Poller, private boost::noncopyable {
 public:
-
-    /** \brief Callback for handling receiving message from a socket
-     *
-     * \sa addSocket()
-     */
-    using SocketCallback = std::function<void(zmq::socket_t&)>;
 
     /** \brief Create new message loop
      *
@@ -46,34 +41,9 @@ public:
 
     ~MessageLoop();
 
-    /** \brief Register socket to the message loop
-     *
-     * Add new socket to the message loop and associate a callback to handle
-     * messages received from the socket. The invocation of the callbacks
-     * starts when run() is called.
-     *
-     * It is assumed that all sockets registered with this interface share the
-     * same context, which is also the same that is passed to the MessageLoop()
-     * constructor when constructing the object.
-     *
-     * \note The \p socket is accepted as shared pointer and stored for the
-     * whole lifetime of the loop. It is the responsibility of the client to
-     * ensure that the lifetime of any object captured by reference by \p
-     * callback exceeds the lifetime of the MessageLoop.
-     *
-     * \param socket the socket to add to the loop
-     * \param callback The function called when socket is ready to receive
-     * message. The parameter to the callback is reference to \p socket.
-     */
-    void addSocket(
-        std::shared_ptr<zmq::socket_t> socket, SocketCallback callback);
-
     /** \brief Start polling messages
      *
-     * Call to this method starts the message loop which consists of polling
-     * incoming messages, and calling callbacks for the sockets that can
-     * receive messages. Thus when callback is called, the socket given as its
-     * argument is guaranteed to not block when message is received from it.
+     * Call to this method starts the message loop.
      *
      * Before entering the message loop this method blocks SIGINT and
      * SIGTERM. MessageLoop takes responsibility of handling those signals by
@@ -101,6 +71,11 @@ public:
     zmq::socket_t createTerminationSubscriber();
 
 private:
+
+    void handleAddPollable(
+        PollableSocket socket, SocketCallback callback) override;
+
+    void handleRemovePollable(zmq::socket_t& socket) override;
 
     class Impl;
     const std::unique_ptr<Impl> impl;

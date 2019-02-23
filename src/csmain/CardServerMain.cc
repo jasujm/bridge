@@ -446,7 +446,7 @@ CardServerMain::Impl::Impl(
         context, zmq::socket_type::pair);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     controlSocket->bind(controlEndpoint);
-    messageLoop.addSocket(
+    messageLoop.addPollable(
         std::move(controlSocket),
         Messaging::MessageQueue {
             {
