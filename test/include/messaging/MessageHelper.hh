@@ -11,6 +11,9 @@
 
 #include "messaging/MessageUtility.hh"
 
+#include <string>
+#include <utility>
+
 namespace Bridge {
 namespace Messaging {
 
@@ -146,6 +149,29 @@ void recvAll(OutputIterator out, zmq::socket_t& socket)
         *out++ = std::move(message.first);
         more = message.second;
     }
+}
+
+/** \brief Create a pair of mutually connected sockets
+ *
+ * This function creates two PAIR sockets connected to each other. The first
+ * socket in the pair binds and the second socket in the pair connects to the
+ * given \p endpoint.
+ *
+ * \param context the ZeroMQ context
+ * \param endpoint the common endpoint of the sockets
+ *
+ * \return std::pair containing two mutually connected sockets
+ */
+inline std::pair<zmq::socket_t, zmq::socket_t> createSocketPair(
+    zmq::context_t& context, const std::string& endpoint)
+{
+    auto ret = std::pair {
+        zmq::socket_t {context, zmq::socket_type::pair},
+        zmq::socket_t {context, zmq::socket_type::pair},
+    };
+    ret.first.bind(endpoint.data());
+    ret.second.connect(endpoint.data());
+    return ret;
 }
 
 }
