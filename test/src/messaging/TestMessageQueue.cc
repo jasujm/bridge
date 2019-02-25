@@ -38,6 +38,7 @@ class MessageQueueTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
+        messageQueue.trySetHandler(COMMAND, handlers.at(COMMAND));
         backSocket.bind(ENDPOINT);
         frontSocket.setsockopt(
             ZMQ_IDENTITY, IDENTITY.routingId.data(), IDENTITY.routingId.size());
@@ -64,8 +65,7 @@ protected:
     zmq::socket_t backSocket {context, zmq::socket_type::router};
     std::map<Blob, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
-    MessageQueue messageQueue {
-        MessageQueue::HandlerMap(handlers.begin(), handlers.end())};
+    MessageQueue messageQueue;
 };
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
@@ -163,9 +163,4 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
     sendMessage(frontSocket, COMMAND);
     messageQueue(backSocket);
     assertReply(true, COMMAND);
-}
-
-TEST_F(MessageQueueTest, testTrySetOldHandlerForOldCommand)
-{
-    EXPECT_TRUE(messageQueue.trySetHandler(COMMAND, handlers.at(COMMAND)));
 }

@@ -8,13 +8,23 @@
 
 #include <zmq.hpp>
 
+#include <any>
+#include <cassert>
+#include <functional>
+#include <initializer_list>
 #include <map>
 #include <memory>
+#include <stdexcept>
+#include <typeindex>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
+#include "messaging/Identity.hh"
+#include "messaging/MessageHandler.hh"
 #include "Blob.hh"
 #include "BlobMap.hh"
-#include "messaging/MessageHandler.hh"
+#include "Utility.hh"
 
 namespace Bridge {
 
@@ -47,44 +57,66 @@ namespace Messaging {
 class MessageQueue {
 public:
 
-    /** \brief Map from commands to message handlers
-     *
-     * HandlerMap is mapping between commands (strings) and MessageHandler
-     * objects used to handle the messages.
+    /** \brief Create message queue with no handlers
      */
-    using HandlerMap = BlobMap<std::shared_ptr<MessageHandler>>;
+    MessageQueue();
 
     /** \brief Create message queue
      *
-     * \param handlers mapping from commands to message handlers
+     * \param handlers initial handlers
      */
-    explicit MessageQueue(HandlerMap handlers);
+    MessageQueue(
+        std::initializer_list<
+            std::pair<ByteSpan, std::shared_ptr<MessageHandler>>> handlers);
 
     ~MessageQueue();
 
-    /** \brief Try to set handler for a command
+    /** \brief Add execution policy
      *
-     * If there is no handler for \p command, or \p handler points to the same
-     * MessageHandler that is already assigned for \p command, the handler is
-     * assigned and the call returns true. Otherwise the call has no effect and
+     * If there is no execution policy of type \c ExecutionPolicy, registers \p
+     * execution to be used with any BasicMessageHandler object using \c
+     * ExecutionPolicy, and returns true. Otherwise the call has no effect and
      * returns false.
      *
-     * \return true if successful, false otherwise
+     * \param execution the execution policy to store
+     *
+     * \return true if \p execution was successfully registered, false otherwise
      */
+    template<typename ExecutionPolicy>
+    bool addExecutionPolicy(ExecutionPolicy execution);
+
+    /** \brief Try to set handler for a command
+     *
+     * If there is no handler for \p command, the handler is assigned and the
+     * call returns true. Otherwise the call has no effect and returns false.
+     *
+     * The execution policy the handler expects needs to be set using
+     * addExecutionPolicy() before the handler is added. If \c ExecutionPolicy
+     * is default constructible, it is created if missing.
+     *
+     * \return true if \p handler was successfully registered, false otherwise
+     */
+    template<
+        typename MessageHandlerType,
+        typename = std::void_t<typename MessageHandlerType::ExecutionPolicyType>>
     bool trySetHandler(
-        ByteSpan command, std::shared_ptr<MessageHandler> handler);
+        ByteSpan command, std::shared_ptr<MessageHandlerType> handler);
 
     /** \brief Receive and reply the next message
      *
-     * When called, the method receives a message from \p socket, dispatches
-     * it to the correct handler and sends the reply through \p socket. The
-     * reply is either REPLY_SUCCESS or REPLY_FAILURE, as determined by the
-     * MessageHandler the message is dispatched to. If the MessageHandler
-     * generates output, the output is interpreted as the arguments of the
-     * reply, and sent after the initial REPLY_SUCCESS or REPLY_FAILURE frame
-     * in multipart message, each entry in its own frame. If handling the
-     * message fails or there is no handler, REPLY_FAILURE is sent to the
-     * socket.
+     * When called, the method receives a message from \p socket, dispatches it
+     * to the correct handler and sends the reply through \p socket. The reply
+     * consists of a status frame, the echoed command frame and optional reply
+     * argument frames, as determined by the message handler. If there is no
+     * handler for the command, REPLY_FAILURE is sent with the echoed command
+     * frame.
+     *
+     * When dispatching the command, the MessageQueue object creates a copy of
+     * the execution policy object expected by the registered
+     * BasicMessageHandler object, provided that one has been registered by
+     * addExecutionPolicy() or can be default constructed by the MessageQueue
+     * object. It then invokes the message handler as specified by the execution
+     * policy, passing it the Response object and command argument frames.
      *
      * \note The intention is that MessageQueue acts as a “server” receiving
      * messages and replying back to the “client” who sent the message. The
@@ -102,8 +134,106 @@ public:
 
 private:
 
-    HandlerMap handlers;
+    using MessageVector = std::vector<zmq::message_t>;
+
+    class BasicResponse : public Response {
+    public:
+        BasicResponse(zmq::message_t*, zmq::message_t*, zmq::message_t&);
+        void sendResponse(zmq::socket_t&);
+
+    private:
+        void handleSetStatus(StatusCode) override;
+        void handleAddFrame(ByteSpan) override;
+
+        std::size_t nStatusFrame;
+        MessageVector frames;
+    };
+
+    template<typename ExecutionPolicy>
+    auto internalAddExecutionPolicyHelper(ExecutionPolicy execution);
+
+    template<typename ExecutionPolicy>
+    auto internalCreateExecutor(
+        std::shared_ptr<BasicMessageHandler<ExecutionPolicy>> handler);
+
+    using ExecutionFunction = std::function<
+        void(Identity&&, MessageVector&&, std::size_t, zmq::socket_t&)>;
+
+    std::map<std::type_index, std::any> policies;
+    BlobMap<ExecutionFunction> executors;
+    ExecutionFunction defaultExecutor;
 };
+
+template<typename ExecutionPolicy>
+auto MessageQueue::internalAddExecutionPolicyHelper(ExecutionPolicy execution)
+{
+    return policies.try_emplace(
+        typeid(ExecutionPolicy), std::move(execution));
+}
+
+template<typename ExecutionPolicy>
+bool MessageQueue::addExecutionPolicy(ExecutionPolicy execution)
+{
+    return internalAddExecutionPolicyHelper(std::move(execution)).second;
+}
+
+template<typename ExecutionPolicy>
+auto MessageQueue::internalCreateExecutor(
+    std::shared_ptr<BasicMessageHandler<ExecutionPolicy>> handler)
+{
+    // ExecutionFunction is a type erased function used to create execution
+    // policy for the MessageHandler object and then executing it
+    // - First of all if the execution policy has been registered, use the
+    //   factory function and any_cast to the correct ExecutionPolicy type (see
+    //   the comment in addExecutionPolicy())
+    // - If the execution policy is not set, but the execution policy is default
+    //   constructible, default construct it
+    // - Otherwise we're screwed and might as well throw an exception
+    const auto& policy_type_id = typeid(ExecutionPolicy);
+    auto execution_iter = policies.find(policy_type_id);
+    if (execution_iter == policies.end()) {
+        if constexpr (std::is_default_constructible_v<ExecutionPolicy>) {
+            execution_iter =
+                internalAddExecutionPolicyHelper(ExecutionPolicy {}).first;
+        } else {
+            throw std::runtime_error {"Execution policy missing"};
+        }
+    };
+    return ExecutionFunction {
+        [execution = std::any_cast<ExecutionPolicy>(execution_iter->second),
+         handler = std::move(handler)](
+             Identity&& identity, MessageVector&& inputFrames,
+             const std::size_t nPrefix, zmq::socket_t& socket) mutable
+        {
+            std::invoke(
+                ExecutionPolicy {execution},
+                [identity = std::move(identity), inputFrames = std::move(inputFrames), nPrefix, &socket, &handler = dereference(handler)](auto& execution) mutable
+                {
+                    const auto first_input_frame_iter = inputFrames.begin();
+                    const auto command_frame_iter = first_input_frame_iter + nPrefix;
+                    const auto last_input_frame_iter = inputFrames.end();
+                    assert(command_frame_iter != last_input_frame_iter);
+                    auto response = BasicResponse(
+                        &(*first_input_frame_iter), &(*command_frame_iter), *command_frame_iter);
+                    handler.handle(
+                        execution, identity, command_frame_iter+1, last_input_frame_iter, response);
+                    response.sendResponse(socket);
+                });
+        }
+    };
+}
+
+template<
+    typename MessageHandlerType,
+    typename = std::void_t<typename MessageHandlerType::ExecutionPolicy>>
+bool MessageQueue::trySetHandler(
+    const ByteSpan command, std::shared_ptr<MessageHandlerType> handler)
+{
+    return executors.emplace(
+        Blob(command.begin(), command.end()),
+        internalCreateExecutor<typename MessageHandlerType::ExecutionPolicyType>(
+            std::move(handler))).second;
+}
 
 }
 }

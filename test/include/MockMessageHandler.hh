@@ -9,14 +9,18 @@
 namespace Bridge {
 namespace Messaging {
 
-class MockMessageHandler : public MessageHandler {
+template<typename ExecutionPolicy>
+class MockBasicMessageHandler : public BasicMessageHandler<ExecutionPolicy> {
 public:
-    MOCK_METHOD4(
+    MOCK_METHOD4_T(
         doHandle,
         void(
-            SynchronousExecutionPolicy& execution, const Identity&,
-            const ParameterVector&, Response&));
+            ExecutionPolicy&, const Identity&,
+            const typename BasicMessageHandler<ExecutionPolicy>::ParameterVector&,
+            Response&));
 };
+
+using MockMessageHandler = MockBasicMessageHandler<SynchronousExecutionPolicy>;
 
 class MockResponse : public Response {
 public:

@@ -72,10 +72,16 @@ private:
  * execution policy.
  *
  * \tparam ExecutionPolicy the exexution policy
+ *
+ * \todo Document ExecutionPolicy concept
  */
 template<typename ExecutionPolicy>
 class BasicMessageHandler {
 public:
+
+    /** \brief The execution policy used by the message handler
+     */
+    using ExecutionPolicyType = ExecutionPolicy;
 
     virtual ~BasicMessageHandler() = default;
 
@@ -139,12 +145,27 @@ void BasicMessageHandler<ExecutionPolicy>::handle(
 
 /** \brief Synchronous execution policy for message handlers
  *
- * Provides no services for execution context. A synchronous message handler
- * just handles the message in the call stack of the driver and returns.
+ * Provides no services for execution context. A synchronously executed callback
+ * is executed in the stack of the caller.
  *
  * \sa BasicMessageHandler, MessageHandler
  */
-struct SynchronousExecutionPolicy {};
+class SynchronousExecutionPolicy {
+public:
+
+    /** \brief Execute callback synchronously
+     *
+     * \param callback the callback to execute
+     */
+    template<typename Callback>
+    void operator()(Callback&& callback);
+};
+
+template<typename Callback>
+void SynchronousExecutionPolicy::operator()(Callback&& callback)
+{
+    std::invoke(std::forward<Callback>(callback), *this);
+}
 
 /** \brief Message handler with synchronous execution policy
  */
