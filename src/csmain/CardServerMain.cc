@@ -430,6 +430,7 @@ private:
     const EndpointIterator peerEndpointIterator;
     std::optional<TMCG> tmcg;
     Messaging::MessageLoop messageLoop;
+    Messaging::MessageQueue messageQueue;
     Messaging::Authenticator authenticator;
 };
 
@@ -440,49 +441,48 @@ CardServerMain::Impl::Impl(
     keys {std::move(keys)},
     peerEndpointIterator {basePeerEndpoint},
     messageLoop {context},
+    messageQueue {
+        {
+            {
+                stringToBlob(INIT_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::init, JsonSerializer {},
+                    std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
+            },
+            {
+                stringToBlob(SHUFFLE_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::shuffle, JsonSerializer {})
+            },
+            {
+                stringToBlob(DRAW_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::draw, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND),
+                    std::make_tuple(CARDS_COMMAND))
+            },
+            {
+                stringToBlob(REVEAL_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::reveal, JsonSerializer {},
+                    std::make_tuple(ID_COMMAND, CARDS_COMMAND))
+            },
+            {
+                stringToBlob(REVEAL_ALL_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::revealAll, JsonSerializer {},
+                    std::make_tuple(CARDS_COMMAND),
+                    std::make_tuple(CARDS_COMMAND))
+            },
+        }
+    },
     authenticator {context, messageLoop.createTerminationSubscriber()}
 {
     auto controlSocket = std::make_shared<zmq::socket_t>(
         context, zmq::socket_type::pair);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     controlSocket->bind(controlEndpoint);
-    messageLoop.addPollable(
-        std::move(controlSocket),
-        Messaging::MessageQueue {
-            {
-                {
-                    stringToBlob(INIT_COMMAND),
-                    makeMessageHandler(
-                        *this, &Impl::init, JsonSerializer {},
-                        std::make_tuple(ORDER_COMMAND, PEERS_COMMAND))
-                },
-                {
-                    stringToBlob(SHUFFLE_COMMAND),
-                    makeMessageHandler(
-                        *this, &Impl::shuffle, JsonSerializer {})
-                },
-                {
-                    stringToBlob(DRAW_COMMAND),
-                    makeMessageHandler(
-                        *this, &Impl::draw, JsonSerializer {},
-                        std::make_tuple(CARDS_COMMAND),
-                        std::make_tuple(CARDS_COMMAND))
-                },
-                {
-                    stringToBlob(REVEAL_COMMAND),
-                    makeMessageHandler(
-                        *this, &Impl::reveal, JsonSerializer {},
-                        std::make_tuple(ID_COMMAND, CARDS_COMMAND))
-                },
-                {
-                    stringToBlob(REVEAL_ALL_COMMAND),
-                    makeMessageHandler(
-                        *this, &Impl::revealAll, JsonSerializer {},
-                        std::make_tuple(CARDS_COMMAND),
-                        std::make_tuple(CARDS_COMMAND))
-                },
-            }
-        });
+    messageLoop.addPollable(std::move(controlSocket), std::ref(messageQueue));
 }
 
 void CardServerMain::Impl::run()

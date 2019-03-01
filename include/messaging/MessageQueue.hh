@@ -6,8 +6,6 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
-#include <zmq.hpp>
-
 #include <any>
 #include <cassert>
 #include <functional>
@@ -19,6 +17,9 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <boost/noncopyable.hpp>
+#include <zmq.hpp>
 
 #include "messaging/Identity.hh"
 #include "messaging/MessageHandler.hh"
@@ -54,7 +55,7 @@ namespace Messaging {
  * them as arbitrary byte sequences. Matching the command is done by binary
  * comparison.
  */
-class MessageQueue {
+class MessageQueue : private boost::noncopyable {
 public:
 
     /** \brief Create message queue with no handlers
