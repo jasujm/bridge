@@ -9,20 +9,17 @@ namespace Bridge {
 namespace Messaging {
 
 MessageQueue::BasicResponse::BasicResponse(
-    zmq::message_t* firstPrefix, zmq::message_t* lastPrefix,
-    zmq::message_t& commandFrame) :
+    MessageVector& inputFrames, const std::size_t nPrefix) :
     // the first frame after the prefix is the status frame
     // thus the prefix length is status frame index
-    nStatusFrame {
-        static_cast<std::size_t>(lastPrefix - firstPrefix)},
-    frames(nStatusFrame + 2)
+    nStatusFrame {nPrefix},
+    frames(nPrefix + 2)
 {
-    auto replyIter = frames.begin();
-    while (firstPrefix != lastPrefix) {
-        replyIter->move(&(*firstPrefix));
-        ++replyIter; ++firstPrefix;
+    assert(nPrefix < inputFrames.size());
+    for (const auto n : to(nPrefix)) {
+        frames[n].move(&inputFrames[n]);
     }
-    frames.back().move(&commandFrame);
+    frames.back().move(&inputFrames[nPrefix]);
 }
 
 void MessageQueue::BasicResponse::sendResponse(zmq::socket_t& socket)
@@ -47,12 +44,12 @@ namespace {
 class DefaultMessageHandler : public MessageHandler {
 private:
     void doHandle(
-        SynchronousExecutionPolicy& execution, const Identity& identity,
+        ExecutionContext, const Identity& identity,
         const ParameterVector& params, Response& response) override;
 };
 
 void DefaultMessageHandler::doHandle(
-    SynchronousExecutionPolicy&, const Identity&, const ParameterVector&,
+    ExecutionContext, const Identity&, const ParameterVector&,
     Response& response)
 {
     response.setStatus(REPLY_FAILURE);

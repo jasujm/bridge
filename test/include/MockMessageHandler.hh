@@ -15,7 +15,7 @@ public:
     MOCK_METHOD4_T(
         doHandle,
         void(
-            ExecutionPolicy&, const Identity&,
+            typename ExecutionPolicy::Context, const Identity&,
             const typename BasicMessageHandler<ExecutionPolicy>::ParameterVector&,
             Response&));
 };

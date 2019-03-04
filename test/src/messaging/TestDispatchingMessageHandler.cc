@@ -41,7 +41,6 @@ protected:
 
     std::shared_ptr<testing::StrictMock<MockMessageHandler>> delegate {
         std::make_shared<testing::StrictMock<MockMessageHandler>>()};
-    Bridge::Messaging::SynchronousExecutionPolicy execution;
     testing::StrictMock<MockResponse> response;
     HandlerType handler {
         KEY, MockSerializationPolicy {}, {{ HANDLER1, delegate }}};
@@ -52,7 +51,7 @@ TEST_F(DispatchingMessageHandlerTest, testNoDelegateParameter)
     const auto params = std::array<Blob, 0> {};
     EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
     handler.handle(
-        execution, IDENTITY, params.begin(), params.end(), response);
+        {}, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testInvalidMatchingParameter)
@@ -60,7 +59,7 @@ TEST_F(DispatchingMessageHandlerTest, testInvalidMatchingParameter)
     const auto params = std::array { KEY };
     EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
     handler.handle(
-        execution, IDENTITY, params.begin(), params.end(), response);
+        {}, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testNonexistingDelegate)
@@ -68,7 +67,7 @@ TEST_F(DispatchingMessageHandlerTest, testNonexistingDelegate)
     const auto params = std::array { KEY, stringToBlob(HANDLER2) };
     EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
     handler.handle(
-        execution, IDENTITY, params.begin(), params.end(), response);
+        {}, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testDelegate)
@@ -78,11 +77,11 @@ TEST_F(DispatchingMessageHandlerTest, testDelegate)
     EXPECT_CALL(
         *delegate,
         doHandle(
-            Ref(execution), IDENTITY,
+            _, IDENTITY,
             ElementsAre(asBytes(KEY), asBytes(HANDLER1)), Ref(response)))
         .WillOnce(Respond(REPLY_SUCCESS));
     handler.handle(
-        execution, IDENTITY, params.begin(), params.end(), response);
+        {}, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
@@ -95,11 +94,11 @@ TEST_F(DispatchingMessageHandlerTest, testAddDelegate)
     EXPECT_CALL(
         *other_delegate,
         doHandle(
-            Ref(execution), IDENTITY,
+            _, IDENTITY,
             ElementsAre(asBytes(KEY), asBytes(HANDLER2)), Ref(response))).
         WillOnce(Respond(REPLY_SUCCESS));
     handler.handle(
-        execution, IDENTITY, params.begin(), params.end(), response);
+        {}, IDENTITY, params.begin(), params.end(), response);
 }
 
 TEST_F(DispatchingMessageHandlerTest, testAddDelegateWithExistingKey)

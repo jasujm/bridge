@@ -200,7 +200,7 @@ public:
 private:
 
     void doHandle(
-        SynchronousExecutionPolicy&, const Identity& identity,
+        ExecutionContext, const Identity& identity,
         const ParameterVector& params, Response& response) override;
 
     template<typename T>
@@ -402,7 +402,7 @@ FunctionMessageHandler(
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 void FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    SynchronousExecutionPolicy&, const Identity& identity,
+    ExecutionContext, const Identity& identity,
     const ParameterVector& params, Response& response)
 {
     internalCallFunction(

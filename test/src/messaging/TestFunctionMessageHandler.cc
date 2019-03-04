@@ -106,7 +106,6 @@ protected:
         const StatusCode expectedStatus,
         const std::vector<std::string> expectedOutput = {})
     {
-        Bridge::Messaging::SynchronousExecutionPolicy execution;
         EXPECT_CALL(response, handleSetStatus(expectedStatus));
         {
             testing::InSequence guard;
@@ -114,8 +113,7 @@ protected:
                 EXPECT_CALL(response, handleAddFrame(Bridge::asBytes(output)));
             }
         }
-        handler.handle(
-            execution, IDENTITY, params.begin(), params.end(), response);
+        handler.handle({}, IDENTITY, params.begin(), params.end(), response);
     }
 
     testing::StrictMock<MockResponse> response;

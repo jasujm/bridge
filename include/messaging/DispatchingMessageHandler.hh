@@ -60,7 +60,7 @@ public:
 private:
 
     void doHandle(
-        SynchronousExecutionPolicy& execution, const Identity& identity,
+        ExecutionContext context, const Identity& identity,
         const ParameterVector& params, Response& response) override;
 
     Blob dispatchKey;
@@ -82,7 +82,7 @@ DispatchingMessageHandler(
 template<typename DispatchArgument, typename SerializationPolicy>
 void DispatchingMessageHandler<DispatchArgument, SerializationPolicy>::
 doHandle(
-    SynchronousExecutionPolicy& execution, const Identity& identity,
+    ExecutionContext context, const Identity& identity,
     const ParameterVector& params, Response& response)
 {
     for (auto i : to(params.size(), 2u)) {
@@ -93,8 +93,8 @@ doHandle(
                 if (const auto iter = delegates.find(value);
                     iter != delegates.end()) {
                     dereference(iter->second).handle(
-                        execution, identity, params.begin(), params.end(),
-                        response);
+                        std::move(context), identity,
+                        params.begin(), params.end(), response);
                     return;
                 }
             }

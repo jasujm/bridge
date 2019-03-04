@@ -177,7 +177,7 @@ std::vector<std::string> GetMessageHandler::getAllKeys()
 }
 
 void GetMessageHandler::doHandle(
-    Messaging::SynchronousExecutionPolicy&, const Messaging::Identity& identity,
+    ExecutionContext, const Messaging::Identity& identity,
     const ParameterVector& params, Messaging::Response& response)
 {
     const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(

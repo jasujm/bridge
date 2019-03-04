@@ -5,15 +5,20 @@ namespace Coroutines {
 
 AsynchronousExecutionPolicy::AsynchronousExecutionPolicy(
     Messaging::Poller& poller) :
-    sink {nullptr},
     poller {&poller}
 {
 }
 
-void AsynchronousExecutionPolicy::await(
+AsynchronousExecutionPolicy::Context::Context(CoroutineAdapter::Sink& sink) :
+    sink {&sink}
+{
+}
+
+void AsynchronousExecutionPolicy::Context::await(
     CoroutineAdapter::AwaitableSocket socket)
 {
-    dereference(sink)(socket);
+    assert(sink);
+    (*sink)(std::move(socket));
 }
 
 }

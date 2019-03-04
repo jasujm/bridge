@@ -49,9 +49,9 @@ protected:
 
     auto createCoroutine()
     {
-        return [this](auto& execution, auto& response)
+        return [this](auto context, auto& response)
         {
-            execution.await(coroSockets.first);
+            context.await(coroSockets.first);
             auto status = StatusCode {};
             const auto n_recv = coroSockets.first->recv(
                 &status, sizeof(status));

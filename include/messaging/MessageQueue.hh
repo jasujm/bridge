@@ -79,12 +79,12 @@ public:
      * ExecutionPolicy, and returns true. Otherwise the call has no effect and
      * returns false.
      *
-     * \param execution the execution policy to store
+     * \param executionPolicy the execution policy to store
      *
      * \return true if \p execution was successfully registered, false otherwise
      */
     template<typename ExecutionPolicy>
-    bool addExecutionPolicy(ExecutionPolicy execution);
+    bool addExecutionPolicy(ExecutionPolicy executionPolicy);
 
     /** \brief Try to set handler for a command
      *
@@ -139,7 +139,7 @@ private:
 
     class BasicResponse : public Response {
     public:
-        BasicResponse(zmq::message_t*, zmq::message_t*, zmq::message_t&);
+        BasicResponse(MessageVector&, std::size_t);
         void sendResponse(zmq::socket_t&);
 
     private:
@@ -151,7 +151,7 @@ private:
     };
 
     template<typename ExecutionPolicy>
-    auto internalAddExecutionPolicyHelper(ExecutionPolicy execution);
+    auto internalAddExecutionPolicyHelper(ExecutionPolicy executionPolicy);
 
     template<typename ExecutionPolicy>
     auto internalCreateExecutor(
@@ -166,16 +166,17 @@ private:
 };
 
 template<typename ExecutionPolicy>
-auto MessageQueue::internalAddExecutionPolicyHelper(ExecutionPolicy execution)
+auto MessageQueue::internalAddExecutionPolicyHelper(
+    ExecutionPolicy executionPolicy)
 {
     return policies.try_emplace(
-        typeid(ExecutionPolicy), std::move(execution));
+        typeid(ExecutionPolicy), std::move(executionPolicy));
 }
 
 template<typename ExecutionPolicy>
-bool MessageQueue::addExecutionPolicy(ExecutionPolicy execution)
+bool MessageQueue::addExecutionPolicy(ExecutionPolicy executionPolicy)
 {
-    return internalAddExecutionPolicyHelper(std::move(execution)).second;
+    return internalAddExecutionPolicyHelper(std::move(executionPolicy)).second;
 }
 
 template<typename ExecutionPolicy>
@@ -191,33 +192,34 @@ auto MessageQueue::internalCreateExecutor(
     //   constructible, default construct it
     // - Otherwise we're screwed and might as well throw an exception
     const auto& policy_type_id = typeid(ExecutionPolicy);
-    auto execution_iter = policies.find(policy_type_id);
-    if (execution_iter == policies.end()) {
+    auto policy_iter = policies.find(policy_type_id);
+    if (policy_iter == policies.end()) {
         if constexpr (std::is_default_constructible_v<ExecutionPolicy>) {
-            execution_iter =
+            policy_iter =
                 internalAddExecutionPolicyHelper(ExecutionPolicy {}).first;
         } else {
             throw std::runtime_error {"Execution policy missing"};
         }
     };
     return ExecutionFunction {
-        [execution = std::any_cast<ExecutionPolicy>(execution_iter->second),
+        [&policy = std::any_cast<ExecutionPolicy&>(policy_iter->second),
          handler = std::move(handler)](
              Identity&& identity, MessageVector&& inputFrames,
-             const std::size_t nPrefix, zmq::socket_t& socket) mutable
+             const std::size_t nPrefix, zmq::socket_t& socket)
         {
             std::invoke(
-                ExecutionPolicy {execution},
-                [identity = std::move(identity), inputFrames = std::move(inputFrames), nPrefix, &socket, &handler = dereference(handler)](auto& execution) mutable
+                policy,
+                [identity = std::move(identity),
+                 inputFrames = std::move(inputFrames), nPrefix, &socket,
+                 &handler = dereference(handler)](auto&& context) mutable
                 {
-                    const auto first_input_frame_iter = inputFrames.begin();
-                    const auto command_frame_iter = first_input_frame_iter + nPrefix;
+                    const auto command_frame_iter = inputFrames.begin() + nPrefix;
                     const auto last_input_frame_iter = inputFrames.end();
                     assert(command_frame_iter != last_input_frame_iter);
-                    auto response = BasicResponse(
-                        &(*first_input_frame_iter), &(*command_frame_iter), *command_frame_iter);
+                    auto response = BasicResponse(inputFrames, nPrefix);
                     handler.handle(
-                        execution, identity, command_frame_iter+1, last_input_frame_iter, response);
+                        std::forward<decltype(context)>(context), identity,
+                        command_frame_iter+1, last_input_frame_iter, response);
                     response.sendResponse(socket);
                 });
         }

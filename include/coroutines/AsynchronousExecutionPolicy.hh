@@ -3,22 +3,58 @@
 
 #include "coroutines/CoroutineAdapter.hh"
 #include "messaging/MessageHandler.hh"
-#include "messaging/Poller.hh"
-#include "Utility.hh"
+
+#include <cassert>
 
 namespace Bridge {
+
+namespace Messaging {
+
+class Poller;
+
+}
+
 namespace Coroutines {
 
-/** \brief Asynchronous execution policy for message handlers
+/** \brief Asynchronous execution policy
  *
- * Executes a callback as a coroutine.
+ * Asynchronous execution policy creates a coroutine, and executes a function in
+ * the coroutine context. The caller resumes when the coroutine completes or
+ * awaits for an event.
  *
- * \sa BasicMessageHandler, AsynchronousMessageHandler
+ * \sa Messaging::BasicMessageHandler, AsynchronousMessageHandler
  */
 struct AsynchronousExecutionPolicy {
 public:
 
-    /** \Brief Create asynchronous execution policy
+    /** \brief Asynchronous execution context
+     *
+     * The context holds reference to the coroutine sink that can be used to
+     * await sockets.
+     */
+    class Context {
+    public:
+
+        /** \brief Create asynchronous execution context
+         *
+         * \param sink the coroutine sink
+         */
+        explicit Context(CoroutineAdapter::Sink& sink);
+
+        /** \brief Await socket
+         *
+         * Suspend the coroutine until \p socket becomes readable.
+         *
+         * \param socket the socket to await
+         */
+        void await(CoroutineAdapter::AwaitableSocket socket);
+
+    private:
+
+        CoroutineAdapter::Sink* sink;
+    };
+
+    /** \brief Create asynchronous execution policy
      *
      * \param poller the poller used for polling the sockets the coroutine is
      * awaiting
@@ -27,20 +63,17 @@ public:
 
     /** \brief Execute callback as coroutine
      *
-     * \param callback the callback to execute
+     * Creates new coroutine, and invokes \p callback in the coroutine
+     * context. The argument for the callback is a Context object that can be
+     * used to await events.
+     *
+     * \param callback the callback to be executed
      */
     template<typename Callback>
     void operator()(Callback&& callback);
 
-    /** \param Await socket
-     *
-     * \param socket the socket to await
-     */
-    void await(CoroutineAdapter::AwaitableSocket socket);
-
 private:
 
-    CoroutineAdapter::Sink* sink;
     Messaging::Poller* poller;
 };
 
@@ -51,8 +84,7 @@ void AsynchronousExecutionPolicy::operator()(Callback&& callback)
     CoroutineAdapter::create(
         [*this, callback = std::forward<Callback>(callback)](auto& sink) mutable
         {
-            this->sink = &sink;
-            std::invoke(std::move(callback), *this);
+            std::invoke(std::move(callback), Context {sink});
         }, *poller);
 }
 

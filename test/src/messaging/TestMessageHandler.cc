@@ -34,7 +34,6 @@ class MessageHandlerTest : public testing::Test
 {
 protected:
     std::vector<Blob> output;
-    SynchronousExecutionPolicy execution;
     StrictMock<MockResponse> response;
     StrictMock<MockMessageHandler> messageHandler;
 };
@@ -45,11 +44,9 @@ TEST_F(MessageHandlerTest, testMessageHandlerSuccess)
     EXPECT_CALL(
         messageHandler,
         doHandle(
-            Ref(execution), IDENTITY,
-            ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
+            _, IDENTITY, ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
         .WillOnce(Respond(REPLY_SUCCESS));;
-    messageHandler.handle(
-        execution, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
+    messageHandler.handle({}, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
 }
 
 TEST_F(MessageHandlerTest, testMessageHandlerFailure)
@@ -58,11 +55,10 @@ TEST_F(MessageHandlerTest, testMessageHandlerFailure)
     EXPECT_CALL(
         messageHandler,
         doHandle(
-            Ref(execution), IDENTITY,
-            ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
+            _, IDENTITY, ElementsAre(asBytes(PARAMS[0]), asBytes(PARAMS[1])), _))
         .WillOnce(Respond(REPLY_FAILURE));
     messageHandler.handle(
-        execution, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
+        {}, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
 }
 
 TEST_F(MessageHandlerTest, testMessageHandlerOutput)
@@ -73,8 +69,8 @@ TEST_F(MessageHandlerTest, testMessageHandlerOutput)
         EXPECT_CALL(response, handleAddFrame(asBytes(OUTPUT1)));
         EXPECT_CALL(response, handleAddFrame(asBytes(OUTPUT2)));
     }
-    EXPECT_CALL(messageHandler, doHandle(Ref(execution), _, _, Ref(response)))
+    EXPECT_CALL(messageHandler, doHandle(_, _, _, Ref(response)))
         .WillOnce(Respond(REPLY_SUCCESS, OUTPUT1, OUTPUT2));
     messageHandler.handle(
-        execution, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
+        {}, IDENTITY, PARAMS.begin(), PARAMS.end(), response);
 }

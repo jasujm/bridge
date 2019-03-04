@@ -94,11 +94,10 @@ protected:
             CARDS_COMMAND,
             JsonSerializer::serialize(
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
-        SynchronousExecutionPolicy execution;
         testing::StrictMock<MockResponse> response;
         EXPECT_CALL(response, handleSetStatus(expectedStatus));
         dereference(dealHandler).handle(
-            execution, identity, args.begin(), args.end(), response);
+            {}, identity, args.begin(), args.end(), response);
     }
 
     zmq::context_t context;

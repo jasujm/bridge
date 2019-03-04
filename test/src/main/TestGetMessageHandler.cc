@@ -145,8 +145,7 @@ protected:
                     {
                         reply.emplace_back(blobToString(frame));
                     }));
-        handler.handle(
-            execution, identity, args.begin(), args.end(), response);
+        handler.handle({}, identity, args.begin(), args.end(), response);
     }
 
     void testEmptyRequestReply(
@@ -170,7 +169,6 @@ protected:
         std::make_shared<NiceMock<MockBridgeGameInfo>>()};
     std::shared_ptr<NodePlayerControl> nodePlayerControl {
         std::make_shared<NodePlayerControl>()};
-    Bridge::Messaging::SynchronousExecutionPolicy execution;
     testing::StrictMock<Bridge::Messaging::MockResponse> response;
     GetMessageHandler handler {gameInfo, nodePlayerControl};
     std::vector<std::string> reply;
@@ -183,8 +181,7 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
         JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
     };
     EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
-    handler.handle(
-        execution, Identity {}, args.begin(), args.end(), response);
+    handler.handle({}, {}, args.begin(), args.end(), response);
 }
 
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)

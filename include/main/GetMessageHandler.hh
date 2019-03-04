@@ -49,8 +49,7 @@ public:
 private:
 
     void doHandle(
-        Messaging::SynchronousExecutionPolicy&,
-        const Messaging::Identity& identity,
+        ExecutionContext, const Messaging::Identity& identity,
         const ParameterVector& params, Messaging::Response& response) override;
 
     bool internalContainsKey(
