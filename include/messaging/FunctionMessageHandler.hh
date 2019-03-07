@@ -10,14 +10,12 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "Blob.hh"
-#include "BlobMap.hh"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
-#include <map>
 #include <memory>
 #include <optional>
-#include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -125,6 +123,138 @@ inline auto failure()
     return ReplyFailure {};
 }
 
+/// \cond DOXYGEN_IGNORE
+
+namespace FunctionMessageHandlerImpl {
+
+template<typename T>
+struct ParamWrapperImplBase {
+    using WrappedType = std::optional<T>;
+    using DeserializedType = T;
+    static void wrap(DeserializedType&& param, WrappedType& wrapper)
+        {
+            wrapper.emplace(std::move(param));
+        }
+};
+
+template<typename T>
+struct ParamWrapperImpl : public ParamWrapperImplBase<T> {
+    using Base = ParamWrapperImplBase<T>;
+    using WrappedType = typename Base::WrappedType;
+    using DeserializedType = typename Base::DeserializedType;
+    static constexpr bool optional = false;
+    static auto& unwrap(WrappedType& wrapper)
+        {
+            assert(wrapper);
+            return *wrapper;
+        }
+};
+
+template<typename T>
+struct ParamWrapperImpl<std::optional<T>> : public ParamWrapperImplBase<T> {
+    using Base = ParamWrapperImplBase<T>;
+    using WrappedType = typename Base::WrappedType;
+    using DeserializedType = typename Base::DeserializedType;
+    static constexpr bool optional = true;
+    static auto& unwrap(WrappedType& wrapper) { return wrapper; }
+};
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+class ReplyVisitor {
+public:
+
+    ReplyVisitor(
+        SerializationPolicy& serializer, Response& response,
+        std::array<Blob, REPLY_SIZE>& replyKeys);
+
+    void operator()(ReplyFailure);
+
+    template<typename... Args2>
+    void operator()(const ReplySuccess<Args2...>& reply);
+
+private:
+
+    template<std::size_t N, typename T>
+    void internalAddFrameImpl(const T& t);
+
+    template<std::size_t N, typename T>
+    void internalAddFrame(const T& t);
+
+    template<std::size_t N, typename T>
+    void internalAddFrame(const std::optional<T>& t);
+
+    template<typename... Args2, std::size_t... Ns>
+    void internalSendReply(
+        const std::tuple<Args2...>& args, std::index_sequence<Ns...>);
+
+    SerializationPolicy& serializer;
+    Response& response;
+    std::array<Blob, REPLY_SIZE>& replyKeys;
+};
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+ReplyVisitor<SerializationPolicy, REPLY_SIZE>::ReplyVisitor(
+    SerializationPolicy& serializer, Response& response,
+    std::array<Blob, REPLY_SIZE>& replyKeys) :
+    serializer {serializer},
+    response {response},
+    replyKeys {replyKeys}
+{
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(ReplyFailure)
+{
+    response.setStatus(REPLY_FAILURE);
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<std::size_t N, typename T>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
+internalAddFrameImpl(const T& t)
+{
+    response.addFrame(std::get<N>(replyKeys));
+    response.addFrame(asBytes(serializer.serialize(t)));
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<std::size_t N, typename T>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::internalAddFrame(const T& t)
+{
+    internalAddFrameImpl<N>(t);
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<std::size_t N, typename T>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
+internalAddFrame(const std::optional<T>& t)
+{
+    if (t) {
+        internalAddFrameImpl<N>(*t);
+    }
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename... Args2, std::size_t... Ns>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
+internalSendReply(const std::tuple<Args2...>& args, std::index_sequence<Ns...>)
+{
+    ( ... , internalAddFrame<Ns>(std::get<Ns>(args)) );
+}
+
+template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename... Args2>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
+    const ReplySuccess<Args2...>& reply)
+{
+    response.setStatus(REPLY_SUCCESS);
+    internalSendReply(reply.arguments, std::index_sequence_for<Args2...> {});
+}
+
+}
+
+/// \endcond
+
 /** \brief Class that adapts a function into MessageHandler interface
  *
  * FunctionMessageHandler wraps a function into MessageHandler interface. It
@@ -204,174 +334,38 @@ private:
         const ParameterVector& params, Response& response) override;
 
     template<typename T>
-    struct ParamTraitsImplBase {
-        using WrappedType = std::optional<T>;
-        using DeserializedType = T;
-        static void initialize(DeserializedType&& param, WrappedType& wrapper)
-        {
-            wrapper.emplace(std::move(param));
-        }
-    };
-
-    template<typename T>
-    struct ParamTraitsImpl : public ParamTraitsImplBase<T> {
-        using Base = ParamTraitsImplBase<T>;
-        using WrappedType = typename Base::WrappedType;
-        using DeserializedType = typename Base::DeserializedType;
-        static bool isValid(const WrappedType& wrapper)
-        {
-            return bool(wrapper);
-        }
-        static decltype(auto) unwrap(WrappedType& wrapper)
-        {
-            return std::move(*wrapper);
-        }
-        static bool shouldSerialize(const DeserializedType&)
-        {
-            return true;
-        }
-        static const T& getSerializable(const T& value)
-        {
-            return value;
-        }
-    };
-
-    template<typename T>
-    struct ParamTraitsImpl<std::optional<T>> : public ParamTraitsImplBase<T> {
-        using Base = ParamTraitsImplBase<T>;
-        using WrappedType = typename Base::WrappedType;
-        using DeserializedType = typename Base::DeserializedType;
-        static bool isValid(const WrappedType&)
-        {
-            return true;
-        }
-        static decltype(auto) unwrap(WrappedType& wrapper)
-        {
-            return std::move(wrapper);
-        }
-        static bool shouldSerialize(const std::optional<T>& value)
-        {
-            return bool(value);
-        }
-        static const T& getSerializable(const std::optional<T>& value)
-        {
-            assert(value);
-            return *value;
-        }
-    };
-
-    template<typename T>
-    using ParamTraits = ParamTraitsImpl<std::decay_t<T>>;
-
-    using ParamTuple = std::tuple<typename ParamTraits<Args>::WrappedType...>;
-    using InitFunction =
-        bool (FunctionMessageHandler::*)(ByteSpan, ParamTuple&);
-    using InitFunctionMap = BlobMap<InitFunction>;
+    using ParamWrapper = FunctionMessageHandlerImpl::ParamWrapperImpl<
+        std::decay_t<T>>;
     using ResultType = typename std::invoke_result_t<
-        Function, Identity, typename ParamTraits<Args>::DeserializedType...>;
+        Function, Identity, typename ParamWrapper<Args>::DeserializedType...>;
+    static constexpr auto ARGS_SIZE = sizeof...(Args);
     static constexpr auto REPLY_SIZE =
         std::tuple_size<typename ResultType::Types>::value;
-    using ReplyKeysArray = std::array<std::string, REPLY_SIZE>;
-
-    class ReplyVisitor {
-    public:
-
-        ReplyVisitor(
-            SerializationPolicy& serializer, Response& response,
-            ReplyKeysArray& replyKeys);
-
-        void operator()(ReplyFailure) const;
-
-        template<typename... Args2>
-        void operator()(const ReplySuccess<Args2...>& reply) const;
-
-    private:
-
-        template<std::size_t N, typename... Args2>
-        void internalReplySuccessHelper(const std::tuple<Args2...>& args) const;
-
-        SerializationPolicy& serializer;
-        Response& response;
-        ReplyKeysArray& replyKeys;
-    };
-
-    template<typename Keys, std::size_t... Ns>
-    auto makeInitFunctionMap(Keys keys, std::index_sequence<Ns...>);
 
     template<typename ReplyKeys, std::size_t... Ns>
-    auto makeReplyKeys(ReplyKeys keys, std::index_sequence<Ns...>);
+    auto internalMakeKeys(ReplyKeys keys, std::index_sequence<Ns...>);
 
-    template<std::size_t N>
-    bool internalInitParam(ByteSpan arg, ParamTuple& params);
+    template<std::size_t N, typename WrappedType>
+    bool internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to);
 
     template<std::size_t... Ns>
     void internalCallFunction(
         const Identity& identity, const ParameterVector& params,
-        Response& response, std::index_sequence<Ns...>)
-    {
-        auto first = params.begin();
-        const auto last = params.end();
-        ParamTuple args;
-        // Deserialize parameters into function arguments
-        while (first != last) {
-            const auto iter = initFunctions.find(*first++);
-            if (first == last) {
-                response.setStatus(REPLY_FAILURE);
-                return;
-            }
-            if (iter != initFunctions.end()) {
-                const auto memfn = iter->second;
-                const auto success = (this->*memfn)(*first, args);
-                if (!success) {
-                    response.setStatus(REPLY_FAILURE);
-                    return;
-                }
-            }
-            ++first;
-        }
-        // Check that all required arguments are initialized
-        std::array<bool, sizeof...(Args)> all_initialized {{
-            ParamTraits<Args>::isValid(std::get<Ns>(args))...}};
-        for (const auto initialized : all_initialized) {
-            if (!initialized) {
-                response.setStatus(REPLY_FAILURE);
-                return;
-            }
-        }
-        // Call the function
-        auto&& result = function(
-            identity,
-            ParamTraits<Args>::unwrap(std::get<Ns>(args))...);
-        std::visit(
-            ReplyVisitor {serializer, response, replyKeys}, result.reply);
-    }
+        Response& response, std::index_sequence<Ns...>);
 
     Function function;
     SerializationPolicy serializer;
-    InitFunctionMap initFunctions;
-    ReplyKeysArray replyKeys;
+    std::array<Blob, ARGS_SIZE> argKeys;
+    std::array<Blob, REPLY_SIZE> replyKeys;
 };
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<typename ReplyKeys, std::size_t... Ns>
-auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-makeReplyKeys([[maybe_unused]] ReplyKeys replyKeys, std::index_sequence<Ns...>)
-{
-    return ReplyKeysArray {{
-        std::move(std::get<Ns>(replyKeys))...
-    }};
-}
 
 template<typename Function, typename SerializationPolicy, typename... Args>
 template<typename Keys, std::size_t... Ns>
 auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-makeInitFunctionMap([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
+internalMakeKeys([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
 {
-    return InitFunctionMap {
-        {
-            stringToBlob(std::move(std::get<Ns>(keys))),
-            &FunctionMessageHandler::internalInitParam<Ns>
-        }...
+    return std::array<Blob, sizeof...(Ns)> {
+        stringToBlob(std::get<Ns>(keys))...
     };
 }
 
@@ -383,12 +377,12 @@ FunctionMessageHandler(
     ReplyKeys&& replyKeys) :
     function(std::move(function)),
     serializer(std::move(serializer)),
-    initFunctions {
-        makeInitFunctionMap(
+    argKeys {
+        internalMakeKeys(
             std::forward<Keys>(keys),
             std::index_sequence_for<Args...> {})},
     replyKeys {
-        makeReplyKeys(
+        internalMakeKeys(
             std::forward<ReplyKeys>(replyKeys),
             std::make_index_sequence<REPLY_SIZE> {})}
 {
@@ -401,74 +395,81 @@ FunctionMessageHandler(
 }
 
 template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t N, typename WrappedType>
+bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
+{
+    using ArgType = typename std::tuple_element<N, std::tuple<Args...>>::type;
+    using DeserializedType = typename ParamWrapper<ArgType>::DeserializedType;
+    if (from.data() == nullptr) {
+        return ParamWrapper<ArgType>::optional;
+    }
+    auto&& deserialized_param = serializer.template deserialize<DeserializedType>(from);
+    ParamWrapper<ArgType>::wrap(std::move(deserialized_param), to);
+    return true;
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
+template<std::size_t... Ns>
+void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+internalCallFunction(
+    const Identity& identity, const ParameterVector& params,
+    Response& response, std::index_sequence<Ns...>)
+{
+    auto params_to_deserialize = std::array<ByteSpan, ARGS_SIZE> {};
+    auto first = params.begin();
+    const auto last = params.end();
+    while (first != last) {
+        const auto arg_key_iter = std::find(
+            argKeys.begin(), argKeys.end(), *first);
+        ++first;
+        if (first == last) {
+            response.setStatus(REPLY_FAILURE);
+            return;
+        }
+        if (arg_key_iter != argKeys.end()) {
+            const auto n = static_cast<std::size_t>(
+                arg_key_iter - argKeys.begin());
+            assert(n < params_to_deserialize.size());
+            params_to_deserialize[n] = *first;
+        }
+        ++first;
+    }
+    // Wrapped parameters are deserialized parameters, but wrapped in
+    // std::optional to account for the fact that they may not be present in the
+    // ParameterVector.  If parameter type is std::optional<T>, then its already
+    // wrapped and optional also in ParameterVector.
+    [[maybe_unused]] auto wrapped_params =
+        std::tuple<typename ParamWrapper<Args>::WrappedType...> {};
+    auto all_valid = false;
+    try {
+        all_valid = ( internalDeserializeAndWrapArg<Ns>(
+            std::get<Ns>(params_to_deserialize),
+            std::get<Ns>(wrapped_params)) && ... );
+    } catch (const SerializationFailureException&) {
+        // all_valid remains false
+    }
+    if (!all_valid) {
+        response.setStatus(REPLY_FAILURE);
+        return;
+    }
+    // Call the function. We need to unwrap the parameters. If function excepts
+    // std::optional<T>, then unwrapping does nothing.
+    auto&& result = function(
+        identity,
+        std::move(ParamWrapper<Args>::unwrap(std::get<Ns>(wrapped_params)))...);
+    std::visit(
+        FunctionMessageHandlerImpl::ReplyVisitor {
+            serializer, response, replyKeys }, result.reply);
+}
+
+template<typename Function, typename SerializationPolicy, typename... Args>
 void FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
     ExecutionContext, const Identity& identity,
     const ParameterVector& params, Response& response)
 {
     internalCallFunction(
         identity, params, response, std::index_sequence_for<Args...>());
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::ReplyVisitor(
-    SerializationPolicy& serializer, Response& response,
-    ReplyKeysArray& replyKeys) :
-    serializer {serializer},
-    response {response},
-    replyKeys {replyKeys}
-{
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::operator()(ReplyFailure) const
-{
-    response.setStatus(REPLY_FAILURE);
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<typename... Args2>
-void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::operator()(const ReplySuccess<Args2...>& reply) const
-{
-    response.setStatus(REPLY_SUCCESS);
-    if constexpr (0 < sizeof...(Args2)) {
-        internalReplySuccessHelper<0>(reply.arguments);
-    }
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N, typename... Args2>
-void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-ReplyVisitor::internalReplySuccessHelper(const std::tuple<Args2...>& args) const
-{
-    using ArgType = typename std::tuple_element<N, std::tuple<Args2...>>::type;
-    const auto& arg = std::get<N>(args);
-    if (ParamTraits<ArgType>::shouldSerialize(arg)) {
-        response.addFrame(asBytes(std::get<N>(replyKeys)));
-        response.addFrame(asBytes(serializer.serialize(ParamTraits<ArgType>::getSerializable(arg))));
-    }
-    if constexpr (N+1 < sizeof...(Args2)) {
-        internalReplySuccessHelper<N+1>(args);
-    }
-}
-
-template<typename Function, typename SerializationPolicy, typename... Args>
-template<std::size_t N>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-internalInitParam(ByteSpan arg, ParamTuple& params)
-{
-    using ArgType = typename std::tuple_element<N, std::tuple<Args...>>::type;
-    using DeserializedType = typename ParamTraits<ArgType>::DeserializedType;
-    try {
-        auto&& param = serializer.template deserialize<DeserializedType>(arg);
-        ParamTraits<ArgType>::initialize(std::move(param), std::get<N>(params));
-        return true;
-    }
-    catch (const SerializationFailureException&) {
-        return false;
-    }
 }
 
 /** \brief Utility for wrapping function into message handler
@@ -501,10 +502,10 @@ auto makeMessageHandler(
 {
     return std::make_unique<
         FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
-        std::forward<Function>(function),
-        std::forward<SerializationPolicy>(serializer),
-        std::forward<Keys>(keys),
-        std::forward<ReplyKeys>(replyKeys));
+            std::forward<Function>(function),
+            std::forward<SerializationPolicy>(serializer),
+            std::forward<Keys>(keys),
+            std::forward<ReplyKeys>(replyKeys));
 }
 
 /** \brief Utility for wrapping member function call into message handler
