@@ -1,6 +1,6 @@
 /** \file
  *
- * \brief Definition of Bridge::Messaging::FunctionMessageHandler class
+ * \brief Definition of Bridge::Messaging::BasicFunctionMessageHandler class
  */
 
 #ifndef MESSAGING_FUNCTIONMESSAGEHANDLER_HH_
@@ -251,33 +251,74 @@ void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
     internalSendReply(reply.arguments, std::index_sequence_for<Args2...> {});
 }
 
+template<typename Function, typename ExecutionContext, typename... Args>
+inline constexpr auto IsInvocableWithExecutionContext = std::is_invocable_v<
+    Function, ExecutionContext, const Identity&, Args...>;
+
+template<typename Function, typename... Args>
+inline constexpr auto IsInvocableWithoutExecutionContext = std::is_invocable_v<
+    Function, const Identity&, Args...>;
+
+template<
+    typename ExecutionContext, typename Function, typename... Args,
+    std::enable_if_t<
+        IsInvocableWithExecutionContext<
+            Function, ExecutionContext, Args...>, int> = 0>
+decltype(auto) invokeWithExecutionContextIfPossible(
+    Function&& function, ExecutionContext&& context, const Identity& identity,
+    Args&&... args)
+{
+    return std::invoke(
+        std::forward<Function>(function),
+        std::forward<ExecutionContext>(context), identity,
+        std::forward<Args>(args)...);
+}
+
+template<
+    typename ExecutionContext, typename Function, typename... Args,
+    std::enable_if_t<
+        IsInvocableWithoutExecutionContext<Function, Args...>, int> = 0>
+decltype(auto) invokeWithExecutionContextIfPossible(
+    Function&& function, ExecutionContext&&, const Identity& identity,
+    Args&&... args)
+{
+    return std::invoke(
+        std::forward<Function>(function), identity,
+        std::forward<Args>(args)...);
+}
+
 }
 
 /// \endcond
 
 /** \brief Class that adapts a function into MessageHandler interface
  *
- * FunctionMessageHandler wraps a function into MessageHandler interface. It
- * is responsible for deserializing the message parameters consisting of
- * key–value pairs and forwarding them as arguments to the function in type
- * safe manner. The deserialization is controlled by serialization
- * policy. When the function returns, the return is serialized and passed back
- * to the caller.
+ * BasicFunctionMessageHandler wraps a function in a BasicMessageHandler
+ * interface. It is responsible for deserializing the message parameters
+ * consisting of key–value pairs and forwarding them as arguments to the
+ * function in type safe manner. The deserialization is controlled by
+ * serialization policy. When the function returns, the return is serialized and
+ * passed back to the caller.
  *
- * The function that handles the message must accept a string containing the
- * identity and any number of additional arguments. It must return an object
- * of type \ref Reply. Depending on the type of the reply (ReplySuccess or
- * ReplyFailure) the message handler returns true or false to the caller. In
- * case of successful reply, any arguments of ReplySuccess are serialized and
- * written as key–value pairs to the output iterator provided by the caller.
+ * There are two possible signatures that the function can support. It may be
+ * invocable with an Identity object followed by additional arguments, in which
+ * case the Identity object received from the caller is passed to the
+ * function. Alternatively the Identity parameter may additionally be preceded
+ * by the execution context for the message handler, in which case both the
+ * execution context and identity are passed.
  *
- * The following is an example of message handler function in hypothetical
- * cloud service that checks credentials of a client and returns list of files
- * if the check passes.
+ * The function must return an object of type \ref Reply. Depending on the type
+ * of the reply (ReplySuccess or ReplyFailure) the message handler sets the
+ * response status. In case of successful reply, any arguments of ReplySuccess
+ * are serialized and added as key–value pair frames to the response object.
+ *
+ * The following is an example of message handler function in a hypothetical
+ * service that checks credentials of a client and returns list of files if the
+ * check passes.
  *
  * \code{.cc}
  * Reply<std::vector<std::string>> getFiles(
- *     const Blob& identity, const Blob& credentials)
+ *     const Identity& identity, const Blob& credentials)
  * {
  *     if (checkCredentials(identity, credentials)) {
  *         return success(getFilesForUser(identity));
@@ -286,12 +327,15 @@ void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
  * }
  * \endcode
  *
- * FunctionMessageHandler supports optional arguments. If any of the \p Args
- * decays into \c std::optional<T> for some type \c T, the corresponding
+ * BasicFunctionMessageHandler supports optional arguments. If any of the \p
+ * Args decays into \c std::optional<T> for some type \c T, the corresponding
  * key–value pair may be omitted from the message. If it is present, the value
- * is deserializez as \c T (and not \c std::optional<T> itself). Similarly,
- * if the reply contains any empty optional values, they are not present in
- * the serialized reply.
+ * is deserializez as \c T (and not \c std::optional<T> itself). Similarly, if
+ * the reply contains any empty optional values, they are not present in the
+ * serialized reply.
+ *
+ * \tparam ExecutionPolicy Execution policy of the message handler, see \ref
+ * executionpolicy
  *
  * \tparam SerializationPolicy See \ref serializationpolicy
  *
@@ -300,10 +344,13 @@ void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
  * distinguish between different possible calling signatures provided by the
  * function.
  *
- * \sa makeMessageHandler()
+ * \sa makeMessageHandler(), FunctionMessageHandler
  */
-template<typename Function, typename SerializationPolicy, typename... Args>
-class FunctionMessageHandler : public MessageHandler {
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
+class BasicFunctionMessageHandler :
+    public BasicMessageHandler<ExecutionPolicy> {
 public:
 
     /** \brief Create function message handler
@@ -323,21 +370,31 @@ public:
      * tuple corresponds to the number of arguments in each case.
      */
     template<typename Keys, typename ReplyKeys>
-    FunctionMessageHandler(
+    BasicFunctionMessageHandler(
         Function function, SerializationPolicy serializer,
         Keys&& keys, ReplyKeys&& replyKeys);
 
 private:
 
+    using ExecutionContext = typename BasicMessageHandler<
+        ExecutionPolicy>::ExecutionContext;
+
+    using ParameterVector = typename BasicMessageHandler<
+        ExecutionPolicy>::ParameterVector;
+
     void doHandle(
-        ExecutionContext, const Identity& identity,
+        ExecutionContext context, const Identity& identity,
         const ParameterVector& params, Response& response) override;
 
     template<typename T>
     using ParamWrapper = FunctionMessageHandlerImpl::ParamWrapperImpl<
         std::decay_t<T>>;
-    using ResultType = typename std::invoke_result_t<
-        Function, Identity, typename ParamWrapper<Args>::DeserializedType...>;
+
+    using ResultType = decltype(
+        FunctionMessageHandlerImpl::invokeWithExecutionContextIfPossible(
+            std::declval<Function>(), std::declval<ExecutionContext>(),
+            std::declval<Identity>(), std::declval<std::decay_t<Args>>()...));
+
     static constexpr auto ARGS_SIZE = sizeof...(Args);
     static constexpr auto REPLY_SIZE =
         std::tuple_size<typename ResultType::Types>::value;
@@ -350,8 +407,9 @@ private:
 
     template<std::size_t... Ns>
     void internalCallFunction(
-        const Identity& identity, const ParameterVector& params,
-        Response& response, std::index_sequence<Ns...>);
+        ExecutionContext&& context, const Identity& identity,
+        const ParameterVector& params, Response& response,
+        std::index_sequence<Ns...>);
 
     Function function;
     SerializationPolicy serializer;
@@ -359,9 +417,12 @@ private:
     std::array<Blob, REPLY_SIZE> replyKeys;
 };
 
-template<typename Function, typename SerializationPolicy, typename... Args>
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
 template<typename Keys, std::size_t... Ns>
-auto FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+auto BasicFunctionMessageHandler<
+    ExecutionPolicy, Function, SerializationPolicy, Args...>::
 internalMakeKeys([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
 {
     return std::array<Blob, sizeof...(Ns)> {
@@ -369,10 +430,13 @@ internalMakeKeys([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
     };
 }
 
-template<typename Function, typename SerializationPolicy, typename... Args>
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
 template<typename Keys, typename ReplyKeys>
-FunctionMessageHandler<Function, SerializationPolicy, Args...>::
-FunctionMessageHandler(
+BasicFunctionMessageHandler<
+    ExecutionPolicy, Function, SerializationPolicy, Args...>::
+BasicFunctionMessageHandler(
     Function function, SerializationPolicy serializer, Keys&& keys,
     ReplyKeys&& replyKeys) :
     function(std::move(function)),
@@ -394,9 +458,12 @@ FunctionMessageHandler(
         "Number of reply keys must match the number of arguments in the reply");
 }
 
-template<typename Function, typename SerializationPolicy, typename... Args>
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
 template<std::size_t N, typename WrappedType>
-bool FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+bool BasicFunctionMessageHandler<
+    ExecutionPolicy, Function, SerializationPolicy, Args...>::
 internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
 {
     using ArgType = typename std::tuple_element<N, std::tuple<Args...>>::type;
@@ -404,17 +471,22 @@ internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
     if (from.data() == nullptr) {
         return ParamWrapper<ArgType>::optional;
     }
-    auto&& deserialized_param = serializer.template deserialize<DeserializedType>(from);
+    auto&& deserialized_param =
+        serializer.template deserialize<DeserializedType>(from);
     ParamWrapper<ArgType>::wrap(std::move(deserialized_param), to);
     return true;
 }
 
-template<typename Function, typename SerializationPolicy, typename... Args>
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
 template<std::size_t... Ns>
-void FunctionMessageHandler<Function, SerializationPolicy, Args...>::
+void BasicFunctionMessageHandler<
+    ExecutionPolicy, Function, SerializationPolicy, Args...>::
 internalCallFunction(
-    const Identity& identity, const ParameterVector& params,
-    Response& response, std::index_sequence<Ns...>)
+    ExecutionContext&& context, const Identity& identity,
+    const ParameterVector& params, Response& response,
+    std::index_sequence<Ns...>)
 {
     auto params_to_deserialize = std::array<ByteSpan, ARGS_SIZE> {};
     auto first = params.begin();
@@ -455,26 +527,36 @@ internalCallFunction(
     }
     // Call the function. We need to unwrap the parameters. If function excepts
     // std::optional<T>, then unwrapping does nothing.
-    auto&& result = function(
-        identity,
+    using namespace FunctionMessageHandlerImpl;
+    auto&& result = invokeWithExecutionContextIfPossible(
+        function, std::move(context), identity,
         std::move(ParamWrapper<Args>::unwrap(std::get<Ns>(wrapped_params)))...);
     std::visit(
-        FunctionMessageHandlerImpl::ReplyVisitor {
-            serializer, response, replyKeys }, result.reply);
+        ReplyVisitor { serializer, response, replyKeys }, result.reply);
 }
 
-template<typename Function, typename SerializationPolicy, typename... Args>
-void FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
-    ExecutionContext, const Identity& identity,
+template<
+    typename ExecutionPolicy, typename Function, typename SerializationPolicy,
+    typename... Args>
+void BasicFunctionMessageHandler<
+    ExecutionPolicy, Function, SerializationPolicy, Args...>::doHandle(
+    ExecutionContext context, const Identity& identity,
     const ParameterVector& params, Response& response)
 {
     internalCallFunction(
-        identity, params, response, std::index_sequence_for<Args...>());
+        std::move(context), identity, params, response,
+        std::index_sequence_for<Args...>());
 }
+
+/** \brief Function message handler with synchronous execution policy
+ */
+template<typename Function, typename SerializationPolicy, typename... Args>
+using FunctionMessageHandler = BasicFunctionMessageHandler<
+    SynchronousExecutionPolicy, Function, SerializationPolicy, Args...>;
 
 /** \brief Utility for wrapping function into message handler
  *
- * This is utility for constructing FunctionMessageHandler with some types
+ * This is utility for constructing BasicFunctionMessageHandler with some types
  * deducted.
  *
  * \note Invocation argument types cannot be deduced for general function
@@ -491,17 +573,19 @@ void FunctionMessageHandler<Function, SerializationPolicy, Args...>::doHandle(
  *
  * \return pointer the constructed message handler
  *
- * \sa FunctionMessageHandler
+ * \sa BasicFunctionMessageHandler
  */
 template<
-    typename... Args, typename Function, typename SerializationPolicy,
-    typename Keys = std::tuple<>, typename ReplyKeys = std::tuple<>>
+    typename ExecutionPolicy, typename... Args, typename Function,
+    typename SerializationPolicy, typename Keys = std::tuple<>,
+    typename ReplyKeys = std::tuple<>>
 auto makeMessageHandler(
     Function&& function, SerializationPolicy&& serializer, Keys&& keys = {},
     ReplyKeys&& replyKeys = {})
 {
     return std::make_unique<
-        FunctionMessageHandler<Function, SerializationPolicy, Args...>>(
+        BasicFunctionMessageHandler<
+            ExecutionPolicy, Function, SerializationPolicy, Args...>>(
             std::forward<Function>(function),
             std::forward<SerializationPolicy>(serializer),
             std::forward<Keys>(keys),
@@ -510,8 +594,10 @@ auto makeMessageHandler(
 
 /** \brief Utility for wrapping member function call into message handler
  *
- * This function can be used to create FunctionMessageHandler in the usual
- * case that the function is a method invocation for a known object.
+ * This function can be used to create BasicFunctionMessageHandler in the
+ * typical case that the function is a method invocation for a known
+ * object. This overload is for member functions that don’t accept execution
+ * context of the handler as their argument.
  *
  * \note The MessageHandler returned by this function stores reference to \p
  * handler. It is the responsibility of the user of this function to ensure
@@ -527,12 +613,12 @@ auto makeMessageHandler(
  *
  * \return Pointer the constructed message handler
  *
- * \sa FunctionMessageHandler
+ * \sa BasicFunctionMessageHandler
  */
 template<
-    typename Handler, typename Reply, typename... Args,
-    typename SerializationPolicy, typename Keys = std::tuple<>,
-    typename ReplyKeys = std::tuple<>>
+    typename ExecutionPolicy = SynchronousExecutionPolicy, typename Handler,
+    typename Reply, typename... Args, typename SerializationPolicy,
+    typename Keys = std::tuple<>, typename ReplyKeys = std::tuple<>>
 auto makeMessageHandler(
     Handler& handler, Reply (Handler::*memfn)(const Identity&, Args...),
     SerializationPolicy&& serializer, Keys&& keys = {},
@@ -543,11 +629,58 @@ auto makeMessageHandler(
     // it. However, other parameters are constructed in doHandle and moved to
     // the handler function, so there might be performance to be gained by
     // accepting them as rvalue references.
-    return makeMessageHandler<Args...>(
+    return makeMessageHandler<ExecutionPolicy, Args...>(
         [&handler, memfn](
             const Identity& identity, std::decay_t<Args>&&... args)
         {
             return (handler.*memfn)(identity, std::move(args)...);
+        },
+        std::forward<SerializationPolicy>(serializer),
+        std::forward<Keys>(keys),
+        std::forward<ReplyKeys>(replyKeys));
+}
+
+/** \brief Utility for wrapping member function call into message handler
+ *
+ * This function can be used to create BasicFunctionMessageHandler in the
+ * typical case that the function is a method invocation for a known
+ * object. This overload is for member functions that accept execution context
+ * of the handler as the first argument (before identity).
+ *
+ * \note The MessageHandler returned by this function stores reference to \p
+ * handler. It is the responsibility of the user of this function to ensure
+ * that the lifetime of \p handler exceeds the lifetime of the message
+ * handler.
+ *
+ * \param handler the handler object the method call is bound to
+ * \param memfn pointer to the member function handling the message
+ * \param serializer the serialization policy used by the handler
+ * \param keys tuple containing the keys corresponding to the parameters
+ * \param replyKeys tuple containing the keys corresponding to the parameters
+ * of the reply
+ *
+ * \return Pointer the constructed message handler
+ *
+ * \sa BasicFunctionMessageHandler
+ */
+template<
+    typename ExecutionPolicy = SynchronousExecutionPolicy, typename Handler,
+    typename Reply, typename ExecutionContext, typename... Args,
+    typename SerializationPolicy, typename Keys = std::tuple<>,
+    typename ReplyKeys = std::tuple<>>
+auto makeMessageHandler(
+    Handler& handler,
+    Reply (Handler::*memfn)(ExecutionContext, const Identity&, Args...),
+    SerializationPolicy&& serializer, Keys&& keys = {},
+    ReplyKeys&& replyKeys = {})
+{
+    return makeMessageHandler<ExecutionPolicy, Args...>(
+        [&handler, memfn](
+            ExecutionContext context, const Identity& identity,
+            std::decay_t<Args>&&... args)
+        {
+            return (handler.*memfn)(std::move(context), identity,
+                std::move(args)...);
         },
         std::forward<SerializationPolicy>(serializer),
         std::forward<Keys>(keys),

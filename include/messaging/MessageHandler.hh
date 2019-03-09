@@ -1,6 +1,6 @@
 /** \file
  *
- * \brief Definition of Bridge::Messaging::MessageHandler interface
+ * \brief Definition of Bridge::Messaging::BasicMessageHandler interface
  *
  * \page executionpolicy ExecutionPolicy concept
  *

@@ -14,9 +14,12 @@
 using Bridge::Blob;
 using namespace Bridge::Messaging;
 
-using testing::Bool;
+using testing::_;
 using testing::ElementsAreArray;
 using testing::Return;
+using testing::Values;
+
+using ExecutionContext = typename MessageHandler::ExecutionContext;
 
 namespace Bridge {
 namespace Messaging {
@@ -49,9 +52,9 @@ const auto REPLY_KEY2 = "replykey2"s;
 const auto REPLY1 = "reply"s;
 const auto REPLY2 = 3;
 
-Reply<> makeReply(const bool successful)
+Reply<> makeReply(const StatusCode status)
 {
-    if (successful) {
+    if (status >= 0) {
         return success();
     }
     return failure();
@@ -83,6 +86,7 @@ public:
     MOCK_METHOD2(call1, Reply<>(Identity, std::string));
     MOCK_METHOD3(call2, Reply<>(Identity, int, std::string));
     MOCK_METHOD2(call_opt, Reply<>(Identity, std::optional<int>));
+    MOCK_METHOD2(call_with_context, Reply<>(ExecutionContext, Identity));
 };
 
 class FailingPolicy {
@@ -98,7 +102,7 @@ T FailingPolicy::deserialize(Bridge::ByteSpan)
 
 }
 
-class FunctionMessageHandlerTest : public testing::TestWithParam<bool> {
+class FunctionMessageHandlerTest : public testing::TestWithParam<StatusCode> {
 protected:
     void testHelper(
         MessageHandler& handler,
@@ -122,43 +126,59 @@ protected:
 
 TEST_P(FunctionMessageHandlerTest, testNoParams)
 {
-    const auto success = GetParam();
-    auto handler = makeMessageHandler(
+    const auto status = GetParam();
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         [this](const auto& identity)
         {
             return function.call0(identity);
         }, MockSerializationPolicy {});
-    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(makeReply(success)));
-    testHelper(*handler, {}, success ? REPLY_SUCCESS : REPLY_FAILURE);
+    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(makeReply(status)));
+    testHelper(*handler, {}, status);
 }
 
 TEST_P(FunctionMessageHandlerTest, testOneParam)
 {
-    const auto success = GetParam();
-    auto handler = makeMessageHandler<std::string>(
+    const auto status = GetParam();
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
-    EXPECT_CALL(function, call1(IDENTITY, "param")).WillOnce(Return(makeReply(success)));
-    testHelper(*handler, {KEY1, "param"}, success ? REPLY_SUCCESS : REPLY_FAILURE);
+    EXPECT_CALL(function, call1(IDENTITY, "param"))
+        .WillOnce(Return(makeReply(status)));
+    testHelper(*handler, {KEY1, "param"}, status);
 }
 
 TEST_P(FunctionMessageHandlerTest, testTwoParams)
 {
-    const auto success = GetParam();
-    auto handler = makeMessageHandler<int, std::string>(
+    const auto status = GetParam();
+    auto handler = makeMessageHandler<
+        SynchronousExecutionPolicy, int, std::string>(
         [this](const auto& identity, int param1, std::string param2)
         {
             return function.call2(identity, param1, param2);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1, KEY2));
-    EXPECT_CALL(function, call2(IDENTITY, 1, "param")).WillOnce(Return(makeReply(success)));
-    testHelper(*handler, {KEY1, "1", KEY2, "param"}, success ? REPLY_SUCCESS : REPLY_FAILURE);
+    EXPECT_CALL(function, call2(IDENTITY, 1, "param"))
+        .WillOnce(Return(makeReply(status)));
+    testHelper(*handler, {KEY1, "1", KEY2, "param"}, status);
+}
+
+TEST_P(FunctionMessageHandlerTest, testExecutionContext)
+{
+    const auto status = GetParam();
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
+        [this](ExecutionContext context, const Identity& identity)
+        {
+            return function.call_with_context(context, identity);
+        }, MockSerializationPolicy {});
+    EXPECT_CALL(function, call_with_context(_, IDENTITY))
+        .WillOnce(Return(makeReply(status)));
+    testHelper(*handler, {}, status);
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
 {
-    auto handler = makeMessageHandler<std::string>(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
@@ -168,7 +188,7 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
 
 TEST_F(FunctionMessageHandlerTest, testMissingParameters)
 {
-    auto handler = makeMessageHandler<std::string>(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
@@ -178,7 +198,7 @@ TEST_F(FunctionMessageHandlerTest, testMissingParameters)
 
 TEST_F(FunctionMessageHandlerTest, testExtraParameters)
 {
-    auto handler = makeMessageHandler<std::string>(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
@@ -190,7 +210,7 @@ TEST_F(FunctionMessageHandlerTest, testExtraParameters)
 
 TEST_F(FunctionMessageHandlerTest, testNoKey)
 {
-    auto handler = makeMessageHandler<std::string>(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
@@ -200,7 +220,7 @@ TEST_F(FunctionMessageHandlerTest, testNoKey)
 
 TEST_F(FunctionMessageHandlerTest, testInvalidKey)
 {
-    auto handler = makeMessageHandler<std::string>(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy, std::string>(
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
@@ -210,7 +230,8 @@ TEST_F(FunctionMessageHandlerTest, testInvalidKey)
 
 TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
 {
-    auto handler = makeMessageHandler<std::optional<int>>(
+    auto handler = makeMessageHandler<
+        SynchronousExecutionPolicy, std::optional<int>>(
         [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
@@ -222,7 +243,8 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
 
 TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
 {
-    auto handler = makeMessageHandler<std::optional<int>>(
+    auto handler = makeMessageHandler<
+        SynchronousExecutionPolicy, std::optional<int>>(
         [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
@@ -234,7 +256,7 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
 
 TEST_F(FunctionMessageHandlerTest, testGetReply1)
 {
-    auto handler = makeMessageHandler(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &reply1, MockSerializationPolicy {},
         std::make_tuple(), std::make_tuple(REPLY_KEY1));
     testHelper(*handler, {}, REPLY_SUCCESS, {REPLY_KEY1, REPLY1});
@@ -242,7 +264,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReply1)
 
 TEST_F(FunctionMessageHandlerTest, testGetReply2)
 {
-    auto handler = makeMessageHandler(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &reply2, MockSerializationPolicy {},
         std::make_tuple(), std::make_tuple(REPLY_KEY1, REPLY_KEY2));
     testHelper(
@@ -252,7 +274,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReply2)
 
 TEST_F(FunctionMessageHandlerTest, testGetReplyOptional)
 {
-    auto handler = makeMessageHandler(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &replyOptional, MockSerializationPolicy {},
         std::make_tuple(), std::make_tuple(REPLY_KEY1));
     testHelper(*handler, {}, REPLY_SUCCESS, {REPLY_KEY1, REPLY1});
@@ -260,11 +282,12 @@ TEST_F(FunctionMessageHandlerTest, testGetReplyOptional)
 
 TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
 {
-    auto handler = makeMessageHandler(
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &replyNone, MockSerializationPolicy {},
         std::make_tuple(), std::make_tuple(REPLY_KEY1));
     testHelper(*handler, {}, REPLY_SUCCESS, {});
 }
 
 INSTANTIATE_TEST_CASE_P(
-    SuccessFailure, FunctionMessageHandlerTest, Bool());
+    SuccessFailure, FunctionMessageHandlerTest,
+    Values(REPLY_SUCCESS, REPLY_FAILURE));
