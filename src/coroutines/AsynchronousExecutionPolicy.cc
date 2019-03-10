@@ -9,16 +9,26 @@ AsynchronousExecutionPolicy::AsynchronousExecutionPolicy(
 {
 }
 
-AsynchronousExecutionPolicy::Context::Context(CoroutineAdapter::Sink& sink) :
+AsynchronousExecutionContext::AsynchronousExecutionContext(
+    CoroutineAdapter::Sink& sink) :
     sink {&sink}
 {
 }
 
-void AsynchronousExecutionPolicy::Context::await(
+void AsynchronousExecutionContext::await(
     CoroutineAdapter::AwaitableSocket socket)
 {
     assert(sink);
     (*sink)(std::move(socket));
+}
+
+void ensureSocketReadable(
+    AsynchronousExecutionContext& context,
+    std::shared_ptr<zmq::socket_t> socket)
+{
+    while (!(dereference(socket).getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN)) {
+        context.await(socket);
+    }
 }
 
 }

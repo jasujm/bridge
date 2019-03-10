@@ -1,24 +1,6 @@
 /** \file
  *
  * \brief Definition of Bridge::Messaging::BasicMessageHandler interface
- *
- * \page executionpolicy ExecutionPolicy concept
- *
- * Bridge::Messaging::BasicMessageHandler class uses classes satisfying the
- * execution policy concept to control how they are executed (synchronously,
- * asynchronously, in a worker thread etc.). Given execution policy \c e of
- * execution policy type \c E, and a callable \c f, then the expression \c e(f)
- * shall
- *
- * 1. Create the execution context for executing the code encapsulated by \c c,
- *    if necessary
- * 2. Invoke \c f with argument \c c, that is a rvalue of type \c E::Context
- *
- * The intention is that \c c encapsulates the necessary handle for the code
- * executing in \c f to interact with its execution context. Unless \c E
- * describes synchronous execution, the invocation of \c e may complete
- * independently from the invocation of \c f (see
- * e.g. Bridge::Coroutines::AsynchronousExecutionPolicy).
  */
 
 #ifndef MESSAGING_MESSAGEHANDLER_HH_
@@ -26,6 +8,7 @@
 
 #include "messaging/Identity.hh"
 #include "messaging/Replies.hh"
+#include "messaging/SynchronousExecutionPolicy.hh"
 #include "Blob.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
@@ -161,37 +144,6 @@ void BasicMessageHandler<ExecutionPolicy>::handle(
             boost::make_transform_iterator(first, to_bytes),
             boost::make_transform_iterator(last, to_bytes)),
         response);
-}
-
-/** \brief Synchronous execution policy
- *
- * Synchronous execution policy simply executes a function directly in its
- * caller’s call stack. The caller resumes only after the executed function
- * returns.
- *
- * \sa BasicMessageHandler, MessageHandler
- */
-class SynchronousExecutionPolicy {
-public:
-
-    /** \brief Dummy context
-     */
-    struct Context {};
-
-    /** \brief Execute callback synchronously
-     *
-     * Invokes \p callback, passing Context object as its argument
-     *
-     * \param callback the callback to be executed
-     */
-    template<typename Callback>
-    void operator()(Callback&& callback);
-};
-
-template<typename Callback>
-void SynchronousExecutionPolicy::operator()(Callback&& callback)
-{
-    std::invoke(std::forward<Callback>(callback), Context {});
 }
 
 /** \brief Message handler with synchronous execution policy

@@ -51,7 +51,7 @@ protected:
     {
         return [this](auto context, auto& response)
         {
-            context.await(coroSockets.first);
+            ensureSocketReadable(context, coroSockets.first);
             auto status = StatusCode {};
             const auto n_recv = coroSockets.first->recv(
                 &status, sizeof(status));
