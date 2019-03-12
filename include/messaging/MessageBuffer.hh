@@ -7,6 +7,7 @@
 #define MESSAGING_MESSAGEBUFFER_HH_
 
 #include "messaging/MessageUtility.hh"
+#include "messaging/SynchronousExecutionPolicy.hh"
 #include "Utility.hh"
 
 #include <zmq.hpp>
@@ -32,22 +33,27 @@ namespace Messaging {
  * \tparam Char the character type
  * \tparam Traits the character traits
  * \tparam Allocator allocator for the string
+ * \tparam ExecutionContext the execution context
  *
  * \sa MessageBuffer
  */
 template<
     typename Char,
-    class Traits = std::char_traits<Char>,
-    class Allocator = std::allocator<Char>>
+    typename Traits = std::char_traits<Char>,
+    typename Allocator = std::allocator<Char>,
+    typename ExecutionContext = SynchronousExecutionContext>
 class BasicMessageBuffer :
-    public std::basic_stringbuf<Char, Traits, Allocator> {
+        public std::basic_stringbuf<Char, Traits, Allocator> {
 public:
 
     /** \brief Create message buffer
      *
      * \param socket the socket used to synchronize contents
+     * \param context the execution context
      */
-    BasicMessageBuffer(std::shared_ptr<zmq::socket_t> socket);
+    BasicMessageBuffer(
+        std::shared_ptr<zmq::socket_t> socket,
+        ExecutionContext context = {});
 
 protected:
 
@@ -72,17 +78,22 @@ protected:
 private:
 
     std::shared_ptr<zmq::socket_t> socket;
+    ExecutionContext context;
 };
 
-template<typename Char, class Traits, class Allocator>
-BasicMessageBuffer<Char, Traits, Allocator>::BasicMessageBuffer(
-    std::shared_ptr<zmq::socket_t> socket) :
-    socket {std::move(socket)}
+template<
+    typename Char, typename Traits, typename Allocator, typename ExecutionContext>
+BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::
+BasicMessageBuffer(
+    std::shared_ptr<zmq::socket_t> socket, ExecutionContext context) :
+    socket {std::move(socket)},
+    context {std::move(context)}
 {
 }
 
-template<typename Char, class Traits, class Allocator>
-int BasicMessageBuffer<Char, Traits, Allocator>::sync()
+template<
+    typename Char, typename Traits, typename Allocator, typename ExecutionContext>
+int BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::sync()
 {
     const auto& msg = this->str();
     if (!msg.empty()) {
@@ -92,9 +103,10 @@ int BasicMessageBuffer<Char, Traits, Allocator>::sync()
     return 0;
 }
 
-template<typename Char, class Traits, class Allocator>
-typename Traits::int_type BasicMessageBuffer<Char, Traits, Allocator>::
-underflow()
+template<
+    typename Char, typename Traits, typename Allocator, typename ExecutionContext>
+typename Traits::int_type
+BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::underflow()
 {
     const auto super = std::basic_stringbuf<
         Char, Traits, Allocator>::underflow();
@@ -106,7 +118,8 @@ underflow()
     auto msg = zmq::message_t {};
     auto size = 0u;
     do {
-        dereference(this->socket).recv(&msg);
+        ensureSocketReadable(context, socket);
+        dereference(socket).recv(&msg);
         size = msg.size();
     } while (size == 0u);
     const auto* data = msg.data<Char>();
@@ -117,7 +130,82 @@ underflow()
 
 /** \brief BasicMessageBuffer specialization for regular char
  */
-using MessageBuffer = BasicMessageBuffer<char>;
+template<typename ExecutionContext>
+using MessageBuffer = BasicMessageBuffer<
+    char, std::char_traits<char>, std::allocator<char>, ExecutionContext>;
+
+/** \brief MessageBuffer specialization for synchronous execution policy
+ */
+using SynchronousMessageBuffer = MessageBuffer<SynchronousExecutionContext>;
+
+/** \brief Standard stream wrapping BasicMessageBuffer as its buffer
+ *
+ * \tparam BaseStream the standard stream it inherits from
+ * \tparam Char the character type
+ * \tparam Traits the character traits
+ * \tparam Allocator allocator for the string
+ * \tparam ExecutionContext the execution context
+ */
+template<
+    template<typename...> typename BaseStream, typename Char,
+    typename Traits = std::char_traits<Char>,
+    typename Allocator = std::allocator<Char>,
+    typename ExecutionContext = SynchronousExecutionContext>
+class BasicMessageStream : public BaseStream<Char, Traits>
+{
+public:
+
+    /** \brief Create message stream
+     *
+     * \param socket the socket used to synchronize contents
+     * \param context the execution context
+     */
+    BasicMessageStream(
+        std::shared_ptr<zmq::socket_t> socket,
+        ExecutionContext context = {});
+
+    /** \todo Implement if needed
+     */
+    BasicMessageStream(BasicMessageStream&&) = delete;
+
+private:
+
+    BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext> buffer;
+};
+
+template<
+    template<typename...> typename BaseStream, typename Char, typename Traits,
+    typename Allocator, typename ExecutionContext>
+BasicMessageStream<
+    BaseStream, Char, Traits, Allocator, ExecutionContext>::
+BasicMessageStream(
+    std::shared_ptr<zmq::socket_t> socket, ExecutionContext context) :
+    buffer {std::move(socket), std::move(context)}
+{
+    this->init(&buffer);
+}
+
+/** \brief BasicMessageStream specialization for std::istream
+ */
+template<typename ExecutionContext>
+using MessageIStream = BasicMessageStream<
+    std::basic_istream, char, std::char_traits<char>, std::allocator<char>,
+    ExecutionContext>;
+
+/** \brief MessageIStream specialization for synchronous execution policy
+ */
+using SynchronousMessageIStream = MessageIStream<SynchronousExecutionContext>;
+
+/** \brief BasicMessageStream specialization for std::ostream
+ */
+template<typename ExecutionContext>
+using MessageOStream = BasicMessageStream<
+    std::basic_ostream, char, std::char_traits<char>, std::allocator<char>,
+    ExecutionContext>;
+
+/** \brief MessageOStream specialization for synchronous execution policy
+ */
+using SynchronousMessageOStream = MessageOStream<SynchronousExecutionContext>;
 
 }
 }

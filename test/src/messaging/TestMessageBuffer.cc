@@ -19,7 +19,8 @@ const auto WHOLE_MESSAGE = "message 123\n"s;
 
 using Bridge::Messaging::sendMessage;
 using Bridge::Messaging::recvMessage;
-using Bridge::Messaging::MessageBuffer;
+using Bridge::Messaging::SynchronousMessageIStream;
+using Bridge::Messaging::SynchronousMessageOStream;
 
 class MessageBufferTest : public testing::Test {
 protected:
@@ -38,8 +39,7 @@ protected:
 
 TEST_F(MessageBufferTest, testOutputMessage)
 {
-    MessageBuffer buffer {std::move(frontSocket)};
-    std::ostream out {&buffer};
+    SynchronousMessageOStream out {std::move(frontSocket)};
     out << MESSAGE << " " << NUMBER << std::endl;
 
     const auto message = recvMessage<std::string>(*backSocket);
@@ -48,8 +48,7 @@ TEST_F(MessageBufferTest, testOutputMessage)
 
 TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
 {
-    MessageBuffer buffer {std::move(frontSocket)};
-    std::ostream out {&buffer};
+    SynchronousMessageOStream out {std::move(frontSocket)};
     out.flush();
 
     std::array<zmq::pollitem_t, 1> pollitems {{
@@ -62,8 +61,7 @@ TEST_F(MessageBufferTest, testInputMessage)
 {
     sendMessage(*frontSocket, WHOLE_MESSAGE);
 
-    MessageBuffer buffer {std::move(backSocket)};
-    std::istream in {&buffer};
+    SynchronousMessageIStream in {std::move(backSocket)};
 
     {
         std::string message {};
