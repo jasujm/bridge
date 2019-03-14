@@ -30,9 +30,9 @@ if(LibTMCG_FOUND)
     include_directories(${LibTMCG_INCLUDE_DIR})
     add_subdirectory(csmain)
     add_executable(bridgecs CardServer.cc)
-    target_link_libraries(bridgecs bridge-csmain bridge-messaging
-      bridge-cardserver bridge-bridge bridge-common ${TMCG_LIBRARIES}
-      Threads::Threads)
+    target_link_libraries(bridgecs bridge-csmain bridge-coroutines
+      bridge-messaging bridge-cardserver bridge-bridge bridge-common
+      ${TMCG_LIBRARIES} Threads::Threads)
     set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
     install(TARGETS bridgecs RUNTIME DESTINATION bin)
   endif()
