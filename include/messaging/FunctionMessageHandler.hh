@@ -583,7 +583,7 @@ auto makeMessageHandler(
     Function&& function, SerializationPolicy&& serializer, Keys&& keys = {},
     ReplyKeys&& replyKeys = {})
 {
-    return std::make_unique<
+    return std::make_shared<
         BasicFunctionMessageHandler<
             ExecutionPolicy, Function, SerializationPolicy, Args...>>(
             std::forward<Function>(function),
