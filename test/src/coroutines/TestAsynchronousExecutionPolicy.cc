@@ -65,7 +65,7 @@ protected:
     testing::NiceMock<MockPoller> poller {};
     std::shared_ptr<MockAsynchronousMessageHandler> handler {
         std::make_shared<MockAsynchronousMessageHandler>()};
-    std::pair<CoroutineAdapter::AwaitableSocket, zmq::socket_t> coroSockets {
+    std::pair<std::shared_ptr<zmq::socket_t>, zmq::socket_t> coroSockets {
         ([this]() {
             auto sockets = createSocketPair(context, CORO_ENDPOINT);
             return std::pair {

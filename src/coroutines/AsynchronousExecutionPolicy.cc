@@ -15,8 +15,7 @@ AsynchronousExecutionContext::AsynchronousExecutionContext(
 {
 }
 
-void AsynchronousExecutionContext::await(
-    CoroutineAdapter::AwaitableSocket socket)
+void AsynchronousExecutionContext::await(std::shared_ptr<zmq::socket_t> socket)
 {
     assert(sink);
     (*sink)(std::move(socket));

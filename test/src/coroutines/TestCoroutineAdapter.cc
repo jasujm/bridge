@@ -1,72 +1,84 @@
 #include "coroutines/CoroutineAdapter.hh"
+#include "Utility.hh"
 #include "MockPoller.hh"
 
 #include <gtest/gtest.h>
 #include <zmq.hpp>
 
 #include <algorithm>
-#include <stdexcept>
 #include <vector>
 
+using Bridge::dereference;
 using Bridge::Coroutines::CoroutineAdapter;
+using Bridge::Coroutines::Future;
 using Bridge::Messaging::MockPoller;
 
-template<typename SocketIterator>
-auto createCoroutineAdapter(
-    SocketIterator first, SocketIterator last, MockPoller& poller)
+using testing::_;
+using testing::Mock;
+
+namespace {
+
+void expectAwaits(CoroutineAdapter& adapter, const auto& awaitable)
 {
-    return CoroutineAdapter::create(
-        [first, last](auto& sink) { std::copy(first, last, begin(sink)); },
-        poller);
+    EXPECT_EQ(
+        CoroutineAdapter::Awaitable {awaitable},
+        dereference(adapter.getAwaited()));
+}
+
 }
 
 class CoroutineAdapterTest : public testing::Test
 {
 protected:
+
+    template<typename AwaitableIterator>
+    auto createCoroutineAdapter(
+    AwaitableIterator first, AwaitableIterator last)
+    {
+        return CoroutineAdapter::create(
+            [first, last](auto& sink) { std::copy(first, last, begin(sink)); },
+            poller);
+    }
+
     zmq::context_t context;
-    std::vector<CoroutineAdapter::AwaitableSocket> sockets {
+    testing::StrictMock<MockPoller> poller;
+};
+
+TEST_F(CoroutineAdapterTest, testFutureCoroutine)
+{
+    auto futures = std::vector {
+        std::make_shared<Future>(),
+        std::make_shared<Future>(),
+    };
+    auto coroutineAdapter = createCoroutineAdapter(
+        futures.begin(), futures.end());
+    expectAwaits(*coroutineAdapter, futures.front());
+    futures.front()->resolve();
+    expectAwaits(*coroutineAdapter, futures.back());
+    futures.back()->resolve();
+    EXPECT_FALSE(coroutineAdapter->getAwaited());
+}
+
+TEST_F(CoroutineAdapterTest, testSocketCoroutine)
+{
+    auto sockets = std::vector {
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
         std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
     };
-    testing::NiceMock<MockPoller> poller;
-    std::shared_ptr<CoroutineAdapter> coroutineAdapter {
-        createCoroutineAdapter(sockets.begin(), sockets.end(), poller) };
-};
-
-TEST_F(CoroutineAdapterTest, testCoroutine)
-{
-    EXPECT_EQ(sockets.front(), coroutineAdapter->getAwaitedSocket());
-    (*coroutineAdapter)(*sockets.front());
-    EXPECT_EQ(sockets.back(), coroutineAdapter->getAwaitedSocket());
-    (*coroutineAdapter)(*sockets.back());
-    EXPECT_EQ(nullptr, coroutineAdapter->getAwaitedSocket());
-}
-
-TEST_F(CoroutineAdapterTest, testImmediatelyCompletingCoroutine)
-{
-    auto adapter = createCoroutineAdapter(
-        sockets.begin(), sockets.begin(), poller);
-    EXPECT_EQ(nullptr, adapter->getAwaitedSocket());
-}
-
-TEST_F(CoroutineAdapterTest, testCoroutineAwaitWrongSocket)
-{
-    EXPECT_THROW((*coroutineAdapter)(*sockets.back()), std::invalid_argument);
-}
-
-TEST_F(CoroutineAdapterTest, testPollerInteraction)
-{
-    using namespace testing;
-    StrictMock<MockPoller> poller;
-    coroutineAdapter.reset();
-    EXPECT_CALL(poller, handleAddPollable(sockets.front(), _));
-    coroutineAdapter = createCoroutineAdapter(
-        sockets.begin(), sockets.end(), poller);
+    auto callback = MockPoller::SocketCallback {};
+    EXPECT_CALL(poller, handleAddPollable(sockets.front(), _))
+        .WillOnce(testing::SaveArg<1>(&callback));
+    auto coroutineAdapter = createCoroutineAdapter(
+        sockets.begin(), sockets.end());
+    expectAwaits(*coroutineAdapter, sockets.front());
     Mock::VerifyAndClearExpectations(&poller);
-    EXPECT_CALL(poller, handleAddPollable(sockets.back(), _));
-    EXPECT_CALL(poller, handleRemovePollable(Ref(*sockets.front())));
-    (*coroutineAdapter)(*sockets.front());
+    EXPECT_CALL(poller, handleAddPollable(sockets.back(), _))
+        .WillOnce(testing::SaveArg<1>(&callback));
+    EXPECT_CALL(poller, handleRemovePollable(testing::Ref(*sockets.front())));
+    callback(*sockets.front());
+    expectAwaits(*coroutineAdapter, sockets.back());
     Mock::VerifyAndClearExpectations(&poller);
-    EXPECT_CALL(poller, handleRemovePollable(Ref(*sockets.back())));
-    (*coroutineAdapter)(*sockets.back());
+    EXPECT_CALL(poller, handleRemovePollable(testing::Ref(*sockets.back())));
+    callback(*sockets.back());
+    EXPECT_FALSE(coroutineAdapter->getAwaited());
 }

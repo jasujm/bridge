@@ -41,7 +41,7 @@ public:
      *
      * \param socket the socket to await
      */
-    void await(CoroutineAdapter::AwaitableSocket socket);
+    void await(std::shared_ptr<zmq::socket_t> socket);
 
 private:
 

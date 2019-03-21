@@ -1,6 +1,6 @@
 /** \file
  *
- * \brief Definition of Bridge::Messaging::CoroutineAdapter
+ * \brief Definition of Bridge::Coroutines::CoroutineAdapter
  */
 
 #ifndef COROUTINES_COROUTINEADAPTER_HH_
@@ -13,12 +13,48 @@
 
 #include <functional>
 #include <memory>
+#include <variant>
 
 namespace Bridge {
 
 /** \brief Classes for executing coroutines in the bridge framework
  */
 namespace Coroutines {
+
+class CoroutineAdapter;
+
+/** \brief Future that a coroutine can await
+ *
+ * When awaited by CoroutineAdapter, the coroutine will be resumed when the
+ * future is completed by another (co)routine.
+ *
+ * \note The class is so named because it resembles the well‐known future
+ * concept. As of now only “void” futures are supported, i.e. the coroutine
+ * can be notified but no value can be transferred using it.
+ */
+class Future
+{
+public:
+
+    /** \brief Default constructor
+     *
+     * Create a future that is initially not awaited by any coroutine.
+     */
+    Future();
+
+    /** \brief Resolve the future
+     *
+     * If a coroutine function associated with a \ref CoroutineAdapter was
+     * awaiting this future, it is resumed.
+     */
+    void resolve();
+
+private:
+
+    std::function<void()> resolveCallback;
+
+    friend class CoroutineAdapter;
+};
 
 /** \brief Adapt socket based coroutine into the message loop framework
  *
@@ -40,33 +76,46 @@ public:
 
     struct DoNotCallDirectly {};
 
-    /** \brief Socket that a coroutine can await
+    /** \brief Awaitable object
      */
-    using AwaitableSocket = std::shared_ptr<zmq::socket_t>;
+    using Awaitable = std::variant<
+        std::shared_ptr<Future>,
+        std::shared_ptr<zmq::socket_t>>;
 
     /** \brief Sink used by a coroutine function to await a socket
+     *
+     * A coroutine function used with a coroutine adapter object receives an
+     * instance of Sink as its only parameter. The sink type allows the
+     * coroutine to await events, represented by one of the alternatives of \ref
+     * Awaitable variant.
+     *
+     * If the pushed object is a ZeroMQ socket, the coroutine is suspended until
+     * the socket becomes readable. The behavior is undefined if a coroutine
+     * function pushes a \c nullptr to the sink.
+     *
+     * If the object is a \ref Future, the coroutine is suspended until the
+     * future is completed. When pushing a future to the sink, it should \e not
+     * be moved, because the original future would be left in an unspecified
+     * state not supporting resolution.
+
      */
-    using Sink = boost::coroutines2::coroutine<AwaitableSocket>::push_type;
+    using Sink = boost::coroutines2::coroutine<Awaitable>::push_type;
 
     /** \brief Create new coroutine adapter
      *
      * The coroutine starts executing immediately, until it awaits a socket by
      * pushing it to the sink or completes.
      *
-     * A CoroutineFunction accepts one parameter, a sink that accepts an
-     * instance of AwaitableSocket. The function can, by pushing a socket to the
-     * sink, signal that it wants to await the socket to become readable.
-     *
-     * The behavior is undefined if a coroutine function ever pushes a \c
-     * nullptr to the sink.
+     * A coroutine function accepts one parameter, a \ref Sink object that
+     * accepts an instance of \ref Awaitable. The function can, by pushing an
+     * awaitable object to the sink, signal that it wants to suspend until an
+     * event takes place.
      *
      * \param coroutine the coroutine function associated with the coroutine
      * adapter
      * \param poller the poller used for polling the sockets for the coroutine
      *
      * \throw Any exception thrown in the coroutine function
-     *
-     * \sa CoroutineFunction for the expectations of the coroutine function
      */
     template<typename CoroutineFunction>
     static std::shared_ptr<CoroutineAdapter> create(
@@ -82,34 +131,26 @@ public:
     CoroutineAdapter(
         DoNotCallDirectly, CoroutineFunction&& coroutine, Messaging::Poller&);
 
-    /** \brief Return the awaited socket, if any
+    /** \brief Return the awaited object, if any
      *
-     * \return The socket the coroutine is awaiting, or nullptr if the coroutine
-     * has completed.
+     * \return Pointer to the \ref Awaitable object the coroutine is awaiting,
+     * or nullptr if the coroutine has completed. The pointer remains valid
+     * while the coroutine is suspended, awaiting for the returned object.
      */
-    AwaitableSocket getAwaitedSocket() const;
-
-    /** \brief Transfer control to the coroutine
-     *
-     * This function checks if \p socket was the one the coroutine was awaiting,
-     * and transfers the control to the coroutine if it is. Otherwise throws an
-     * exception.
-     *
-     * \param socket the awaited socket
-     *
-     * \throw std::invalid_argument if the coroutine was not awaiting \p socket
-     * \throw Any exception thrown in the coroutine function
-     */
-    void operator()(zmq::socket_t& socket);
+    const Awaitable* getAwaited() const;
 
 private:
 
-    void internalUpdateSocket();
+    class ClearAwaitVisitor;
+    class PrepareAwaitVisitor;
 
-    using Source = boost::coroutines2::coroutine<AwaitableSocket>::pull_type;
+    void internalResume();
+    void internalUpdate();
+
+    using Source = boost::coroutines2::coroutine<Awaitable>::pull_type;
 
     Source source;
-    AwaitableSocket awaitedSocket;
+    Awaitable awaited;
     Messaging::Poller& poller;
 };
 
@@ -120,7 +161,7 @@ std::shared_ptr<CoroutineAdapter> CoroutineAdapter::create(
     auto adapter = std::make_shared<CoroutineAdapter>(
         DoNotCallDirectly {}, std::forward<CoroutineFunction>(coroutine),
         poller);
-    adapter->internalUpdateSocket();
+    adapter->internalUpdate();
     return adapter;
 }
 

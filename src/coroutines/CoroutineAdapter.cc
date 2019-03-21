@@ -7,35 +7,93 @@
 namespace Bridge {
 namespace Coroutines {
 
-CoroutineAdapter::AwaitableSocket CoroutineAdapter::getAwaitedSocket() const
-{
-    return awaitedSocket;
+namespace {
+void nullResolve() {}
 }
 
-void CoroutineAdapter::operator()(zmq::socket_t& socket)
+Future::Future() : resolveCallback {&nullResolve}
 {
-    if (awaitedSocket.get() != &socket) {
-        throw std::invalid_argument {"Socket was not awaited"};
+}
+
+void Future::resolve()
+{
+    resolveCallback();
+}
+
+class CoroutineAdapter::ClearAwaitVisitor {
+public:
+    ClearAwaitVisitor(CoroutineAdapter& parent) :
+        parent {parent}
+    {
     }
+
+    void operator()(const std::shared_ptr<Future>& future)
+    {
+        dereference(future).resolveCallback = &nullResolve;
+    }
+
+    void operator()(const std::shared_ptr<zmq::socket_t>& socket)
+    {
+        parent.poller.removePollable(dereference(socket));
+    }
+
+private:
+
+    CoroutineAdapter& parent;
+};
+
+class CoroutineAdapter::PrepareAwaitVisitor {
+public:
+    PrepareAwaitVisitor(CoroutineAdapter& parent) :
+        parent {parent}
+    {
+    }
+
+    void operator()(std::shared_ptr<Future>& future)
+    {
+        dereference(future).resolveCallback =
+            [this_ = parent.shared_from_this()]()
+            {
+                dereference(this_).internalResume();
+            };
+    }
+
+    void operator()(const std::shared_ptr<zmq::socket_t>& socket)
+    {
+        parent.poller.addPollable(
+            socket,
+            [socket, this_ = parent.shared_from_this()](zmq::socket_t& socket_)
+            {
+                if (&socket_ != socket.get()) {
+                    throw std::invalid_argument {"Unexpected socket"};
+                }
+                dereference(this_).internalResume();
+            });
+    }
+
+private:
+
+    CoroutineAdapter& parent;
+};
+
+const CoroutineAdapter::Awaitable* CoroutineAdapter::getAwaited() const
+{
+    return source ? &awaited : nullptr;
+}
+
+void CoroutineAdapter::internalResume()
+{
     source();
     const auto this_avoids_selfdestruct = shared_from_this();
-    poller.removePollable(dereference(awaitedSocket));
-    internalUpdateSocket();
-    if (!source) {
-        awaitedSocket.reset();
-    }
+    std::visit(ClearAwaitVisitor {*this}, awaited);
+    internalUpdate();
 }
 
-void CoroutineAdapter::internalUpdateSocket()
+void CoroutineAdapter::internalUpdate()
 {
     if (source) {
-        awaitedSocket = source.get();
-        poller.addPollable(
-            awaitedSocket,
-            [this_ = shared_from_this()](zmq::socket_t& socket)
-            {
-                dereference(this_)(socket);
-            });
+        awaited = source.get();
+        std::visit(PrepareAwaitVisitor {*this}, awaited);
     }
 }
 
