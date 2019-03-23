@@ -32,10 +32,15 @@ class DuplicateGameManager;
 
 }
 
+namespace Messaging {
+
+class CallbackScheduler;
+
+}
+
 namespace Main {
 
 class BridgeGameInfo;
-class CallbackScheduler;
 class CardProtocol;
 class PeerCommandSender;
 
@@ -88,7 +93,7 @@ public:
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
-        std::shared_ptr<CallbackScheduler> callbackScheduler,
+        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
         IdentitySet participants);
 
     /** \brief Create new bridge game without peers
@@ -102,7 +107,7 @@ public:
      */
     BridgeGame(
         const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
-        std::shared_ptr<CallbackScheduler> callbackScheduler);
+        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Move constructor
      */

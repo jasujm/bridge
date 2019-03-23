@@ -1,11 +1,12 @@
 /** \file
  *
- * \brief Definition of Bridge::Main::CallbackScheduler
+ * \brief Definition of Bridge::Messaging::PollingCallbackScheduler
  */
 
-#ifndef MAIN_CALLBACKSCHEDULER_HH_
-#define MAIN_CALLBACKSCHEDULER_HH_
+#ifndef MESSAGING_POLLINGCALLBACKSCHEDULER_HH_
+#define MESSAGING_POLLINGCALLBACKSCHEDULER_HH_
 
+#include "messaging/CallbackScheduler.hh"
 #include "Thread.hh"
 
 #include <boost/noncopyable.hpp>
@@ -17,26 +18,22 @@
 #include <memory>
 
 namespace Bridge {
-namespace Main {
+namespace Messaging {
 
 /** \brief Execute callbacks in MessageLoop
  *
- * CallbackScheduler can be used to execute callbacks asynchronously, outside of
- * the caller’s stack frame. It integrates to Messaging::MessageLoop by
- * registering a socket that is internally use to notify a CallbackScheduler
- * object of callbacks to be executed.
+ * PollingCallbackScheduler is an CallbackScheduler implementation that
+ * integrates to MessageLoop by registering a socket that is internally use to
+ * notify a PollingCallbackScheduler object of callbacks to be executed.
  *
- * CallbackScheduler creates a thread in the constructor and joins it in the
- * destructor. In order to properly terminate the thread, a termination
+ * PollingCallbackScheduler creates a thread in the constructor and joins it in
+ * the destructor. In order to properly terminate the thread, a termination
  * notification must be sent before entering the destructor. The thread is
  * required to support delayed callbacks.
  */
-class CallbackScheduler : private boost::noncopyable {
+class PollingCallbackScheduler :
+    public CallbackScheduler, private boost::noncopyable {
 public:
-
-    /** \brief Callback function
-     */
-    using Callback = std::function<void()>;
 
     /** \brief Create new callback scheduler
      *
@@ -44,29 +41,9 @@ public:
      * \param terminationSubscriber Socket that will receive notification about
      * termination of the thread
      */
-    CallbackScheduler(
+    PollingCallbackScheduler(
         zmq::context_t& context,
         zmq::socket_t terminationSubscriber);
-
-    /** \brief Schedule new callback
-     *
-     * This function is used to schedule a function to be executed. The
-     * callbacks are executed when \ref operator()() is called, usually by a
-     * Messaging::MessageLoop instance.
-     *
-     * The client is responsible for ensuring that any objects captured by
-     * reference in the \p callback have lifetime exceeding that of the callback
-     * function.
-     *
-     * The method supports delayed scheduling. If \p timeout is nonzero,
-     * CallbackScheduler will wait for the specified timeout before callback
-     * will be scheduled. The method invocation will not block and the waiting
-     * happens in another thread.
-     *
-     * \param callback the callback to be registered
-     * \param timeout the timeout until the callback is scheduled
-     */
-    void callOnce(Callback callback, std::chrono::milliseconds timeout = {});
 
     /** \brief Get socket that can be registered to Messaging::MessageLoop
      *
@@ -96,6 +73,9 @@ public:
 
 private:
 
+    void handleCallLater(
+        std::chrono::milliseconds timeout, Callback callback) override;
+
     zmq::socket_t frontSocket;
     std::shared_ptr<zmq::socket_t> backSocket;
     std::map<unsigned long, Callback> callbacks;
@@ -105,4 +85,4 @@ private:
 }
 }
 
-#endif // MAIN_CALLBACKSCHEDULER_HH_
+#endif // MESSAGING_POLLINGCALLBACKSCHEDULER_HH_

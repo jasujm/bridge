@@ -50,7 +50,7 @@ BridgeGame gameFromConfig(
     zmq::context_t& context,
     const Messaging::CurveKeys* keys,
     std::shared_ptr<zmq::socket_t> eventSocket,
-    std::shared_ptr<CallbackScheduler> callbackScheduler,
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     const Messaging::Authenticator::NodeMap& knownPeers)
 {
     if (config.peers.empty()) {

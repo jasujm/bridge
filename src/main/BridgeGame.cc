@@ -11,10 +11,10 @@
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
 #include "main/BridgeGameInfo.hh"
-#include "main/CallbackScheduler.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/PeerCommandSender.hh"
+#include "messaging/CallbackScheduler.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
@@ -96,7 +96,7 @@ public:
         std::shared_ptr<zmq::socket_t> eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
-        std::shared_ptr<CallbackScheduler> callbackScheduler,
+        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
         IdentitySet participants);
 
     bool addPeer(const Identity& identity, const nlohmann::json& args);
@@ -157,7 +157,7 @@ private:
     std::shared_ptr<PeerCommandSender> peerCommandSender;
     std::shared_ptr<zmq::socket_t> eventSocket;
     std::shared_ptr<Shuffler> shuffler;
-    std::shared_ptr<CallbackScheduler> callbackScheduler;
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler;
     const IdentitySet participants;
     BridgeEngine engine;
     std::unique_ptr<CardProtocol> cardProtocol;
@@ -169,7 +169,7 @@ BridgeGame::Impl::Impl(
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender,
-    std::shared_ptr<CallbackScheduler> callbackScheduler,
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     IdentitySet participants) :
     uuid {uuid},
     gameManager {std::make_shared<Engine::DuplicateGameManager>()},
@@ -441,8 +441,8 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         DEAL_END_COMMAND,
         std::tie(TRICKS_WON_COMMAND, event.tricksWon),
         std::tie(SCORE_COMMAND, result));
-    dereference(callbackScheduler).callOnce(
-        [&engine = this->engine] { engine.startDeal(); });
+    dereference(callbackScheduler).callSoon(
+        &BridgeEngine::startDeal, std::ref(engine));
 }
 
 const BridgeEngine& BridgeGame::Impl::handleGetEngine() const
@@ -462,7 +462,7 @@ BridgeGame::BridgeGame(
     std::shared_ptr<zmq::socket_t> eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender,
-    std::shared_ptr<CallbackScheduler> callbackScheduler,
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     IdentitySet participants) :
     impl {
     std::make_shared<Impl>(
@@ -484,7 +484,7 @@ BridgeGame::BridgeGame(
 
 BridgeGame::BridgeGame(
     const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
-    std::shared_ptr<CallbackScheduler> callbackScheduler) :
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler) :
     BridgeGame {
         uuid, PositionSet(POSITIONS.begin(), POSITIONS.end()),
         std::move(eventSocket), nullptr, nullptr, callbackScheduler, {}}

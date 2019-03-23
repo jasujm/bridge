@@ -1,6 +1,6 @@
-#include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"
 
+#include "messaging/CallbackScheduler.hh"
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
 
@@ -46,7 +46,7 @@ std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
 }
 
 PeerCommandSender::PeerCommandSender(
-    std::shared_ptr<CallbackScheduler> callbackScheduler) :
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler) :
     callbackScheduler {std::move(callbackScheduler)},
     messages {},
     peers {}
@@ -82,10 +82,10 @@ void PeerCommandSender::operator()(zmq::socket_t& socket)
             }
         }
     } else {
-        dereference(callbackScheduler).callOnce(
-            [this, &socket](){
-                internalSendMessage(socket);
-            }, iter->resendTimeout);
+        dereference(callbackScheduler).callLater(
+            iter->resendTimeout,
+            &PeerCommandSender::internalSendMessage,
+            this, std::ref(socket));
         iter->resendTimeout = std::min(
             2 * iter->resendTimeout, MAX_RESEND_TIMEOUT);
     }

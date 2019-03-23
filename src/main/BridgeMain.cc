@@ -7,7 +7,6 @@
 #include "engine/DuplicateGameManager.hh"
 #include "main/BridgeGame.hh"
 #include "main/BridgeGameConfig.hh"
-#include "main/CallbackScheduler.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/Config.hh"
@@ -25,6 +24,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
+#include "messaging/PollingCallbackScheduler.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/UuidJsonSerializer.hh"
@@ -117,7 +117,7 @@ private:
     Messaging::MessageQueue messageQueue;
     Messaging::MessageLoop messageLoop;
     Messaging::Authenticator authenticator;
-    std::shared_ptr<Main::CallbackScheduler> callbackScheduler;
+    std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
 };
@@ -178,7 +178,7 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
         context, messageLoop.createTerminationSubscriber(),
         this->config.getKnownPeers()},
     callbackScheduler {
-        std::make_shared<CallbackScheduler>(
+        std::make_shared<Messaging::PollingCallbackScheduler>(
             context, messageLoop.createTerminationSubscriber())}
 {
     authenticator.ensureRunning();

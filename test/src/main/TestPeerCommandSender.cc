@@ -1,9 +1,7 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/Replies.hh"
-#include "messaging/TerminationGuard.hh"
-#include "main/CallbackScheduler.hh"
 #include "main/PeerCommandSender.hh"
-#include "CallbackSchedulerUtility.hh"
+#include "MockCallbackScheduler.hh"
 #include "MockSerializationPolicy.hh"
 
 #include <boost/range/combine.hpp>
@@ -14,12 +12,13 @@
 #include <stdexcept>
 #include <string>
 
-using Bridge::Main::CallbackScheduler;
+using Bridge::Messaging::MockCallbackScheduler;
 using Bridge::Main::PeerCommandSender;
 using Bridge::Messaging::MockSerializationPolicy;
 using Bridge::Messaging::recvMessage;
 using Bridge::Messaging::sendMessage;
-using Bridge::Messaging::TerminationGuard;
+using testing::_;
+using testing::SaveArg;
 
 namespace {
 using namespace std::string_literals;
@@ -91,11 +90,9 @@ protected:
         {context, zmq::socket_type::dealer},
     }};
     std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets;
-    std::shared_ptr<CallbackScheduler> callbackScheduler {
-        std::make_shared<CallbackScheduler>(
-            context, TerminationGuard::createTerminationSubscriber(context))};
+    std::shared_ptr<MockCallbackScheduler> callbackScheduler {
+        std::make_shared<MockCallbackScheduler>()};
     PeerCommandSender sender {callbackScheduler};
-    TerminationGuard terminationGuard {context};
 };
 
 TEST_F(PeerCommandSenderTest, testSendToAll)
@@ -110,8 +107,11 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
     checkReceive();
     sendMessage(
         frontSockets[0], FAILURE_MESSAGE.begin(), FAILURE_MESSAGE.end());
+    auto callback = MockCallbackScheduler::Callback {};
+    EXPECT_CALL(*callbackScheduler, handleCallLater(_, _))
+        .WillOnce(SaveArg<1>(&callback));
     sender(*backSockets[0]);
-    pollAndExecuteCallbacks(*callbackScheduler);
+    callback();
     checkReceive(true, false);
 }
 

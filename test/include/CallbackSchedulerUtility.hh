@@ -1,7 +1,7 @@
 #ifndef CALLBACKSCHEDULERUTILITY_HH_
 #define CALLBACKSCHEDULERUTILITY_HH_
 
-#include "main/CallbackScheduler.hh"
+#include "messaging/PollingCallbackScheduler.hh"
 
 #include <gtest/gtest.h>
 #include <zmq.hpp>
@@ -10,9 +10,9 @@
 #include <vector>
 
 namespace Bridge {
-namespace Main {
+namespace Messaging {
 
-inline void pollAndExecuteCallbacks(CallbackScheduler& scheduler)
+inline void pollAndExecuteCallbacks(PollingCallbackScheduler& scheduler)
 {
     using namespace std::chrono_literals;
     auto socket = scheduler.getSocket();
@@ -23,7 +23,6 @@ inline void pollAndExecuteCallbacks(CallbackScheduler& scheduler)
     ASSERT_EQ(1, count);
     scheduler(*socket);
 }
-
 
 }
 }

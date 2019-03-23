@@ -22,9 +22,14 @@
 #include <vector>
 
 namespace Bridge {
-namespace Main {
+
+namespace Messaging {
 
 class CallbackScheduler;
+
+}
+
+namespace Main {
 
 /** \brief Reliably send commands to peers
  *
@@ -43,7 +48,8 @@ public:
      *
      * \param callbackScheduler callback scheduler for the message loop
      */
-    PeerCommandSender(std::shared_ptr<CallbackScheduler> callbackScheduler);
+    PeerCommandSender(
+        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Create peer
      *
@@ -126,7 +132,7 @@ private:
     void internalSendMessageToAll();
     void internalAddMessage(Message message);
 
-    std::shared_ptr<CallbackScheduler> callbackScheduler;
+    std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler;
     std::queue<Message> messages;
     std::vector<Peer> peers;
 };

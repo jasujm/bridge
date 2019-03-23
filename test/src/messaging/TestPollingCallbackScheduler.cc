@@ -1,5 +1,5 @@
+#include "messaging/PollingCallbackScheduler.hh"
 #include "messaging/TerminationGuard.hh"
-#include "main/CallbackScheduler.hh"
 #include "CallbackSchedulerUtility.hh"
 
 #include <gmock/gmock.h>
@@ -20,24 +20,24 @@ public:
 
 }
 
-class CallbackSchedulerTest : public testing::Test {
+class PollingCallbackSchedulerTest : public testing::Test {
 protected:
     zmq::context_t context;
     MockCallback callback;
-    Bridge::Main::CallbackScheduler scheduler {
+    Bridge::Messaging::PollingCallbackScheduler scheduler {
         context, TerminationGuard::createTerminationSubscriber(context)};
     TerminationGuard terminationGuard {context};
 };
 
-TEST_F(CallbackSchedulerTest, testCallOnce)
+TEST_F(PollingCallbackSchedulerTest, testCallOnce)
 {
     EXPECT_CALL(callback, call());
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback]() { callback.call(); });
+    scheduler.callSoon(&MockCallback::call, std::ref(callback));
     pollAndExecuteCallbacks(scheduler);
 }
 
-TEST_F(CallbackSchedulerTest, testMultipleCallbacks)
+TEST_F(PollingCallbackSchedulerTest, testMultipleCallbacks)
 {
     MockCallback callback2;
     {
@@ -46,31 +46,31 @@ TEST_F(CallbackSchedulerTest, testMultipleCallbacks)
         EXPECT_CALL(callback2, call());
     }
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback]() { callback.call(); });
-    scheduler.callOnce([&callback = callback2]() { callback.call(); });
+    scheduler.callSoon(&MockCallback::call, std::ref(callback));
+    scheduler.callSoon(&MockCallback::call, std::ref(callback2));
     pollAndExecuteCallbacks(scheduler);
 }
 
-TEST_F(CallbackSchedulerTest, testExceptionRemovesCallbackFromQueue)
+TEST_F(PollingCallbackSchedulerTest, testExceptionRemovesCallbackFromQueue)
 {
     EXPECT_CALL(callback, call())
         .WillOnce(testing::Throw(std::runtime_error {"error"}));
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback]() { callback.call(); });
+    scheduler.callSoon(&MockCallback::call, std::ref(callback));
     EXPECT_THROW(pollAndExecuteCallbacks(scheduler), std::runtime_error);
 }
 
-TEST_F(CallbackSchedulerTest, testDelayedCallback)
+TEST_F(PollingCallbackSchedulerTest, testDelayedCallback)
 {
     EXPECT_CALL(callback, call());
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback]() { callback.call(); }, 50ms);
+    scheduler.callLater(50ms, &MockCallback::call, std::ref(callback));
     const auto tick = std::chrono::steady_clock::now();
     pollAndExecuteCallbacks(scheduler);
     EXPECT_GT(std::chrono::steady_clock::now() - tick, 45ms);
 }
 
-TEST_F(CallbackSchedulerTest, testMultipleDelayedCallbacks)
+TEST_F(PollingCallbackSchedulerTest, testMultipleDelayedCallbacks)
 {
     MockCallback callback2;
     {
@@ -79,15 +79,15 @@ TEST_F(CallbackSchedulerTest, testMultipleDelayedCallbacks)
         EXPECT_CALL(callback2, call());
     }
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback]() { callback.call(); }, 20ms);
-    scheduler.callOnce([&callback = callback2]() { callback.call(); }, 40ms);
+    scheduler.callLater(20ms, &MockCallback::call, std::ref(callback));
+    scheduler.callLater(40ms, &MockCallback::call, std::ref(callback2));
     const auto tick = std::chrono::steady_clock::now();
     pollAndExecuteCallbacks(scheduler);
     pollAndExecuteCallbacks(scheduler);
     EXPECT_LT(std::chrono::steady_clock::now() - tick, 50ms);
 }
 
-TEST_F(CallbackSchedulerTest, testMultipleDelayedCallbacksOutOfOrder)
+TEST_F(PollingCallbackSchedulerTest, testMultipleDelayedCallbacksOutOfOrder)
 {
     MockCallback callback2;
     {
@@ -96,8 +96,8 @@ TEST_F(CallbackSchedulerTest, testMultipleDelayedCallbacksOutOfOrder)
         EXPECT_CALL(callback2, call());
     }
     auto socket = scheduler.getSocket();
-    scheduler.callOnce([&callback = callback2]() { callback.call(); }, 40ms);
-    scheduler.callOnce([&callback = callback]() { callback.call(); }, 20ms);
+    scheduler.callLater(40ms, &MockCallback::call, std::ref(callback2));
+    scheduler.callLater(20ms, &MockCallback::call, std::ref(callback));
     pollAndExecuteCallbacks(scheduler);
     pollAndExecuteCallbacks(scheduler);
 }

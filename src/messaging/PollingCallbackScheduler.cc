@@ -1,4 +1,4 @@
-#include "main/CallbackScheduler.hh"
+#include "messaging/PollingCallbackScheduler.hh"
 
 #include <algorithm>
 #include <array>
@@ -7,7 +7,7 @@
 #include <sstream>
 
 namespace Bridge {
-namespace Main {
+namespace Messaging {
 
 namespace  {
 
@@ -25,7 +25,7 @@ struct ScheduledCallback {
     unsigned long callback_id;
 };
 
-// CallbackScheduler workflow:
+// PollingCallbackScheduler workflow:
 // - callOnce() -> store callback and send message to worker thread for waiting
 // - worker thread -> wait until it's time to execute a callback, send its id
 //   back to main thread
@@ -87,7 +87,7 @@ void callbackSchedulerWorker(
             }
         }
         // Poll did timeout -- it's time to execute the next callback by sending
-        // its id back to CallbackScheduler
+        // its id back to PollingCallbackScheduler
         else {
             assert(!queue.empty());
             const auto callback_id = queue.top().callback_id;
@@ -106,7 +106,7 @@ std::string generateSocketName(const std::string& prefix, const void* addr)
 
 }
 
-CallbackScheduler::CallbackScheduler(
+PollingCallbackScheduler::PollingCallbackScheduler(
     zmq::context_t& context, zmq::socket_t terminationSubscriber) :
     frontSocket {context, zmq::socket_type::pair},
     backSocket {
@@ -122,7 +122,8 @@ CallbackScheduler::CallbackScheduler(
         std::move(front_name), std::move(terminationSubscriber) };
 }
 
-void CallbackScheduler::callOnce(Callback callback, const Ms timeout)
+void PollingCallbackScheduler::handleCallLater(
+    const Ms timeout, Callback callback)
 {
     static unsigned long counter {};
     callbacks.emplace(counter, std::move(callback));
@@ -131,12 +132,12 @@ void CallbackScheduler::callOnce(Callback callback, const Ms timeout)
     ++counter;
 }
 
-std::shared_ptr<zmq::socket_t> CallbackScheduler::getSocket()
+std::shared_ptr<zmq::socket_t> PollingCallbackScheduler::getSocket()
 {
     return backSocket;
 }
 
-void CallbackScheduler::operator()(zmq::socket_t& socket)
+void PollingCallbackScheduler::operator()(zmq::socket_t& socket)
 {
     if (&socket == backSocket.get()) {
         while (socket.getsockopt<std::uint32_t>(ZMQ_EVENTS) & ZMQ_POLLIN) {
