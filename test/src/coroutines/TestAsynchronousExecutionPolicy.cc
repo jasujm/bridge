@@ -6,6 +6,7 @@
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
 #include "MockMessageHandler.hh"
+#include "MockCallbackScheduler.hh"
 #include "MockPoller.hh"
 #include "Blob.hh"
 
@@ -43,7 +44,8 @@ class AsynchronousExecutionPolicyTest :
 protected:
     virtual void SetUp()
     {
-        messageQueue.addExecutionPolicy(AsynchronousExecutionPolicy {poller});
+        messageQueue.addExecutionPolicy(
+            AsynchronousExecutionPolicy {poller, callbackScheduler});
         messageQueue.trySetHandler(asBytes(COMMAND), handler);
     }
 
@@ -63,6 +65,7 @@ protected:
     zmq::context_t context {};
     MessageQueue messageQueue {};
     testing::NiceMock<MockPoller> poller {};
+    testing::NiceMock<MockCallbackScheduler> callbackScheduler {};
     std::shared_ptr<MockAsynchronousMessageHandler> handler {
         std::make_shared<MockAsynchronousMessageHandler>()};
     std::pair<std::shared_ptr<zmq::socket_t>, zmq::socket_t> coroSockets {

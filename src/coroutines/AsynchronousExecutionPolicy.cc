@@ -4,8 +4,9 @@ namespace Bridge {
 namespace Coroutines {
 
 AsynchronousExecutionPolicy::AsynchronousExecutionPolicy(
-    Messaging::Poller& poller) :
-    poller {&poller}
+    Messaging::Poller& poller, Messaging::CallbackScheduler& callbackScheduler) :
+    poller {&poller},
+    callbackScheduler {&callbackScheduler}
 {
 }
 
@@ -13,12 +14,6 @@ AsynchronousExecutionContext::AsynchronousExecutionContext(
     CoroutineAdapter::Sink& sink) :
     sink {&sink}
 {
-}
-
-void AsynchronousExecutionContext::await(std::shared_ptr<zmq::socket_t> socket)
-{
-    assert(sink);
-    (*sink)(std::move(socket));
 }
 
 void ensureSocketReadable(

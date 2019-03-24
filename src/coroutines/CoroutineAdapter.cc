@@ -1,4 +1,7 @@
 #include "coroutines/CoroutineAdapter.hh"
+
+#include "messaging/CallbackScheduler.hh"
+#include "messaging/Poller.hh"
 #include "Utility.hh"
 
 #include <stdexcept>
@@ -54,7 +57,9 @@ public:
         dereference(future).resolveCallback =
             [this_ = parent.shared_from_this()]()
             {
-                dereference(this_).internalResume();
+                assert(this_);
+                this_->callbackScheduler.callSoon(
+                    &CoroutineAdapter::internalResume, this_);
             };
     }
 
@@ -67,7 +72,8 @@ public:
                 if (&socket_ != socket.get()) {
                     throw std::invalid_argument {"Unexpected socket"};
                 }
-                dereference(this_).internalResume();
+                assert(this_);
+                this_->internalResume();
             });
     }
 

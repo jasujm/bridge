@@ -6,8 +6,6 @@
 #ifndef COROUTINES_COROUTINEADAPTER_HH_
 #define COROUTINES_COROUTINEADAPTER_HH_
 
-#include "messaging/Poller.hh"
-
 #include <boost/coroutine2/all.hpp>
 #include <zmq.hpp>
 
@@ -16,6 +14,13 @@
 #include <variant>
 
 namespace Bridge {
+
+namespace Messaging {
+
+class CallbackScheduler;
+class Poller;
+
+}
 
 /** \brief Classes for executing coroutines in the bridge framework
  */
@@ -114,12 +119,14 @@ public:
      * \param coroutine the coroutine function associated with the coroutine
      * adapter
      * \param poller the poller used for polling the sockets for the coroutine
+     * \param callbackScheduler callback scheduler
      *
      * \throw Any exception thrown in the coroutine function
      */
     template<typename CoroutineFunction>
     static std::shared_ptr<CoroutineAdapter> create(
-        CoroutineFunction&& coroutine, Messaging::Poller& poller);
+        CoroutineFunction&& coroutine, Messaging::Poller& poller,
+        Messaging::CallbackScheduler& callbackScheduler);
 
     /** \brief Constructor
      *
@@ -129,7 +136,9 @@ public:
      */
     template<typename CoroutineFunction>
     CoroutineAdapter(
-        DoNotCallDirectly, CoroutineFunction&& coroutine, Messaging::Poller&);
+        DoNotCallDirectly, CoroutineFunction&& coroutine,
+        Messaging::Poller& poller,
+        Messaging::CallbackScheduler& callbackScheduler);
 
     /** \brief Return the awaited object, if any
      *
@@ -152,24 +161,28 @@ private:
     Source source;
     Awaitable awaited;
     Messaging::Poller& poller;
+    Messaging::CallbackScheduler& callbackScheduler;
 };
 
 template<typename CoroutineFunction>
 std::shared_ptr<CoroutineAdapter> CoroutineAdapter::create(
-    CoroutineFunction&& coroutine, Messaging::Poller& poller)
+    CoroutineFunction&& coroutine, Messaging::Poller& poller,
+    Messaging::CallbackScheduler& callbackScheduler)
 {
     auto adapter = std::make_shared<CoroutineAdapter>(
         DoNotCallDirectly {}, std::forward<CoroutineFunction>(coroutine),
-        poller);
+        poller, callbackScheduler);
     adapter->internalUpdate();
     return adapter;
 }
 
 template<typename CoroutineFunction>
 CoroutineAdapter::CoroutineAdapter(
-    DoNotCallDirectly, CoroutineFunction&& coroutine, Messaging::Poller& poller) :
+    DoNotCallDirectly, CoroutineFunction&& coroutine, Messaging::Poller& poller,
+    Messaging::CallbackScheduler& callbackScheduler) :
     source {std::forward<CoroutineFunction>(coroutine)},
-    poller {poller}
+    poller {poller},
+    callbackScheduler {callbackScheduler}
 {
 }
 

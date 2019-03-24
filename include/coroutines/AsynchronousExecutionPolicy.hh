@@ -35,18 +35,24 @@ public:
      */
     explicit AsynchronousExecutionContext(CoroutineAdapter::Sink& sink);
 
-    /** \brief Await socket
+    /** \brief Suspend coroutine on \p awaitable
      *
-     * Suspend the coroutine until \p socket becomes readable.
-     *
-     * \param socket the socket to await
+     * \param awaitable an object that can be awaited by the coroutine
      */
-    void await(std::shared_ptr<zmq::socket_t> socket);
+    template<typename Awaitable>
+    void await(Awaitable&& awaitable);
 
 private:
 
     CoroutineAdapter::Sink* sink;
 };
+
+template<typename Awaitable>
+void AsynchronousExecutionContext::await(Awaitable&& awaitable)
+{
+    assert(sink);
+    (*sink)(std::forward<Awaitable>(awaitable));
+}
 
 /** \brief Asynchronous execution policy
  *
@@ -67,8 +73,11 @@ public:
      *
      * \param poller the poller used for polling the sockets the coroutine is
      * awaiting
+     * \param callbackScheduler callback scheduler
      */
-    explicit AsynchronousExecutionPolicy(Messaging::Poller& poller);
+    AsynchronousExecutionPolicy(
+        Messaging::Poller& poller,
+        Messaging::CallbackScheduler& callbackScheduler);
 
     /** \brief Execute callback as coroutine
      *
@@ -84,17 +93,19 @@ public:
 private:
 
     Messaging::Poller* poller;
+    Messaging::CallbackScheduler* callbackScheduler;
 };
 
 template<typename Callback>
 void AsynchronousExecutionPolicy::operator()(Callback&& callback)
 {
     assert(poller);
+    assert(callbackScheduler);
     CoroutineAdapter::create(
         [*this, callback = std::forward<Callback>(callback)](auto& sink) mutable
         {
             std::invoke(std::move(callback), Context {sink});
-        }, *poller);
+        }, *poller, *callbackScheduler);
 }
 
 /** \brief Message handler with asynchronous execution policy
