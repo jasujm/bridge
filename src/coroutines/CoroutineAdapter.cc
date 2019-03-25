@@ -1,5 +1,6 @@
 #include "coroutines/CoroutineAdapter.hh"
 
+#include "coroutines/Future.hh"
 #include "messaging/CallbackScheduler.hh"
 #include "messaging/Poller.hh"
 #include "Utility.hh"
@@ -10,19 +11,6 @@
 namespace Bridge {
 namespace Coroutines {
 
-namespace {
-void nullResolve() {}
-}
-
-Future::Future() : resolveCallback {&nullResolve}
-{
-}
-
-void Future::resolve()
-{
-    resolveCallback();
-}
-
 class CoroutineAdapter::ClearAwaitVisitor {
 public:
     ClearAwaitVisitor(CoroutineAdapter& parent) :
@@ -32,7 +20,7 @@ public:
 
     void operator()(const std::shared_ptr<Future>& future)
     {
-        dereference(future).resolveCallback = &nullResolve;
+        dereference(future).resolveCallback = &Future::nullResolve;
     }
 
     void operator()(const std::shared_ptr<zmq::socket_t>& socket)

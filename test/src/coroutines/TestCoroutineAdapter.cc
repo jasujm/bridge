@@ -1,4 +1,5 @@
 #include "coroutines/CoroutineAdapter.hh"
+#include "coroutines/Future.hh"
 #include "Utility.hh"
 #include "MockCallbackScheduler.hh"
 #include "MockPoller.hh"
