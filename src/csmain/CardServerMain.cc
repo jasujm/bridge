@@ -42,8 +42,6 @@
 #include <utility>
 #include <vector>
 
-#include <signal.h>
-
 template<typename CardType>
 void swap(TMCG_Stack<CardType>& stack1, TMCG_Stack<CardType>& stack2)
 {
@@ -82,73 +80,6 @@ void failUnless(const bool condition)
 {
     if (!condition) {
         throw TMCGInitFailure {};
-    }
-}
-
-extern "C"
-void cardservermain_handle_signal(int signal)
-{
-    // Formally undefined behavior to do any I/O from signal handler, but in
-    // practice we rely on more lax POSIX guarantees for signal safe functions
-    log(LogLevel::INFO,
-        "%s received while executing protocol. Exiting immediately.",
-        strsignal(signal));
-    std::quick_exit(EXIT_SUCCESS);
-}
-
-// Protocols performed by LibTMCG are based on multiple successive blocking
-// sends/recvs and there is no easy way to graciously cancel the
-// execution. Before interacting with LibTMCG, CardServer functions create
-// SignalGuard that
-// - sets signal handler that exits immediately when signal is received
-// - unblocks SIGTERM and SIGINT
-// - does the reverse when the protocol is finished
-
-class SignalGuard {
-public:
-    SignalGuard();
-    ~SignalGuard();
-
-private:
-    sigset_t oldMask {};
-    struct sigaction oldIntAct {};
-    struct sigaction oldTermAct {};
-};
-
-SignalGuard::SignalGuard()
-{
-    sigset_t mask {};
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGTERM);
-    struct sigaction action {};
-    action.sa_handler = cardservermain_handle_signal;
-    action.sa_mask = mask;
-    if (sigaction(SIGINT, &action, &oldIntAct) != 0) {
-        log(LogLevel::ERROR,
-            "Failed to set SIGINT action: %s", strerror(errno));
-    }
-    if (sigaction(SIGTERM, &action, &oldTermAct) != 0) {
-        log(LogLevel::ERROR,
-            "Failed to set SIGTERM action: %s", strerror(errno));
-    }
-    if (sigprocmask(SIG_UNBLOCK, &mask, &oldMask) != 0) {
-        log(LogLevel::ERROR, "Failed to set sigprocmask: %s", strerror(errno));
-    }
-}
-
-SignalGuard::~SignalGuard()
-{
-    if (sigprocmask(SIG_SETMASK, &oldMask, nullptr) != 0) {
-        log(LogLevel::ERROR, "Failed to restore sigprocmask: %s",
-            strerror(errno));
-    }
-    if (sigaction(SIGTERM, &oldTermAct, nullptr) != 0) {
-        log(LogLevel::ERROR,
-            "Failed to restore SIGTERM action: %s", strerror(errno));
-    }
-    if (sigaction(SIGINT, &oldIntAct, nullptr) != 0) {
-        log(LogLevel::ERROR, "Failed to restore SIGINT action: %s", strerror(errno));
     }
 }
 
@@ -245,8 +176,6 @@ TMCG::TMCG(
     stack {},
     cards(N_CARDS)
 {
-    SignalGuard guard;
-
     // Phase 1: Connect to all peers
 
     failUnless(!peers.empty());
@@ -304,8 +233,6 @@ TMCG::TMCG(
 
 bool TMCG::shuffle(AsynchronousExecutionContext& eContext)
 {
-    SignalGuard guard;
-
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
@@ -389,8 +316,6 @@ bool TMCG::revealAll(
 
 bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
 {
-    SignalGuard guard;
-
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
@@ -431,8 +356,6 @@ bool TMCG::revealHelper(
     AsynchronousExecutionContext& eContext, PeerStreamEntry& peer,
     const IndexVector& ns)
 {
-    SignalGuard guard;
-
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
@@ -477,10 +400,10 @@ private:
     zmq::context_t& zContext;
     const std::optional<CurveKeys> keys;
     const EndpointIterator peerEndpointIterator;
+    std::shared_ptr<Messaging::MessageLoop> messageLoop;
+    std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     Coroutines::Mutex mutex;
     std::optional<TMCG> tmcg;
-    Messaging::MessageLoop messageLoop;
-    Messaging::PollingCallbackScheduler callbackScheduler;
     Messaging::MessageQueue messageQueue;
     Messaging::Authenticator authenticator;
 };
@@ -491,9 +414,12 @@ CardServerMain::Impl::Impl(
     zContext {zContext},
     keys {std::move(keys)},
     peerEndpointIterator {basePeerEndpoint},
-    messageLoop {zContext},
-    callbackScheduler {zContext, messageLoop.createTerminationSubscriber()},
-    authenticator {zContext, messageLoop.createTerminationSubscriber()}
+    messageLoop {
+        std::make_shared<Messaging::MessageLoop>(zContext)},
+    callbackScheduler {
+        std::make_shared<Messaging::PollingCallbackScheduler>(
+            zContext, messageLoop->createTerminationSubscriber())},
+    authenticator {zContext, messageLoop->createTerminationSubscriber()}
 {
     messageQueue.addExecutionPolicy(
         AsynchronousExecutionPolicy {messageLoop, callbackScheduler});
@@ -527,13 +453,20 @@ CardServerMain::Impl::Impl(
         zContext, zmq::socket_type::pair);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     controlSocket->bind(controlEndpoint);
-    messageLoop.addPollable(std::move(controlSocket), std::ref(messageQueue));
-    messageLoop.addPollable(callbackScheduler.getSocket(), std::ref(callbackScheduler));
+    messageLoop->addPollable(std::move(controlSocket), std::ref(messageQueue));
+    messageLoop->addPollable(
+        callbackScheduler->getSocket(),
+        [callbackScheduler = this->callbackScheduler](auto& socket)
+        {
+            assert(callbackScheduler);
+            (*callbackScheduler)(socket);
+        });
 }
 
 void CardServerMain::Impl::run()
 {
-    messageLoop.run();
+    assert(messageLoop);
+    messageLoop->run();
 }
 
 Reply<> CardServerMain::Impl::init(
