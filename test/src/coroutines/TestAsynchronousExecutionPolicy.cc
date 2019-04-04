@@ -22,6 +22,7 @@ using Bridge::asBytes;
 using testing::_;
 using testing::Invoke;
 using testing::IsEmpty;
+using testing::NiceMock;
 using testing::Ref;
 using testing::SaveArg;
 using testing::WithArgs;
@@ -64,8 +65,10 @@ protected:
 
     zmq::context_t context {};
     MessageQueue messageQueue {};
-    testing::NiceMock<MockPoller> poller {};
-    testing::NiceMock<MockCallbackScheduler> callbackScheduler {};
+    std::shared_ptr<NiceMock<MockPoller>> poller {
+        std::make_shared<NiceMock<MockPoller>>()};
+    std::shared_ptr<NiceMock<MockCallbackScheduler>> callbackScheduler {
+        std::shared_ptr<NiceMock<MockCallbackScheduler>>()};
     std::shared_ptr<MockAsynchronousMessageHandler> handler {
         std::make_shared<MockAsynchronousMessageHandler>()};
     std::pair<std::shared_ptr<zmq::socket_t>, zmq::socket_t> coroSockets {
@@ -86,7 +89,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
     messageQueueSockets.second.send(COMMAND.data(), COMMAND.size());
     EXPECT_CALL(*handler, doHandle(_, _, IsEmpty(), _)).WillOnce(
         WithArgs<0, 3>(Invoke(createCoroutine())));
-    EXPECT_CALL(poller, handleAddPollable(coroSockets.first, _)).WillOnce(
+    EXPECT_CALL(*poller, handleAddPollable(coroSockets.first, _)).WillOnce(
         SaveArg<1>(&socketCallback));
     messageQueue(messageQueueSockets.first);
 

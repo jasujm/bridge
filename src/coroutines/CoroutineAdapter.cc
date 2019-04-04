@@ -25,7 +25,9 @@ public:
 
     void operator()(const std::shared_ptr<zmq::socket_t>& socket)
     {
-        parent.poller.removePollable(dereference(socket));
+        if (const auto poller_ptr = parent.poller.lock()) {
+            poller_ptr->removePollable(dereference(socket));
+        }
     }
 
 private:
@@ -46,23 +48,27 @@ public:
             [this_ = parent.shared_from_this()]()
             {
                 assert(this_);
-                this_->callbackScheduler.callSoon(
-                    &CoroutineAdapter::internalResume, this_);
+                if (const auto callback_scheduler_ptr = this_->callbackScheduler.lock()) {
+                    callback_scheduler_ptr->callSoon(
+                        &CoroutineAdapter::internalResume, this_);
+                }
             };
     }
 
     void operator()(const std::shared_ptr<zmq::socket_t>& socket)
     {
-        parent.poller.addPollable(
-            socket,
-            [socket, this_ = parent.shared_from_this()](zmq::socket_t& socket_)
-            {
-                if (&socket_ != socket.get()) {
-                    throw std::invalid_argument {"Unexpected socket"};
-                }
-                assert(this_);
-                this_->internalResume();
-            });
+        if (const auto poller_ptr = parent.poller.lock()) {
+            poller_ptr->addPollable(
+                socket,
+                [socket, this_ = parent.shared_from_this()](zmq::socket_t& socket_)
+                {
+                    if (&socket_ != socket.get()) {
+                        throw std::invalid_argument {"Unexpected socket"};
+                    }
+                    assert(this_);
+                    this_->internalResume();
+                });
+        }
     }
 
 private:

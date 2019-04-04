@@ -76,8 +76,8 @@ public:
      * \param callbackScheduler callback scheduler
      */
     AsynchronousExecutionPolicy(
-        Messaging::Poller& poller,
-        Messaging::CallbackScheduler& callbackScheduler);
+        std::weak_ptr<Messaging::Poller> poller,
+        std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Execute callback as coroutine
      *
@@ -92,20 +92,18 @@ public:
 
 private:
 
-    Messaging::Poller* poller;
-    Messaging::CallbackScheduler* callbackScheduler;
+    std::weak_ptr<Messaging::Poller> poller;
+    std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler;
 };
 
 template<typename Callback>
 void AsynchronousExecutionPolicy::operator()(Callback&& callback)
 {
-    assert(poller);
-    assert(callbackScheduler);
     CoroutineAdapter::create(
-        [*this, callback = std::forward<Callback>(callback)](auto& sink) mutable
+        [this, callback = std::forward<Callback>(callback)](auto& sink) mutable
         {
             std::invoke(std::move(callback), Context {sink});
-        }, *poller, *callbackScheduler);
+        }, poller, callbackScheduler);
 }
 
 /** \brief Message handler with asynchronous execution policy

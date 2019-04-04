@@ -4,9 +4,10 @@ namespace Bridge {
 namespace Coroutines {
 
 AsynchronousExecutionPolicy::AsynchronousExecutionPolicy(
-    Messaging::Poller& poller, Messaging::CallbackScheduler& callbackScheduler) :
-    poller {&poller},
-    callbackScheduler {&callbackScheduler}
+    std::weak_ptr<Messaging::Poller> poller,
+    std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler) :
+    poller {std::move(poller)},
+    callbackScheduler {std::move(callbackScheduler)}
 {
 }
 

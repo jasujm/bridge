@@ -36,6 +36,13 @@ class Future;
  * message loop polls the socket and returns context to the coroutine once the
  * socket becomes readable.
  *
+ * A CoroutineAdapter object uses the injected Messaging::Poller and
+ * Messaging::CallbackScheduler objects to set up hooks that resume the
+ * execution of the coroutine. The objects are accepted as weak_ptr to allow
+ * clean termination of the coroutines if the injected dependencies are
+ * destructed. It is unspecified if a coroutine can be resumed normally once the
+ * dependencies go out of scope.
+ *
  * \todo Mechanism to cancel a coroutine cleanly is needed.
  *
  * \sa create() for documentation about creating a coroutine and expectations
@@ -91,8 +98,9 @@ public:
      */
     template<typename CoroutineFunction>
     static std::shared_ptr<CoroutineAdapter> create(
-        CoroutineFunction&& coroutine, Messaging::Poller& poller,
-        Messaging::CallbackScheduler& callbackScheduler);
+        CoroutineFunction&& coroutine,
+        std::weak_ptr<Messaging::Poller> poller,
+        std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Constructor
      *
@@ -103,8 +111,8 @@ public:
     template<typename CoroutineFunction>
     CoroutineAdapter(
         DoNotCallDirectly, CoroutineFunction&& coroutine,
-        Messaging::Poller& poller,
-        Messaging::CallbackScheduler& callbackScheduler);
+        std::weak_ptr<Messaging::Poller> poller,
+        std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Return the awaited object, if any
      *
@@ -126,30 +134,32 @@ private:
 
     Source source;
     Awaitable awaited;
-    Messaging::Poller& poller;
-    Messaging::CallbackScheduler& callbackScheduler;
+    std::weak_ptr<Messaging::Poller> poller;
+    std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler;
 };
 
 template<typename CoroutineFunction>
-std::shared_ptr<CoroutineAdapter> CoroutineAdapter::create(
-    CoroutineFunction&& coroutine, Messaging::Poller& poller,
-    Messaging::CallbackScheduler& callbackScheduler)
+CoroutineAdapter::CoroutineAdapter(
+    DoNotCallDirectly, CoroutineFunction&& coroutine,
+    std::weak_ptr<Messaging::Poller> poller,
+    std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler) :
+    source {std::forward<CoroutineFunction>(coroutine)},
+    poller {std::move(poller)},
+    callbackScheduler {std::move(callbackScheduler)}
 {
-    auto adapter = std::make_shared<CoroutineAdapter>(
-        DoNotCallDirectly {}, std::forward<CoroutineFunction>(coroutine),
-        poller, callbackScheduler);
-    adapter->internalUpdate();
-    return adapter;
 }
 
 template<typename CoroutineFunction>
-CoroutineAdapter::CoroutineAdapter(
-    DoNotCallDirectly, CoroutineFunction&& coroutine, Messaging::Poller& poller,
-    Messaging::CallbackScheduler& callbackScheduler) :
-    source {std::forward<CoroutineFunction>(coroutine)},
-    poller {poller},
-    callbackScheduler {callbackScheduler}
+std::shared_ptr<CoroutineAdapter> CoroutineAdapter::create(
+    CoroutineFunction&& coroutine,
+    std::weak_ptr<Messaging::Poller> poller,
+    std::weak_ptr<Messaging::CallbackScheduler> callbackScheduler)
 {
+    auto adapter = std::make_shared<CoroutineAdapter>(
+        DoNotCallDirectly {}, std::forward<CoroutineFunction>(coroutine),
+        std::move(poller), std::move(callbackScheduler));
+    adapter->internalUpdate();
+    return adapter;
 }
 
 }
