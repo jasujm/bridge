@@ -1,4 +1,5 @@
 #include "messaging/PollingCallbackScheduler.hh"
+#include "messaging/MessageUtility.hh"
 
 #include <algorithm>
 #include <array>
@@ -56,6 +57,9 @@ void callbackSchedulerWorker(
     auto bs = zmq::socket_t {context, zmq::socket_type::pair};
     fs.connect(fAddr);
     bs.connect(bAddr);
+    // Synchronize
+    static_cast<void>(discardMessage(fs));
+    bs.send("", 0);
     auto pollitems = std::array {
         zmq::pollitem_t {
             static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
@@ -78,7 +82,7 @@ void callbackSchedulerWorker(
                 assert(n_recv == sizeof(info));
                 // No need to schedule anything if there is no timeout
                 if (info.timeout == Ms::zero()) {
-                    bs.send(&info.callback_id, sizeof(info.callback_id));
+                    bs.send(&info.callback_id, sizeof(info.callback_id), ZMQ_DONTWAIT);
                 } else {
                     const auto callback_time = now + info.timeout;
                     queue.emplace(
@@ -92,7 +96,7 @@ void callbackSchedulerWorker(
             assert(!queue.empty());
             const auto callback_id = queue.top().callback_id;
             queue.pop();
-            bs.send(&callback_id, sizeof(callback_id));
+            bs.send(&callback_id, sizeof(callback_id), ZMQ_DONTWAIT);
         }
     }
 }
@@ -120,6 +124,9 @@ PollingCallbackScheduler::PollingCallbackScheduler(
     worker = Thread {
         callbackSchedulerWorker, std::ref(context), std::move(back_name),
         std::move(front_name), std::move(terminationSubscriber) };
+    // Synchronize
+    frontSocket.send("", 0);
+    static_cast<void>(discardMessage(*backSocket));
 }
 
 void PollingCallbackScheduler::handleCallLater(
@@ -128,7 +135,7 @@ void PollingCallbackScheduler::handleCallLater(
     static unsigned long counter {};
     callbacks.emplace(counter, std::move(callback));
     auto info = CallbackInfo {timeout, counter};
-    frontSocket.send(&info, sizeof(info));
+    frontSocket.send(&info, sizeof(info), ZMQ_DONTWAIT);
     ++counter;
 }
 
