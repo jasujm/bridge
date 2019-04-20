@@ -155,8 +155,8 @@ void MessageLoop::Impl::removePollable(zmq::socket_t& socket)
             return pollitem.socket == socket_ptr;
         });
     if (iter != pollitems.end()) {
-        pollitems.erase(iter);
         const auto n = std::distance(pollitems.begin(), iter);
+        pollitems.erase(iter);
         callbacks.erase(callbacks.begin() + n);
     }
 }
@@ -171,6 +171,7 @@ void MessageLoop::Impl::run()
             try {
                 if (pollitems[i].revents & ZMQ_POLLIN) {
                     std::visit(CallbackVisitor {}, callbacks[i]);
+                    break;
                 }
             } catch (const zmq::error_t& e) {
                 // If receiving failed because of interrupt signal, continue
