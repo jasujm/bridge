@@ -112,10 +112,6 @@ private:
         auto createOutputStream(AsynchronousExecutionContext& eContext);
 
         std::shared_ptr<zmq::socket_t> socket;
-        Messaging::SynchronousMessageBuffer inbuffer;
-        Messaging::SynchronousMessageBuffer outbuffer;
-        std::istream instream;
-        std::ostream outstream;
         Blob peerId;
     };
 
@@ -134,10 +130,6 @@ TMCG::PeerStreamEntry::PeerStreamEntry(
     zmq::context_t& zContext, const CurveKeys* const keys, PeerEntry&& entry,
     const EndpointIterator& peerEndpointIterator, const int order) :
     socket {std::make_shared<zmq::socket_t>(zContext, zmq::socket_type::pair)},
-    inbuffer {socket},
-    outbuffer {socket},
-    instream(&inbuffer),
-    outstream(&outbuffer),
     peerId {std::move(entry.id)}
 {
     if (entry.endpoint) {
