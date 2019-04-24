@@ -140,6 +140,13 @@ using SynchronousMessageBuffer = MessageBuffer<SynchronousExecutionContext>;
 
 /** \brief Standard stream wrapping BasicMessageBuffer as its buffer
  *
+ * Unlike standard streams, BasicMessageStream has exception mask for
+ * std::ios::badbit by default. This is to ensure that exceptions thrown by
+ * MessageBuffer operators are propagated. Note especially that if used as part
+ * of coroutine, the exception causing stack unwinding upon cancellation must
+ * never be caught
+ * (https://www.boost.org/doc/libs/1_69_0/libs/coroutine2/doc/html/coroutine2/coroutine/asymmetric.html).
+ *
  * \tparam BaseStream the standard stream it inherits from
  * \tparam Char the character type
  * \tparam Traits the character traits
@@ -183,6 +190,7 @@ BasicMessageStream(
     buffer {std::move(socket), std::move(context)}
 {
     this->init(&buffer);
+    this->exceptions(std::ios::badbit);
 }
 
 /** \brief BasicMessageStream specialization for std::istream
