@@ -63,7 +63,7 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
     const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
     if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
         auto empty_frame = zmq::message_t {};
-        assert(socket.recv(&empty_frame));
+        socket.recv(&empty_frame);
         return empty_frame.more();
     }
     return true;

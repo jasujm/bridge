@@ -91,7 +91,7 @@ protected:
     }};
     std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets;
     std::shared_ptr<MockCallbackScheduler> callbackScheduler {
-        std::make_shared<MockCallbackScheduler>()};
+        std::make_shared<testing::StrictMock<MockCallbackScheduler>>()};
     PeerCommandSender sender {callbackScheduler};
 };
 
