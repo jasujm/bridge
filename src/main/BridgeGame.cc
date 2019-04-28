@@ -25,6 +25,7 @@
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
+#include "messaging/UuidJsonSerializer.hh"
 #include "scoring/DuplicateScore.hh"
 #include "IoUtility.hh"
 #include "Logging.hh"
