@@ -206,7 +206,7 @@ Impl::Impl(
     const std::string& controlEndpoint) :
     sockets {{
         {
-            std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
+            std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
             [this](zmq::socket_t& socket)
             {
                 internalHandleCardServerMessage(socket);
@@ -401,10 +401,18 @@ void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
     if (&socket == sockets.front().first.get()) {
         auto reply = std::vector<zmq::message_t> {};
         recvMultipart(socket, std::back_inserter(reply));
-        const auto iter = isSuccessfulReply(reply.begin(), reply.end());
+        if (reply.size() < 1) {
+            log(LogLevel::WARNING,
+                "Empty reply received from card server. "
+                "This should not be possible with DEALER socket. "
+                "Unable to proceed.");
+            return;
+        }
+        const auto first_payload_iter = reply.begin() + 1;
+        const auto iter = isSuccessfulReply(first_payload_iter, reply.end());
         if (iter == reply.end()) {
             log(LogLevel::WARNING,
-                "Card server failure."
+                "Card server failure. "
                 "It is unlikely that the protocol can proceed.");
             return;
         }

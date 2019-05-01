@@ -104,6 +104,7 @@ protected:
     template<typename... Matchers>
     void assertMessage(Matchers&&... matchers)
     {
+        proxySocket.recv(&routingId);
         auto message = std::vector<std::string> {};
         recvAll<std::string>(std::back_inserter(message), proxySocket);
         EXPECT_THAT(
@@ -114,9 +115,19 @@ protected:
     template<typename... Args>
     void reply(Args&&... args)
     {
+        auto routing_id = zmq::message_t {};
+        routing_id.copy(&routingId);
+        proxySocket.send(routing_id, ZMQ_SNDMORE);
+        proxySocket.send("", 0, ZMQ_SNDMORE);
         sendValue(proxySocket, REPLY_SUCCESS, true);
-        sendCommand(
-            proxySocket, JsonSerializer {}, std::forward<Args>(args)...);
+        auto command = std::vector<zmq::message_t> {};
+        makeCommand(
+            std::back_inserter(command), JsonSerializer {},
+            std::forward<Args>(args)...);
+        for (auto& part : command) {
+            proxySocket.send(
+                part, (&part != &command.back()) ? ZMQ_SNDMORE : 0);
+        }
         const auto sockets = protocol.getSockets();
         const auto iter = sockets.begin();
         ASSERT_NE(iter, sockets.end());
@@ -133,7 +144,8 @@ protected:
     }
 
     zmq::context_t context;
-    zmq::socket_t proxySocket {context, zmq::socket_type::pair};
+    zmq::message_t routingId;
+    zmq::socket_t proxySocket {context, zmq::socket_type::router};
     CardServerProxy protocol {context, nullptr, CONTROL_ENDPOINT};
     std::vector<std::optional<CardType>> allCards;
 };

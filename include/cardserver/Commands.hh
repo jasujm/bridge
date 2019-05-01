@@ -29,11 +29,11 @@
  * card servers are needed for each bridge game instance where the card exchange
  * protocol is used.
  *
- * When started, the card server opens a control socket (PAIR) for a bridge
- * application to connect to. The single bridge instance that connects to the
- * socket and initializes the server becomes the controlling instance. The
- * initialization command contains information about the card server peers, as
- * the card server is unable to do peer discovery by itself. For each card
+ * When started, the card server opens a control socket (ROUTER) for a bridge
+ * application to connect to.
+ *
+ * The initialization command contains information about the card server peers,
+ * as the card server is unable to do peer discovery by itself. For each card
  * server peer the card server instance opens another PAIR socket used to
  * communicate with that peer.
  *
@@ -92,6 +92,13 @@
  * messages between bridge nodes, except that the empty frame at the beginning
  * of a message is not used. The bridge peer sends a command and the card server
  * replies with successful or failed reply depending on the outcome.
+ *
+ * If CurveZMQ is used, the controlling instance MUST set its public key for the
+ * connection to the same value as the server key of the card server, and the
+ * card server MUST verify the identity for each request.
+ *
+ * \note The requirement to validate the public key means that the controlling
+ * instance and the controlled card server instance MUST share the same keypair.
  *
  * The command protocol is described as in \ref bridgeprotocolcontrolmessage
  *

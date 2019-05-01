@@ -69,6 +69,9 @@ using CardVector = std::vector<std::optional<CardType>>;
 
 namespace {
 
+using namespace std::string_literals;
+const auto CONTROLLER_USER_ID = "cntrl"s;
+
 // TODO: The security parameter is intentionally low for making testing more
 // quick. It should be larger (preferrably adjustable).
 const auto SECURITY_PARAMETER = 8;
@@ -81,6 +84,11 @@ void failUnless(const bool condition)
     if (!condition) {
         throw TMCGInitFailure {};
     }
+}
+
+bool isControllingInstance(const Identity& identity)
+{
+    return identity.userId.empty() || identity.userId == CONTROLLER_USER_ID;
 }
 
 class TMCG {
@@ -411,7 +419,17 @@ CardServerMain::Impl::Impl(
     callbackScheduler {
         std::make_shared<Messaging::PollingCallbackScheduler>(
             zContext, messageLoop->createTerminationSubscriber())},
-    authenticator {zContext, messageLoop->createTerminationSubscriber()}
+    authenticator {
+        zContext, messageLoop->createTerminationSubscriber(),
+        ([this](const auto& keys) -> Messaging::Authenticator::NodeMap
+        {
+            if (keys) {
+                return {
+                    { keys->publicKey, CONTROLLER_USER_ID },
+                };
+            }
+            return {};
+        })(this->keys)}
 {
     messageQueue.addExecutionPolicy(
         AsynchronousExecutionPolicy {messageLoop, callbackScheduler});
@@ -442,7 +460,8 @@ CardServerMain::Impl::Impl(
             std::tie(CARDS_COMMAND),
             std::tie(CARDS_COMMAND)));
     auto controlSocket = std::make_shared<zmq::socket_t>(
-        zContext, zmq::socket_type::pair);
+        zContext, zmq::socket_type::router);
+    controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     controlSocket->bind(controlEndpoint);
     messageLoop->addPollable(std::move(controlSocket), std::ref(messageQueue));
@@ -462,10 +481,13 @@ void CardServerMain::Impl::run()
 }
 
 Reply<> CardServerMain::Impl::init(
-    AsynchronousExecutionContext eContext, const Identity&, const int order,
-    PeerVector&& peers)
+    AsynchronousExecutionContext eContext, const Identity& identity,
+    const int order, PeerVector&& peers)
 {
-    log(LogLevel::DEBUG, "Initialization requested");
+    log(LogLevel::DEBUG, "Initialization requested by %s", identity);
+    if (!isControllingInstance(identity)) {
+        return failure();
+    }
     Coroutines::Lock lock {eContext, mutex};
     if (!tmcg) {
         try {
@@ -481,9 +503,13 @@ Reply<> CardServerMain::Impl::init(
     return failure();
 }
 
-Reply<> CardServerMain::Impl::shuffle(AsynchronousExecutionContext eContext, const Identity&)
+Reply<> CardServerMain::Impl::shuffle(
+    AsynchronousExecutionContext eContext, const Identity& identity)
 {
-    log(LogLevel::DEBUG, "Shuffling requested");
+    log(LogLevel::DEBUG, "Shuffling requested by %s", identity);
+    if (!isControllingInstance(identity)) {
+        return failure();
+    }
     Coroutines::Lock lock {eContext, mutex};
     if (tmcg) {
         if (tmcg->shuffle(eContext)) {
@@ -496,10 +522,14 @@ Reply<> CardServerMain::Impl::shuffle(AsynchronousExecutionContext eContext, con
 }
 
 Reply<CardVector> CardServerMain::Impl::draw(
-    AsynchronousExecutionContext eContext, const Identity&,
+    AsynchronousExecutionContext eContext, const Identity& identity,
     const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Requested drawing %d cards", ns.size());
+    log(LogLevel::DEBUG,
+        "Requested drawing %d cards by %s", ns.size(), identity);
+    if (!isControllingInstance(identity)) {
+        return failure();
+    }
     Coroutines::Lock lock {eContext, mutex};
     if (tmcg) {
         if (tmcg->draw(eContext, ns)) {
@@ -512,11 +542,14 @@ Reply<CardVector> CardServerMain::Impl::draw(
 }
 
 Reply<> CardServerMain::Impl::reveal(
-    AsynchronousExecutionContext eContext, const Identity&, const Blob& peerId,
-    const IndexVector& ns)
+    AsynchronousExecutionContext eContext, const Identity& identity,
+    const Blob& peerId, const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Requested revealing %d cards to %s", ns.size(),
-        formatHex(peerId));
+    log(LogLevel::DEBUG, "Requested revealing %d cards to %s by %s", ns.size(),
+        formatHex(peerId), identity);
+    if (!isControllingInstance(identity)) {
+        return failure();
+    }
     Coroutines::Lock lock {eContext, mutex};
     if (tmcg) {
         if (tmcg->reveal(eContext, peerId, ns)) {
@@ -529,10 +562,15 @@ Reply<> CardServerMain::Impl::reveal(
 }
 
 Reply<CardVector> CardServerMain::Impl::revealAll(
-    AsynchronousExecutionContext eContext, const Identity&,
+    AsynchronousExecutionContext eContext, const Identity& identity,
     const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Requested revealing %d cards to all players", ns.size());
+    log(LogLevel::DEBUG,
+        "Requested revealing %d cards to all players by %s",
+        ns.size(), identity);
+    if (!isControllingInstance(identity)) {
+        return failure();
+    }
     Coroutines::Lock lock {eContext, mutex};
     if (tmcg) {
         if (tmcg->revealAll(eContext, ns)) {
