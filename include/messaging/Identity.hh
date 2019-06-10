@@ -13,6 +13,7 @@
 
 #include <iosfwd>
 #include <string>
+#include <string_view>
 
 namespace Bridge {
 namespace Messaging {
@@ -22,6 +23,10 @@ namespace Messaging {
  * \sa Identity
  */
 using UserId = std::string;
+
+/** \brief Non‐owning view over UserId
+ */
+using UserIdView = std::string_view;
 
 /** \brief Routing ID type
  *

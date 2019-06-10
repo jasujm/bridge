@@ -21,6 +21,9 @@ const auto SERVER_SECRET_KEY = decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{L
 const auto CLIENT_PUBLIC_KEY = decodeKey("Yne@$w-vo<fVvi]a<NY6T1ed:M$fCG*[IaLV{hID");
 const auto CLIENT_SECRET_KEY = decodeKey("D:)Q[IlAW!ahhC2ac:9*A}h:p?([4%wOTJ%JR%cs");
 const auto CLIENT_USER_ID = "user"s;
+const auto CLIENT2_PUBLIC_KEY = decodeKey("}Nd:*=$4Fvzi5ehoQw/ew8tZ/XKI.C8o5YBqJcMR");
+const auto CLIENT2_SECRET_KEY = decodeKey("G-Lq6{EbJ/C</gpvtK3V:4Sx[hsdePYi7[]4a3Nx");
+const auto CLIENT2_USER_ID = "user2"s;
 const auto ZAP_VERSION = "1.0"s;
 const auto ZAP_REQUEST_ID = "testreq"s;
 const auto CURVE_MECHANISM = "CURVE"s;
@@ -107,9 +110,17 @@ TEST_F(AuthenticatorTest, testAuthenticationKnownPeer)
 
 TEST_F(AuthenticatorTest, testAuthenticationUnknownPeer)
 {
-    setupClient({SERVER_SECRET_KEY, SERVER_PUBLIC_KEY});
+    setupClient({CLIENT2_SECRET_KEY, CLIENT2_PUBLIC_KEY});
     const auto user_id = recvClientUserId();
-    EXPECT_NE(CLIENT_USER_ID, user_id);
+    EXPECT_NE(CLIENT2_USER_ID, user_id);
+}
+
+TEST_F(AuthenticatorTest, testAuthenticationNewPeer)
+{
+    authenticator.addNode(CLIENT2_PUBLIC_KEY, CLIENT2_USER_ID);
+    setupClient({CLIENT2_SECRET_KEY, CLIENT2_PUBLIC_KEY});
+    const auto user_id = recvClientUserId();
+    EXPECT_EQ(CLIENT2_USER_ID, user_id);
 }
 
 TEST_F(AuthenticatorTest, testZapRequest)

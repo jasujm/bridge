@@ -25,9 +25,14 @@ const auto ZAP_EXPECTED_MESSAGE_SIZE = 7u;
 const auto CURVE_MECHANISM = "CURVE"sv;
 const auto ANONYMOUS_USER_ID = "anonymous"sv;
 
+enum class AuthenticatorCommand {
+    SYNC,
+    ADD_NODE,
+};
+
 void zapServer(
     zmq::context_t& context, zmq::socket_t terminationSubscriber,
-    const Authenticator::NodeMap knownNodes)
+    Authenticator::NodeMap knownNodes)
 {
     auto control_socket = zmq::socket_t {context, zmq::socket_type::rep};
     control_socket.bind(CONTROL_ENDPOINT.data());
@@ -46,10 +51,20 @@ void zapServer(
             break;
         }
         if (pollitems[1].revents & ZMQ_POLLIN) {
-            auto msg = zmq::message_t {};
-            control_socket.recv(&msg);
-            assert(!msg.more());
-            control_socket.send(msg);
+            auto command = AuthenticatorCommand {};
+            control_socket.recv(&command, sizeof(command));
+            if (command == AuthenticatorCommand::ADD_NODE) {
+                auto key_msg = zmq::message_t {};
+                control_socket.recv(&key_msg);
+                const auto key_view = messageView(key_msg);
+                auto user_id_msg = zmq::message_t {};
+                control_socket.recv(&user_id_msg);
+                knownNodes.insert_or_assign(
+                    Blob(key_view.begin(), key_view.end()),
+                    UserId(user_id_msg.data<char>(), user_id_msg.size()));
+            }
+            assert(!control_socket.getsockopt<int>(ZMQ_RCVMOVE));
+            control_socket.send("", 0);
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {
             auto input_frames =
@@ -97,6 +112,13 @@ void zapServer(
     }
 }
 
+void recvReplyFromZapThread(zmq::socket_t& socket)
+{
+    zmq::message_t reply_msg;
+    socket.recv(&reply_msg);
+    assert(!reply_msg.more());
+}
+
 }
 
 Authenticator::Authenticator(
@@ -114,10 +136,18 @@ Authenticator::Authenticator(
 
 void Authenticator::ensureRunning()
 {
-    auto msg = zmq::message_t {};
-    controlSocket.send(msg);
-    controlSocket.recv(&msg);
-    assert(!msg.more());
+    const auto cmd_buffer = AuthenticatorCommand::SYNC;
+    controlSocket.send(&cmd_buffer, sizeof(cmd_buffer));
+    recvReplyFromZapThread(controlSocket);
+}
+
+void Authenticator::addNode(const ByteSpan key, const UserIdView userId)
+{
+    const auto cmd_buffer = AuthenticatorCommand::ADD_NODE;
+    controlSocket.send(&cmd_buffer, sizeof(cmd_buffer), ZMQ_SNDMORE);
+    controlSocket.send(key.data(), key.size(), ZMQ_SNDMORE);
+    controlSocket.send(userId.data(), userId.size());
+    recvReplyFromZapThread(controlSocket);
 }
 
 }

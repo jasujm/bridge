@@ -59,6 +59,17 @@ public:
      */
     void ensureRunning();
 
+    /** \brief Add new known node
+     *
+     * This method call a node having public key \p key and user ID \p userId to
+     * the list of known nodes. The authenticator will recognize the new node
+     * once the function call returns.
+     *
+     * \param key the public key of the new node
+     * \param userId the user ID of the new node
+     */
+    void addNode(ByteSpan key, UserIdView userId);
+
 private:
 
     zmq::context_t& context;
