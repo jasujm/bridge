@@ -77,16 +77,34 @@
  * player. In peer‐to‐peer model the peer can be considered a backend and the
  * client a frontend of a single bridge application.
  *
- * \section bridgeprotocolcontrolmessage Control messages
+ * \section bridgeprotocolbasics Basics
  *
- * All messages sent to the control socket of a peer MUST consist of an empty
- * frame, the command frame and command dependent arguments consisting of
- * alternating key and value frames. The command and argument key parts MUST
- * consist of printable ASCII characters. The argument values MUST be JSON
- * documents encoded in UTF‐8.
+ * The bridge protocol framing are built on top of ZMTP frames.
  *
- * \note The motivation for restricting commands and keys to printable ASCII is
- * to ensure that they can be matched by simple binary comparison.
+ * A bridge protocol \b message is a multipart ZMTP message consisting of a
+ * prefix consisting of fixed number of frames, followed by a variable number of
+ * parameter frames. The prefix depends on the message type, but usually
+ * consists at least of a frame identifying the command. The parameter frames
+ * consist of key–value pairs, with a key frame followed by a serialized value
+ * frame. The command identifiers and key frames SHOULD be printable ASCII
+ * strings. The values MUST be UTF‐8 encoded JSON documents.
+ *
+ * \note Although command identifiers and keys are blobs without further
+ * internal structure, restricting to printable ASCII characters eases logging
+ * and inspecting the protocol.
+ *
+ * \note Wherever there is no risk of ambiguity, both ZMTP and bridge messages
+ * are just called messages.
+ *
+ * \section bridgeprotocolcontrolmessage Command messages
+ *
+ * A \b command is a message whose prefix consists of an empty frame and the
+ * command frame. Other peers and clients send control commands to the control
+ * socket of the peer in order to control its behavior and the flow of a bridge
+ * game.
+ *
+ * \note Whenever there is no risk of disambiguity, both the whole command
+ * message, and the command frame identifying it are called commands.
  *
  * \b Example. A valid command to play seven of diamonds from the south hand
  * would consist of the following eight frames:
@@ -111,15 +129,15 @@
  *
  * \section bridgeprotocolreplymessage Reply messages
  *
- * The peer MUST reply to a message consisting of at least the initial empty
- * frame and a command frame it recognizes. The reply to the command MUST
- * consist of an empty frame, status frame, frame containing the command and any
- * reply arguments specified for the command. The status MUST be a four byte big
- * endian integer which is equal or greater than zero if the command was
- * successfully handled, or less than zero otherwise. The command frame MUST be
- * the same as the command frame of the message it replies to. The arguments
- * MUST be alternating pairs of keys and values following same format as command
- * arguments.
+ * The peer MUST send a \b reply message to a node sending a control
+ * command. However, it MAY omit reply to any command message not consisting of
+ * at least the empty frame and the command frame.
+ *
+ * The prefix of a reply consist of an empty frame, status frame, and a frame
+ * echoing back the command. The status MUST be a four byte big endian integer
+ * which is equal or greater than zero if the command was successfully handled,
+ * or less than zero otherwise. The command frame MUST be the same as the
+ * command frame of the message it replies to.
  *
  * \b Example. A successful reply to a get command requesting the position of
  * the current player consists of the following five frames:
@@ -152,12 +170,11 @@
  *
  * \section bridgeprotocoleventmessage Event messages
  *
- * The messages the peer publishes through the event socket MUST consist of an
- * event frame followed by event dependent number of arguments. The event frame
- * MUST consist of UUID of the game in the canonical form, a colon, and event
- * type. The event type MUST consist of printable ASCII characters. The
- * arguments MUST be alternating pairs of keys and values following the same
- * format as command arguments.
+ * The peer MUST publish \b event messages trough its event socket when certain
+ * events described below take place. The prefix of an event message consists of
+ * an event frame. The event frame MUST consist of UUID of the game in the
+ * canonical form, a colon, and event type consisting of printable ASCII
+ * characters.
  *
  * \note The motivation for having event frame contain the UUID of the game
  * first is to allow the clients to subscribe to events from specific game by
@@ -456,7 +473,7 @@
  * for is unique. The command SHOULD fail if a peer representing multiple
  * players omits the player argument.
  *
- * \section bridgeprotocoleventcommands Event commands
+ * \section bridgeprotocoleventcommands Events
  *
  * The peer SHOULD publish the following events through the event socket:
  *

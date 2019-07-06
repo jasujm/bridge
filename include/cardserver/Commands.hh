@@ -88,10 +88,9 @@
  * \section cardservercontrolmessage Control commands
  *
  * The communication between the controlling bridge peer and the controlled card
- * server instance uses the same RPC and serialization scheme as the control
- * messages between bridge nodes, except that the empty frame at the beginning
- * of a message is not used. The bridge peer sends a command and the card server
- * replies with successful or failed reply depending on the outcome.
+ * server instance uses the same structure as the control messages between
+ * bridge nodes. The bridge peer sends a command and the card server replies
+ * with successful or failed reply depending on the outcome.
  *
  * If CurveZMQ is used, the controlling instance MUST set its public key for the
  * connection to the same value as the server key of the card server, and the
