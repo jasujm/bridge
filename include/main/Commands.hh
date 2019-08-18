@@ -239,12 +239,12 @@
  * positions in the list is represented by the peer itself or any other peer it
  * has accepted.
  *
- * If the card server protocol is used, args MUST also contain the base peer
- * endpoint of the card server the peer uses. If CURVE mechanism is used to
- * secure communication between the card server peers, args MUST also contain
- * the server key of the card server as hex encoded string. For instance, if the
- * base peer endpoint is tcp://example.com:5555 with CURVE server key, the
- * object would be the following:
+ * If the card server protocol is used, args MUST also contain the card server
+ * peer endpoint. If CURVE mechanism is used to secure communication between the
+ * card server peers, args MUST also contain the server key of the card server
+ * as hex encoded string. For instance, if the card server peer endpoint is
+ * tcp://example.com:5555 with CURVE server key, the object would be the
+ * following:
  *
  * \code{.json}
  * {

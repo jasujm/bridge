@@ -24,25 +24,18 @@
  *
  * The card server is a component providing the card exchange services for a
  * bridge peer defined in the \ref bridgeprotocol. A card server instance is
- * responsible for executing a secure mental card game protocol with card server
- * peers on behalf of its controlling bridge peer. One group of interconnected
- * card servers are needed for each bridge game instance where the card exchange
- * protocol is used.
+ * responsible for executing a secure mental card game protocol with its card
+ * server peers on behalf of its controlling bridge peer. One group of
+ * interconnected card servers are needed for each bridge game instance where
+ * the card exchange protocol is used.
  *
  * When started, the card server opens a control socket (ROUTER) for a bridge
  * application to connect to.
  *
- * The initialization command contains information about the card server peers,
- * as the card server is unable to do peer discovery by itself. For each card
- * server peer the card server instance opens another PAIR socket used to
- * communicate with that peer.
- *
- * \note The socket pattern (namely opening one PAIR socket for each endpoint
- * the card server intends to communicate with) is not conventional in ZeroMQ
- * application. It is driven mainly by the need to adapt the LibTMCG API (based
- * on interactive proofs being performed through std::iostream objects within
- * single blocking function call reading one stream at a time) to the ZeroMQ
- * API.
+ * The card server opens peer server socket (ROUTER) to receive messages from
+ * other peers. The initialization command contains information about the card
+ * server peers, as the card server is unable to do peer discovery by
+ * itself.
  *
  * The card server instance initiates the cryptographic protocols with its card
  * server peers based on the commands received from the control socket. It is
@@ -59,9 +52,8 @@
  * \section cardserverorder Order
  *
  * A consistent order MUST be established between the peers. This is required so
- * that the peers execute the interactive proofs in correct order, and to
- * determine which peer in each card server pair listens and which one
- * connects. The peer with the lowest order (0) is the leader.
+ * that the peers execute the interactive proofs in correct order. The peer with
+ * the lowest order (0) is the leader.
  *
  * The order is given to the card server by the controlling bridge peer during
  * the initialization. The peers MUST determine the order using the following
@@ -79,11 +71,6 @@
  * Example: Peer A controls the player seated in north, peer B the players
  * seated in east and west and peer C the player seated in south. The
  * established order is 0 for A, 1 for B and 2 for C.
- *
- * For each card server pair the peer that listens and the peer that connects is
- * determined by their relative order. In order to be consistent, the card
- * server with lower order MUST listen to connection and the card server with
- * higher order MUST connect.
  *
  * \section cardservercontrolmessage Control commands
  *
@@ -113,15 +100,11 @@
  * in \ref cardserverorder for the card server.
  *
  * The peers parameter MUST contain an array of peer entries. There MUST be one
- * entry for each card server peer. Each peer entry object MUST contain the
- * identity used to refer to that peer in later communication, the base peer
- * endpoint of that peer and CURVE server key used when communicating with that
- * peer (if applicable). The order of the peer entries MUST be the same as the
- * order of peers, except that there is no entry for the controlled card server
- * instance itself.
- *
- * \note The identity is an opaque hex encoded binary object. The controlling
- * peer may use for example the ZeroMQ socket identity of its peers.
+ * entry for each card server peer. Each peer entry object MUST contain the peer
+ * endpoint of that card server peer, and MAY contain the CURVE server key used
+ * when communicating with that peer if applicable. The order of the peer
+ * entries MUST be the same as the order of peers, except that there is no entry
+ * for the controlled card server instance itself.
  *
  * \note The card server determines the complete order of the peers by inserting
  * a “gap” into the array at the index determined by its own order parameter,
@@ -130,37 +113,19 @@
  * entries [B, C]. It then knows that the full order of the peers is: B, A, C.
  *
  * When receiving this command, the card server MUST examine the entries and
- * connect to each card server peer for whom the entry contains base endpoint,
- * and listen to the connection from a peer whose the endpoint is
- * omitted. The rules for choosing the endpoint are the following:
- * - A socket is bound to the same interface as the base endpoint, but with port
- * number increased by the order of the peer
- * - A socket is connected to the same interface as the base endpoint of the
- * peer, but with port number increased by the order of the controlled card
- * server itself. If CurveZMQ is uses, the connecting socket uses the server key
- * in the peer entry.
+ * connect to each card server peer using the given endpoint. If CurveZMQ is
+ * uses, the connecting socket uses the server key in the peer entry.
  *
- * \note The bridge peers is responsible for providing the correct base
- * endpoints to he controlled card server (which it learns from the \ref
- * bridgeprotocolcontrolgame command). The bridge peer is also responsible for
- * omitting the endpoint from the card server entry of the high order peers in
- * order to comply with the connection rules described in \ref cardserverorder.
- *
- * \b Example: The order of thee card servers is A, B, C. The base peer endpoint
- * for card server A is tcp://peerA.example.com:5600. The base peer endpoint for
- * card server B is tcp://peerB.example.com:5600. The base peer endpoint for
- * card server C is irrelevant in this example. The correct initialization
- * command the bridge peer controlling B is:
+ * \b Example: The order of thee card servers is A, B, C. The peer endpoint for
+ * card server A is tcp://peerA.example.com:5600. The peer endpoint for card
+ * server B is tcp://peerB.example.com:5600. The peer endpoint for card server C
+ * is tcp://peerC.example.com:5600. CURVE is not in use. The correct
+ * initialization command the bridge peer controlling B is:
  *
  * | Key   | Value
  * |-------|------------------------------------------------------------------
  * | order | 1
- * | peers | [{"id":"1234","endpoint":"tcp://peerA.example.com:5600"},{"id":"abcd"}]
- *
- * When receiving this message, card server B connects to
- * tcp://peerA.example.com:5601 to establish connection with card server A, and
- * binds to tcp://peerB.example.com:5602 to establish connection with card
- * server C.
+ * | peers | [{"endpoint":"tcp://peerA.example.com:5600"},{"endpoint":"tcp://peerC.example.com:5600"}]
  *
  * After all card servers have established connection with each other, they
  * generate the necessary groups for further cryptographic protocols.
@@ -194,17 +159,17 @@
  *   - \e cards: an array of 52 cards corresponding to the state of the cards
  *     known to the controlled card server, see \ref jsoncardtype
  *
- * The draw command initiates the draw part of the card drawing protocol. The
- * bridge peers MUST synchronize the draw protocol by matching a \ref
- * cardservercontrolreveal command from all the other card server peers to the
- * draw command from the controlled card server.
+ * The draw command initiates the draw part of the card drawing protocol.
  *
  * The cards parameter is an array containing the indices of the cards that the
  * controlled card server intends to draw. The reply is successful if the proofs
  * during the draw protocol are verified, false otherwise. A successful reply is
  * accompanied with an array containing 52 (possibly nulled) entries. Card
  * objects correspond to the known cards (those that have been revealed to the
- * card server instance) and nulls correspond to the unknown cards.
+ * card server instance) and nulls correspond to the unknown cards.*
+ *
+ * All the other card server peers MUST be issued a corresponding \ref
+ * cardservercontrolreveal command to initiate the card drawing protocol.
  *
  * \note The reply contains card objects from all previous draws since the last
  * shuffle protocol
@@ -213,19 +178,21 @@
  *
  * - \b command: reveal
  * - \b Parameters:
- *   - \e id: hex encoded string identifying the peer drawing the cards
+ *   - \e order: the order parameter of the peer the card is revealed to
  *   - \e cards: an array of indices identifying the cards drawn
  * - \b Reply: \e none
  *
  * The reveal command initiates the reveal part of the card drawing
- * protocol. The bridge peers MUST synchronize the draw protocol as described
- * in \ref cardservercontroldraw.
+ * protocol.
  *
- * The id parameter identifies the card server peer drawing the cards, and MUST
- * be one of the identities provided in the \ref cardservercontrolinit
- * command. The cards parameter is the list of indices that the peer is
- * drawing. The indices MUST be appear in the same order in the reveal as they
- * appear in the corresponding draw command.
+ * The order parameter identifies the card server peer drawing the cards. The
+ * cards parameter is the list of indices that the peer is drawing. The indices
+ * MUST be appear in the same order in the reveal as they appear in the
+ * corresponding draw command.
+ *
+ * The card server peer identified by the order parameter MUST be issued a
+ * corresponding \ref cardservercontroldraw command to initiate the card drawing
+ * protocol.
  *
  * The reply is successful if the proofs during the draw protocol are verified,
  * false otherwise.
@@ -239,8 +206,9 @@
  *   - \e cards: an array of 52 cards corresponding to the state of the cards
  *     known to the controlled card server
  *
- * The revealall command initiates the revealall protocol between the peers. The
- * bridge peers MUST synchronize the revealall protocol.
+ * The revealall command initiates the revealall protocol between the peers. All
+ * the card server peers MUST be issued a revealall command with the same
+ * parameter to initiate the protocol.
  *
  * The revealall protocol combines draw and reveal protocols in such a way that
  * at the end the cards given as parameter to the command are known to all
@@ -250,11 +218,20 @@
  *
  * \section cardserverpeermessage Peer commands
  *
- * The messages sent through the PAIR sockets that the card servers use to
- * communicate to each other are the strings that the LibTMCG library calls
- * insert to an output stream. A message is sent whenever the stream buffer is
- * synchronized and received whenever it underflows. The protocol between the
- * card server peers is specified by this reference implementation.
+ * The card server peers communicate with each other by sending messages to the
+ * other peer’s peer server sockets. Each message consists of three parts
+ *
+ * 1. Empty frame
+ * 2. The order of the peer that sent the message (one byte unsigned integer)
+ * 3. The payload
+ *
+ * Peers MUST NOT send replies through the server socket.
+ *
+ * The payload of the messages exchanged between the card server peers are those
+ * that the LibTMCG library calls insert to an output stream. A message is sent
+ * whenever the stream buffer is synchronized and received whenever it
+ * underflows. The protocol between the card server peers is specified by this
+ * reference implementation.
  *
  * \section cardservercardexchange Card exchange protocol
  *
@@ -353,10 +330,6 @@ extern const std::string CARDS_COMMAND;
 /** \brief Card server reveal command
  */
 extern const std::string REVEAL_COMMAND;
-
-/** \brief Id parameter to the the card server reveal command
- */
-extern const std::string ID_COMMAND;
 
 /** \brief Card server reveal all command
  */

@@ -204,8 +204,8 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         INIT_COMMAND, ORDER_COMMAND, IsSerialized(1), PEERS_COMMAND,
         IsSerialized(
             std::vector<PeerEntry> {
-                PeerEntry {PEER2.routingId, CARD_SERVER_ENDPOINT2},
-                PeerEntry {PEER.routingId, std::nullopt} }));
+                PeerEntry {CARD_SERVER_ENDPOINT2},
+                PeerEntry {CARD_SERVER_ENDPOINT} }));
 
     const auto manager = protocol.getCardManager();
     ASSERT_TRUE(manager);
@@ -219,7 +219,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     EXPECT_FALSE(manager->isShuffleCompleted());
     assertMessage(SHUFFLE_COMMAND);
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER2.routingId),
+        REVEAL_COMMAND, ORDER_COMMAND, IsSerialized(0),
         CardServer::CARDS_COMMAND,
         IsSerialized(cardsFor(PEER2_POSITIONS.begin(), PEER2_POSITIONS.end())));
     const auto self_card_ns =
@@ -229,7 +229,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     const auto peer_card_ns =
         cardsFor(PEER_POSITIONS.begin(), PEER_POSITIONS.end());
     assertMessage(
-        REVEAL_COMMAND, ID_COMMAND, IsSerialized(PEER.routingId),
+        REVEAL_COMMAND, ORDER_COMMAND, IsSerialized(2),
         CardServer::CARDS_COMMAND, IsSerialized(peer_card_ns));
 
     revealCards(self_card_ns.begin(), self_card_ns.end());

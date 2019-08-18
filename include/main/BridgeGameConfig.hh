@@ -54,7 +54,7 @@ struct BridgeGameConfig {
      */
     struct CardServerConfig {
         std::string controlEndpoint;   ///< Card server control endpoint
-        std::string basePeerEndpoint;  ///< Base peer endpoint
+        std::string peerEndpoint;      ///< Card server peer endpoint
         Blob serverKey;                ///< Server key for the card server
     };
 

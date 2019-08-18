@@ -9,13 +9,11 @@
  *
  * \code{.json}
  * {
- *     { "id": <identity> },
  *     { "endpoint": <endpoint> },
  *     { "serverKey": <serverKey> }
  * }
  * \endcode
  *
- * - &lt;id&gt; is a opaque hex encoded binary string identifying the peer
  * - &lt;endpoint&gt; is a string containing the endpoint of the peer, or null
  *   if the peer will connect instead of binding
  * - &lt;serverKey&gt; is a hex encoded binary string containing the CurveZMQ
@@ -33,12 +31,6 @@ namespace Bridge {
 namespace CardServer {
 
 struct PeerEntry;
-
-/** \brief Key for PeerEntry::identity
- *
- * \sa \ref jsonpeerentry
- */
-extern const std::string IDENTITY_KEY;
 
 /** \brief Key for PeerEntry::endpoint
  *

@@ -27,21 +27,18 @@ namespace CardServer {
  * \sa \ref cardserverprotocol
  */
 struct PeerEntry : private boost::equality_comparable<PeerEntry> {
-    Blob id;   ///< \brief Opaque object identifying the peer
-    std::optional<std::string> endpoint;  ///< \brief Card server endpoint
-    std::optional<Blob> serverKey;        ///< \brief The CurveZMQ server key
+    std::string endpoint;           ///< \brief Card server endpoint
+    std::optional<Blob> serverKey;  ///< \brief The CurveZMQ server key
 
     PeerEntry() = default;
 
     /** \brief Create new peer entry
      *
-     * \param id see \ref id
      * \param endpoint see \ref endpoint
      * \param serverKey see \ref serverKey
      */
     explicit PeerEntry(
-        Blob id,
-        std::optional<std::string> endpoint = std::nullopt,
+        std::string endpoint,
         std::optional<Blob> serverKey = std::nullopt);
 };
 

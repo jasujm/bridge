@@ -149,11 +149,10 @@ along with the bridge application.
     peer@example.com$ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
     peer@example.com$ bridgegui tcp://localhost:5555
 
-The card server reserves one endpoint for communicating with its controlling
-bridge backend, and one endpoint for each card server peer it communicates with.
-In the example above, the local TCP port 5560 is reserved for controlling the
-card server. Public TCP ports 5565–5567 (assuming three peers) are reserved for
-communicating with remote card server peers.
+The card server binds one endpoint for communicating with its controlling bridge
+backend, and one endpoint for communicating with its own peers. In the example
+above, the local TCP port 5560 is bound for controlling the card server. Public
+TCP port 5565 is bound for communicating with remote card server peers.
 
 ## Security
 

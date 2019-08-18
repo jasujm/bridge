@@ -234,7 +234,7 @@ game {
     uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
     card_server = {
         control_endpoint = "control-endpoint",
-        base_peer_endpoint = "base-peer-endpoint",
+        peer_endpoint = "peer-endpoint",
     },
 }
 )EOF"s);
@@ -242,7 +242,7 @@ game {
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     const auto expected_cs_config = BridgeGameConfig::CardServerConfig {
-        "control-endpoint"s, "base-peer-endpoint"s, {}};
+        "control-endpoint"s, "peer-endpoint"s, {}};
     EXPECT_EQ(expected_cs_config, games.front().cardServer);
 }
 
@@ -252,14 +252,14 @@ TEST_F(ConfigTest, testParseGameConfigCardServerMissingControlEndpoint)
 game {
     uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490",
     card_server = {
-        base_peer_endpoint = "base-peer-endpoint",
+        peer_endpoint = "peer-endpoint",
     },
 }
 )EOF"s);
     assertThrows();
 }
 
-TEST_F(ConfigTest, testParseGameConfigCardServerMissingBasePeerEndpoint)
+TEST_F(ConfigTest, testParseGameConfigCardServerMissingPeerEndpoint)
 {
     in.str(R"EOF(
 game {

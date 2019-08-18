@@ -10,7 +10,6 @@ const std::string SHUFFLE_COMMAND {"shuffle"};
 const std::string DRAW_COMMAND {"draw"};
 const std::string CARDS_COMMAND {"cards"};
 const std::string REVEAL_COMMAND {"reveal"};
-const std::string ID_COMMAND {"id"};
 const std::string REVEAL_ALL_COMMAND {"revealall"};
 
 }

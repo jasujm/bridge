@@ -28,7 +28,6 @@ TERMINATE_COMMAND = b'terminate'
 ORDER_COMMAND = b'order'
 PEERS_COMMAND = b'peers'
 CARDS_COMMAND = b'cards'
-IDENTITY_COMMAND = b'id'
 
 CURVE_KEYS = [
     ("G-Lq6{EbJ/C</gpvtK3V:4Sx[hsdePYi7[]4a3Nx","}Nd:*=$4Fvzi5ehoQw/ew8tZ/XKI.C8o5YBqJcMR"),
@@ -45,6 +44,7 @@ def cleanup(servers):
     for server in servers:
         server.terminate()
         server.wait()
+        print(server.stderr.read().decode())
 
 REPLY_SUCCESS = [b'', b'\0\0OK']
 PEERS = [
@@ -59,11 +59,12 @@ zmqctx = zmq.Context.instance()
 servers = [
     subprocess.Popen(
        [sys.argv[1],
+         '-vv',
          '--secret-key-file=-',
          '--public-key-file=-',
          get_endpoint(peer.control),
          get_endpoint(peer.endpoint)],
-        stdin=subprocess.PIPE) for peer in PEERS]
+        stdin=subprocess.PIPE, stderr=subprocess.PIPE) for peer in PEERS]
 for server, keys in zip(servers, CURVE_KEYS):
     server.stdin.write(keys[0].encode())
     server.stdin.write(b'\n')
@@ -80,7 +81,7 @@ for (n, (socket, peer, keys)) in enumerate(zip(sockets, PEERS, CURVE_KEYS)):
     entries = [
         {
             IDENTITY_KEY: other.id,
-            ENDPOINT_KEY: get_endpoint(other.endpoint) if n >= m else None,
+            ENDPOINT_KEY: get_endpoint(other.endpoint),
             SERVER_KEY_KEY: binascii.hexlify(z85.decode(other_keys[1])).decode()
         } for (m, (other, other_keys)) in enumerate(zip(PEERS, CURVE_KEYS)) if n != m
     ]
@@ -123,8 +124,8 @@ for (i, socket) in enumerate(sockets):
         else:
             socket.send(b'', flags=zmq.SNDMORE)
             socket.send(REVEAL_COMMAND, flags=zmq.SNDMORE)
-            socket.send(IDENTITY_COMMAND, flags=zmq.SNDMORE)
-            socket.send_json(PEERS[j].id, flags=zmq.SNDMORE)
+            socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)
+            socket.send_json(j, flags=zmq.SNDMORE)
             socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(CARD_RANGE[j])
 

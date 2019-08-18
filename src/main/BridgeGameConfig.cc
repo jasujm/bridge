@@ -41,8 +41,8 @@ bool operator==(
     const BridgeGameConfig::CardServerConfig& lhs,
     const BridgeGameConfig::CardServerConfig& rhs)
 {
-    return std::tie(lhs.controlEndpoint, lhs.basePeerEndpoint) ==
-        std::tie(rhs.controlEndpoint, rhs.basePeerEndpoint);
+    return std::tie(lhs.controlEndpoint, lhs.peerEndpoint) ==
+        std::tie(rhs.controlEndpoint, rhs.peerEndpoint);
 }
 
 BridgeGame gameFromConfig(
@@ -82,7 +82,7 @@ BridgeGame gameFromConfig(
         };
         if (config.cardServer) {
             auto card_server_args = nlohmann::json {
-                { ENDPOINT_COMMAND, config.cardServer->basePeerEndpoint }
+                { ENDPOINT_COMMAND, config.cardServer->peerEndpoint }
             };
             if (!config.cardServer->serverKey.empty()) {
                 card_server_args[SERVER_KEY_COMMAND] =

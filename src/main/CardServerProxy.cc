@@ -18,6 +18,7 @@
 #include "messaging/Replies.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationUtility.hh"
+#include "Enumerate.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
 #include "HexUtility.hh"
@@ -81,7 +82,6 @@ struct DrawEventBase : public sc::event<EventType> {
 
 struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
     AcceptPeerEvent(
-        const Identity& identity,
         CardProtocol::PositionVector& positions,
         std::string& cardServerBasePeerEndpoint,
         std::optional<Blob>& cardServerKey,
@@ -128,15 +128,14 @@ struct RevealAllSuccessfulEvent :
     using DrawEventBase<RevealAllSuccessfulEvent>::DrawEventBase;
 };
 
-struct PeerPosition {
-    PeerPosition(
-        std::optional<Blob> id, PositionVector positions) :
-        id {std::move(id)},
+struct PeerRecord {
+    PeerRecord(bool isSelf, PositionVector positions) :
+        isSelf {isSelf},
         positions {std::move(positions)}
     {
     }
 
-    std::optional<Blob> id;
+    bool isSelf;
     PositionVector positions;
 };
 
@@ -195,7 +194,7 @@ private:
 
     const SocketVector sockets;
     zmq::socket_t& controlSocket;
-    std::vector<PeerPosition> peerPositions;
+    std::vector<PeerRecord> peerRecords;
     CardVector cards;
     Observable<ShufflingState> shufflingStateNotifier;
     std::vector<std::shared_ptr<Hand::CardRevealStateObserver>> handObservers;
@@ -222,18 +221,16 @@ Impl::Impl(
 }
 
 bool Impl::acceptPeer(
-    const Identity& identity, PositionVector positions,
+    const Identity&, PositionVector positions,
     std::string cardServerBasePeerEndpoint, std::optional<Blob> serverKey)
 {
     auto ret = true;
     functionQueue(
-        [this, &identity, &positions, &cardServerBasePeerEndpoint, &serverKey,
-         &ret]()
+        [this, &positions, &cardServerBasePeerEndpoint, &serverKey, &ret]()
         {
             process_event(
                 AcceptPeerEvent {
-                    identity, positions, cardServerBasePeerEndpoint, serverKey,
-                    ret });
+                    positions, cardServerBasePeerEndpoint, serverKey, ret });
         });
     return ret;
 }
@@ -272,22 +269,21 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
     shufflingStateNotifier.notifyAll(ShufflingState::REQUESTED);
     log(LogLevel::DEBUG, "Card server proxy: Shuffling");
     sendCommand(CardServer::SHUFFLE_COMMAND);
-    // For each peer, reveal their cards. For oneself (indicated by empty
-    // identity) draw cards.
-    for (const auto& peer : peerPositions) {
+    // For each peer, reveal their cards. For self draw cards.
+    for (const auto& [order, peer] : enumerate(peerRecords)) {
         auto deckNs = cardsFor(
             peer.positions.begin(), peer.positions.end());
-        if (peer.id) {
-            log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
-                formatHex(*peer.id));
-            sendCommand(
-                CardServer::REVEAL_COMMAND,
-                std::tie(CardServer::ID_COMMAND, peer.id),
-                std::tie(CardServer::CARDS_COMMAND, deckNs));
-        } else {
+        if (peer.isSelf) {
             log(LogLevel::DEBUG, "Card server proxy: Drawing cards");
             sendCommand(
                 CardServer::DRAW_COMMAND,
+                std::tie(CardServer::CARDS_COMMAND, deckNs));
+        } else {
+            log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
+                order);
+            sendCommand(
+                CardServer::REVEAL_COMMAND,
+                std::tie(CardServer::ORDER_COMMAND, order),
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
         }
     }
@@ -301,7 +297,7 @@ void Impl::doNotifyShuffleCompleted(const NotifyShuffleCompletedEvent&)
 template<typename... Args>
 void Impl::emplacePeer(Args&&... args)
 {
-    peerPositions.emplace_back(std::forward<Args>(args)...);
+    peerRecords.emplace_back(std::forward<Args>(args)...);
 }
 
 template<typename CardIterator>
@@ -326,7 +322,7 @@ auto Impl::getSockets() const
 
 auto Impl::getNumberOfPeers() const
 {
-    return peerPositions.size();
+    return peerRecords.size();
 }
 
 template<typename IndexIterator>
@@ -450,7 +446,7 @@ public:
 
 private:
     bool internalAddPeer(
-        const Identity& identity, PositionVector positions,
+        PositionVector positions,
         std::string&& endpoint, std::optional<Blob>&& serverKey);
     void internalInitCardServer();
 
@@ -466,7 +462,7 @@ Initializing::Initializing() :
 sc::result Initializing::react(const AcceptPeerEvent& event)
 {
     event.ret = internalAddPeer(
-        event.identity, std::move(event.positions),
+        std::move(event.positions),
         std::move(event.cardServerBasePeerEndpoint),
         std::move(event.cardServerKey));
     return discard_event();
@@ -479,8 +475,8 @@ sc::result Initializing::react(const InitializeEvent&)
 }
 
 bool Initializing::internalAddPeer(
-    const Identity& identity, PositionVector positions,
-    std::string&& endpoint, std::optional<Blob>&& serverKey)
+    PositionVector positions, std::string&& endpoint,
+    std::optional<Blob>&& serverKey)
 {
     if (!positions.empty()) {
         std::sort(positions.begin(), positions.end());
@@ -493,7 +489,7 @@ bool Initializing::internalAddPeer(
             std::piecewise_construct,
             std::forward_as_tuple(std::move(positions)),
             std::forward_as_tuple(
-                identity.routingId, std::move(endpoint), std::move(serverKey)));
+                std::move(endpoint), std::move(serverKey)));
         return true;
     }
     return false;
@@ -509,19 +505,15 @@ void Initializing::internalInitCardServer()
             assert(!peer1.first.empty() && !peer2.first.empty());
             return peer1.first.front() < peer2.first.front();
         });
-    // Only request to connect to those peers that have larger order
-    // determined by the first position controlled - also determine the order
-    // of self
+    // Initialize peer entry vector to be sent to the card server -- also
+    // determine the order of self
     auto order = 0u;
     auto peers = std::vector<PeerEntry> {};
     for (auto&& peer : this->peers) {
-        auto&& entry = peer.second;
         if (peer.first < selfPositions) {
-            peers.emplace_back(std::move(entry));
             ++order;
-        } else {
-            peers.emplace_back(std::move(entry.id));
         }
+        peers.emplace_back(std::move(peer.second));
     }
     // Send initialization and the initial shuffle commands
     auto& impl = outermost_context();
@@ -534,11 +526,11 @@ void Initializing::internalInitCardServer()
     // Record peers and positions for the future use
     for (const auto n : to(this->peers.size() + 1)) {
         if (n == order) {
-            impl.emplacePeer(std::nullopt, std::move(selfPositions));
+            impl.emplacePeer(true, std::move(selfPositions));
         } else {
             const auto n2 = n - (n > order);
             auto&& positions = this->peers[n2].first;
-            impl.emplacePeer(peers[n2].id, std::move(positions));
+            impl.emplacePeer(false, std::move(positions));
         }
     }
 }

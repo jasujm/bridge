@@ -35,8 +35,8 @@ namespace Main {
  *
  * CardServerProxy requires that all the peers have joined and are accepted
  * before proceeding to the first shuffle. In addition, each peer is required to
- * provide the base endpoint for its card server peers. See \ref
- * cardserverprotocol and \ref bridgeprotocol for details.
+ * provide the endpoint for its card server peers. See \ref cardserverprotocol
+ * and \ref bridgeprotocol for details.
  *
  * \sa CardServer
  */

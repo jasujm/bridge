@@ -104,13 +104,19 @@ void sendMultipart(
  * are no more parts in the current message. The parts are immediately
  * discarded. At least one part is always received.
  *
+ * \param socket the socket
+ * \param maximumParts the maximum number of parts to discard
+ *
  * \return number of frames discarded
  */
-inline int discardMessage(zmq::socket_t& socket)
+inline int discardMessage(zmq::socket_t& socket, int maximumParts = std::numeric_limits<int>::max())
 {
     auto n_parts = 0;
     char buf[0];
     do {
+        if (n_parts >= maximumParts) {
+            break;
+        }
         static_cast<void>(socket.recv(&buf, 0));
         ++n_parts;
     } while (socket.getsockopt<int>(ZMQ_RCVMORE));
@@ -150,6 +156,26 @@ std::pair<MessageIterator, int> recvMultipart(
         n_parts += discardMessage(socket);
     }
     return {out, n_parts};
+}
+
+/** \brief Forward message from one socket to another
+ *
+ * This function repeatedly receives messages from \p fromSocket and sends them
+ * to \p toSocket until there are no more parts in the current message. At least
+ * one part is always received.
+ *
+ * \param fromSocket the socket the message parts are received from
+ * \param toSocket the socket the message parts are sent to
+ */
+inline void forwardMessage(zmq::socket_t& fromSocket, zmq::socket_t& toSocket)
+{
+    auto more = true;
+    auto msg = zmq::message_t {};
+    while (more) {
+        fromSocket.recv(&msg);
+        more = msg.more();
+        toSocket.send(msg, more ? ZMQ_SNDMORE : 0);
+    }
 }
 
 /** \brief Get view to the bytes \p message consists of

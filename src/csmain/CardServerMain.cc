@@ -9,11 +9,11 @@
 #include "bridge/BridgeConstants.hh"
 #include "cardserver/Commands.hh"
 #include "cardserver/PeerEntry.hh"
+#include "csmain/PeerSocketProxy.hh"
 #include "coroutines/AsynchronousExecutionPolicy.hh"
 #include "coroutines/Lock.hh"
 #include "messaging/Authenticator.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
-#include "messaging/EndpointIterator.hh"
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/MessageBuffer.hh"
 #include "messaging/MessageLoop.hh"
@@ -55,7 +55,6 @@ namespace CardServer {
 using Coroutines::AsynchronousExecutionContext;
 using Coroutines::AsynchronousExecutionPolicy;
 using Messaging::CurveKeys;
-using Messaging::EndpointIterator;
 using Messaging::failure;
 using Messaging::Identity;
 using Messaging::JsonSerializer;
@@ -64,6 +63,7 @@ using Messaging::Reply;
 using Messaging::success;
 
 using PeerVector = std::vector<PeerEntry>;
+using SocketVector = PeerSocketProxy::SocketVector;
 using IndexVector = std::vector<std::size_t>;
 using CardVector = std::vector<std::optional<CardType>>;
 
@@ -91,17 +91,35 @@ bool isControllingInstance(const Identity& identity)
     return identity.userId.empty() || identity.userId == CONTROLLER_USER_ID;
 }
 
+auto createPeerSocketProxy(
+    zmq::context_t& context, const std::string& peerServerEndpoint,
+    const PeerVector& peers, int order)
+{
+    auto peerServerSocket = zmq::socket_t {context, zmq::socket_type::router};
+    peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    peerServerSocket.bind(peerServerEndpoint);
+    auto peerClientSockets = std::vector<zmq::socket_t> {};
+    peerClientSockets.reserve(peers.size());
+    for (const auto& peer : peers) {
+        auto& socket = peerClientSockets.emplace_back(
+            context, zmq::socket_type::dealer);
+        socket.connect(peer.endpoint);
+    }
+    return PeerSocketProxy {
+        context, std::move(peerServerSocket), std::move(peerClientSockets),
+            static_cast<PeerSocketProxy::OrderParameter>(order)};
+}
+
 class TMCG {
 public:
 
     TMCG(
-        AsynchronousExecutionContext& eContext, zmq::context_t& zContext,
-        const CurveKeys* keys, int order, PeerVector&& peers,
-        EndpointIterator peerEndpointIterator);
+        AsynchronousExecutionContext& eContext,
+        int order, SocketVector peerSockets);
 
     bool shuffle(AsynchronousExecutionContext& eContext);
     bool reveal(
-        AsynchronousExecutionContext& eContext, const Blob& peerId,
+        AsynchronousExecutionContext& eContext, int peerOrder,
         const IndexVector& ns);
     bool revealAll(
         AsynchronousExecutionContext& eContext, const IndexVector& ns);
@@ -111,55 +129,27 @@ public:
 
 private:
 
-    struct PeerStreamEntry {
-        PeerStreamEntry(
-            zmq::context_t& zContext, const CurveKeys* keys, PeerEntry&& entry,
-            const EndpointIterator& peerEndpointIterator, int order);
-
-        auto createInputStream(AsynchronousExecutionContext& eContext);
-        auto createOutputStream(AsynchronousExecutionContext& eContext);
-
-        std::shared_ptr<zmq::socket_t> socket;
-        Blob peerId;
-    };
-
     bool revealHelper(
-        AsynchronousExecutionContext& eContext, PeerStreamEntry& peer,
-        const IndexVector& ns);
+        AsynchronousExecutionContext& eContext,
+        std::shared_ptr<zmq::socket_t> peerSocket, const IndexVector& ns);
 
-    std::vector<std::optional<PeerStreamEntry>> peers;
+    SocketVector peerSockets;
     SchindelhauerTMCG tmcg;
     std::optional<BarnettSmartVTMF_dlog> vtmf;
     TMCG_Stack<VTMF_Card> stack;
     CardVector cards;
 };
 
-TMCG::PeerStreamEntry::PeerStreamEntry(
-    zmq::context_t& zContext, const CurveKeys* const keys, PeerEntry&& entry,
-    const EndpointIterator& peerEndpointIterator, const int order) :
-    socket {std::make_shared<zmq::socket_t>(zContext, zmq::socket_type::pair)},
-    peerId {std::move(entry.id)}
-{
-    if (entry.endpoint) {
-        Messaging::setupCurveClient(
-            *socket, keys,
-            entry.serverKey ? ByteSpan {*entry.serverKey} : ByteSpan {});
-        auto endpointIterator = EndpointIterator {*entry.endpoint};
-        socket->connect(*(endpointIterator += order));
-    } else {
-        Messaging::setupCurveServer(*socket, keys);
-        socket->bind(*peerEndpointIterator);
-    }
-}
-
-auto TMCG::PeerStreamEntry::createInputStream(
+auto createInputStream(
+    std::shared_ptr<zmq::socket_t> socket,
     AsynchronousExecutionContext& eContext)
 {
     return Messaging::MessageIStream<AsynchronousExecutionContext> {
         socket, std::ref(eContext)};
 }
 
-auto TMCG::PeerStreamEntry::createOutputStream(
+auto createOutputStream(
+    std::shared_ptr<zmq::socket_t> socket,
     AsynchronousExecutionContext& eContext)
 {
     return Messaging::MessageOStream<AsynchronousExecutionContext> {
@@ -167,68 +157,47 @@ auto TMCG::PeerStreamEntry::createOutputStream(
 }
 
 TMCG::TMCG(
-    AsynchronousExecutionContext& eContext, zmq::context_t& zContext,
-    const CurveKeys* const keys, const int order, PeerVector&& peers,
-    EndpointIterator peerEndpointIterator) :
-    peers(peers.size() + 1),
-    tmcg {SECURITY_PARAMETER, peers.size(), TMCG_W},
+    AsynchronousExecutionContext& eContext,
+    const int order, PeerSocketProxy::SocketVector peerSockets) :
+    peerSockets(std::move(peerSockets)),
+    tmcg {SECURITY_PARAMETER, this->peerSockets.size(), TMCG_W},
     vtmf {},
     stack {},
     cards(N_CARDS)
 {
-    // Phase 1: Connect to all peers
-
-    failUnless(!peers.empty());
-    failUnless(0 <= order && static_cast<std::size_t>(order) <= peers.size());
-    for (auto&& e : enumerate(peers)) {
-        const auto peer_index = e.first + (order <= e.first);
-        const auto adjusted_order = order - (order > e.first);
-        auto&& peer = e.second;
-        assert(static_cast<std::size_t>(peer_index) < this->peers.size());
-        this->peers[peer_index].emplace(
-            zContext, keys, std::move(peer), peerEndpointIterator,
-            adjusted_order);
-        ++peerEndpointIterator;
-    }
-
-    // Phase 2: Generate group
+    // Phase 1: Generate group
 
     if (order == 0) {
         vtmf.emplace();
         failUnless(vtmf->CheckGroup());
-        for (
-            auto iter = std::next(this->peers.begin());
-            iter != this->peers.end(); ++iter) {
-            assert(*iter);
-            auto outstream = (*iter)->createOutputStream(eContext);
+        for (auto& peerSocket : this->peerSockets) {
+            auto outstream = createOutputStream(peerSocket, eContext);
             vtmf->PublishGroup(outstream);
         }
     } else {
-        auto& peer = this->peers.front();
-        assert(peer);
-        auto instream = peer->createInputStream(eContext);
+        auto instream = createInputStream(this->peerSockets.front(), eContext);
         vtmf.emplace(instream);
         failUnless(vtmf->CheckGroup());
     }
 
-    // Phase 3: Generate keys
+    // Phase 2: Generate keys
 
     vtmf->KeyGenerationProtocol_GenerateKey();
-    for (auto& peer : this->peers) {
-        if (peer) {
-            auto outstream = peer->createOutputStream(eContext);
-            vtmf->KeyGenerationProtocol_PublishKey(outstream);
-        }
+    for (auto& peerSocket : this->peerSockets) {
+        auto outstream = createOutputStream(peerSocket, eContext);
+        vtmf->KeyGenerationProtocol_PublishKey(outstream);
     }
-    for (auto& peer : this->peers) {
-        if (peer) {
-            auto instream = peer->createInputStream(eContext);
-            const auto success =
-                vtmf->KeyGenerationProtocol_UpdateKey(instream);
-            failUnless(success);
-        }
+    for (auto& peerSocket : this->peerSockets) {
+        auto instream = createInputStream(peerSocket, eContext);
+        const auto success =
+            vtmf->KeyGenerationProtocol_UpdateKey(instream);
+        failUnless(success);
     }
     vtmf->KeyGenerationProtocol_Finalize();
+
+    // Insert empty vector to where this peer is in order. Simplifies
+    // implementation.
+    this->peerSockets.emplace(this->peerSockets.begin() + order);
 }
 
 bool TMCG::shuffle(AsynchronousExecutionContext& eContext)
@@ -243,28 +212,26 @@ bool TMCG::shuffle(AsynchronousExecutionContext& eContext)
         stack.push(c);
     }
 
-    for (auto&& peer : peers) {
+    for (auto& peerSocket : peerSockets) {
         TMCG_Stack<VTMF_Card> stack2;
-        if (peer) {
-            auto instream = peer->createInputStream(eContext);
-            auto outstream = peer->createOutputStream(eContext);
+        if (peerSocket) {
+            auto instream = createInputStream(peerSocket, eContext);
+            auto outstream = createOutputStream(peerSocket, eContext);
             instream >> stack2;
             if (!instream.good() ||
                 !tmcg.TMCG_VerifyStackEquality(
                     stack, stack2, false, p_vtmf, instream, outstream)) {
-                log(LogLevel::WARNING,
-                    "Failed to verify stack equality. Prover: %s",
-                    formatHex(peer->peerId));
+                log(LogLevel::WARNING, "Failed to verify stack equality.");
                 return false;
             }
         } else {
             TMCG_StackSecret<VTMF_CardSecret> secret;
             tmcg.TMCG_CreateStackSecret(secret, false, N_CARDS, p_vtmf);
             tmcg.TMCG_MixStack(stack, stack2, secret, p_vtmf);
-            for (auto&& peer2 : peers) {
-                if (peer2) {
-                    auto instream = peer2->createInputStream(eContext);
-                    auto outstream = peer2->createOutputStream(eContext);
+            for (auto& peerSocket2 : peerSockets) {
+                if (peerSocket2) {
+                    auto instream = createInputStream(peerSocket2, eContext);
+                    auto outstream = createOutputStream(peerSocket2, eContext);
                     outstream << stack2 << std::endl;
                     tmcg.TMCG_ProveStackEquality(
                         stack, stack2, secret, false, p_vtmf,
@@ -281,18 +248,13 @@ bool TMCG::shuffle(AsynchronousExecutionContext& eContext)
 }
 
 bool TMCG::reveal(
-    AsynchronousExecutionContext& eContext, const Blob& peerId,
+    AsynchronousExecutionContext& eContext, const int peerOrder,
     const IndexVector& ns)
 {
-    const auto iter = std::find_if(
-        peers.begin(), peers.end(),
-        [&peerId](const auto& peer)
-        {
-            return peer && peer->peerId == peerId;
-        });
-    if (iter != peers.end()) {
-        assert(*iter);
-        return revealHelper(eContext, **iter, ns);
+    if (0 <= peerOrder &&
+        static_cast<std::size_t>(peerOrder) < peerSockets.size() &&
+        peerSockets[peerOrder]) {
+        return revealHelper(eContext, peerSockets[peerOrder], ns);
     }
     return false;
 }
@@ -300,10 +262,10 @@ bool TMCG::reveal(
 bool TMCG::revealAll(
     AsynchronousExecutionContext& eContext, const IndexVector& ns)
 {
-    for (auto&& peer : peers) {
+    for (auto& peerSocket : peerSockets) {
         auto success = true;
-        if (peer) {
-            success = revealHelper(eContext, *peer, ns);
+        if (peerSocket) {
+            success = revealHelper(eContext, peerSocket, ns);
         } else {
             success = draw(eContext, ns);
         }
@@ -326,16 +288,14 @@ bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
         assert(n < stack.size());
         auto& card = stack[n];
         tmcg.TMCG_SelfCardSecret(card, p_vtmf);
-        for (auto&& peer : peers) {
-            if (peer) {
-                auto instream = peer->createInputStream(eContext);
-                auto outstream = peer->createOutputStream(eContext);
+        for (auto& peerSocket : peerSockets) {
+            if (peerSocket) {
+                auto instream = createInputStream(peerSocket, eContext);
+                auto outstream = createOutputStream(peerSocket, eContext);
                 if (
                     !tmcg.TMCG_VerifyCardSecret(
                         card, p_vtmf, instream, outstream)) {
-                    log(LogLevel::WARNING,
-                        "Failed to verify card secret. Prover: %s",
-                        formatHex(peer->peerId));
+                    log(LogLevel::WARNING, "Failed to verify card secret.");
                     return false;
                 }
             }
@@ -353,14 +313,14 @@ const CardVector& TMCG::getCards() const
 }
 
 bool TMCG::revealHelper(
-    AsynchronousExecutionContext& eContext, PeerStreamEntry& peer,
-    const IndexVector& ns)
+    AsynchronousExecutionContext& eContext,
+    std::shared_ptr<zmq::socket_t> peerSocket, const IndexVector& ns)
 {
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
 
-    auto instream = peer.createInputStream(eContext);
-    auto outstream = peer.createOutputStream(eContext);
+    auto instream = createInputStream(peerSocket, eContext);
+    auto outstream = createOutputStream(peerSocket, eContext);
     for (const auto n : ns) {
         if (n >= N_CARDS) {
             return false;
@@ -378,30 +338,31 @@ public:
     Impl(
         zmq::context_t& zContext, std::optional<CurveKeys> keys,
         const std::string& controlEndpoint,
-        const std::string& basePeerEndpoint);
+        const std::string& peerEndpoint);
     void run();
 
 private:
 
     Reply<> init(
         AsynchronousExecutionContext eContext, const Identity&, int order,
-        PeerVector&& peers);
+        const PeerVector& peers);
     Reply<> shuffle(AsynchronousExecutionContext eContext, const Identity&);
     Reply<CardVector> draw(
         AsynchronousExecutionContext eContext, const Identity&,
         const IndexVector& ns);
     Reply<> reveal(
         AsynchronousExecutionContext eContext, const Identity&,
-        const Blob& peerId, const IndexVector& ns);
+        int peerOrder, const IndexVector& ns);
     Reply<CardVector> revealAll(
         AsynchronousExecutionContext eContext, const Identity&,
         const IndexVector& ns);
 
     zmq::context_t& zContext;
     const std::optional<CurveKeys> keys;
-    const EndpointIterator peerEndpointIterator;
+    const std::string peerEndpoint;
     std::shared_ptr<Messaging::MessageLoop> messageLoop;
     std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
+    std::optional<PeerSocketProxy> peerSocketProxy;
     Coroutines::Mutex mutex;
     std::optional<TMCG> tmcg;
     Messaging::MessageQueue messageQueue;
@@ -410,10 +371,10 @@ private:
 
 CardServerMain::Impl::Impl(
     zmq::context_t& zContext, std::optional<CurveKeys> keys,
-    const std::string& controlEndpoint, const std::string& basePeerEndpoint) :
+    const std::string& controlEndpoint, const std::string& peerEndpoint) :
     zContext {zContext},
     keys {std::move(keys)},
-    peerEndpointIterator {basePeerEndpoint},
+    peerEndpoint {peerEndpoint},
     messageLoop {
         std::make_shared<Messaging::MessageLoop>(zContext)},
     callbackScheduler {
@@ -452,7 +413,7 @@ CardServerMain::Impl::Impl(
         asBytes(REVEAL_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
             *this, &Impl::reveal, JsonSerializer {},
-            std::tie(ID_COMMAND, CARDS_COMMAND)));
+            std::tie(ORDER_COMMAND, CARDS_COMMAND)));
     messageQueue.trySetHandler(
         asBytes(REVEAL_ALL_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
@@ -482,7 +443,7 @@ void CardServerMain::Impl::run()
 
 Reply<> CardServerMain::Impl::init(
     AsynchronousExecutionContext eContext, const Identity& identity,
-    const int order, PeerVector&& peers)
+    const int order, const PeerVector& peers)
 {
     log(LogLevel::DEBUG, "Initialization requested by %s", identity);
     if (!isControllingInstance(identity)) {
@@ -490,14 +451,21 @@ Reply<> CardServerMain::Impl::init(
     }
     Coroutines::Lock lock {eContext, mutex};
     if (!tmcg) {
+        peerSocketProxy.emplace(
+            createPeerSocketProxy(zContext, peerEndpoint, peers, order));
+        for (auto&& [socket, callback] : peerSocketProxy->getPollables()) {
+            messageLoop->addPollable(std::move(socket), std::move(callback));
+        }
         try {
-            tmcg.emplace(
-                eContext, zContext, getPtr(keys), order, std::move(peers),
-                peerEndpointIterator);
+            tmcg.emplace(eContext, order, peerSocketProxy->getStreamSockets());
             log(LogLevel::DEBUG, "Initialization success");
             return success();
         } catch (TMCGInitFailure) {
             log(LogLevel::WARNING, "Initialization failed");
+            for (auto&& pollable : peerSocketProxy->getPollables()) {
+                messageLoop->removePollable(dereference(pollable.first));
+            }
+            peerSocketProxy.reset();
         }
     }
     return failure();
@@ -543,16 +511,16 @@ Reply<CardVector> CardServerMain::Impl::draw(
 
 Reply<> CardServerMain::Impl::reveal(
     AsynchronousExecutionContext eContext, const Identity& identity,
-    const Blob& peerId, const IndexVector& ns)
+    const int peerOrder, const IndexVector& ns)
 {
-    log(LogLevel::DEBUG, "Requested revealing %d cards to %s by %s", ns.size(),
-        formatHex(peerId), identity);
+    log(LogLevel::DEBUG, "Requested revealing %d cards to %d by %s", ns.size(),
+        peerOrder, identity);
     if (!isControllingInstance(identity)) {
         return failure();
     }
     Coroutines::Lock lock {eContext, mutex};
     if (tmcg) {
-        if (tmcg->reveal(eContext, peerId, ns)) {
+        if (tmcg->reveal(eContext, peerOrder, ns)) {
             log(LogLevel::DEBUG, "Revealing success");
             return success();
         }
@@ -584,10 +552,10 @@ Reply<CardVector> CardServerMain::Impl::revealAll(
 
 CardServerMain::CardServerMain(
     zmq::context_t& zContext, std::optional<CurveKeys> keys,
-    const std::string& controlEndpoint, const std::string& basePeerEndpoint) :
+    const std::string& controlEndpoint, const std::string& peerEndpoint) :
     impl {
         std::make_unique<Impl>(
-            zContext, std::move(keys), controlEndpoint, basePeerEndpoint)}
+            zContext, std::move(keys), controlEndpoint, peerEndpoint)}
 {
 }
 

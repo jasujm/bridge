@@ -48,13 +48,15 @@ public:
      * \param context the ZeroMQ context
      * \param keys the CurveZMQ keys used for connections, or nullopt if curve
      * security isn’t used
-     * \param controlEndpoint the endpoint for the client to connect to
-     * \param basePeerEndpoint the base endpoint the first peer connects to
+     * \param controlEndpoint the endpoint the card server binds for connections
+     * from the controlling application
+     * \param peerEndpoint the endpoint the card server binds for
+     * connections from other card server peers
      */
     CardServerMain(
         zmq::context_t& context, std::optional<Messaging::CurveKeys> keys,
         const std::string& controlEndpoint,
-        const std::string& basePeerEndpoint);
+        const std::string& peerEndpoint);
 
     ~CardServerMain();
 

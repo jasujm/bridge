@@ -331,10 +331,6 @@ TEST_F(JsonSerializerTest, testPeerEntry)
 {
     const auto j = json {
         {
-            CardServer::IDENTITY_KEY,
-            PEER_IDENTITY_HEX
-        },
-        {
             CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
         },
@@ -344,54 +340,19 @@ TEST_F(JsonSerializerTest, testPeerEntry)
         }
     };
     const auto peerEntry = CardServer::PeerEntry {
-        PEER_IDENTITY, PEER_ENDPOINT, PEER_SERVER_KEY};
+        PEER_ENDPOINT, PEER_SERVER_KEY};
     testHelper(peerEntry, j);
-}
-
-TEST_F(JsonSerializerTest, testPeerEntryIdentityMissing)
-{
-    const auto j = json {
-        {
-            CardServer::ENDPOINT_KEY,
-            PEER_ENDPOINT
-        }
-    };
-    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
-}
-
-TEST_F(JsonSerializerTest, testPeerEntryIdentityInvalid)
-{
-    const auto j = json {
-        {
-            CardServer::IDENTITY_KEY,
-            nullptr
-        },
-        {
-            CardServer::ENDPOINT_KEY,
-            PEER_ENDPOINT
-        }
-    };
-    testFailedDeserializationHelper<CardServer::PeerEntry>(j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntryEndpointMissing)
 {
-    const auto j = json {
-        {
-            CardServer::IDENTITY_KEY,
-            PEER_IDENTITY_HEX
-        },
-    };
+    const auto j = json::object();
     testFailedDeserializationHelper<CardServer::PeerEntry>(j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntryEndpointInvalid)
 {
     const auto j = json {
-        {
-            CardServer::IDENTITY_KEY,
-            PEER_IDENTITY
-        },
         {
             CardServer::ENDPOINT_KEY,
             123
@@ -404,25 +365,17 @@ TEST_F(JsonSerializerTest, testPeerEntryServerKeyMissing)
 {
     const auto j = json {
         {
-            CardServer::IDENTITY_KEY,
-            PEER_IDENTITY_HEX
-        },
-        {
             CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
         },
     };
-    const auto peerEntry = CardServer::PeerEntry {PEER_IDENTITY, PEER_ENDPOINT};
+    const auto peerEntry = CardServer::PeerEntry {PEER_ENDPOINT};
     testHelper(peerEntry, j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntryServerKeyInvalid)
 {
     const auto j = json {
-        {
-            CardServer::IDENTITY_KEY,
-            PEER_IDENTITY_HEX
-        },
         {
             CardServer::ENDPOINT_KEY,
             PEER_ENDPOINT
