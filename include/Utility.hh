@@ -63,7 +63,7 @@ decltype(auto) dereference(const T& p)
  * p is empty
  */
 template<typename T>
-auto getPtr(const T& p) -> decltype(std::addressof(*p))
+auto getPtr(T& p) -> decltype(std::addressof(*p))
 {
     if (p) {
         return std::addressof(*p);

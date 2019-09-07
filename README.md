@@ -187,7 +187,9 @@ peers with known public keys (those that are known to belong to peers taking
 part in the game) are allowed to join a game. Connections from clients are not
 authenticated.
 
-Card server does not currently authenticate incoming connections.
+Card server uses the keypair shared with its bridge backend to authenticate both
+traffic between itself and the bridge backend, and between itself and its card
+server peers.
 
 All clients, peers and card servers authenticate outgoing connections as part of
 the ZeroMQ CURVE mechanism.
@@ -203,7 +205,6 @@ person — the interesting network stuff comes first and the (in comparison)
 boring UX stuff comes later. In approximate order of importance the next goals
 for this project are:
 
-- Proper support for authenticating clients, remote peers and card servers
 - More user friendly installation and configuration of the application
 - Persistent state for the backend (persistent sessions, keep records etc.)
 - Nicer user interface and other usability oriented features (claiming tricks,

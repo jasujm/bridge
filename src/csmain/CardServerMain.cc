@@ -28,6 +28,7 @@
 #include "HexUtility.hh"
 #include "Utility.hh"
 
+#include <boost/format.hpp>
 #include <libTMCG.hh>
 #include <zmq.hpp>
 
@@ -71,6 +72,7 @@ namespace {
 
 using namespace std::string_literals;
 const auto CONTROLLER_USER_ID = "cntrl"s;
+const auto PEER_USER_ID_FORMAT = "peer%1%"s;
 
 // TODO: The security parameter is intentionally low for making testing more
 // quick. It should be larger (preferrably adjustable).
@@ -89,25 +91,6 @@ void failUnless(const bool condition)
 bool isControllingInstance(const Identity& identity)
 {
     return identity.userId.empty() || identity.userId == CONTROLLER_USER_ID;
-}
-
-auto createPeerSocketProxy(
-    zmq::context_t& context, const std::string& peerServerEndpoint,
-    const PeerVector& peers, int order)
-{
-    auto peerServerSocket = zmq::socket_t {context, zmq::socket_type::router};
-    peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
-    peerServerSocket.bind(peerServerEndpoint);
-    auto peerClientSockets = std::vector<zmq::socket_t> {};
-    peerClientSockets.reserve(peers.size());
-    for (const auto& peer : peers) {
-        auto& socket = peerClientSockets.emplace_back(
-            context, zmq::socket_type::dealer);
-        socket.connect(peer.endpoint);
-    }
-    return PeerSocketProxy {
-        context, std::move(peerServerSocket), std::move(peerClientSockets),
-            static_cast<PeerSocketProxy::OrderParameter>(order)};
 }
 
 class TMCG {
@@ -357,6 +340,9 @@ private:
         AsynchronousExecutionContext eContext, const Identity&,
         const IndexVector& ns);
 
+    void internalAddPeerNodesToAuthenticator(const PeerVector& peers, int order);
+    void internalCreatePeerSocketProxy(const PeerVector& peers, int order);
+
     zmq::context_t& zContext;
     const std::optional<CurveKeys> keys;
     const std::string peerEndpoint;
@@ -367,6 +353,7 @@ private:
     std::optional<TMCG> tmcg;
     Messaging::MessageQueue messageQueue;
     Messaging::Authenticator authenticator;
+    std::vector<Messaging::UserId> authorizedUserIds;
 };
 
 CardServerMain::Impl::Impl(
@@ -451,8 +438,8 @@ Reply<> CardServerMain::Impl::init(
     }
     Coroutines::Lock lock {eContext, mutex};
     if (!tmcg) {
-        peerSocketProxy.emplace(
-            createPeerSocketProxy(zContext, peerEndpoint, peers, order));
+        internalAddPeerNodesToAuthenticator(peers, order);
+        internalCreatePeerSocketProxy(peers, order);
         for (auto&& [socket, callback] : peerSocketProxy->getPollables()) {
             messageLoop->addPollable(std::move(socket), std::move(callback));
         }
@@ -548,6 +535,60 @@ Reply<CardVector> CardServerMain::Impl::revealAll(
     }
     log(LogLevel::WARNING, "Revealing to all players failed");
     return failure();
+}
+
+void CardServerMain::Impl::internalAddPeerNodesToAuthenticator(
+    const PeerVector& peers, const int order)
+{
+    auto known_peers = Messaging::Authenticator::NodeMap {};
+    auto distinct_peer_count = 0;
+    authorizedUserIds.resize(peers.size() + 1);
+    for (const auto& [n, peer] : enumerate(peers)) {
+        if (peer.serverKey) {
+            const auto [peer_iter, created] =
+                known_peers.try_emplace(*peer.serverKey);
+            if (created) {
+                const auto user_id =
+                    boost::format(PEER_USER_ID_FORMAT) % distinct_peer_count;
+                peer_iter->second = user_id.str();
+                ++distinct_peer_count;
+            }
+            const auto peer_order = n + (n >= order);
+            assert(peer_order < authorizedUserIds.size());
+            authorizedUserIds[peer_order] = peer_iter->second;
+        }
+    }
+    for (auto&& [server_key, user_id] : known_peers) {
+        authenticator.addNode(std::move(server_key), std::move(user_id));
+    }
+}
+
+void CardServerMain::Impl::internalCreatePeerSocketProxy(
+    const PeerVector& peers, const int order)
+{
+    auto peerServerSocket = zmq::socket_t {zContext, zmq::socket_type::router};
+    peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    const auto* curve_keys_ptr = getPtr(keys);
+    Messaging::setupCurveServer(peerServerSocket, curve_keys_ptr);
+    peerServerSocket.bind(peerEndpoint);
+    auto peerClientSockets = std::vector<zmq::socket_t> {};
+    peerClientSockets.reserve(peers.size());
+    for (const auto& peer : peers) {
+        auto& socket = peerClientSockets.emplace_back(
+            zContext, zmq::socket_type::dealer);
+        Messaging::setupCurveClient(
+            socket, getPtr(curve_keys_ptr),
+            peer.serverKey ? *peer.serverKey : ByteSpan {});
+        socket.connect(peer.endpoint);
+    }
+    peerSocketProxy.emplace(
+        zContext, std::move(peerServerSocket), std::move(peerClientSockets),
+        static_cast<PeerSocketProxy::OrderParameter>(order),
+        [this](const auto& identity, auto order)
+        {
+            return (order < authorizedUserIds.size()) &&
+                (authorizedUserIds[order] == identity.userId);
+        });
 }
 
 CardServerMain::CardServerMain(

@@ -1,5 +1,6 @@
 #include "csmain/PeerSocketProxy.hh"
 
+#include "messaging/Identity.hh"
 #include "messaging/MessageUtility.hh"
 #include "Utility.hh"
 
@@ -16,8 +17,9 @@ namespace CardServer {
 PeerSocketProxy::PeerSocketProxy(
     zmq::context_t& context, zmq::socket_t peerServerSocket,
     std::vector<zmq::socket_t> peerClientSockets,
-    const OrderParameter selfOrder) :
+    const OrderParameter selfOrder, AuthorizationFunction authorizer) :
     selfOrder {selfOrder},
+    authorizer {std::move(authorizer)},
     peerServerSocket {
         std::make_shared<zmq::socket_t>(std::move(peerServerSocket))}
 {
@@ -80,10 +82,16 @@ void PeerSocketProxy::internalHandleMessageToPeer(
 void PeerSocketProxy::internalHandleMessageFromPeer(zmq::socket_t& socket)
 {
     if (&socket == peerServerSocket.get()) {
-        // FIXME: Use identity instead of ignoring
-        Messaging::discardMessage(socket, 2);
+        auto router_id_frame = std::optional<zmq::message_t> {};
         auto msg = zmq::message_t {};
+        for (socket.recv(&msg); msg.size() != 0u; socket.recv(&msg)) {
+            router_id_frame = std::move(msg);
+        }
+        // discard the empty message that caused exit from the loop, receive
+        // first payload frame
         socket.recv(&msg);
+        auto identity = Messaging::identityFromMessage(
+            msg, getPtr(router_id_frame));
         if (msg.more()) {
             if (msg.size() != sizeof(OrderParameter)) {
                 Messaging::discardMessage(socket);
@@ -93,7 +101,8 @@ void PeerSocketProxy::internalHandleMessageFromPeer(zmq::socket_t& socket)
             std::memcpy(&peer_order, msg.data(), sizeof(OrderParameter));
             boost::endian::big_to_native_inplace(peer_order);
             if (peer_order == selfOrder ||
-                peer_order > frontStreamSockets.size()) {
+                peer_order > frontStreamSockets.size() ||
+                !authorizer(identity, peer_order)) {
                 Messaging::discardMessage(socket);
                 return;
             }

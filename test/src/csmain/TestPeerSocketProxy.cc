@@ -4,6 +4,7 @@
 #include "Utility.hh"
 
 #include <boost/endian/conversion.hpp>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstring>
@@ -13,24 +14,44 @@
 using Bridge::asBytes;
 using Bridge::dereference;
 using Bridge::CardServer::PeerSocketProxy;
+using Bridge::Messaging::Identity;
 using Bridge::Messaging::messageView;
+using testing::_;
+using testing::Field;
+using testing::Return;
 
 using OrderParameter = PeerSocketProxy::OrderParameter;
 
 namespace {
 
 using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
 
 const auto SELF_ENDPOINT = "inproc://bridge.test.peersocketproxy.self"s;
 const auto PEER1_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer1"s;
 const auto PEER3_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer3"s;
+const auto PEER_IDENTITY = "peer"_B;
 const auto MESSAGE = "message"s;
 const auto ORDER = OrderParameter {1};
+
+class MockAuthorizationFunction {
+public:
+    MOCK_METHOD2(authorize, bool(const Identity&, OrderParameter));
+    bool operator()(const Identity& identity, OrderParameter order)
+    {
+        return authorize(identity, order);
+    };
+};
 
 }
 
 class PeerSocketProxyTest : public testing::Test {
 protected:
+
+    virtual void SetUp()
+    {
+        ON_CALL(authorizer, authorize(_, _)).WillByDefault(Return(true));
+    }
 
     void pollAndDispatch()
     {
@@ -49,6 +70,8 @@ protected:
         std::optional<std::string> peer3Message)
     {
         auto socket = zmq::socket_t {context, zmq::socket_type::dealer};
+        socket.setsockopt(
+            ZMQ_IDENTITY, PEER_IDENTITY.data(), PEER_IDENTITY.size());
         socket.connect(SELF_ENDPOINT);
         const auto order_parameter = boost::endian::native_to_big(order);
         socket.send("", 0, ZMQ_SNDMORE);
@@ -100,6 +123,7 @@ protected:
     }
 
     zmq::context_t context;
+    testing::NiceMock<MockAuthorizationFunction> authorizer;
     PeerSocketProxy proxy {
         [this]() {
             auto peerServerSocket = zmq::socket_t {
@@ -112,7 +136,7 @@ protected:
             peerClientSockets.back().connect(PEER3_ENDPOINT);
             return PeerSocketProxy {
                 context, std::move(peerServerSocket),
-                std::move(peerClientSockets), 1};
+                std::move(peerClientSockets), 1, std::ref(authorizer)};
         }()
     };
 };
@@ -157,6 +181,27 @@ TEST_F(PeerSocketProxyTest, testMessageIncorrectOrderParameter)
     // Wrong "order parameter" size
     testIncomingMessageHelper(
         std::uint16_t {0}, MESSAGE, std::nullopt, std::nullopt);
+}
+
+TEST_F(PeerSocketProxyTest, testAuthorizedMessage)
+{
+    // FIXME: Expectation for identity
+    EXPECT_CALL(
+        authorizer,
+        authorize(Field(&Identity::routingId, PEER_IDENTITY), 0))
+        .WillOnce(Return(true));
+    testIncomingMessageHelper(
+        OrderParameter {0}, MESSAGE, MESSAGE, std::nullopt);
+}
+
+TEST_F(PeerSocketProxyTest, testUnauthorizedMessage)
+{
+    EXPECT_CALL(
+        authorizer,
+        authorize(Field(&Identity::routingId, PEER_IDENTITY), 2))
+        .WillOnce(Return(false));
+    testIncomingMessageHelper(
+        OrderParameter {2}, MESSAGE, std::nullopt, std::nullopt);
 }
 
 TEST_F(PeerSocketProxyTest, testOutgoingMessagePeer1)

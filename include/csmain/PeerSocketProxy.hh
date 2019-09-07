@@ -6,10 +6,12 @@
 #ifndef BRIDGE_CARDSERVER_PEERSOCKETPROXY_HH_
 #define BRIDGE_CARDSERVER_PEERSOCKETPROXY_HH_
 
+#include "messaging/Identity.hh"
 #include "messaging/MessageLoop.hh"
 
 #include <zmq.hpp>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -48,6 +50,18 @@ public:
      */
     using OrderParameter = std::uint8_t;
 
+    /** \brief Function used to authorize peer message
+     *
+     * Authorization function is a function used by PeerSocketProxy to authorize
+     * an incoming message from a peer. Its parameters are the identity of the
+     * peer sending the message, and the order parameter attached to the
+     * message. The authorization function is expected to return true if the
+     * peer is authorized to send messages with the given order parameter, and
+     * false otherwise.
+     */
+    using AuthorizationFunction = std::function<
+        bool(const Messaging::Identity&, OrderParameter)>;
+
     /** \brief Create peer socket proxy
      *
      * \param context The ZeroMQ context
@@ -56,10 +70,13 @@ public:
      * \param peerClientSockets The DEALER sockets used to send messages to the
      * peers. The size of the vector determines the total number of peers.
      * \param selfOrder The order parameter of self
+     * \param authorizer The authorization function used by PeerSocketProxy to
+     * authorize incoming messages
      */
     PeerSocketProxy(
         zmq::context_t& context, zmq::socket_t peerServerSocket,
-        std::vector<zmq::socket_t> peerClientSockets, OrderParameter selfOrder);
+        std::vector<zmq::socket_t> peerClientSockets, OrderParameter selfOrder,
+        AuthorizationFunction authorizer);
 
     /** \brief Get socket–callback pairs that need to be polled
      *
@@ -90,6 +107,7 @@ private:
         zmq::socket_t& streamSocket, zmq::socket_t& clientSocket);
 
     OrderParameter selfOrder;
+    AuthorizationFunction authorizer;
     std::shared_ptr<zmq::socket_t> peerServerSocket;
     SocketVector peerClientSockets;
     SocketVector frontStreamSockets;
