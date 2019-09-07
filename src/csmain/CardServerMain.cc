@@ -33,13 +33,10 @@
 #include <zmq.hpp>
 
 #include <algorithm>
-#include <atomic>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
