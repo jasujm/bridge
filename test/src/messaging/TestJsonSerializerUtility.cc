@@ -9,8 +9,9 @@ using Bridge::Messaging::SerializationFailureException;
 
 namespace {
 using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
 const auto TEST_STRING = "test"s;
-const auto TEST_BLOB = Bridge::Blob { std::byte {123}, std::byte {32} };
+const auto TEST_BLOB = "\x7b\x20"_B;
 const auto TEST_HEX = "7b20"s;
 }
 

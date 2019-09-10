@@ -8,8 +8,8 @@
 #include <string>
 
 namespace {
-using namespace std::string_literals;
-const auto MESSAGE = "This is logging"s;
+using namespace std::string_view_literals;
+const auto MESSAGE = "This is logging"sv;
 }
 
 class LoggingTest : public testing::Test {
@@ -30,26 +30,26 @@ protected:
 TEST_F(LoggingTest, testLoggingWithTriggeringLevel)
 {
     setupLogging(Bridge::LogLevel::INFO, stream);
-    log(Bridge::LogLevel::INFO, "format %s format"s, MESSAGE);
+    log(Bridge::LogLevel::INFO, "format %s format"sv, MESSAGE);
     EXPECT_NE(std::string::npos, stream.str().find(MESSAGE));
 }
 
 TEST_F(LoggingTest, testLoggingWithLevelNone)
 {
     setupLogging(Bridge::LogLevel::NONE, stream);
-    log(Bridge::LogLevel::FATAL, "%s"s, MESSAGE);
+    log(Bridge::LogLevel::FATAL, "%s"sv, MESSAGE);
     EXPECT_TRUE(stream.str().empty());
 }
 
 TEST_F(LoggingTest, testLoggingWithMissingFormatSpecifier)
 {
-    log(Bridge::LogLevel::WARNING, ""s, MESSAGE);
+    log(Bridge::LogLevel::WARNING, ""sv, MESSAGE);
     EXPECT_EQ(std::string::npos, stream.str().find(MESSAGE));
 }
 
 TEST_F(LoggingTest, testLoggingWithInvalidFormatSpecifier)
 {
-    log(Bridge::LogLevel::WARNING, "%"s, MESSAGE);
+    log(Bridge::LogLevel::WARNING, "%"sv, MESSAGE);
     EXPECT_EQ(std::string::npos, stream.str().find(MESSAGE));
 }
 

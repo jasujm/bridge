@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <ostream>
 #include <iterator>
+#include <string_view>
 
 #include "IoUtility.hh"
 
@@ -90,11 +91,11 @@ void log(
  * \param format the formatting string
  * \param ts the values streamed to the placeholders in \p format
  */
-template<typename String, typename... Ts>
-void log(LogLevel level, const String& format, const Ts&... ts)
+template<typename... Ts>
+void log(LogLevel level, std::string_view format, const Ts&... ts)
 {
     if (Impl::shouldLog(level)) {
-        Impl::log(std::begin(format), std::end(format), ts...);
+        Impl::log(format.begin(), format.end(), ts...);
         Impl::logStream() << '\n';
     }
 }

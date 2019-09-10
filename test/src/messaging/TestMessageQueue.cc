@@ -27,11 +27,11 @@ using namespace Bridge::BlobLiterals;
 
 namespace {
 const auto IDENTITY = Identity { ""s, "identity"_B };
-const auto PARAM1 = Blob { std::byte {123} };
-const auto PARAM2 = Blob { std::byte {32} };
+const auto PARAM1 = "param1"_B;
+const auto PARAM2 = "param2"_B;
 const auto ENDPOINT = "inproc://testing"s;
-const auto COMMAND = Blob { std::byte {65}, std::byte {66} };
-const auto OTHER_COMMAND = Blob { std::byte {67}, std::byte {68} };
+const auto COMMAND = "cmd"_B;
+const auto OTHER_COMMAND = "cmd2"_B;
 }
 
 class MessageQueueTest : public testing::Test {

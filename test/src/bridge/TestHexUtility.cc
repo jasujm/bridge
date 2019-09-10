@@ -14,14 +14,13 @@ using Bridge::toHex;
 using Bridge::fromHex;
 using Bridge::isValidHex;
 
-using namespace std::string_literals;
+using namespace std::string_view_literals;
+using namespace Bridge::BlobLiterals;
 
 namespace {
 
-const auto BYTES = std::vector {
-    std::byte {1}, std::byte {35}, std::byte {69}, std::byte {103},
-    std::byte {137}, std::byte {171}, std::byte {205}, std::byte {239}};
-const auto HEX = "0123456789abcdef"s;
+const auto BYTES = "\x01\x23\x45\x67\x89\xab\xcd\xef"_BS;
+const auto HEX = "0123456789abcdef"sv;
 
 }
 
@@ -42,7 +41,7 @@ TEST(HexUtilityTest, testDecode)
 
 TEST(HexUtilityTest, testInvalidLength)
 {
-    const auto input = "012"s;
+    const auto input = "012"sv;
     auto output = std::vector<std::byte>(input.size());
     EXPECT_THROW(
         decodeHex(input.begin(), input.end(), output.begin()),
@@ -51,7 +50,7 @@ TEST(HexUtilityTest, testInvalidLength)
 
 TEST(HexUtilityTest, testInvalidCharacters)
 {
-    const auto input = "xx"s;
+    const auto input = "xx"sv;
     auto output = std::vector<std::byte>(input.size());
     EXPECT_THROW(
         decodeHex(input.begin(), input.end(), output.begin()),
@@ -70,7 +69,7 @@ TEST(HexUtilityTest, testInvalidHexOddLength)
 
 TEST(HexUtilityTest, testInvalidHexInvalidChars)
 {
-    const auto input = "xx"s;
+    const auto input = "xx"sv;
     EXPECT_FALSE(isValidHex(input.begin(), input.end()));
 }
 

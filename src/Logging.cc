@@ -17,12 +17,13 @@ namespace Impl {
 
 bool shouldLog(LogLevel level)
 {
-    static const std::map<LogLevel, const char*> DEBUG_LEVEL_MAP {
-        { LogLevel::FATAL,   "FATAL   " },
-        { LogLevel::ERROR,   "ERROR   " },
-        { LogLevel::WARNING, "WARNING " },
-        { LogLevel::INFO,    "INFO    " },
-        { LogLevel::DEBUG,   "DEBUG   " },
+    using namespace std::string_view_literals;
+    static const std::map<LogLevel, std::string_view> DEBUG_LEVEL_MAP {
+        { LogLevel::FATAL,   "FATAL   "sv },
+        { LogLevel::ERROR,   "ERROR   "sv },
+        { LogLevel::WARNING, "WARNING "sv },
+        { LogLevel::INFO,    "INFO    "sv },
+        { LogLevel::DEBUG,   "DEBUG   "sv },
     };
 
     if (level <= globalLoggingLevel) {

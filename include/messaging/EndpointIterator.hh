@@ -55,7 +55,7 @@ public:
      *
      * \throw std::invalid_argument if \p endpoint has incorrect format
      */
-    explicit EndpointIterator(const std::string& endpoint);
+    explicit EndpointIterator(std::string_view endpoint);
 
     /** \brief Create endpoint iterator
      *

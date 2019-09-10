@@ -203,6 +203,19 @@ inline Blob operator"" _B(const char* str, std::size_t len)
         reinterpret_cast<const std::byte*>(str + len));
 }
 
+/** \brief Convert string literal into byte span
+ *
+ * \param str the string literal
+ * \param len the length of the string
+ *
+ * \return Byte span with the characters of \p str interpreted as raw memory
+ */
+inline ByteSpan operator"" _BS(const char* str, std::size_t len)
+{
+    return ByteSpan(
+        reinterpret_cast<const std::byte*>(str), len);
+}
+
 }
 
 }

@@ -14,9 +14,9 @@ namespace {
 
 const auto ENDPOINT_REGEX = std::regex {"tcp://(.+):(\\d+)"};
 
-auto parseEndpoint(const std::string& endpoint)
+auto parseEndpoint(const std::string_view endpoint)
 {
-    auto match = std::smatch {};
+    auto match = std::cmatch {};
     const auto success = std::regex_match(
         endpoint.begin(), endpoint.end(),
         match, ENDPOINT_REGEX);
@@ -31,7 +31,7 @@ auto parseEndpoint(const std::string& endpoint)
 
 }
 
-EndpointIterator::EndpointIterator(const std::string& endpoint) :
+EndpointIterator::EndpointIterator(const std::string_view endpoint) :
     EndpointIterator {parseEndpoint(endpoint)}
 {
 }
