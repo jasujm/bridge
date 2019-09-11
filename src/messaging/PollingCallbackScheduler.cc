@@ -76,7 +76,7 @@ void callbackSchedulerWorker(
         // Poll didn't timeout -- there is new callback info to be received
         else if (pollitems[1].revents & ZMQ_POLLIN) {
             const auto now = Clk::now();
-            while (fs.getsockopt<std::uint32_t>(ZMQ_EVENTS) & ZMQ_POLLIN) {
+            while (fs.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
                 auto info = CallbackInfo {};
                 [[maybe_unused]] const auto n_recv = fs.recv(&info, sizeof(info));
                 assert(n_recv == sizeof(info));
@@ -147,7 +147,7 @@ std::shared_ptr<zmq::socket_t> PollingCallbackScheduler::getSocket()
 void PollingCallbackScheduler::operator()(zmq::socket_t& socket)
 {
     if (&socket == backSocket.get()) {
-        while (socket.getsockopt<std::uint32_t>(ZMQ_EVENTS) & ZMQ_POLLIN) {
+        while (socket.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
             unsigned long callback_id {};
             [[maybe_unused ]]const auto n_recv =
                 socket.recv(&callback_id, sizeof(callback_id));
