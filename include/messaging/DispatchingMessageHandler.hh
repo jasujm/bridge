@@ -85,7 +85,7 @@ doHandle(
     ExecutionContext context, const Identity& identity,
     const ParameterVector& params, Response& response)
 {
-    for (auto i : to(params.size(), 2u)) {
+    for (auto i : to(params.size(), 2)) {
         if (params[i] == dispatchKey) {
             if (i+1 < params.size()) {
                 auto&& value = serializer.template deserialize<

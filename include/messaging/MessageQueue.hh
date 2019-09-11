@@ -139,14 +139,14 @@ private:
 
     class BasicResponse : public Response {
     public:
-        BasicResponse(MessageVector&, std::size_t);
+        BasicResponse(MessageVector&, std::ptrdiff_t);
         void sendResponse(zmq::socket_t&);
 
     private:
         void handleSetStatus(StatusCode) override;
         void handleAddFrame(ByteSpan) override;
 
-        std::size_t nStatusFrame;
+        std::ptrdiff_t nStatusFrame;
         MessageVector frames;
     };
 
@@ -158,7 +158,7 @@ private:
         std::shared_ptr<BasicMessageHandler<ExecutionPolicy>> handler);
 
     using ExecutionFunction = std::function<
-        void(Identity&&, MessageVector&&, std::size_t, zmq::socket_t&)>;
+        void(Identity&&, MessageVector&&, std::ptrdiff_t, zmq::socket_t&)>;
 
     std::map<std::type_index, std::any> policies;
     BlobMap<ExecutionFunction> executors;
@@ -205,7 +205,7 @@ auto MessageQueue::internalCreateExecutor(
         [&policy = std::any_cast<ExecutionPolicy&>(policy_iter->second),
          handler = std::move(handler)](
              Identity&& identity, MessageVector&& inputFrames,
-             const std::size_t nPrefix, zmq::socket_t& socket)
+             const std::ptrdiff_t nPrefix, zmq::socket_t& socket)
         {
             std::invoke(
                 policy,

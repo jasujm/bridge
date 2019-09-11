@@ -15,7 +15,7 @@ public:
     MOCK_METHOD0(handleRequestShuffle, void());
     MOCK_METHOD1(handleGetHand, std::shared_ptr<Hand>(const IndexVector&));
     MOCK_CONST_METHOD0(handleIsShuffleCompleted, bool());
-    MOCK_CONST_METHOD0(handleGetNumberOfCards, std::size_t());
+    MOCK_CONST_METHOD0(handleGetNumberOfCards, int());
 };
 
 }

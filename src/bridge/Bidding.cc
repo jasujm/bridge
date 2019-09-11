@@ -46,7 +46,7 @@ std::optional<Position> Bidding::getPositionInTurn() const
     return std::nullopt;
 }
 
-std::size_t Bidding::getNumberOfCalls() const
+int Bidding::getNumberOfCalls() const
 {
     return handleGetNumberOfCalls();
 }
@@ -56,7 +56,7 @@ Position Bidding::getOpeningPosition() const
     return handleGetOpeningPosition();
 }
 
-Call Bidding::getCall(const std::size_t n) const
+Call Bidding::getCall(const int n) const
 {
     const auto n_calls = getNumberOfCalls();
     return handleGetCall(checkIndex(n, n_calls));

@@ -144,7 +144,7 @@ void PeerCommandSender::sendCommand(
     Params&&... params)
 {
     if (!peers.empty()) {
-        constexpr auto count = 1u + 2 * sizeof...(params);
+        constexpr auto count = 1 + 2 * sizeof...(params);
         auto message = Message {};
         message.reserve(count);
         Messaging::makeCommand(

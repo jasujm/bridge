@@ -28,7 +28,7 @@ enum class Partnership {
  *
  * \sa Partnership
  */
-constexpr std::size_t N_PARTNERSHIPS = 2;
+constexpr auto N_PARTNERSHIPS = 2;
 
 /** \brief Array containing all partnerships
  *

@@ -1,5 +1,7 @@
 #include "bridge/BasicTrick.hh"
 
+#include "Utility.hh"
+
 #include <cassert>
 
 namespace Bridge {
@@ -11,20 +13,20 @@ void BasicTrick::handleAddCardToTrick(const Card& card)
     cards.emplace_back(card);
 }
 
-std::size_t BasicTrick::handleGetNumberOfCardsPlayed() const
+int BasicTrick::handleGetNumberOfCardsPlayed() const
 {
     return cards.size();
 }
 
-const Card& BasicTrick::handleGetCard(const std::size_t n) const
+const Card& BasicTrick::handleGetCard(const int n) const
 {
-    assert(n < cards.size());
+    assert(0 <= n && n < ssize(cards));
     return cards[n];
 }
 
-const Hand& BasicTrick::handleGetHand(const std::size_t n) const
+const Hand& BasicTrick::handleGetHand(const int n) const
 {
-    assert(n < hands.size());
+    assert(0 <= n && n < ssize(hands));
     return hands[n];
 }
 

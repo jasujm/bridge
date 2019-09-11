@@ -9,7 +9,6 @@
 #include "bridge/Position.hh"
 #include "Utility.hh"
 
-#include <cstddef>
 #include <vector>
 
 namespace Bridge {
@@ -27,12 +26,12 @@ namespace Bridge {
  *
  * \throw std::invalid_argument if \p position is invalid
  */
-inline std::vector<std::size_t> cardsFor(Position position)
+inline std::vector<int> cardsFor(Position position)
 {
     const auto n = positionOrder(position);
     const auto range = from_to(
         n * N_CARDS_PER_PLAYER, (n + 1) * N_CARDS_PER_PLAYER);
-    return std::vector<std::size_t>(range.begin(), range.end());
+    return std::vector<int>(range.begin(), range.end());
 }
 
 /** \brief Determine the indices of cards dealt to a range of positions
@@ -49,7 +48,7 @@ inline std::vector<std::size_t> cardsFor(Position position)
  * \throw std::invalid_argument if any position in the range is invalid
  */
 template<typename PositionIterator>
-inline std::vector<std::size_t> cardsFor(
+inline std::vector<int> cardsFor(
     PositionIterator first, PositionIterator last)
 {
     if (first != last) {

@@ -3,13 +3,13 @@
 #include "messaging/CallbackScheduler.hh"
 #include "messaging/MessageUtility.hh"
 #include "messaging/Replies.hh"
+#include "Blob.hh"
+#include "Enumerate.hh"
+#include "Utility.hh"
 
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
-
-#include "Blob.hh"
-#include "Enumerate.hh"
 
 namespace Bridge {
 namespace Main {
@@ -99,9 +99,7 @@ void PeerCommandSender::internalSendMessage(zmq::socket_t& socket)
     for (auto&& e : enumerate(message)) {
         auto msg = zmq::message_t {};
         msg.copy(&e.second);
-        socket.send(
-            msg, static_cast<std::size_t>(e.first) + 1u < message.size() ?
-                ZMQ_SNDMORE : 0);
+        socket.send(msg, e.first + 1 < ssize(message) ? ZMQ_SNDMORE : 0);
     }
 }
 

@@ -11,7 +11,6 @@
 
 #include <array>
 #include <iosfwd>
-#include <cstddef>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -32,7 +31,7 @@ enum class Strain {
  *
  * \sa Strain
  */
-constexpr std::size_t N_STRAINS = 5;
+constexpr auto N_STRAINS = 5;
 
 /** \brief Array containing all strains
  *

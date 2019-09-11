@@ -15,7 +15,6 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 
-#include <cstddef>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -42,7 +41,7 @@ public:
 
     /** \brief Vector of indices
      */
-    using IndexVector = std::vector<std::size_t>;
+    using IndexVector = std::vector<int>;
 
     /** \brief Observer of card reveal state
      *
@@ -89,7 +88,7 @@ public:
      *
      * \param n the index of the card to be played
      */
-    void markPlayed(std::size_t n);
+    void markPlayed(int n);
 
     /** \brief Retrieve a card
      *
@@ -104,7 +103,7 @@ public:
      *
      * \throw std::out_of_range if n >= getNumberOfCards()
      */
-    const Card* getCard(std::size_t n) const;
+    const Card* getCard(int n) const;
 
     /** \brief Determine if a card has been played
      *
@@ -114,13 +113,13 @@ public:
      *
      * \throw std::out_of_range if n >= getNumberOfCards()
      */
-    bool isPlayed(std::size_t n) const;
+    bool isPlayed(int n) const;
 
     /** \brief Determine number of cards dealt to the hand
      *
      * \return The number of cards dealt to this hand
      */
-    std::size_t getNumberOfCards() const;
+    int getNumberOfCards() const;
 
     /** \brief Determine if the hand is proven to be out of given suit
      *
@@ -166,7 +165,7 @@ private:
      *
      * \sa markPlayed()
      */
-    virtual void handleMarkPlayed(std::size_t n) = 0;
+    virtual void handleMarkPlayed(int n) = 0;
 
     /** \brief Handle for returning a card
      *
@@ -174,7 +173,7 @@ private:
      *
      * \sa getCard()
      */
-    virtual const Card& handleGetCard(std::size_t n) const = 0;
+    virtual const Card& handleGetCard(int n) const = 0;
 
     /** \brief Handle for returning whether a card has been played
      *
@@ -182,13 +181,13 @@ private:
      *
      * \sa isPlayed()
      */
-    virtual bool handleIsPlayed(std::size_t n) const = 0;
+    virtual bool handleIsPlayed(int n) const = 0;
 
     /** \brief Handle for returning the number of cards dealt to the hand
      *
      * \sa getNumberOfCards()
      */
-    virtual std::size_t handleGetNumberOfCards() const = 0;
+    virtual int handleGetNumberOfCards() const = 0;
 
     /** \brief Handle for determining if the hand can be proven to be out of
      * suit
@@ -231,13 +230,13 @@ void Hand::requestReveal(IndexIterator first, IndexIterator last)
  * card from the hand. This iterator, unlike Hand::getCard(), skips played
  * cards.
  */
-inline auto handCardIterator(const Hand& hand, std::size_t n)
+inline auto handCardIterator(const Hand& hand, int n)
 {
-    const auto make_iterator = [&hand](const std::size_t m)
+    const auto make_iterator = [&hand](const int m)
     {
         return boost::make_transform_iterator(
             boost::make_counting_iterator(m),
-            [&hand](const std::size_t i) { return hand.getCard(i); });
+            [&hand](const int i) { return hand.getCard(i); });
     };
     return boost::make_indirect_iterator(
         boost::make_filter_iterator(
@@ -248,7 +247,7 @@ inline auto handCardIterator(const Hand& hand, std::size_t n)
 
 inline auto Hand::begin() const
 {
-    return handCardIterator(*this, 0u);
+    return handCardIterator(*this, 0);
 }
 
 inline auto Hand::end() const
@@ -264,7 +263,7 @@ inline auto Hand::end() const
  * \return index of the first occurence of a known card with given type, or
  * none if one couldn’t be found
  */
-std::optional<std::size_t> findFromHand(
+std::optional<int> findFromHand(
     const Hand& hand, const CardType& cardType);
 
 /** \brief Convenience function for requesting reveal of all cards in the hand

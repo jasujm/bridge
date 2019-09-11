@@ -14,9 +14,9 @@ class MockBidding : public Bidding
 {
 public:
     MOCK_METHOD1(handleAddCall, void(const Call&));
-    MOCK_CONST_METHOD0(handleGetNumberOfCalls, std::size_t());
+    MOCK_CONST_METHOD0(handleGetNumberOfCalls, int());
     MOCK_CONST_METHOD0(handleGetOpeningPosition, Position());
-    MOCK_CONST_METHOD1(handleGetCall, Call(std::size_t));
+    MOCK_CONST_METHOD1(handleGetCall, Call(int));
     MOCK_CONST_METHOD1(handleIsCallAllowed, bool(const Call&));
     MOCK_CONST_METHOD0(handleGetLowestAllowedBid, std::optional<Bid>());
     MOCK_CONST_METHOD0(handleGetContract, Contract());

@@ -1,6 +1,7 @@
 #include "messaging/MessageQueue.hh"
 
 #include "messaging/MessageUtility.hh"
+#include "Utility.hh"
 
 #include <boost/endian/conversion.hpp>
 #include <zmq.hpp>
@@ -9,13 +10,13 @@ namespace Bridge {
 namespace Messaging {
 
 MessageQueue::BasicResponse::BasicResponse(
-    MessageVector& inputFrames, const std::size_t nPrefix) :
+    MessageVector& inputFrames, const std::ptrdiff_t nPrefix) :
     // the first frame after the prefix is the status frame
     // thus the prefix length is status frame index
     nStatusFrame {nPrefix},
     frames(nPrefix + 2)
 {
-    assert(nPrefix < inputFrames.size());
+    assert(0 <= nPrefix && nPrefix < ssize(inputFrames));
     for (const auto n : to(nPrefix)) {
         frames[n].move(&inputFrames[n]);
     }
@@ -29,7 +30,7 @@ void MessageQueue::BasicResponse::sendResponse(zmq::socket_t& socket)
 
 void MessageQueue::BasicResponse::handleSetStatus(StatusCode status)
 {
-    assert(nStatusFrame < frames.size());
+    assert(0 <= nStatusFrame && nStatusFrame < ssize(frames));
     const auto data = boost::endian::native_to_big(status);
     frames[nStatusFrame].rebuild(&data, sizeof(data));
 }
@@ -109,9 +110,8 @@ void MessageQueue::operator()(zmq::socket_t& socket)
     auto& executor = (executor_iter != executors.end()) ?
         executor_iter->second : defaultExecutor;
     auto identity = identityFromMessage(*payload_frame_iter, identity_msg);
-    const auto n_prefix = static_cast<std::size_t>(payload_frame_iter - input_frames.begin());
-    executor(
-        std::move(identity), std::move(input_frames), n_prefix, socket);
+    const auto n_prefix = payload_frame_iter - input_frames.begin();
+    executor(std::move(identity), std::move(input_frames), n_prefix, socket);
 }
 
 }

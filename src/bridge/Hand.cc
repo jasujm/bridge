@@ -18,13 +18,13 @@ void Hand::subscribe(std::weak_ptr<CardRevealStateObserver> observer)
     handleSubscribe(std::move(observer));
 }
 
-void Hand::markPlayed(const std::size_t n)
+void Hand::markPlayed(const int n)
 {
     const auto n_cards = handleGetNumberOfCards();
     handleMarkPlayed(checkIndex(n, n_cards));
 }
 
-const Card* Hand::getCard(const std::size_t n) const
+const Card* Hand::getCard(const int n) const
 {
     if (isPlayed(n)) {
         return nullptr;
@@ -32,13 +32,13 @@ const Card* Hand::getCard(const std::size_t n) const
     return &handleGetCard(n);
 }
 
-bool Hand::isPlayed(const std::size_t n) const
+bool Hand::isPlayed(const int n) const
 {
     const auto n_cards = handleGetNumberOfCards();
     return handleIsPlayed(checkIndex(n, n_cards));
 }
 
-std::size_t Hand::getNumberOfCards() const
+int Hand::getNumberOfCards() const
 {
     return handleGetNumberOfCards();
 }
@@ -71,7 +71,7 @@ boost::logic::tribool Hand::handleIsOutOfSuit(const Suit) const
     return boost::indeterminate;
 }
 
-std::optional<std::size_t> findFromHand(
+std::optional<int> findFromHand(
     const Hand& hand, const CardType& cardType)
 {
     const auto n_cards = hand.getNumberOfCards();

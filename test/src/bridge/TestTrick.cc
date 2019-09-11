@@ -25,7 +25,7 @@ using testing::Return;
 using testing::ReturnRef;
 using testing::ValuesIn;
 
-class TrickTest : public testing::TestWithParam<std::size_t> {
+class TrickTest : public testing::TestWithParam<int> {
 protected:
     virtual void SetUp()
     {

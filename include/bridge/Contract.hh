@@ -29,7 +29,7 @@ enum class Doubling {
  *
  * \sa Doubling
  */
-constexpr std::size_t N_DOUBLINGS = 3;
+constexpr auto N_DOUBLINGS = 3;
 
 /** \brief Array containing all doublings
  *

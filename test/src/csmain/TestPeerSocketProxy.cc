@@ -98,7 +98,7 @@ protected:
         }
     }
 
-    void testOutgoingMessageHelper(std::size_t peerIndex, const std::string& peerEndpoint)
+    void testOutgoingMessageHelper(int peerIndex, const std::string& peerEndpoint)
     {
         auto socket = zmq::socket_t {context, zmq::socket_type::dealer};
         socket.bind(peerEndpoint);

@@ -10,8 +10,8 @@
 #include <boost/operators.hpp>
 
 #include <array>
-#include <cstddef>
 #include <iosfwd>
+#include <string>
 
 namespace Bridge {
 
@@ -46,13 +46,13 @@ enum class Suit {
  *
  * \sa Rank
  */
-constexpr std::size_t N_RANKS = 13;
+constexpr auto N_RANKS = 13;
 
 /** \brief Number of playing card suits
  *
  * \sa Suit
  */
-constexpr std::size_t N_SUITS = 4;
+constexpr auto N_SUITS = 4;
 
 /** \brief Array containing all playing card ranks
  *

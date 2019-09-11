@@ -1,6 +1,7 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardsForPosition.hh"
 #include "bridge/Position.hh"
+#include "Utility.hh"
 
 #include <algorithm>
 #include <stdexcept>
@@ -16,18 +17,17 @@ class PositionTest : public testing::TestWithParam<Position> {};
 TEST_P(PositionTest, testCardsForPositionHasCorrectSize)
 {
     const auto position = GetParam();
-    EXPECT_EQ(Bridge::N_CARDS_PER_PLAYER, cardsFor(position).size());
+    EXPECT_EQ(Bridge::N_CARDS_PER_PLAYER, Bridge::ssize(cardsFor(position)));
 }
 
 TEST_F(PositionTest, testInvalidPosition)
 {
-    EXPECT_THROW(cardsFor(static_cast<Position>(-1)),
-                 std::invalid_argument);
+    EXPECT_THROW(cardsFor(static_cast<Position>(-1)), std::invalid_argument);
 }
 
 TEST_F(PositionTest, testCardsForEachPositionAreUnique)
 {
-    auto all_cards = std::vector<std::size_t> {};
+    auto all_cards = std::vector<int> {};
     for (const auto position : POSITIONS) {
         const auto cards = cardsFor(position);
         std::copy(cards.begin(), cards.end(), std::back_inserter(all_cards));
@@ -35,7 +35,7 @@ TEST_F(PositionTest, testCardsForEachPositionAreUnique)
     EXPECT_TRUE(
         std::is_permutation(
             all_cards.begin(), all_cards.end(),
-            boost::make_counting_iterator(std::size_t {0}),
+            boost::make_counting_iterator(0),
             boost::make_counting_iterator(Bridge::N_CARDS)));
 }
 

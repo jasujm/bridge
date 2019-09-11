@@ -22,7 +22,7 @@ bool CardManager::isShuffleCompleted() const
     return handleIsShuffleCompleted();
 }
 
-std::optional<std::size_t> CardManager::getNumberOfCards() const
+std::optional<int> CardManager::getNumberOfCards() const
 {
     if (isShuffleCompleted()) {
         return handleGetNumberOfCards();

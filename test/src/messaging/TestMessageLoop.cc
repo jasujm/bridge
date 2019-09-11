@@ -20,7 +20,7 @@ using testing::Invoke;
 
 namespace {
 using namespace std::string_literals;
-constexpr auto N_SOCKETS = 2u;
+constexpr auto N_SOCKETS = 2;
 const auto DEFAULT_MSG = "default"s;
 const auto OTHER_MSG = "other"s;
 }

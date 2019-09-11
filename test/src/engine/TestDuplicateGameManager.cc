@@ -55,7 +55,7 @@ TEST_F(DuplicateGameManagerTest, testAddResult)
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)
 {
     //                  Position         NS     EW     vulnerable
-    const std::array<std::tuple<Position, bool, bool>, 16u> rotation {
+    const std::array<std::tuple<Position, bool, bool>, 16> rotation {
         std::make_tuple(Position::NORTH, false, false),
         std::make_tuple(Position::EAST,  true,  false),
         std::make_tuple(Position::SOUTH, false, true ),

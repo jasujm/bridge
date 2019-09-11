@@ -29,7 +29,7 @@ enum class Position {
  *
  * \sa Position
  */
-constexpr std::size_t N_POSITIONS = N_PLAYERS;
+constexpr auto N_POSITIONS = N_PLAYERS;
 
 /** \brief Array containing all positions
  *
@@ -61,7 +61,7 @@ extern const PositionToStringMap POSITION_TO_STRING_MAP;
  *
  * \throw std::invalid_argument if \p position is not valid
  */
-std::size_t positionOrder(Position position);
+int positionOrder(Position position);
 
 /** \brief Determine position clockwise from the given position
  *

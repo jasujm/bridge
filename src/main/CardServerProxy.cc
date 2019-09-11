@@ -34,7 +34,6 @@
 #include <boost/statechart/transition.hpp>
 
 #include <algorithm>
-#include <cstddef>
 #include <iterator>
 #include <optional>
 #include <queue>
@@ -61,7 +60,7 @@ using ShufflingState = CardManager::ShufflingState;
 using CardRevealState = Hand::CardRevealState;
 using CardTypeVector = std::vector<std::optional<CardType>>;
 using CardVector = std::vector<RevealableCard>;
-using IndexVector = std::vector<std::size_t>;
+using IndexVector = std::vector<int>;
 
 namespace {
 
@@ -185,7 +184,7 @@ private:
     void handleRequestShuffle() override;
     std::shared_ptr<Hand> handleGetHand(const IndexVector& handNs) override;
     bool handleIsShuffleCompleted() const override;
-    std::size_t handleGetNumberOfCards() const override;
+    int handleGetNumberOfCards() const override;
 
     void internalHandleHandRevealRequest(
         const std::shared_ptr<BasicHand>& hand,
@@ -303,7 +302,7 @@ void Impl::emplacePeer(Args&&... args)
 template<typename CardIterator>
 bool Impl::revealCards(CardIterator first, CardIterator last)
 {
-    auto n = 0u;
+    auto n = 0;
     for (; first != last; ++first, ++n) {
         if (n == N_CARDS) {
             return false;
@@ -322,7 +321,7 @@ auto Impl::getSockets() const
 
 auto Impl::getNumberOfPeers() const
 {
-    return peerRecords.size();
+    return ssize(peerRecords);
 }
 
 template<typename IndexIterator>
@@ -364,7 +363,7 @@ bool Impl::handleIsShuffleCompleted() const
     return state_cast<const ShuffleCompleted*>() != nullptr;
 }
 
-std::size_t Impl::handleGetNumberOfCards() const
+int Impl::handleGetNumberOfCards() const
 {
     return N_CARDS;
 }
@@ -507,7 +506,7 @@ void Initializing::internalInitCardServer()
         });
     // Initialize peer entry vector to be sent to the card server -- also
     // determine the order of self
-    auto order = 0u;
+    auto order = 0;
     auto peers = std::vector<PeerEntry> {};
     for (auto&& peer : this->peers) {
         if (peer.first < selfPositions) {
@@ -524,7 +523,7 @@ void Initializing::internalInitCardServer()
         std::tie(CardServer::ORDER_COMMAND, order),
         std::tie(CardServer::PEERS_COMMAND, peers));
     // Record peers and positions for the future use
-    for (const auto n : to(this->peers.size() + 1)) {
+    for (const auto n : to(ssize(this->peers) + 1)) {
         if (n == order) {
             impl.emplacePeer(true, std::move(selfPositions));
         } else {
@@ -567,7 +566,7 @@ private:
 
     bool shuffleSuccessful {false};
     bool drawSuccessful {false};
-    std::size_t revealSuccessfulCount {0};
+    int revealSuccessfulCount {0};
 };
 
 sc::result WaitingShuffleReply::react(const ShuffleSuccessfulEvent&)

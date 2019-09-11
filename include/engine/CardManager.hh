@@ -11,7 +11,6 @@
 
 
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -102,13 +101,13 @@ public:
      * \return the number of cards managed by this object, or none if
      * isShuffleCompleted() == false
      */
-    std::optional<std::size_t> getNumberOfCards() const;
+    std::optional<int> getNumberOfCards() const;
 
 protected:
 
     /** \brief Vector of indices
      */
-    using IndexVector = std::vector<std::size_t>;
+    using IndexVector = std::vector<int>;
 
 private:
 
@@ -150,7 +149,7 @@ private:
      *
      * \sa getNumberOfCards()
      */
-    virtual std::size_t handleGetNumberOfCards() const = 0;
+    virtual int handleGetNumberOfCards() const = 0;
 };
 
 template<typename IndexIterator>

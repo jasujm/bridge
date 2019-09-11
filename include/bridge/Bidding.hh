@@ -14,7 +14,6 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool_fwd.hpp>
 
-#include <cstddef>
 #include <optional>
 #include <utility>
 
@@ -73,7 +72,7 @@ public:
      *
      * \return the number of calls made in the bidding
      */
-    std::size_t getNumberOfCalls() const;
+    int getNumberOfCalls() const;
 
     /** \brief Determine which position is the opener
      *
@@ -91,7 +90,7 @@ public:
      *
      * \throw std::out_of_range if n >= getNumberOfCalls()
      */
-    Call getCall(std::size_t n) const;
+    Call getCall(int n) const;
 
     /** \brief Determine if there is contract
      *
@@ -153,7 +152,7 @@ private:
       *
       * \sa getNumberOfCalls()
       */
-    virtual std::size_t handleGetNumberOfCalls() const = 0;
+    virtual int handleGetNumberOfCalls() const = 0;
 
     /** \brief Handle for determining the opening position
      *
@@ -169,7 +168,7 @@ private:
      *
      * \return the call corresponding to n
      */
-    virtual Call handleGetCall(std::size_t n) const = 0;
+    virtual Call handleGetCall(int n) const = 0;
 
     /** \brief Handle for determining whether call is allowed
      *
@@ -235,11 +234,11 @@ private:
  *   - Position who made call \p n
  *   - The call made
  */
-inline auto biddingCallIterator(const Bidding& bidding, std::size_t n)
+inline auto biddingCallIterator(const Bidding& bidding, int n)
 {
     return boost::make_transform_iterator(
         boost::make_counting_iterator(n),
-        [&bidding](const std::size_t i)
+        [&bidding](const auto i)
         {
             const auto position = clockwise(bidding.getOpeningPosition(), i);
             return std::make_pair(position, bidding.getCall(i));
@@ -248,7 +247,7 @@ inline auto biddingCallIterator(const Bidding& bidding, std::size_t n)
 
 inline auto Bidding::begin() const
 {
-    return biddingCallIterator(*this, 0u);
+    return biddingCallIterator(*this, 0);
 }
 
 inline auto Bidding::end() const

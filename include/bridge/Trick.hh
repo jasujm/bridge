@@ -11,7 +11,6 @@
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 
-#include <cstddef>
 #include <optional>
 #include <utility>
 
@@ -36,7 +35,7 @@ public:
 
     /** \brief The numer of cards in a trick
      */
-    static constexpr std::size_t N_CARDS_IN_TRICK = N_PLAYERS;
+    static constexpr auto N_CARDS_IN_TRICK = N_PLAYERS;
 
     virtual ~Trick();
 
@@ -107,7 +106,7 @@ public:
 
 private:
 
-    auto trickCardIterator(std::size_t n) const;
+    auto trickCardIterator(int n) const;
 
     /** \brief Handle for adding a card to the trick
      *
@@ -120,7 +119,7 @@ private:
      * \return The number of card played to the trick so far. It is expected
      * that handleGetNumberOfCardsPlayed() <= \ref N_CARDS_IN_TRICK.
      */
-    virtual std::size_t handleGetNumberOfCardsPlayed() const = 0;
+    virtual int handleGetNumberOfCardsPlayed() const = 0;
 
     /** \brief Handle for getting the nth card played to the trick
      *
@@ -130,15 +129,13 @@ private:
      *
      * \sa getCard()
      */
-    virtual const Card& handleGetCard(std::size_t n) const = 0;
+    virtual const Card& handleGetCard(int n) const = 0;
 
     /** \brief Handle for retrieving the nth hand in turn
      *
      * It may be assumed that N < \ref N_CARDS_IN_TRICK.
      */
-    virtual const Hand& handleGetHand(std::size_t n) const = 0;
-
-    std::size_t internalGetNumberOfCardsPlayed() const;
+    virtual const Hand& handleGetHand(int n) const = 0;
 };
 
 /** \brief Determine the winner of the trick
@@ -156,11 +153,11 @@ private:
 const Hand* getWinner(
     const Trick& trick, std::optional<Suit> trump = std::nullopt);
 
-inline auto Trick::trickCardIterator(std::size_t n) const
+inline auto Trick::trickCardIterator(int n) const
 {
     return boost::make_transform_iterator(
         boost::make_counting_iterator(n),
-        [this](const std::size_t n)
+        [this](const int n)
         {
             return std::pair<const Hand&, const Card&>(
                 handleGetHand(n), handleGetCard(n));
@@ -169,7 +166,7 @@ inline auto Trick::trickCardIterator(std::size_t n) const
 
 inline auto Trick::begin() const
 {
-    return trickCardIterator(0u);
+    return trickCardIterator(0);
 }
 
 inline auto Trick::end() const

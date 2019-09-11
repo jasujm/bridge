@@ -55,7 +55,7 @@ protected:
 
 TEST_F(BasicBiddingTest, testInitialNumberOfCalls)
 {
-    EXPECT_EQ(0u, bidding.getNumberOfCalls());
+    EXPECT_EQ(0, bidding.getNumberOfCalls());
 }
 
 TEST_F(BasicBiddingTest, testOpeningPosition)
@@ -66,7 +66,7 @@ TEST_F(BasicBiddingTest, testOpeningPosition)
 TEST_F(BasicBiddingTest, testCallsAfterOpeningHasBeenMade)
 {
     bidding.call(Position::NORTH, BID);
-    EXPECT_EQ(1u, bidding.getNumberOfCalls());
+    EXPECT_EQ(1, bidding.getNumberOfCalls());
     EXPECT_EQ(Bridge::Call {BID}, bidding.getCall(0));
 }
 

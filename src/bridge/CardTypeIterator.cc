@@ -6,7 +6,7 @@
 
 namespace Bridge {
 
-CardType enumerateCardType(const std::size_t n)
+CardType enumerateCardType(const int n)
 {
     static_assert(N_RANKS * N_SUITS == N_CARDS, "Unexpected number of cards");
     if (n >= N_CARDS) {

@@ -15,7 +15,6 @@
 #include <boost/operators.hpp>
 
 #include <any>
-#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -305,7 +304,7 @@ public:
      *
      * \todo Fail graciously if the player is not in the game.
      */
-    bool play(const Player& player, const Hand& hand, std::size_t card);
+    bool play(const Player& player, const Hand& hand, int card);
 
     /** \brief Determine if the game has ended
      *
@@ -419,7 +418,7 @@ public:
      * \return the number of tricks played so far, or none if the game is not
      * in the playing phase
      */
-    std::optional<std::size_t> getNumberOfTricksPlayed() const;
+    std::optional<int> getNumberOfTricksPlayed() const;
 
     /** \brief Determine the number of tricks won by each partnership
      *

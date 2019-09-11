@@ -115,7 +115,7 @@ public:
     bool play(
         const Identity& identity, const Player& player,
         const std::optional<CardType>& card,
-        const std::optional<std::size_t>& index);
+        const std::optional<int>& index);
 
     void startIfReady();
 
@@ -317,7 +317,7 @@ bool BridgeGame::Impl::call(
 bool BridgeGame::Impl::play(
     const Identity& identity, const Player& player,
     const std::optional<CardType>& card,
-    const std::optional<std::size_t>& index)
+    const std::optional<int>& index)
 {
     // Either card or index - but not both - needs to be provided
     if (bool(card) == bool(index)) {
@@ -524,7 +524,7 @@ bool BridgeGame::call(
 bool BridgeGame::play(
     const Identity& identity, const Player& player,
     const std::optional<CardType>& card,
-    const std::optional<std::size_t>& index)
+    const std::optional<int>& index)
 {
     assert(impl);
     return impl->play(identity, player, card, index);

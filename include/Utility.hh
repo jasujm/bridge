@@ -19,22 +19,34 @@
 
 namespace Bridge {
 
-/** \brief Check if i < n
+/** \brief Check if 0 < i < n
  *
  * \param i the index to check
  * \param n the upper bound
  *
- * \return i, if i < n
+ * \return i, if 0 < i < n
  *
- * \throw std::out_of_range, if i >= n
+ * \throw std::out_of_range, if i < 0 || i >= n
  */
 template<typename Integer1, typename Integer2>
 auto checkIndex(Integer1 i, Integer2 n)
 {
-    if (i >= n) {
+    if (i < 0 || i >= n) {
         throw std::out_of_range("Index out of range");
     }
     return i;
+}
+
+/** \brief Get size of the container as signed integer
+ *
+ * \param container the container
+ *
+ * \return size of the container cast to std::ptrdiff_t
+ */
+std::ptrdiff_t ssize(const auto& container)
+{
+    using std::size;
+    return static_cast<std::ptrdiff_t>(size(container));
 }
 
 /** \brief Check if pointer (or pointer‐like object) is dereferencalbe, and

@@ -22,7 +22,7 @@ using testing::SaveArg;
 
 namespace {
 using namespace std::string_literals;
-constexpr auto N_SOCKETS = 2u;
+constexpr auto N_SOCKETS = 2;
 const auto DEFAULT = "default"s;
 const auto NEXT = "next"s;
 const auto KEY = "key"s;
@@ -75,10 +75,12 @@ protected:
         }
     }
 
-    const std::array<std::string, 3u> FAILURE_MESSAGE {{
-        ""s, std::string(4, '\xff'), DEFAULT}};
-    const std::array<std::string, 3u> SUCCESS_MESSAGE {{
-        ""s, std::string(4, '\0'), DEFAULT}};
+    const std::array<std::string, 3> FAILURE_MESSAGE {
+        ""s, std::string(4, '\xff'), DEFAULT
+    };
+    const std::array<std::string, 3> SUCCESS_MESSAGE {
+        ""s, std::string(4, '\0'), DEFAULT
+    };
 
     zmq::context_t context;
     std::array<std::string, N_SOCKETS> endpoints {{

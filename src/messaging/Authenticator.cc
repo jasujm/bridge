@@ -21,7 +21,7 @@ const auto ZAP_SUCCESS = "200"sv;
 const auto ZAP_ERROR = "400"sv;
 const auto ZAP_STATUS = "OK"sv;
 const auto ZAP_STATUS_ERROR = "Error"sv;
-const auto ZAP_EXPECTED_MESSAGE_SIZE = 7u;
+const auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
 const auto CURVE_MECHANISM = "CURVE"sv;
 const auto ANONYMOUS_USER_ID = "anonymous"sv;
 

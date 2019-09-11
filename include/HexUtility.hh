@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <ostream>
 #include <stdexcept>

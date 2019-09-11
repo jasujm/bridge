@@ -192,7 +192,7 @@ std::shared_ptr<Hand> SimpleCardManager::handleGetHand(const IndexVector& ns)
     return impl->getHand(ns);
 }
 
-std::size_t SimpleCardManager::handleGetNumberOfCards() const
+int SimpleCardManager::handleGetNumberOfCards() const
 {
     assert(impl);
     return impl->getCards().size();

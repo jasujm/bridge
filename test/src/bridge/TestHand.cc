@@ -21,10 +21,10 @@ using testing::ReturnRef;
 using testing::ValuesIn;
 
 namespace {
-constexpr std::size_t N_CARDS {4};
+constexpr auto N_CARDS = 4;
 }
 
-class HandTest : public testing::TestWithParam<std::size_t> {
+class HandTest : public testing::TestWithParam<int> {
 protected:
     virtual void SetUp()
     {
@@ -176,7 +176,7 @@ TEST_F(HandTest, testIsNotOutOfSuitIsWhenCardsAreNotKnown)
 
 TEST_F(HandTest, testFindCardSuccessfully)
 {
-    EXPECT_EQ(std::size_t {3}, findFromHand(hand, *cards[3].getType()));
+    EXPECT_EQ(3, findFromHand(hand, *cards[3].getType()));
 }
 
 TEST_F(HandTest, testFindCardIfTypeIsAlreadyPlayed)

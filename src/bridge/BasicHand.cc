@@ -1,5 +1,7 @@
 #include "bridge/BasicHand.hh"
 
+#include "Utility.hh"
+
 #include <cassert>
 
 namespace Bridge {
@@ -20,25 +22,25 @@ void BasicHand::handleRequestReveal(const IndexVector& ns)
     notifier.notifyAll(CardRevealState::REQUESTED, ns);
 }
 
-void BasicHand::handleMarkPlayed(const std::size_t n)
+void BasicHand::handleMarkPlayed(const int n)
 {
-    assert(n < cards.size());
+    assert(0 <= n && n < ssize(cards));
     cards[n].isPlayed = true;
 }
 
-const Card& BasicHand::handleGetCard(const std::size_t n) const
+const Card& BasicHand::handleGetCard(const int n) const
 {
-    assert(n < cards.size());
+    assert(0 <= n && n < ssize(cards));
     return cards[n].card;
 }
 
-bool BasicHand::handleIsPlayed(const std::size_t n) const
+bool BasicHand::handleIsPlayed(const int n) const
 {
-    assert(n < cards.size());
+    assert(0 <= n && n < ssize(cards));
     return cards[n].isPlayed;
 }
 
-std::size_t BasicHand::handleGetNumberOfCards() const
+int BasicHand::handleGetNumberOfCards() const
 {
     return cards.size();
 }

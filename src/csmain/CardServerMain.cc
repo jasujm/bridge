@@ -33,7 +33,6 @@
 #include <zmq.hpp>
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -62,7 +61,7 @@ using Messaging::success;
 
 using PeerVector = std::vector<PeerEntry>;
 using SocketVector = PeerSocketProxy::SocketVector;
-using IndexVector = std::vector<std::size_t>;
+using IndexVector = std::vector<int>;
 using CardVector = std::vector<std::optional<CardType>>;
 
 namespace {
@@ -231,8 +230,7 @@ bool TMCG::reveal(
     AsynchronousExecutionContext& eContext, const int peerOrder,
     const IndexVector& ns)
 {
-    if (0 <= peerOrder &&
-        static_cast<std::size_t>(peerOrder) < peerSockets.size() &&
+    if (0 <= peerOrder && peerOrder < ssize(peerSockets) &&
         peerSockets[peerOrder]) {
         return revealHelper(eContext, peerSockets[peerOrder], ns);
     }
@@ -262,10 +260,10 @@ bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
     auto* p_vtmf = &(*vtmf);
 
     for (const auto n : ns) {
-        if (n >= N_CARDS) {
+        if (n < 0 || n >= N_CARDS) {
             return false;
         }
-        assert(n < stack.size());
+        assert(n < ssize(stack));
         auto& card = stack[n];
         tmcg.TMCG_SelfCardSecret(card, p_vtmf);
         for (auto& peerSocket : peerSockets) {
@@ -280,7 +278,7 @@ bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
                 }
             }
         }
-        assert(n < cards.size());
+        assert(n < ssize(cards));
         cards[n].emplace(
             enumerateCardType(tmcg.TMCG_TypeOfCard(card, p_vtmf)));
     }
@@ -302,10 +300,10 @@ bool TMCG::revealHelper(
     auto instream = createInputStream(peerSocket, eContext);
     auto outstream = createOutputStream(peerSocket, eContext);
     for (const auto n : ns) {
-        if (n >= N_CARDS) {
+        if (n < 0 || n >= N_CARDS) {
             return false;
         }
-        assert(n < stack.size());
+        assert(n < ssize(stack));
         tmcg.TMCG_ProveCardSecret(stack[n], p_vtmf, instream, outstream);
     }
     return true;
@@ -551,7 +549,7 @@ void CardServerMain::Impl::internalAddPeerNodesToAuthenticator(
                 ++distinct_peer_count;
             }
             const auto peer_order = n + (n >= order);
-            assert(peer_order < authorizedUserIds.size());
+            assert(0 <= peer_order && peer_order < ssize(authorizedUserIds));
             authorizedUserIds[peer_order] = peer_iter->second;
         }
     }

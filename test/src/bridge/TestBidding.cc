@@ -38,7 +38,7 @@ const Call DOUBLE_CALL {Bridge::Double {}};
 const Call REDOUBLE_CALL {Bridge::Redouble {}};
 }
 
-class BiddingTest : public testing::TestWithParam<std::size_t> {
+class BiddingTest : public testing::TestWithParam<int> {
 protected:
     virtual void SetUp()
     {
@@ -68,7 +68,7 @@ protected:
 TEST_F(BiddingTest, testNumberOfCalls)
 {
     EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(1));
-    EXPECT_EQ(1u, bidding.getNumberOfCalls());
+    EXPECT_EQ(1, bidding.getNumberOfCalls());
 }
 
 TEST_F(BiddingTest, testOpeningPosition)

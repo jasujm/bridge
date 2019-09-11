@@ -69,7 +69,7 @@ LuaPopGuard::~LuaPopGuard()
     lua_pop(lua, 1);
 }
 
-constexpr std::size_t READ_CHUNK_SIZE = 4096;
+constexpr auto READ_CHUNK_SIZE = 4096;
 struct LuaStreamReaderArgs {
     LuaStreamReaderArgs(std::istream& in) : in {in}, buf {} {};
     std::istream& in;

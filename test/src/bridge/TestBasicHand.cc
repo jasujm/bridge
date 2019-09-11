@@ -16,7 +16,7 @@ using testing::ElementsAreArray;
 using testing::Return;
 using testing::Values;
 
-class BasicHandTest : public testing::TestWithParam<std::size_t> {
+class BasicHandTest : public testing::TestWithParam<int> {
 protected:
     std::array<testing::NiceMock<Bridge::MockCard>, N_CARDS_PER_PLAYER> cards;
     BasicHand hand {cards.begin(), cards.end()};
@@ -42,7 +42,7 @@ TEST_P(BasicHandTest, testPlayedCards)
 
 TEST_P(BasicHandTest, testRequestReveal)
 {
-    const auto range = Bridge::to(std::size_t {GetParam()});
+    const auto range = Bridge::to(GetParam());
     const auto observer = std::make_shared<
         Bridge::MockCardRevealStateObserver>();
     hand.subscribe(observer);
@@ -56,7 +56,7 @@ TEST_P(BasicHandTest, testRequestReveal)
 
 TEST_P(BasicHandTest, testSuccessfulReveal)
 {
-    const auto range = Bridge::to(std::size_t {GetParam()});
+    const auto range = Bridge::to(GetParam());
     const auto observer = std::make_shared<
         Bridge::MockCardRevealStateObserver>();
     hand.subscribe(observer);
@@ -73,7 +73,7 @@ TEST_P(BasicHandTest, testSuccessfulReveal)
 
 TEST_P(BasicHandTest, testFailedReveal)
 {
-    const auto range = Bridge::to(std::size_t {GetParam()});
+    const auto range = Bridge::to(GetParam());
     const auto observer = std::make_shared<
         Bridge::MockCardRevealStateObserver>();
     hand.subscribe(observer);

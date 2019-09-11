@@ -80,7 +80,7 @@ public:
 
     /** \brief Type of observer that can be subscribed to the observable
      */
-    using ObserverType = Observable<T...>;
+    using ObserverType = Observer<T...>;
 
     /** \brief Subscribe observer to this Observable
      *
@@ -112,11 +112,7 @@ public:
 
 private:
 
-    template<std::size_t... Ns>
-    void internalNotifyAllHelper(
-        const std::tuple<T...>& args, std::index_sequence<Ns...>);
-
-    std::list<std::weak_ptr<Observer<T...>>> observers;
+    std::list<std::weak_ptr<ObserverType>> observers;
     FunctionQueue functionQueue;
 };
 
@@ -132,25 +128,21 @@ template<typename... U>
 void Observable<T...>::notifyAll(U&&... args)
 {
     functionQueue(
-        [this, args = std::tuple<T...> {std::forward<U>(args)...}]()
+        [this, args = std::tuple {std::forward<U>(args)...}]()
         {
-            internalNotifyAllHelper(args, std::index_sequence_for<T...> {});
+            for (auto iter = observers.begin(); iter != observers.end(); ) {
+                if (auto observer = iter->lock()) {
+                    std::apply(
+                        [&observer](const auto&... args)
+                        {
+                            observer->notify(args...);
+                        }, args);
+                    ++iter;
+                } else {
+                    iter = observers.erase(iter);
+                }
+            }
         });
-}
-
-template<typename... T>
-template<std::size_t... Ns>
-void Observable<T...>::internalNotifyAllHelper(
-    const std::tuple<T...>& args, std::index_sequence<Ns...>)
-{
-    for (auto iter = observers.begin(); iter != observers.end(); ) {
-        if (auto observer = iter->lock()) {
-            observer->notify(std::get<Ns>(args)...);
-            ++iter;
-        } else {
-            iter = observers.erase(iter);
-        }
-    }
 }
 
 }

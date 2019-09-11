@@ -58,11 +58,11 @@ private:
 
     void handleAddCardToTrick(const Card& card) override;
 
-    std::size_t handleGetNumberOfCardsPlayed() const override;
+    int handleGetNumberOfCardsPlayed() const override;
 
-    const Card& handleGetCard(std::size_t n) const override;
+    const Card& handleGetCard(int n) const override;
 
-    const Hand& handleGetHand(std::size_t n) const override;
+    const Hand& handleGetHand(int n) const override;
 
     const std::vector<std::reference_wrapper<const Hand>> hands;
     std::vector<std::reference_wrapper<const Card>> cards;

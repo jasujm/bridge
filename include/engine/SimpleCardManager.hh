@@ -78,7 +78,7 @@ private:
 
     bool handleIsShuffleCompleted() const override;
 
-    std::size_t handleGetNumberOfCards() const override;
+    int handleGetNumberOfCards() const override;
 
     void internalShuffle(const CardTypeVector& cards);
 

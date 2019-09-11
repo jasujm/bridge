@@ -213,7 +213,7 @@ public:
     bool play(
         const Messaging::Identity& identity, const Player& player,
         const std::optional<CardType>& card,
-        const std::optional<std::size_t>& index);
+        const std::optional<int>& index);
 
     /** \brief Get non‐owning pointer to peer command sender
      *

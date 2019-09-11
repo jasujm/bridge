@@ -121,7 +121,7 @@ protected:
     }
 
     void playCard(
-        const Player& player, std::size_t card, bool revealDummy = false,
+        const Player& player, int card, bool revealDummy = false,
         bool completeTrick = false)
     {
         const auto position = dereference(engine.getPosition(player));
@@ -259,7 +259,7 @@ protected:
         std::make_shared<MockPlayer>(),
         std::make_shared<MockPlayer>()}};
     BridgeEngine engine {cardManager, gameManager};
-    std::map<std::size_t, std::reference_wrapper<BasicHand>> hands;
+    std::map<int, std::reference_wrapper<BasicHand>> hands;
     std::shared_ptr<NiceMock<MockCardRevealStateObserver>>
     cardRevealStateObserver {
         std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
@@ -333,8 +333,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         assertHandsVisible();
         const auto& player = *players[e.first % players.size()];
         const auto position = dereference(engine.getPosition(player));
-        const auto is_last_call =
-            (static_cast<std::size_t>(e.first + 1) == calls.size());
+        const auto is_last_call = (e.first + 1 == ssize(calls));
         auto turn_observer = std::make_shared<
             MockObserver<BridgeEngine::TurnStarted>>();
         EXPECT_CALL(
@@ -390,7 +389,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     std::array<Position, N_PLAYERS> next_positions {{
         Position::EAST, Position::SOUTH, Position::EAST, Position::NORTH
     }};
-    for (const auto i : from_to(1u, N_CARDS_PER_PLAYER)) {
+    for (const auto i : from_to(1, N_CARDS_PER_PLAYER)) {
         for (const auto t : boost::combine(players, next_positions)) {
             auto& player = t.get<0>();
             const auto next_position = t.get<1>();

@@ -78,13 +78,13 @@ private:
 
     void handleRequestReveal(const IndexVector& ns) override;
 
-    void handleMarkPlayed(std::size_t n) override;
+    void handleMarkPlayed(int n) override;
 
-    const Card& handleGetCard(std::size_t n) const override;
+    const Card& handleGetCard(int n) const override;
 
-    bool handleIsPlayed(std::size_t n) const override;
+    bool handleIsPlayed(int n) const override;
 
-    std::size_t handleGetNumberOfCards() const override;
+    int handleGetNumberOfCards() const override;
 
     std::vector<CardEntry> cards;
     CardRevealStateObserver::ObservableType notifier;

@@ -13,8 +13,6 @@
 
 #include <zmq.hpp>
 
-#include <cstddef>
-#include <optional>
 #include <string_view>
 
 namespace Bridge {
@@ -25,7 +23,7 @@ namespace Messaging {
  * ZeroMQ API accepts curve keys as 32 byte buffers. This constant defines the
  * expected size of the key.
  */
-constexpr std::size_t EXPECTED_CURVE_KEY_SIZE = 32;
+constexpr auto EXPECTED_CURVE_KEY_SIZE = 32;
 
 /** \brief CurveZMQ keypair
  */

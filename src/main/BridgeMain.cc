@@ -99,7 +99,7 @@ private:
         const Identity& identity, const Uuid& gameUuid,
         const std::optional<Uuid>& playerUuid,
         const std::optional<CardType>& card,
-        const std::optional<std::size_t>& index);
+        const std::optional<int>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     const Player* internalGetPlayerFor(
@@ -360,7 +360,7 @@ Reply<> BridgeMain::Impl::play(
     const Identity& identity, const Uuid& gameUuid,
     const std::optional<Uuid>& playerUuid,
     const std::optional<CardType>& card,
-    const std::optional<std::size_t>& index)
+    const std::optional<int>& index)
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);

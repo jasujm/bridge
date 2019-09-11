@@ -11,8 +11,6 @@
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 
-#include <cstddef>
-
 namespace Bridge {
 
 /** \brief Convert integer into a card type
@@ -25,7 +23,7 @@ namespace Bridge {
  *
  * \throw std::invalid_argument if n is not valid card type
  */
-CardType enumerateCardType(std::size_t n);
+CardType enumerateCardType(int n);
 
 /** \brief Iterator for iterating over card types
  *
@@ -40,7 +38,7 @@ CardType enumerateCardType(std::size_t n);
  *
  * \sa enumerateCardType()
  */
-inline auto cardTypeIterator(std::size_t n)
+inline auto cardTypeIterator(int n)
 {
     return boost::make_transform_iterator(
         boost::make_counting_iterator(n), enumerateCardType);

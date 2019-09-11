@@ -36,11 +36,11 @@ private:
 
     void handleAddCall(const Call& call) override;
 
-    std::size_t handleGetNumberOfCalls() const override;
+    int handleGetNumberOfCalls() const override;
 
     Position handleGetOpeningPosition() const override;
 
-    Call handleGetCall(std::size_t n) const override;
+    Call handleGetCall(int n) const override;
 
     bool handleIsCallAllowed(const Call& call) const override;
 

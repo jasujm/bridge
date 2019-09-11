@@ -167,7 +167,8 @@ void MessageLoop::Impl::run()
     while (guard.go()) {
         static_cast<void>(zmq::poll(pollitems));
         assert(callbacks.size() == pollitems.size());
-        for (auto i = 0u; i < callbacks.size(); ++i) {
+        const auto n_callbacks = ssize(callbacks);
+        for (auto i = 0; i < n_callbacks; ++i) {
             try {
                 if (pollitems[i].revents & ZMQ_POLLIN) {
                     std::visit(CallbackVisitor {}, callbacks[i]);

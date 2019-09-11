@@ -269,8 +269,8 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         std::none_of(
             peer_hand->begin(), peer_hand->end(),
             [](const auto& card) { return card.isKnown(); }));
-    auto reveal_ns = std::vector<std::size_t> {2, 4, 6};
-    auto reveal_card_ns = std::vector<std::size_t>(
+    auto reveal_ns = std::vector<int> {2, 4, 6};
+    auto reveal_card_ns = std::vector<int>(
         containerAccessIterator(reveal_ns.begin(), peer_card_ns),
         containerAccessIterator(reveal_ns.end(), peer_card_ns));
     {

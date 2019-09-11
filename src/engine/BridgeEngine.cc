@@ -35,14 +35,14 @@ namespace Engine {
 namespace {
 
 struct PlayInfo {
-    PlayInfo(Hand& hand, std::size_t card) :
+    PlayInfo(Hand& hand, int card) :
         hand {hand},
         card {card}
     {
     }
 
     Hand& hand;
-    std::size_t card;
+    int card;
 };
 
 // Helper for making bimap between positions and objects managed by smart
@@ -96,7 +96,7 @@ class NewTrickEvent : public sc::event<NewTrickEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
     PlayCardEvent(
-        const Player& player, const Hand& hand, std::size_t card, bool& ret) :
+        const Player& player, const Hand& hand, int card, bool& ret) :
         player {player},
         hand {hand},
         card {card},
@@ -106,18 +106,18 @@ public:
 
     const Player& player;
     const Hand& hand;
-    std::size_t card;
+    int card;
     bool& ret;
 };
 class CardRevealEvent : public sc::event<CardRevealEvent> {
 public:
-    CardRevealEvent(Hand::CardRevealState state, std::size_t card) :
+    CardRevealEvent(Hand::CardRevealState state, int card) :
         state {state},
         card {card}
     {
     }
     Hand::CardRevealState state;
-    std::size_t card;
+    int card;
 };
 class HandRevealEvent : public sc::event<HandRevealEvent> {
 public:
@@ -198,7 +198,7 @@ public:
     std::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
-    std::optional<std::size_t> getNumberOfTricksPlayed() const;
+    std::optional<int> getNumberOfTricksPlayed() const;
     std::optional<TricksWon> getTricksWon() const;
     const Hand* getDummyHandIfVisible() const;
     auto makeCardRevealStateObserver();
@@ -526,7 +526,7 @@ class Playing : public sc::simple_state<
 public:
 
     void addTrick(std::unique_ptr<Trick>&& trick);
-    std::size_t getNumberOfTricksPlayed() const;
+    int getNumberOfTricksPlayed() const;
     TricksWon getTricksWon() const;
     Position getLeaderPosition() const;
     Position getDeclarerPosition() const;
@@ -553,7 +553,7 @@ void Playing::addTrick(std::unique_ptr<Trick>&& trick)
     }
 }
 
-std::size_t Playing::getNumberOfTricksPlayed() const
+int Playing::getNumberOfTricksPlayed() const
 {
     return tricks.size();
 }
@@ -644,7 +644,7 @@ public:
 
     PlayingTrick(my_context ctx);
 
-    void playNext(Hand& hand, std::size_t card);
+    void playNext(Hand& hand, int card);
     void play();
 
     const Trick* getTrick() const;
@@ -669,7 +669,7 @@ PlayingTrick::PlayingTrick(my_context ctx) :
         BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
 }
 
-void PlayingTrick::playNext(Hand& hand, std::size_t card)
+void PlayingTrick::playNext(Hand& hand, int card)
 {
     playInfo.emplace(hand, card);
 }
@@ -992,7 +992,7 @@ const Trick* BridgeEngine::Impl::getCurrentTrick() const
     return nullptr;
 }
 
-std::optional<std::size_t> BridgeEngine::Impl::getNumberOfTricksPlayed() const
+std::optional<int> BridgeEngine::Impl::getNumberOfTricksPlayed() const
 {
     return internalCallIfInState(&Playing::getNumberOfTricksPlayed);
 }
@@ -1118,7 +1118,7 @@ bool BridgeEngine::call(const Player& player, const Call& call)
 }
 
 bool BridgeEngine::play(
-    const Player& player, const Hand& hand, std::size_t card)
+    const Player& player, const Hand& hand, int card)
 {
     assert(impl);
     auto ret = false;
@@ -1203,7 +1203,7 @@ const Trick* BridgeEngine::getCurrentTrick() const
     return impl->getCurrentTrick();
 }
 
-std::optional<std::size_t> BridgeEngine::getNumberOfTricksPlayed() const
+std::optional<int> BridgeEngine::getNumberOfTricksPlayed() const
 {
     assert(impl);
     return impl->getNumberOfTricksPlayed();

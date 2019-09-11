@@ -10,6 +10,7 @@
 #include "messaging/MessageHandler.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "Blob.hh"
+#include "Utility.hh"
 
 #include <algorithm>
 #include <array>
@@ -159,7 +160,7 @@ struct ParamWrapperImpl<std::optional<T>> : public ParamWrapperImplBase<T> {
     static auto& unwrap(WrappedType& wrapper) { return wrapper; }
 };
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename SerializationPolicy, auto REPLY_SIZE>
 class ReplyVisitor {
 public:
 
@@ -174,25 +175,21 @@ public:
 
 private:
 
-    template<std::size_t N, typename T>
-    void internalAddFrameImpl(const T& t);
+    template<typename T>
+    void internalAddFrameImpl(int n, const T& t);
 
-    template<std::size_t N, typename T>
-    void internalAddFrame(const T& t);
+    template<typename T>
+    void internalAddFrame(int n, const T& t);
 
-    template<std::size_t N, typename T>
-    void internalAddFrame(const std::optional<T>& t);
-
-    template<typename... Args2, std::size_t... Ns>
-    void internalSendReply(
-        const std::tuple<Args2...>& args, std::index_sequence<Ns...>);
+    template<typename T>
+    void internalAddFrame(int n, const std::optional<T>& t);
 
     SerializationPolicy& serializer;
     Response& response;
     std::array<Blob, REPLY_SIZE>& replyKeys;
 };
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename SerializationPolicy, auto REPLY_SIZE>
 ReplyVisitor<SerializationPolicy, REPLY_SIZE>::ReplyVisitor(
     SerializationPolicy& serializer, Response& response,
     std::array<Blob, REPLY_SIZE>& replyKeys) :
@@ -202,53 +199,52 @@ ReplyVisitor<SerializationPolicy, REPLY_SIZE>::ReplyVisitor(
 {
 }
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename SerializationPolicy, auto REPLY_SIZE>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(ReplyFailure)
 {
     response.setStatus(REPLY_FAILURE);
 }
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
-template<std::size_t N, typename T>
+template<typename SerializationPolicy, auto REPLY_SIZE>
+template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrameImpl(const T& t)
+internalAddFrameImpl(int n, const T& t)
 {
-    response.addFrame(std::get<N>(replyKeys));
+    assert(0 <= n && n < ssize(replyKeys));
+    response.addFrame(replyKeys[n]);
     response.addFrame(asBytes(serializer.serialize(t)));
 }
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
-template<std::size_t N, typename T>
-void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::internalAddFrame(const T& t)
+template<typename SerializationPolicy, auto REPLY_SIZE>
+template<typename T>
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
+internalAddFrame(int n, const T& t)
 {
-    internalAddFrameImpl<N>(t);
+    internalAddFrameImpl(n, t);
 }
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
-template<std::size_t N, typename T>
+template<typename SerializationPolicy, auto REPLY_SIZE>
+template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrame(const std::optional<T>& t)
+internalAddFrame(int n, const std::optional<T>& t)
 {
     if (t) {
-        internalAddFrameImpl<N>(*t);
+        internalAddFrameImpl(n, *t);
     }
 }
 
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
-template<typename... Args2, std::size_t... Ns>
-void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalSendReply(const std::tuple<Args2...>& args, std::index_sequence<Ns...>)
-{
-    ( ... , internalAddFrame<Ns>(std::get<Ns>(args)) );
-}
-
-template<typename SerializationPolicy, std::size_t REPLY_SIZE>
+template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename... Args2>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
     const ReplySuccess<Args2...>& reply)
 {
     response.setStatus(REPLY_SUCCESS);
-    internalSendReply(reply.arguments, std::index_sequence_for<Args2...> {});
+    std::apply(
+        [this](const auto&... args)
+        {
+            auto n = 0;
+            ( ..., internalAddFrame(n++, args) );
+        }, reply.arguments);
 }
 
 template<typename Function, typename ExecutionContext, typename... Args>
@@ -399,13 +395,13 @@ private:
     static constexpr auto REPLY_SIZE =
         std::tuple_size<typename ResultType::Types>::value;
 
-    template<typename ReplyKeys, std::size_t... Ns>
-    auto internalMakeKeys(ReplyKeys keys, std::index_sequence<Ns...>);
+    template<typename Keys>
+    auto internalMakeKeys(Keys keys);
 
-    template<std::size_t N, typename WrappedType>
+    template<auto N, typename WrappedType>
     bool internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to);
 
-    template<std::size_t... Ns>
+    template<auto... Ns>
     void internalCallFunction(
         ExecutionContext&& context, const Identity& identity,
         const ParameterVector& params, Response& response,
@@ -420,14 +416,16 @@ private:
 template<
     typename ExecutionPolicy, typename Function, typename SerializationPolicy,
     typename... Args>
-template<typename Keys, std::size_t... Ns>
+template<typename Keys>
 auto BasicFunctionMessageHandler<
     ExecutionPolicy, Function, SerializationPolicy, Args...>::
-internalMakeKeys([[maybe_unused]] Keys keys, std::index_sequence<Ns...>)
+internalMakeKeys(Keys keys)
 {
-    return std::array<Blob, sizeof...(Ns)> {
-        stringToBlob(std::get<Ns>(keys))...
-    };
+    return std::apply(
+        [](auto&&... keys)
+        {
+            return std::array<Blob, sizeof...(keys)> {stringToBlob(keys)...};
+        }, keys);
 }
 
 template<
@@ -441,14 +439,8 @@ BasicFunctionMessageHandler(
     ReplyKeys&& replyKeys) :
     function(std::move(function)),
     serializer(std::move(serializer)),
-    argKeys {
-        internalMakeKeys(
-            std::forward<Keys>(keys),
-            std::index_sequence_for<Args...> {})},
-    replyKeys {
-        internalMakeKeys(
-            std::forward<ReplyKeys>(replyKeys),
-            std::make_index_sequence<REPLY_SIZE> {})}
+    argKeys {internalMakeKeys(std::forward<Keys>(keys))},
+    replyKeys {internalMakeKeys(std::forward<ReplyKeys>(replyKeys))}
 {
     static_assert(
         sizeof...(Args) == std::tuple_size<std::decay_t<Keys>>::value,
@@ -461,7 +453,7 @@ BasicFunctionMessageHandler(
 template<
     typename ExecutionPolicy, typename Function, typename SerializationPolicy,
     typename... Args>
-template<std::size_t N, typename WrappedType>
+template<auto N, typename WrappedType>
 bool BasicFunctionMessageHandler<
     ExecutionPolicy, Function, SerializationPolicy, Args...>::
 internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
@@ -480,7 +472,7 @@ internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
 template<
     typename ExecutionPolicy, typename Function, typename SerializationPolicy,
     typename... Args>
-template<std::size_t... Ns>
+template<auto... Ns>
 void BasicFunctionMessageHandler<
     ExecutionPolicy, Function, SerializationPolicy, Args...>::
 internalCallFunction(
@@ -500,9 +492,8 @@ internalCallFunction(
             return;
         }
         if (arg_key_iter != argKeys.end()) {
-            const auto n = static_cast<std::size_t>(
-                arg_key_iter - argKeys.begin());
-            assert(n < params_to_deserialize.size());
+            const auto n = arg_key_iter - argKeys.begin();
+            assert(n < ssize(params_to_deserialize));
             params_to_deserialize[n] = *first;
         }
         ++first;

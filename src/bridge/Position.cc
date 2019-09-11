@@ -20,15 +20,14 @@ const auto POSITION_STRING_PAIRS =
 const PositionToStringMap POSITION_TO_STRING_MAP(
     POSITION_STRING_PAIRS.begin(), POSITION_STRING_PAIRS.end());
 
-std::size_t positionOrder(const Position position)
+int positionOrder(const Position position)
 {
     if (
         std::find(
             POSITIONS.begin(), POSITIONS.end(), position) == POSITIONS.end()) {
         throw std::invalid_argument {"Invalid position"};
     }
-    const auto n = static_cast<std::size_t>(position);
-    assert(n < N_POSITIONS);
+    const auto n = static_cast<int>(position);
     return n;
 }
 

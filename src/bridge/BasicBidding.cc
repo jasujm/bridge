@@ -4,6 +4,7 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Position.hh"
+#include "Utility.hh"
 
 #include <algorithm>
 #include <cassert>
@@ -136,7 +137,7 @@ void BasicBidding::handleAddCall(const Call &call)
     std::tie(contract, lastBidderHasTurn) = std::move(new_state);
 }
 
-std::size_t BasicBidding::handleGetNumberOfCalls() const
+int BasicBidding::handleGetNumberOfCalls() const
 {
     return calls.size();
 }
@@ -146,9 +147,9 @@ Position BasicBidding::handleGetOpeningPosition() const
     return openingPosition;
 }
 
-Call BasicBidding::handleGetCall(const std::size_t n) const
+Call BasicBidding::handleGetCall(const int n) const
 {
-    assert(n < calls.size());
+    assert(0 <= n && n < ssize(calls));
     return calls[n];
 }
 
