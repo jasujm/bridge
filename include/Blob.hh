@@ -45,9 +45,7 @@ public:
      *
      * Create byte span containing no bytes
      */
-    constexpr ByteSpan() noexcept
-    {
-    }
+    constexpr ByteSpan() noexcept = default;
 
     /** \brief Create byte span in given range
      *
@@ -210,7 +208,7 @@ inline Blob operator"" _B(const char* str, std::size_t len)
  *
  * \return Byte span with the characters of \p str interpreted as raw memory
  */
-inline ByteSpan operator"" _BS(const char* str, std::size_t len)
+constexpr ByteSpan operator"" _BS(const char* str, std::size_t len)
 {
     return ByteSpan(
         reinterpret_cast<const std::byte*>(str), len);
