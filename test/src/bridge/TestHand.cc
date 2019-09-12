@@ -200,4 +200,28 @@ TEST_F(HandTest, testCardIterators)
             }));
 }
 
+TEST_P(HandTest, unplayedValidCardCanBePlayedFromHand)
+{
+    const auto n = GetParam();
+    EXPECT_CALL(hand, handleIsPlayed(n)).WillOnce(Return(false));
+    EXPECT_TRUE(canBePlayedFromHand(hand, n));
+}
+
+TEST_P(HandTest, playedValidCardCannotBePlayedFromHand)
+{
+    const auto n = GetParam();
+    EXPECT_CALL(hand, handleIsPlayed(n)).WillOnce(Return(true));
+    EXPECT_FALSE(canBePlayedFromHand(hand, n));
+}
+
+TEST_F(HandTest, invalidCardCannoBePlayedFromHandUnderflow)
+{
+    EXPECT_FALSE(canBePlayedFromHand(hand, -1));
+}
+
+TEST_F(HandTest, invalidCardCannoBePlayedFromHandOverflow)
+{
+    EXPECT_FALSE(canBePlayedFromHand(hand, N_CARDS));
+}
+
 INSTANTIATE_TEST_CASE_P(SamplingCards, HandTest, ValuesIn(to(N_CARDS)));

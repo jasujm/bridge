@@ -761,7 +761,7 @@ sc::result PlayingCard::react(const PlayCardEvent& event)
 {
     auto& playing_trick = context<PlayingTrick>();
     const auto hand = playing_trick.getHandIfHasTurn(event.player, event.hand);
-    if (hand && hand->getCard(event.card)) {
+    if (hand && canBePlayedFromHand(*hand, event.card)) {
         event.ret = true;
         playing_trick.playNext(*hand, event.card);
         return transit<RevealingCard>();

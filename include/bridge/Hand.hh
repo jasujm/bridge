@@ -255,7 +255,7 @@ inline auto Hand::end() const
     return handCardIterator(*this, getNumberOfCards());
 }
 
-/** \brief Find given card type from the given hand
+/** \brief Find the card with given type from the given hand
  *
  * \param hand the hand to search from
  * \param cardType the card type to search for
@@ -265,6 +265,19 @@ inline auto Hand::end() const
  */
 std::optional<int> findFromHand(
     const Hand& hand, const CardType& cardType);
+
+/** \brief Determine if the given card can be played from the given hand
+ *
+ * This function can be determined if a \c hand.markPlayed(n) call immediately
+ * following this call would succeed. Unlike the methods in the Hand interface,
+ * this function is safe to call with an “untrusted” argument \p n, because the
+ * function does not throw even if \p n is out of range.
+ *
+ * \return true if \p n is a valid index (0 <= \p n < \c
+ * hand.getNumberOfCards()) of a card that hasn’t been played from the \p hand
+ * yet, false otherwise
+ */
+bool canBePlayedFromHand(const Hand& hand, int n);
 
 /** \brief Convenience function for requesting reveal of all cards in the hand
  *

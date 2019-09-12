@@ -84,6 +84,11 @@ std::optional<int> findFromHand(
     return std::nullopt;
 }
 
+bool canBePlayedFromHand(const Hand& hand, int n)
+{
+    return 0 <= n && n < hand.getNumberOfCards() && !hand.isPlayed(n);
+}
+
 void requestRevealHand(Hand& hand)
 {
     const auto range = to(hand.getNumberOfCards());
