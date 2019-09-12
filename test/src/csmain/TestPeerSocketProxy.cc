@@ -185,7 +185,6 @@ TEST_F(PeerSocketProxyTest, testMessageIncorrectOrderParameter)
 
 TEST_F(PeerSocketProxyTest, testAuthorizedMessage)
 {
-    // FIXME: Expectation for identity
     EXPECT_CALL(
         authorizer,
         authorize(Field(&Identity::routingId, PEER_IDENTITY), 0))
