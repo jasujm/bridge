@@ -7,6 +7,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -20,7 +21,7 @@ using testing::_;
 using testing::Field;
 using testing::Return;
 
-using OrderParameter = PeerSocketProxy::OrderParameter;
+using OrderParameter = std::uint8_t;
 
 namespace {
 

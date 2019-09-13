@@ -9,8 +9,10 @@
 #include "messaging/Identity.hh"
 #include "messaging/MessageLoop.hh"
 
+#include <boost/core/noncopyable.hpp>
 #include <zmq.hpp>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -32,7 +34,7 @@ namespace CardServer {
  * can be used by the stream based interfaces without knowing about the details
  * about order and routing.
  */
-class PeerSocketProxy {
+class PeerSocketProxy : private boost::noncopyable {
 public:
 
     /** \brief Vector consisting of sockets
@@ -46,10 +48,6 @@ public:
             std::shared_ptr<zmq::socket_t>,
             Messaging::MessageLoop::SocketCallback>>;
 
-    /** \brief Order parameter of proxied messages
-     */
-    using OrderParameter = std::uint8_t;
-
     /** \brief Function used to authorize peer message
      *
      * Authorization function is a function used by PeerSocketProxy to authorize
@@ -60,7 +58,7 @@ public:
      * false otherwise.
      */
     using AuthorizationFunction = std::function<
-        bool(const Messaging::Identity&, OrderParameter)>;
+        bool(const Messaging::Identity&, int)>;
 
     /** \brief Create peer socket proxy
      *
@@ -69,13 +67,14 @@ public:
        the peers
      * \param peerClientSockets The DEALER sockets used to send messages to the
      * peers. The size of the vector determines the total number of peers.
-     * \param selfOrder The order parameter of self
+     * \param selfOrder The order parameter of self. Must be between 0—255 due
+     * the wire representation of order parameter.
      * \param authorizer The authorization function used by PeerSocketProxy to
      * authorize incoming messages
      */
     PeerSocketProxy(
         zmq::context_t& context, zmq::socket_t peerServerSocket,
-        std::vector<zmq::socket_t> peerClientSockets, OrderParameter selfOrder,
+        std::vector<zmq::socket_t> peerClientSockets, int selfOrder,
         AuthorizationFunction authorizer);
 
     /** \brief Get socket–callback pairs that need to be polled
@@ -101,14 +100,16 @@ public:
 
 private:
 
+    using OrderParameter = std::uint8_t;
+
     void internalHandleMessageFromPeer(zmq::socket_t& socket);
 
     void internalHandleMessageToPeer(
         zmq::socket_t& streamSocket, zmq::socket_t& clientSocket);
 
-    OrderParameter selfOrder;
-    AuthorizationFunction authorizer;
-    std::shared_ptr<zmq::socket_t> peerServerSocket;
+    const OrderParameter selfOrder;
+    const AuthorizationFunction authorizer;
+    const std::shared_ptr<zmq::socket_t> peerServerSocket;
     SocketVector peerClientSockets;
     SocketVector frontStreamSockets;
     SocketVector streamSockets;

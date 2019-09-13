@@ -578,10 +578,10 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
     }
     peerSocketProxy.emplace(
         zContext, std::move(peerServerSocket), std::move(peerClientSockets),
-        static_cast<PeerSocketProxy::OrderParameter>(order),
+        order,
         [this](const auto& identity, auto order)
         {
-            return (order < authorizedUserIds.size()) &&
+            return (order < ssize(authorizedUserIds)) &&
                 (authorizedUserIds[order] == identity.userId);
         });
 }

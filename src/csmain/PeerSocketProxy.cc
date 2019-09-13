@@ -17,8 +17,8 @@ namespace CardServer {
 PeerSocketProxy::PeerSocketProxy(
     zmq::context_t& context, zmq::socket_t peerServerSocket,
     std::vector<zmq::socket_t> peerClientSockets,
-    const OrderParameter selfOrder, AuthorizationFunction authorizer) :
-    selfOrder {selfOrder},
+    const int selfOrder, AuthorizationFunction authorizer) :
+    selfOrder {static_cast<OrderParameter>(selfOrder)},
     authorizer {std::move(authorizer)},
     peerServerSocket {
         std::make_shared<zmq::socket_t>(std::move(peerServerSocket))}
