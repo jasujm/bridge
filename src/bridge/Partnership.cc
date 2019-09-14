@@ -9,10 +9,13 @@ namespace Bridge {
 
 namespace {
 
-const auto PARTNERSHIP_STRING_PAIRS =
-    std::initializer_list<PartnershipToStringMap::value_type> {
-    { Partnership::NORTH_SOUTH, "northSouth" },
-    { Partnership::EAST_WEST,   "eastWest"   }};
+using namespace std::string_literals;
+using PartnershipStringRelation = PartnershipToStringMap::value_type;
+
+const auto PARTNERSHIP_STRING_PAIRS = {
+    PartnershipStringRelation { Partnership::NORTH_SOUTH, "northSouth"s },
+    PartnershipStringRelation { Partnership::EAST_WEST,   "eastWest"s   },
+};
 
 }
 

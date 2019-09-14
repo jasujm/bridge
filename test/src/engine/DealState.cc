@@ -10,12 +10,15 @@ namespace Bridge {
 
 namespace {
 
-const auto STAGE_STRING_PAIRS =
-    std::initializer_list<StageToStringMap::value_type> {
-    { Stage::SHUFFLING, "shuffling" },
-    { Stage::BIDDING,   "bidding"   },
-    { Stage::PLAYING,   "playing"   },
-    { Stage::ENDED,     "ended"     }};
+using namespace std::string_literals;
+using StageStringRelation = StageToStringMap::value_type;
+
+const auto STAGE_STRING_PAIRS = {
+    StageStringRelation { Stage::SHUFFLING, "shuffling"s },
+    StageStringRelation { Stage::BIDDING,   "bidding"s   },
+    StageStringRelation { Stage::PLAYING,   "playing"s   },
+    StageStringRelation { Stage::ENDED,     "ended"s     },
+};
 
 }
 

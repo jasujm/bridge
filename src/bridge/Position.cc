@@ -8,12 +8,15 @@ namespace Bridge {
 
 namespace {
 
-const auto POSITION_STRING_PAIRS =
-    std::initializer_list<PositionToStringMap::value_type> {
-    { Position::NORTH, "north" },
-    { Position::EAST,  "east"  },
-    { Position::SOUTH, "south" },
-    { Position::WEST,  "west"  }};
+using namespace std::string_literals;
+using PositionStringRelation = PositionToStringMap::value_type;
+
+const auto POSITION_STRING_PAIRS = {
+    PositionStringRelation { Position::NORTH, "north"s },
+    PositionStringRelation { Position::EAST,  "east"s  },
+    PositionStringRelation { Position::SOUTH, "south"s },
+    PositionStringRelation { Position::WEST,  "west"s  },
+};
 
 }
 

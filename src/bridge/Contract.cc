@@ -8,11 +8,14 @@ namespace Bridge {
 
 namespace {
 
-const auto DOUBLING_STRING_PAIRS =
-    std::initializer_list<DoublingToStringMap::value_type> {
-    { Doubling::UNDOUBLED, "undoubled" },
-    { Doubling::DOUBLED,   "doubled"   },
-    { Doubling::REDOUBLED, "redoubled" }};
+using namespace std::string_literals;
+using DoublingStringRelation = DoublingToStringMap::value_type;
+
+const auto DOUBLING_STRING_PAIRS = {
+    DoublingStringRelation { Doubling::UNDOUBLED, "undoubled"s },
+    DoublingStringRelation { Doubling::DOUBLED,   "doubled"s   },
+    DoublingStringRelation { Doubling::REDOUBLED, "redoubled"s },
+};
 
 }
 

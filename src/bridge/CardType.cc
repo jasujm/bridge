@@ -2,7 +2,6 @@
 
 #include "IoUtility.hh"
 
-#include <initializer_list>
 #include <istream>
 #include <ostream>
 #include <string>
@@ -11,28 +10,32 @@ namespace Bridge {
 
 namespace {
 
-const auto RANK_STRING_PAIRS =
-    std::initializer_list<RankToStringMap::value_type> {
-    { Rank::TWO,   "2"     },
-    { Rank::THREE, "3"     },
-    { Rank::FOUR,  "4"     },
-    { Rank::FIVE,  "5"     },
-    { Rank::SIX,   "6"     },
-    { Rank::SEVEN, "7"     },
-    { Rank::EIGHT, "8"     },
-    { Rank::NINE,  "9"     },
-    { Rank::TEN,   "10"    },
-    { Rank::JACK,  "jack"  },
-    { Rank::QUEEN, "queen" },
-    { Rank::KING,  "king"  },
-    { Rank::ACE,   "ace"   }};
+using namespace std::string_literals;
+using RankStringRelation = RankToStringMap::value_type;
+using SuitStringRelation = SuitToStringMap::value_type;
 
-const auto SUIT_STRING_PAIRS =
-    std::initializer_list<SuitToStringMap::value_type> {
-    { Suit::CLUBS,    "clubs"    },
-    { Suit::DIAMONDS, "diamonds" },
-    { Suit::HEARTS,   "hearts"   },
-    { Suit::SPADES,   "spades"   }};
+const auto RANK_STRING_PAIRS = {
+    RankStringRelation { Rank::TWO,   "2"s     },
+    RankStringRelation { Rank::THREE, "3"s     },
+    RankStringRelation { Rank::FOUR,  "4"s     },
+    RankStringRelation { Rank::FIVE,  "5"s     },
+    RankStringRelation { Rank::SIX,   "6"s     },
+    RankStringRelation { Rank::SEVEN, "7"s     },
+    RankStringRelation { Rank::EIGHT, "8"s     },
+    RankStringRelation { Rank::NINE,  "9"s     },
+    RankStringRelation { Rank::TEN,   "10"s    },
+    RankStringRelation { Rank::JACK,  "jack"s  },
+    RankStringRelation { Rank::QUEEN, "queen"s },
+    RankStringRelation { Rank::KING,  "king"s  },
+    RankStringRelation { Rank::ACE,   "ace"s   },
+};
+
+const auto SUIT_STRING_PAIRS = {
+    SuitStringRelation { Suit::CLUBS,    "clubs"s    },
+    SuitStringRelation { Suit::DIAMONDS, "diamonds"s },
+    SuitStringRelation { Suit::HEARTS,   "hearts"s   },
+    SuitStringRelation { Suit::SPADES,   "spades"s   },
+};
 
 }
 

@@ -2,7 +2,6 @@
 
 #include "IoUtility.hh"
 
-#include <initializer_list>
 #include <istream>
 #include <ostream>
 #include <string>
@@ -12,13 +11,16 @@ namespace Bridge {
 
 namespace {
 
-const auto STRAIN_STRING_PAIRS =
-    std::initializer_list<StrainToStringMap::value_type> {
-    { Strain::CLUBS,    "clubs"    },
-    { Strain::DIAMONDS, "diamonds" },
-    { Strain::HEARTS,   "hearts"   },
-    { Strain::SPADES,   "spades"   },
-    { Strain::NO_TRUMP, "notrump"  }};
+using namespace std::string_literals;
+using StrainStringRelation = StrainToStringMap::value_type;
+
+const auto STRAIN_STRING_PAIRS = {
+    StrainStringRelation { Strain::CLUBS,    "clubs"s    },
+    StrainStringRelation { Strain::DIAMONDS, "diamonds"s },
+    StrainStringRelation { Strain::HEARTS,   "hearts"s   },
+    StrainStringRelation { Strain::SPADES,   "spades"s   },
+    StrainStringRelation { Strain::NO_TRUMP, "notrump"s  },
+};
 
 }
 
