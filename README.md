@@ -49,9 +49,6 @@ To build and run unit tests for the backend
 
 ## Bridge GUI
 
-Note! I’m in the process of migrating command line arguments into config file
-configurations. Inconsistencies may exist.
-
 This repository only contains code for the backend. In order to play bridge,
 you’ll also need a frontend. A GUI written in Python can be found in my other
 repository at https://github.com/jasujm/bridgegui.
@@ -199,17 +196,19 @@ model and assumptions, in particular the honest‐but‐curious security model.
 
 ## TODO
 
-Obviously the application is never complete. Because this is hobby project I do
-to learn about network software — and because I’m an engineer and not a normal
-person — the interesting network stuff comes first and the (in comparison)
-boring UX stuff comes later. In approximate order of importance the next goals
-for this project are:
+This is hobby project I do to learn about making robust network
+software. Because of that nature of the project, the interesting networking
+stuff comes first and the (in comparison) boring UX stuff comes later. In
+approximate order of importance the next goals for this project are:
 
-- More user friendly installation and configuration of the application
-- Persistent state for the backend (persistent sessions, keep records etc.)
+- Sane way to deploy and configure the application
+- Persistent state (persistent sessions, keep records etc.)
 - Nicer user interface and other usability oriented features (claiming tricks,
   canceling moves etc.)
 - Peer discovery
+
+The first two items are for supporting using the backend to power a
+[Bridge webapp](https://github.com/jasujm/bridgeapp).
 
 ## Copyright
 
