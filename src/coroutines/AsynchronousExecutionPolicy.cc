@@ -19,7 +19,7 @@ AsynchronousExecutionContext::AsynchronousExecutionContext(
 
 void ensureSocketReadable(
     AsynchronousExecutionContext& context,
-    std::shared_ptr<zmq::socket_t> socket)
+    Messaging::SharedSocket socket)
 {
     while (!(dereference(socket).getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN)) {
         context.await(socket);

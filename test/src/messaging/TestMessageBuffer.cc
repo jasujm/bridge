@@ -1,8 +1,8 @@
 #include "messaging/MessageBuffer.hh"
 #include "messaging/MessageHelper.hh"
+#include "messaging/Sockets.hh"
 
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <array>
 #include <iostream>
@@ -17,10 +17,7 @@ const auto NUMBER = 123;
 const auto WHOLE_MESSAGE = "message 123\n"s;
 }
 
-using Bridge::Messaging::sendMessage;
-using Bridge::Messaging::recvMessage;
-using Bridge::Messaging::SynchronousMessageIStream;
-using Bridge::Messaging::SynchronousMessageOStream;
+using namespace Bridge::Messaging;
 
 class MessageBufferTest : public testing::Test {
 protected:
@@ -30,11 +27,9 @@ protected:
         frontSocket->connect(ENDPOINT);
     }
 
-    zmq::context_t context;
-    std::shared_ptr<zmq::socket_t> frontSocket {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)};
-    std::shared_ptr<zmq::socket_t> backSocket {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)};
+    MessageContext context;
+    SharedSocket frontSocket {makeSharedSocket(context, SocketType::pair)};
+    SharedSocket backSocket {makeSharedSocket(context, SocketType::pair)};
 };
 
 TEST_F(MessageBufferTest, testOutputMessage)
@@ -51,10 +46,11 @@ TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
     SynchronousMessageOStream out {std::move(frontSocket)};
     out.flush();
 
-    std::array<zmq::pollitem_t, 1> pollitems {{
-        {static_cast<void*>(*backSocket), 0, ZMQ_POLLIN, 0},
-    }};
-    EXPECT_EQ(0, zmq::poll(pollitems.data(), 1, 0));
+    auto pollitems = std::array {
+        Pollitem { static_cast<void*>(*backSocket), 0, ZMQ_POLLIN, 0 },
+    };
+    pollSockets(pollitems, 0);
+    EXPECT_FALSE(pollitems[0].revents & ZMQ_POLLIN);
 }
 
 TEST_F(MessageBufferTest, testInputMessage)

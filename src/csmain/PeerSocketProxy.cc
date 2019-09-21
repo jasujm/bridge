@@ -15,13 +15,13 @@ namespace Bridge {
 namespace CardServer {
 
 PeerSocketProxy::PeerSocketProxy(
-    zmq::context_t& context, zmq::socket_t peerServerSocket,
-    std::vector<zmq::socket_t> peerClientSockets,
+    Messaging::MessageContext& context, Messaging::Socket peerServerSocket,
+    std::vector<Messaging::Socket> peerClientSockets,
     const int selfOrder, AuthorizationFunction authorizer) :
     selfOrder {static_cast<OrderParameter>(selfOrder)},
     authorizer {std::move(authorizer)},
     peerServerSocket {
-        std::make_shared<zmq::socket_t>(std::move(peerServerSocket))}
+        Messaging::makeSharedSocket(std::move(peerServerSocket))}
 {
     const auto n_peer_sockets = peerClientSockets.size();
     peerClientSockets.reserve(n_peer_sockets);
@@ -29,18 +29,18 @@ PeerSocketProxy::PeerSocketProxy(
     streamSockets.reserve(n_peer_sockets);
     for (const auto n : to(n_peer_sockets)) {
         this->peerClientSockets.emplace_back(
-            std::make_shared<zmq::socket_t>(
+            Messaging::makeSharedSocket(
                 std::move(peerClientSockets[n])));
         const auto endpoint = boost::format(
             "inproc://bridge.cardserver.peersocketproxy.%1%.peer%2%")
             % this % n;
         const auto endpoint_str = endpoint.str();
-        auto front_socket = std::make_shared<zmq::socket_t>(
-            context, zmq::socket_type::pair);
+        auto front_socket = Messaging::makeSharedSocket(
+            context, Messaging::SocketType::pair);
         front_socket->connect(endpoint_str);
         frontStreamSockets.emplace_back(std::move(front_socket));
-        auto back_socket = std::make_shared<zmq::socket_t>(
-            context, zmq::socket_type::pair);
+        auto back_socket = Messaging::makeSharedSocket(
+            context, Messaging::SocketType::pair);
         back_socket->bind(endpoint_str);
         streamSockets.emplace_back(std::move(back_socket));
     }
@@ -71,7 +71,7 @@ PeerSocketProxy::SocketVector PeerSocketProxy::getStreamSockets()
 }
 
 void PeerSocketProxy::internalHandleMessageToPeer(
-    zmq::socket_t& peerSocket, zmq::socket_t& clientSocket)
+    Messaging::Socket& peerSocket, Messaging::Socket& clientSocket)
 {
     clientSocket.send("", 0, ZMQ_SNDMORE);
     const auto self_order_buffer = boost::endian::native_to_big(selfOrder);
@@ -79,11 +79,11 @@ void PeerSocketProxy::internalHandleMessageToPeer(
     Messaging::forwardMessage(peerSocket, clientSocket);
 }
 
-void PeerSocketProxy::internalHandleMessageFromPeer(zmq::socket_t& socket)
+void PeerSocketProxy::internalHandleMessageFromPeer(Messaging::Socket& socket)
 {
     if (&socket == peerServerSocket.get()) {
-        auto router_id_frame = std::optional<zmq::message_t> {};
-        auto msg = zmq::message_t {};
+        auto router_id_frame = std::optional<Messaging::Message> {};
+        auto msg = Messaging::Message {};
         for (socket.recv(&msg); msg.size() != 0u; socket.recv(&msg)) {
             router_id_frame = std::move(msg);
         }

@@ -125,8 +125,7 @@ using AsynchronousMessageHandler =
  * \param socket the socket to await
  */
 void ensureSocketReadable(
-    AsynchronousExecutionContext& context,
-    std::shared_ptr<zmq::socket_t> socket);
+    AsynchronousExecutionContext& context, Messaging::SharedSocket socket);
 
 }
 }

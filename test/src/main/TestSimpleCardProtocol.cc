@@ -13,6 +13,7 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
+#include "messaging/Sockets.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "MockCallbackScheduler.hh"
 #include "MockMessageHandler.hh"
@@ -23,7 +24,6 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <algorithm>
 #include <iterator>
@@ -99,9 +99,9 @@ protected:
             {}, identity, args.begin(), args.end(), response);
     }
 
-    zmq::context_t context;
-    zmq::socket_t backSocket {context, zmq::socket_type::dealer};
-    std::shared_ptr<zmq::socket_t> frontSocket;
+    Messaging::MessageContext context;
+    Messaging::Socket backSocket {context, Messaging::SocketType::dealer};
+    Messaging::SharedSocket frontSocket;
     std::shared_ptr<MockCallbackScheduler> callbackScheduler {
         std::make_shared<MockCallbackScheduler>()};
     std::shared_ptr<PeerCommandSender> peerCommandSender {

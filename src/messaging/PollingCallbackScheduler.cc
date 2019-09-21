@@ -49,26 +49,26 @@ bool operator<(const ScheduledCallback& cb1, const ScheduledCallback& cb2)
 }
 
 void callbackSchedulerWorker(
-    zmq::context_t& context, const std::string& bAddr, const std::string& fAddr,
-    zmq::socket_t terminationSubscriber)
+    MessageContext& context, const std::string& bAddr, const std::string& fAddr,
+    Socket terminationSubscriber)
 {
     auto queue = std::priority_queue<ScheduledCallback> {};
-    auto fs = zmq::socket_t {context, zmq::socket_type::pair};
-    auto bs = zmq::socket_t {context, zmq::socket_type::pair};
+    auto fs = Socket {context, SocketType::pair};
+    auto bs = Socket {context, SocketType::pair};
     fs.connect(fAddr);
     bs.connect(bAddr);
     // Synchronize
     static_cast<void>(discardMessage(fs));
     bs.send("", 0);
+    using Pi = Pollitem;
     auto pollitems = std::array {
-        zmq::pollitem_t {
-            static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
-        zmq::pollitem_t { static_cast<void*>(fs), 0, ZMQ_POLLIN, 0 },
+        Pi { static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
+        Pi { static_cast<void*>(fs), 0, ZMQ_POLLIN, 0 },
     };
     while (true) {
         // Poll until it's time to execute the next callback
         const auto next_timeout = millisecondsUntilCallback(queue);
-        static_cast<void>(zmq::poll(pollitems.data(), pollitems.size(), next_timeout));
+        pollSockets(pollitems, next_timeout);
         // Termination notification
         if (pollitems[0].revents & ZMQ_POLLIN) {
             break;
@@ -111,10 +111,9 @@ std::string generateSocketName(const std::string& prefix, const void* addr)
 }
 
 PollingCallbackScheduler::PollingCallbackScheduler(
-    zmq::context_t& context, zmq::socket_t terminationSubscriber) :
-    frontSocket {context, zmq::socket_type::pair},
-    backSocket {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)},
+    MessageContext& context, Socket terminationSubscriber) :
+    frontSocket {context, SocketType::pair},
+    backSocket {makeSharedSocket(context, SocketType::pair)},
     callbacks {}
 {
     auto back_name = generateSocketName("csbs", this);
@@ -139,12 +138,12 @@ void PollingCallbackScheduler::handleCallLater(
     ++counter;
 }
 
-std::shared_ptr<zmq::socket_t> PollingCallbackScheduler::getSocket()
+SharedSocket PollingCallbackScheduler::getSocket()
 {
     return backSocket;
 }
 
-void PollingCallbackScheduler::operator()(zmq::socket_t& socket)
+void PollingCallbackScheduler::operator()(Socket& socket)
 {
     if (&socket == backSocket.get()) {
         while (socket.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {

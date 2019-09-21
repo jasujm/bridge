@@ -10,6 +10,7 @@
 #include "bridge/Uuid.hh"
 #include "bridge/Position.hh"
 #include "messaging/Authenticator.hh"
+#include "messaging/Sockets.hh"
 #include "Blob.hh"
 
 #include <boost/operators.hpp>
@@ -17,8 +18,6 @@
 #include <memory>
 #include <optional>
 #include <vector>
-
-#include <zmq.hpp>
 
 namespace Bridge {
 
@@ -98,9 +97,9 @@ bool operator==(
  */
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
-    zmq::context_t& context,
+    Messaging::MessageContext& context,
     const Messaging::CurveKeys* keys,
-    std::shared_ptr<zmq::socket_t> eventSocket,
+    Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     const Messaging::Authenticator::NodeMap& knownPeers);
 

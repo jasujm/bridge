@@ -7,12 +7,10 @@
 #define MESSAGING_MESSAGEBUFFER_HH_
 
 #include "messaging/MessageUtility.hh"
+#include "messaging/Sockets.hh"
 #include "messaging/SynchronousExecutionPolicy.hh"
 #include "Utility.hh"
 
-#include <zmq.hpp>
-
-#include <memory>
 #include <sstream>
 #include <utility>
 
@@ -51,9 +49,7 @@ public:
      * \param socket the socket used to synchronize contents
      * \param context the execution context
      */
-    BasicMessageBuffer(
-        std::shared_ptr<zmq::socket_t> socket,
-        ExecutionContext context = {});
+    BasicMessageBuffer(SharedSocket socket, ExecutionContext context = {});
 
 protected:
 
@@ -77,15 +73,14 @@ protected:
 
 private:
 
-    std::shared_ptr<zmq::socket_t> socket;
+    SharedSocket socket;
     ExecutionContext context;
 };
 
 template<
     typename Char, typename Traits, typename Allocator, typename ExecutionContext>
 BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::
-BasicMessageBuffer(
-    std::shared_ptr<zmq::socket_t> socket, ExecutionContext context) :
+BasicMessageBuffer(SharedSocket socket, ExecutionContext context) :
     socket {std::move(socket)},
     context {std::move(context)}
 {
@@ -115,7 +110,7 @@ BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::underflow()
     }
 
     using String = std::basic_string<Char, Traits, Allocator>;
-    auto msg = zmq::message_t {};
+    auto msg = Message {};
     auto size = 0u;
     do {
         ensureSocketReadable(context, socket);
@@ -167,9 +162,7 @@ public:
      * \param socket the socket used to synchronize contents
      * \param context the execution context
      */
-    BasicMessageStream(
-        std::shared_ptr<zmq::socket_t> socket,
-        ExecutionContext context = {});
+    BasicMessageStream(SharedSocket socket, ExecutionContext context = {});
 
     /** \todo Implement if needed
      */
@@ -185,8 +178,7 @@ template<
     typename Allocator, typename ExecutionContext>
 BasicMessageStream<
     BaseStream, Char, Traits, Allocator, ExecutionContext>::
-BasicMessageStream(
-    std::shared_ptr<zmq::socket_t> socket, ExecutionContext context) :
+BasicMessageStream(SharedSocket socket, ExecutionContext context) :
     buffer {std::move(socket), std::move(context)}
 {
     this->init(&buffer);

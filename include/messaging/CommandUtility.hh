@@ -66,7 +66,7 @@ OutputIterator makeCommandHelper(
  *
  * \code{.cc}
  * using namespace std::string_literals;
- * auto parts = std::vector<zmq::message_t> {};
+ * auto parts = std::vector<Messaging::Message> {};
  * makeCommand(
  *     std::back_inserter(parts), serializer,
  *     "command"s, std::make_pair("argument"s, 123));
@@ -113,21 +113,19 @@ OutputIterator makeCommand(
 template<
     typename SerializationPolicy, typename CommandString, typename... Params>
 void sendCommand(
-    zmq::socket_t& socket,
-    SerializationPolicy&& serializer,
-    CommandString&& command,
+    Socket& socket, SerializationPolicy&& serializer, CommandString&& command,
     Params&&... params)
 {
     auto count = 0u;
     sendEmptyFrameIfNecessary(socket);
     makeCommand(
         boost::make_function_output_iterator(
-            [&socket, &count](const zmq::message_t& msg)
+            [&socket, &count](const Message& msg)
             {
                 // const_cast because boost function output iterator passes the
                 // parameter as const although it's unnecessary here
                 socket.send(
-                    const_cast<zmq::message_t&>(msg),
+                    const_cast<Message&>(msg),
                     count < 2 * sizeof...(params) ? ZMQ_SNDMORE : 0);
                 ++count;
             }),

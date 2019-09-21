@@ -8,18 +8,17 @@
 using testing::Ref;
 using testing::Property;
 
-using Bridge::Messaging::MockPoller;
-using Bridge::Messaging::Poller;
+using namespace Bridge::Messaging;
 
 namespace {
-const auto CALLBACK = [](zmq::socket_t&) {};
+const auto CALLBACK = [](Socket&) {};
 }
 
 class PollerTest : public testing::Test {
 protected:
-    zmq::context_t context;
+    MessageContext context;
     Poller::PollableSocket socket {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair)};
+        makeSharedSocket(context, SocketType::pair)};
     testing::StrictMock<MockPoller> poller;
 };
 

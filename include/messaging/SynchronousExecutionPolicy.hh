@@ -24,11 +24,9 @@
 #ifndef MESSAGING_SYNCHRONOUSEXECUTIONPOLICY_HH_
 #define MESSAGING_SYNCHRONOUSEXECUTIONPOLICY_HH_
 
+#include "messaging/Sockets.hh"
 #include "Utility.hh"
 
-#include <zmq.hpp>
-
-#include <memory>
 #include <functional>
 
 namespace Bridge {
@@ -82,8 +80,7 @@ void SynchronousExecutionPolicy::operator()(Callback&& callback)
  * \param socket the socket to poll
  */
 void ensureSocketReadable(
-    SynchronousExecutionContext& context,
-    std::shared_ptr<zmq::socket_t> socket);
+    SynchronousExecutionContext& context, SharedSocket socket);
 
 }
 }

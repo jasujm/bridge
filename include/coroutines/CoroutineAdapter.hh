@@ -6,8 +6,9 @@
 #ifndef COROUTINES_COROUTINEADAPTER_HH_
 #define COROUTINES_COROUTINEADAPTER_HH_
 
+#include "messaging/Sockets.hh"
+
 #include <boost/coroutine2/all.hpp>
-#include <zmq.hpp>
 
 #include <memory>
 #include <variant>
@@ -57,8 +58,7 @@ public:
     /** \brief Awaitable object
      */
     using Awaitable = std::variant<
-        std::shared_ptr<Future>,
-        std::shared_ptr<zmq::socket_t>>;
+        std::shared_ptr<Future>, Messaging::SharedSocket>;
 
     /** \brief Sink used by a coroutine function to await a socket
      *

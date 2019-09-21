@@ -8,7 +8,7 @@ namespace Messaging {
 class MockPoller : public Poller {
 public:
     MOCK_METHOD2(handleAddPollable, void(PollableSocket, SocketCallback));
-    MOCK_METHOD1(handleRemovePollable, void(zmq::socket_t&));
+    MOCK_METHOD1(handleRemovePollable, void(Messaging::Socket&));
 };
 
 }

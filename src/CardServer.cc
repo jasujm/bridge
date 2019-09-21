@@ -1,11 +1,11 @@
 #include "messaging/Security.hh"
+#include "messaging/Sockets.hh"
 #include "csmain/CardServerMain.hh"
 #include "IoUtility.hh"
 #include "Logging.hh"
 
 #include <getopt.h>
 #include <libTMCG.hh>
-#include <zmq.hpp>
 
 #include <array>
 #include <optional>
@@ -20,7 +20,7 @@ class CardServerApp {
 public:
 
     CardServerApp(
-        zmq::context_t& zmqctx,
+        Messaging::MessageContext& zmqctx,
         std::optional<Messaging::CurveKeys> keys,
         const std::string& controlEndpoint,
         const std::string& basePeerEndpoint) :
@@ -77,7 +77,7 @@ auto getKeyFromFile(
 
 }
 
-CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
+CardServerApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[])
 {
     auto curveSecretKey = Blob {};
     auto curvePublicKey = Blob {};
@@ -136,7 +136,7 @@ CardServerApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
 int bridge_main(int argc, char* argv[])
 {
-    zmq::context_t zmqctx;
+    Messaging::MessageContext zmqctx;
     createApp(zmqctx, argc, argv).run();
     return EXIT_SUCCESS;
 }

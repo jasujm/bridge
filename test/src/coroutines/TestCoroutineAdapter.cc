@@ -1,11 +1,11 @@
 #include "coroutines/CoroutineAdapter.hh"
 #include "coroutines/Future.hh"
+#include "messaging/Sockets.hh"
 #include "Utility.hh"
 #include "MockCallbackScheduler.hh"
 #include "MockPoller.hh"
 
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -13,8 +13,7 @@
 using Bridge::dereference;
 using Bridge::Coroutines::CoroutineAdapter;
 using Bridge::Coroutines::Future;
-using Bridge::Messaging::MockCallbackScheduler;
-using Bridge::Messaging::MockPoller;
+using namespace Bridge::Messaging;
 
 using testing::_;
 using testing::Mock;
@@ -45,7 +44,7 @@ protected:
             poller, callbackScheduler);
     }
 
-    zmq::context_t context;
+    MessageContext context;
     std::shared_ptr<StrictMock<MockPoller>> poller {
         std::make_shared<StrictMock<MockPoller>>()};
     std::shared_ptr<StrictMock<MockCallbackScheduler>> callbackScheduler {
@@ -79,8 +78,8 @@ TEST_F(CoroutineAdapterTest, testFutureCoroutine)
 TEST_F(CoroutineAdapterTest, testSocketCoroutine)
 {
     auto sockets = std::vector {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair),
+        makeSharedSocket(context, SocketType::pair),
+        makeSharedSocket(context, SocketType::pair),
     };
     auto callback = MockPoller::SocketCallback {};
     EXPECT_CALL(*poller, handleAddPollable(sockets.front(), _))

@@ -9,9 +9,9 @@
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
 #include "messaging/Identity.hh"
+#include "messaging/Sockets.hh"
 
 #include <json.hpp>
-#include <zmq.hpp>
 
 #include <memory>
 #include <optional>
@@ -90,7 +90,7 @@ public:
     BridgeGame(
         const Uuid& uuid,
         PositionSet positionsControlled,
-        std::shared_ptr<zmq::socket_t> eventSocket,
+        Messaging::SharedSocket eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
@@ -106,7 +106,7 @@ public:
      * \param callbackScheduler a callback scheduler object
      */
     BridgeGame(
-        const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
+        const Uuid& uuid, Messaging::SharedSocket eventSocket,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler);
 
     /** \brief Move constructor

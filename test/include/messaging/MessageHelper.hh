@@ -31,7 +31,7 @@ namespace Messaging {
  */
 template<typename MessageType>
 void sendMessage(
-    zmq::socket_t& socket, const MessageType& message, bool more = false)
+    Messaging::Socket& socket, const MessageType& message, bool more = false)
 {
     static_assert(
         std::is_scalar_v<
@@ -60,7 +60,7 @@ void sendMessage(
  */
 template<typename MessageIterator>
 void sendMessage(
-    zmq::socket_t& socket, MessageIterator first, MessageIterator last,
+    Messaging::Socket& socket, MessageIterator first, MessageIterator last,
     bool more = false)
 {
     while (first != last) {
@@ -87,7 +87,7 @@ void sendMessage(
  */
 template<typename EndianReversible>
 void sendValue(
-    zmq::socket_t& socket, const EndianReversible& v, bool more = false)
+    Messaging::Socket& socket, const EndianReversible& v, bool more = false)
 {
     const auto big_endian_v = boost::endian::native_to_big(v);
     const auto flags = more ? ZMQ_SNDMORE : 0;
@@ -108,13 +108,13 @@ void sendValue(
  * \deprecated Use ZMQ API with serializers for more flexibility.
  */
 template<typename MessageType>
-std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
+std::pair<MessageType, bool> recvMessage(Messaging::Socket& socket)
 {
     static_assert(
         std::is_scalar_v<typename MessageType::value_type>,
         "Message type must contain scalar values");
     using ValueType = typename MessageType::value_type;
-    auto msg = zmq::message_t {};
+    auto msg = Messaging::Message {};
     socket.recv(&msg);
     const auto first = msg.data<ValueType>();
     const auto last = first + msg.size() / sizeof(ValueType);
@@ -141,7 +141,7 @@ std::pair<MessageType, bool> recvMessage(zmq::socket_t& socket)
  * \deprecated Use recvMultipart(), ZMQ API and serializers for more flexibility.
  */
 template<typename MessageType, typename OutputIterator>
-void recvAll(OutputIterator out, zmq::socket_t& socket)
+void recvAll(OutputIterator out, Messaging::Socket& socket)
 {
     auto more = recvEmptyFrameIfNecessary(socket);
     while (more) {
@@ -162,12 +162,12 @@ void recvAll(OutputIterator out, zmq::socket_t& socket)
  *
  * \return std::pair containing two mutually connected sockets
  */
-inline std::pair<zmq::socket_t, zmq::socket_t> createSocketPair(
-    zmq::context_t& context, const std::string& endpoint)
+inline std::pair<Messaging::Socket, Messaging::Socket> createSocketPair(
+    Messaging::MessageContext& context, const std::string& endpoint)
 {
     auto ret = std::pair {
-        zmq::socket_t {context, zmq::socket_type::pair},
-        zmq::socket_t {context, zmq::socket_type::pair},
+        Messaging::Socket {context, Messaging::SocketType::pair},
+        Messaging::Socket {context, Messaging::SocketType::pair},
     };
     ret.first.bind(endpoint.data());
     ret.second.connect(endpoint.data());

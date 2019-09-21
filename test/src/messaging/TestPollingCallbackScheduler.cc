@@ -9,7 +9,7 @@
 #include <stdexcept>
 
 using namespace std::chrono_literals;
-using Bridge::Messaging::TerminationGuard;
+using namespace Bridge::Messaging;
 
 namespace {
 
@@ -22,9 +22,9 @@ public:
 
 class PollingCallbackSchedulerTest : public testing::Test {
 protected:
-    zmq::context_t context;
+    MessageContext context;
     MockCallback callback;
-    Bridge::Messaging::PollingCallbackScheduler scheduler {
+    PollingCallbackScheduler scheduler {
         context, TerminationGuard::createTerminationSubscriber(context)};
     TerminationGuard terminationGuard {context};
 };

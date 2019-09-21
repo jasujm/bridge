@@ -6,6 +6,13 @@
 #ifndef MESSAGING_MESSAGEQUEUE_HH_
 #define MESSAGING_MESSAGEQUEUE_HH_
 
+#include "messaging/Identity.hh"
+#include "messaging/MessageHandler.hh"
+#include "messaging/Sockets.hh"
+#include "Blob.hh"
+#include "BlobMap.hh"
+#include "Utility.hh"
+
 #include <any>
 #include <cassert>
 #include <functional>
@@ -19,13 +26,6 @@
 #include <vector>
 
 #include <boost/noncopyable.hpp>
-#include <zmq.hpp>
-
-#include "messaging/Identity.hh"
-#include "messaging/MessageHandler.hh"
-#include "Blob.hh"
-#include "BlobMap.hh"
-#include "Utility.hh"
 
 namespace Bridge {
 
@@ -131,16 +131,16 @@ public:
      * \param socket the socket the message is received from and the reply is
      * sent to
      */
-    void operator()(zmq::socket_t& socket);
+    void operator()(Socket& socket);
 
 private:
 
-    using MessageVector = std::vector<zmq::message_t>;
+    using MessageVector = std::vector<Message>;
 
     class BasicResponse : public Response {
     public:
         BasicResponse(MessageVector&, std::ptrdiff_t);
-        void sendResponse(zmq::socket_t&);
+        void sendResponse(Socket&);
 
     private:
         void handleSetStatus(StatusCode) override;
@@ -158,7 +158,7 @@ private:
         std::shared_ptr<BasicMessageHandler<ExecutionPolicy>> handler);
 
     using ExecutionFunction = std::function<
-        void(Identity&&, MessageVector&&, std::ptrdiff_t, zmq::socket_t&)>;
+        void(Identity&&, MessageVector&&, std::ptrdiff_t, Socket&)>;
 
     std::map<std::type_index, std::any> policies;
     BlobMap<ExecutionFunction> executors;
@@ -205,7 +205,7 @@ auto MessageQueue::internalCreateExecutor(
         [&policy = std::any_cast<ExecutionPolicy&>(policy_iter->second),
          handler = std::move(handler)](
              Identity&& identity, MessageVector&& inputFrames,
-             const std::ptrdiff_t nPrefix, zmq::socket_t& socket)
+             const std::ptrdiff_t nPrefix, Socket& socket)
         {
             std::invoke(
                 policy,

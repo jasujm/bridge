@@ -1,15 +1,16 @@
 #ifndef MOCKMESSAGELOOPCALLBACK_HH_
 #define MOCKMESSAGELOOPCALLBACK_HH_
 
+#include "messaging/Sockets.hh"
+
 #include <gmock/gmock.h>
-#include <zmq.hpp>
 
 namespace Bridge {
 namespace Messaging {
 
 class MockMessageLoopCallback {
 public:
-    MOCK_METHOD1(call, void(zmq::socket_t&));
+    MOCK_METHOD1(call, void(Messaging::Socket&));
     MOCK_METHOD0(callSimple, void());
 };
 

@@ -4,7 +4,6 @@
 #include "Utility.hh"
 
 #include <boost/endian/conversion.hpp>
-#include <zmq.hpp>
 
 namespace Bridge {
 namespace Messaging {
@@ -23,7 +22,7 @@ MessageQueue::BasicResponse::BasicResponse(
     frames.back().move(&inputFrames[nPrefix]);
 }
 
-void MessageQueue::BasicResponse::sendResponse(zmq::socket_t& socket)
+void MessageQueue::BasicResponse::sendResponse(Socket& socket)
 {
     sendMultipart(socket, frames.begin(), frames.end());
 }
@@ -77,15 +76,15 @@ MessageQueue::MessageQueue(
 
 MessageQueue::~MessageQueue() = default;
 
-void MessageQueue::operator()(zmq::socket_t& socket)
+void MessageQueue::operator()(Socket& socket)
 {
     auto input_frames = MessageVector {};
     recvMultipart(socket, std::back_inserter(input_frames));
 
-    auto* identity_msg = static_cast<zmq::message_t*>(nullptr);
+    auto* identity_msg = static_cast<Message*>(nullptr);
     auto payload_frame_iter = input_frames.begin();
-    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
-    if (type == zmq::socket_type::router) {
+    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    if (type == SocketType::router) {
         payload_frame_iter = std::find_if(
             payload_frame_iter, input_frames.end(),
             [](const auto& message) { return message.size() == 0u; });

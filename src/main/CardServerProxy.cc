@@ -145,7 +145,7 @@ class CardServerProxy::Impl :
 public:
 
     Impl(
-        zmq::context_t& context, const CurveKeys* keys,
+        Messaging::MessageContext& context, const CurveKeys* keys,
         const std::string& controlEndpoint);
 
     bool acceptPeer(
@@ -189,10 +189,10 @@ private:
     void internalHandleHandRevealRequest(
         const std::shared_ptr<BasicHand>& hand,
         const IndexVector& deckNs, const IndexVector& handNs);
-    void internalHandleCardServerMessage(zmq::socket_t& socket);
+    void internalHandleCardServerMessage(Messaging::Socket& socket);
 
     const SocketVector sockets;
-    zmq::socket_t& controlSocket;
+    Messaging::Socket& controlSocket;
     std::vector<PeerRecord> peerRecords;
     CardVector cards;
     Observable<ShufflingState> shufflingStateNotifier;
@@ -200,12 +200,12 @@ private:
 };
 
 Impl::Impl(
-    zmq::context_t& context, const CurveKeys* const keys,
+    Messaging::MessageContext& context, const CurveKeys* const keys,
     const std::string& controlEndpoint) :
     sockets {{
         {
-            std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
-            [this](zmq::socket_t& socket)
+            Messaging::makeSharedSocket(context, Messaging::SocketType::dealer),
+            [this](Messaging::Socket& socket)
             {
                 internalHandleCardServerMessage(socket);
                 return true;
@@ -389,12 +389,12 @@ void Impl::internalHandleHandRevealRequest(
         });
 }
 
-void Impl::internalHandleCardServerMessage(zmq::socket_t& socket)
+void Impl::internalHandleCardServerMessage(Messaging::Socket& socket)
 {
     using namespace Messaging;
 
     if (&socket == sockets.front().first.get()) {
-        auto reply = std::vector<zmq::message_t> {};
+        auto reply = std::vector<Messaging::Message> {};
         recvMultipart(socket, std::back_inserter(reply));
         if (reply.size() < 1) {
             log(LogLevel::WARNING,
@@ -655,7 +655,7 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
 }
 
 CardServerProxy::CardServerProxy(
-    zmq::context_t& context, const CurveKeys* const keys,
+    Messaging::MessageContext& context, const CurveKeys* const keys,
     const std::string& controlEndpoint) :
     impl {std::make_shared<Impl>(context, keys, controlEndpoint)}
 {

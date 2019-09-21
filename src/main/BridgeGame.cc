@@ -94,7 +94,7 @@ public:
     Impl(
         const Uuid& uuid,
         PositionSet positionsControlled,
-        std::shared_ptr<zmq::socket_t> eventSocket,
+        Messaging::SharedSocket eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
@@ -156,7 +156,7 @@ private:
     const PositionSet positionsControlled;
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
-    std::shared_ptr<zmq::socket_t> eventSocket;
+    Messaging::SharedSocket eventSocket;
     std::shared_ptr<Shuffler> shuffler;
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler;
     const IdentitySet participants;
@@ -167,7 +167,7 @@ private:
 BridgeGame::Impl::Impl(
     const Uuid& uuid,
     PositionSet positionsControlled,
-    std::shared_ptr<zmq::socket_t> eventSocket,
+    Messaging::SharedSocket eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
@@ -460,7 +460,7 @@ const Engine::DuplicateGameManager& BridgeGame::Impl::handleGetGameManager() con
 BridgeGame::BridgeGame(
     const Uuid& uuid,
     PositionSet positionsControlled,
-    std::shared_ptr<zmq::socket_t> eventSocket,
+    Messaging::SharedSocket eventSocket,
     std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<PeerCommandSender> peerCommandSender,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
@@ -484,7 +484,7 @@ BridgeGame::BridgeGame(
 }
 
 BridgeGame::BridgeGame(
-    const Uuid& uuid, std::shared_ptr<zmq::socket_t> eventSocket,
+    const Uuid& uuid, Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler) :
     BridgeGame {
         uuid, PositionSet(POSITIONS.begin(), POSITIONS.end()),

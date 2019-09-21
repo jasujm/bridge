@@ -2,12 +2,12 @@
 #define CALLBACKSCHEDULERUTILITY_HH_
 
 #include "messaging/PollingCallbackScheduler.hh"
+#include "messaging/Sockets.hh"
 
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
+#include <array>
 #include <chrono>
-#include <vector>
 
 namespace Bridge {
 namespace Messaging {
@@ -16,11 +16,11 @@ inline void pollAndExecuteCallbacks(PollingCallbackScheduler& scheduler)
 {
     using namespace std::chrono_literals;
     auto socket = scheduler.getSocket();
-    auto pollitems = std::vector {
-        zmq::pollitem_t { static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0 }
+    auto pollitems = std::array {
+        Pollitem { static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0 }
     };
-    const auto count = zmq::poll(pollitems, 100ms);
-    ASSERT_EQ(1, count);
+    pollSockets(pollitems, 100ms);
+    ASSERT_TRUE(pollitems[0].revents & ZMQ_POLLIN);
     scheduler(*socket);
 }
 

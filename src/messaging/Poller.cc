@@ -15,7 +15,7 @@ void Poller::addPollable(PollableSocket socket, SocketCallback callback)
     handleAddPollable(std::move(socket), std::move(callback));
 }
 
-void Poller::removePollable(zmq::socket_t& socket)
+void Poller::removePollable(Socket& socket)
 {
     handleRemovePollable(socket);
 }

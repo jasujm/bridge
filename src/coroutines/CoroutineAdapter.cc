@@ -23,7 +23,7 @@ public:
         dereference(future).resolveCallback = &Future::nullResolve;
     }
 
-    void operator()(const std::shared_ptr<zmq::socket_t>& socket)
+    void operator()(const Messaging::SharedSocket& socket)
     {
         if (const auto poller_ptr = parent.poller.lock()) {
             poller_ptr->removePollable(dereference(socket));
@@ -55,12 +55,12 @@ public:
             };
     }
 
-    void operator()(const std::shared_ptr<zmq::socket_t>& socket)
+    void operator()(const Messaging::SharedSocket& socket)
     {
         if (const auto poller_ptr = parent.poller.lock()) {
             poller_ptr->addPollable(
                 socket,
-                [socket, this_ = parent.shared_from_this()](zmq::socket_t& socket_)
+                [socket, this_ = parent.shared_from_this()](Messaging::Socket& socket_)
                 {
                     if (&socket_ != socket.get()) {
                         throw std::invalid_argument {"Unexpected socket"};

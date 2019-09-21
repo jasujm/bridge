@@ -6,8 +6,9 @@
 #ifndef MESSAGING_REPLIES_HH_
 #define MESSAGING_REPLIES_HH_
 
+#include "messaging/Sockets.hh"
+
 #include <boost/endian/conversion.hpp>
-#include <zmq.hpp>
 
 #include <iterator>
 #include <optional>
@@ -51,15 +52,15 @@ bool isSuccessful(std::optional<StatusCode> code);
 /**
  * \brief Interpret message as status code
  *
- * The input to this function is a zmq::message_t object containing a four byte
- * big endian integer. This function is used to convert the string into a native
+ * The input to this function is a Message object containing a four byte big
+ * endian integer. This function is used to convert the string into a native
  * StatusCode value.
  *
  * \param statusMessage the message containing the status code
  *
  * \return status code, or none if the input does not contain four bytes
  */
-std::optional<StatusCode> getStatusCode(const zmq::message_t& statusMessage);
+std::optional<StatusCode> getStatusCode(const Message& statusMessage);
 
 /** \brief Determine whether or not a multipart message is a successful reply
  *
@@ -74,7 +75,7 @@ std::optional<StatusCode> getStatusCode(const zmq::message_t& statusMessage);
  * frame is interpreted as status code.
  *
  * \tparam MessageIterator An input iterator that, when dereferenced, returns a
- * zmq::message_t objects.
+ * Message objects.
  *
  * \param first iterator to the first part of the message examined
  * \param last iterator one past the last part of the message examined

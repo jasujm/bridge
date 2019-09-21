@@ -27,9 +27,9 @@ const auto MAX_RESEND_TIMEOUT =
 }
 
 PeerCommandSender::Peer::Peer(
-    zmq::context_t& context, const std::string& endpoint,
+    Messaging::MessageContext& context, const std::string& endpoint,
     const CurveKeys* const keys, const ByteSpan serverKey) :
-    socket {std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer)},
+    socket {makeSharedSocket(context, Messaging::SocketType::dealer)},
     resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
@@ -37,8 +37,8 @@ PeerCommandSender::Peer::Peer(
     socket->connect(endpoint);
 }
 
-std::shared_ptr<zmq::socket_t> PeerCommandSender::addPeer(
-    zmq::context_t& context, const std::string& endpoint,
+Messaging::SharedSocket PeerCommandSender::addPeer(
+    Messaging::MessageContext& context, const std::string& endpoint,
     const CurveKeys* const keys, const ByteSpan serverKey)
 {
     peers.emplace_back(context, endpoint, keys, serverKey);
@@ -53,7 +53,7 @@ PeerCommandSender::PeerCommandSender(
 {
 }
 
-void PeerCommandSender::operator()(zmq::socket_t& socket)
+void PeerCommandSender::operator()(Messaging::Socket& socket)
 {
     auto iter = std::find_if(
         peers.begin(), peers.end(),
@@ -61,7 +61,7 @@ void PeerCommandSender::operator()(zmq::socket_t& socket)
     if (iter == peers.end()) {
         throw std::invalid_argument("Socket is not peer socket");
     }
-    auto message = std::vector<zmq::message_t> {};
+    auto message = std::vector<Messaging::Message> {};
     recvEmptyFrameIfNecessary(socket);
     recvMultipart(socket, std::back_inserter(message));
     if (messages.empty()) {
@@ -91,13 +91,13 @@ void PeerCommandSender::operator()(zmq::socket_t& socket)
     }
 }
 
-void PeerCommandSender::internalSendMessage(zmq::socket_t& socket)
+void PeerCommandSender::internalSendMessage(Messaging::Socket& socket)
 {
     assert(!messages.empty());
     auto& message = messages.front();
     sendEmptyFrameIfNecessary(socket);
     for (auto&& e : enumerate(message)) {
-        auto msg = zmq::message_t {};
+        auto msg = Messaging::Message {};
         msg.copy(&e.second);
         socket.send(msg, e.first + 1 < ssize(message) ? ZMQ_SNDMORE : 0);
     }

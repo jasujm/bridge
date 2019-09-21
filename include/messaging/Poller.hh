@@ -6,10 +6,9 @@
 #ifndef MESSAGING_POLLER_HH_
 #define MESSAGING_POLLER_HH_
 
-#include <functional>
-#include <memory>
+#include "messaging/Sockets.hh"
 
-#include <zmq.hpp>
+#include <functional>
 
 namespace Bridge {
 namespace Messaging {
@@ -24,11 +23,11 @@ public:
 
     /** \brief Socket that can be registered with the poller
      */
-    using PollableSocket = std::shared_ptr<zmq::socket_t>;
+    using PollableSocket = SharedSocket;
 
     /** \brief Callback that can be registered with the poller
      */
-    using SocketCallback = std::function<void(zmq::socket_t&)>;
+    using SocketCallback = std::function<void(Socket&)>;
 
     virtual ~Poller();
 
@@ -59,7 +58,7 @@ public:
      *
      * \param socket the socket to deregister
      */
-    void removePollable(zmq::socket_t& socket);
+    void removePollable(Socket& socket);
 
 private:
 
@@ -78,7 +77,7 @@ private:
      *
      * \param socket the socket to deregister
      */
-    virtual void handleRemovePollable(zmq::socket_t& socket) = 0;
+    virtual void handleRemovePollable(Socket& socket) = 0;
 
 };
 

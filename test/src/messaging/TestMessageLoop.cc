@@ -1,18 +1,17 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/MessageLoop.hh"
+#include "messaging/Sockets.hh"
 #include "MockMessageLoopCallback.hh"
 
 #include <boost/range/combine.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <array>
 #include <csignal>
 #include <string>
 
-using Bridge::Messaging::recvMessage;
-using Bridge::Messaging::sendMessage;
+using namespace Bridge::Messaging;
 
 using testing::_;
 using testing::Ref;
@@ -49,23 +48,23 @@ protected:
         }
     }
 
-    zmq::context_t context;
-    std::array<std::string, N_SOCKETS> endpoints {{
-        "inproc://endpoint1",
-        "inproc://endpoint2",
-    }};
-    std::array<zmq::socket_t, N_SOCKETS> frontSockets {{
-        {context, zmq::socket_type::dealer},
-        {context, zmq::socket_type::dealer},
-    }};
-    std::array<std::shared_ptr<zmq::socket_t>, N_SOCKETS> backSockets {{
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::dealer),
-    }};
+    MessageContext context;
+    std::array<std::string, N_SOCKETS> endpoints {
+        "inproc://endpoint1"s,
+        "inproc://endpoint2"s,
+    };
+    std::array<Socket, N_SOCKETS> frontSockets {
+        Socket {context, SocketType::dealer},
+        Socket {context, SocketType::dealer},
+    };
+    std::array<SharedSocket, N_SOCKETS> backSockets {
+        makeSharedSocket(context, SocketType::dealer),
+        makeSharedSocket(context, SocketType::dealer),
+    };
     std::array<
-        testing::StrictMock<Bridge::Messaging::MockMessageLoopCallback>,
+        testing::StrictMock<MockMessageLoopCallback>,
         N_SOCKETS> callbacks;
-    Bridge::Messaging::MessageLoop loop {context};
+    MessageLoop loop {context};
 };
 
 TEST_F(MessageLoopTest, testSingleMessage)
@@ -106,7 +105,7 @@ TEST_F(MessageLoopTest, testTerminate)
     auto termination_subscriber = loop.createTerminationSubscriber();
     sendMessage(frontSockets[0], OTHER_MSG);
     loop.run();
-    auto msg = zmq::message_t {};
+    auto msg = Message {};
     EXPECT_TRUE(termination_subscriber.recv(&msg, ZMQ_DONTWAIT));
 }
 

@@ -15,13 +15,12 @@ Identity::Identity(UserId userId, RoutingId routingId) :
 {
 }
 
-Identity identityFromMessage(
-    zmq::message_t& message, zmq::message_t* routerIdentityFrame)
+Identity identityFromMessage(Message& message, Message* routerIdentityFrame)
 {
     const auto* user_id = "";
     try {
         user_id = message.gets("User-Id");
-    } catch (const zmq::error_t&) {
+    } catch (const SocketError&) {
         // metadata property not found, ignore
     }
     auto routing_id_view = routerIdentityFrame ?

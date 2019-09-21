@@ -31,22 +31,21 @@ enum class AuthenticatorCommand {
 };
 
 void zapServer(
-    zmq::context_t& context, zmq::socket_t terminationSubscriber,
+    MessageContext& context, Socket terminationSubscriber,
     Authenticator::NodeMap knownNodes)
 {
-    auto control_socket = zmq::socket_t {context, zmq::socket_type::rep};
+    auto control_socket = Socket {context, SocketType::rep};
     control_socket.bind(CONTROL_ENDPOINT.data());
-    auto zap_socket = zmq::socket_t {context, zmq::socket_type::rep};
+    auto zap_socket = Socket {context, SocketType::rep};
     zap_socket.bind(ZAP_ENDPOINT.data());
+    using Pi = Pollitem;
     auto pollitems = std::array {
-        zmq::pollitem_t {
-            static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
-        zmq::pollitem_t {
-            static_cast<void*>(control_socket), 0, ZMQ_POLLIN, 0 },
-        zmq::pollitem_t { static_cast<void*>(zap_socket), 0, ZMQ_POLLIN, 0 },
+        Pi { static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
+        Pi { static_cast<void*>(control_socket), 0, ZMQ_POLLIN, 0 },
+        Pi { static_cast<void*>(zap_socket), 0, ZMQ_POLLIN, 0 },
     };
     while (true) {
-        static_cast<void>(zmq::poll(pollitems.data(), pollitems.size()));
+        pollSockets(pollitems);
         if (pollitems[0].revents & ZMQ_POLLIN) {
             break;
         }
@@ -54,10 +53,10 @@ void zapServer(
             auto command = AuthenticatorCommand {};
             control_socket.recv(&command, sizeof(command));
             if (command == AuthenticatorCommand::ADD_NODE) {
-                auto key_msg = zmq::message_t {};
+                auto key_msg = Message {};
                 control_socket.recv(&key_msg);
                 const auto key_view = messageView(key_msg);
-                auto user_id_msg = zmq::message_t {};
+                auto user_id_msg = Message {};
                 control_socket.recv(&user_id_msg);
                 knownNodes.insert_or_assign(
                     Blob(key_view.begin(), key_view.end()),
@@ -68,10 +67,10 @@ void zapServer(
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {
             auto input_frames =
-                std::array<zmq::message_t, ZAP_EXPECTED_MESSAGE_SIZE> {};
-            auto status_code_message = zmq::message_t {};
-            auto status_text_message = zmq::message_t {};
-            auto user_id_message = zmq::message_t {};
+                std::array<Message, ZAP_EXPECTED_MESSAGE_SIZE> {};
+            auto status_code_message = Message {};
+            auto status_text_message = Message {};
+            auto user_id_message = Message {};
 
             const auto received_parts_info = recvMultipart(
                 zap_socket, input_frames.begin(), input_frames.size());
@@ -112,9 +111,9 @@ void zapServer(
     }
 }
 
-void recvReplyFromZapThread(zmq::socket_t& socket)
+void recvReplyFromZapThread(Socket& socket)
 {
-    zmq::message_t reply_msg;
+    Message reply_msg;
     socket.recv(&reply_msg);
     assert(!reply_msg.more());
 }
@@ -122,11 +121,9 @@ void recvReplyFromZapThread(zmq::socket_t& socket)
 }
 
 Authenticator::Authenticator(
-    zmq::context_t& context,
-    zmq::socket_t terminationSubscriber,
-    NodeMap knownNodes) :
+    MessageContext& context, Socket terminationSubscriber, NodeMap knownNodes) :
     context {context},
-    controlSocket {context, zmq::socket_type::req},
+    controlSocket {context, SocketType::req},
     worker {
         zapServer, std::ref(context), std::move(terminationSubscriber),
         std::move(knownNodes)}

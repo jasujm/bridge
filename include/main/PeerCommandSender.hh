@@ -8,10 +8,10 @@
 
 #include "messaging/CommandUtility.hh"
 #include "messaging/Security.hh"
+#include "messaging/Sockets.hh"
 
 #include <boost/core/noncopyable.hpp>
 #include <boost/iterator/transform_iterator.hpp>
-#include <zmq.hpp>
 
 #include <chrono>
 #include <iterator>
@@ -66,8 +66,8 @@ public:
      *
      * \return the socket created by the method
      */
-    std::shared_ptr<zmq::socket_t> addPeer(
-        zmq::context_t& context, const std::string& endpoint,
+    Messaging::SharedSocket addPeer(
+        Messaging::MessageContext& context, const std::string& endpoint,
         const Messaging::CurveKeys* keys = nullptr, ByteSpan serverKey = {});
 
     /** \brief Send command to all peers
@@ -102,7 +102,7 @@ public:
      * callback and is the preferred way to integrate PeerCommandSender to a
      * message loop.
      */
-    void operator()(zmq::socket_t& socket);
+    void operator()(Messaging::Socket& socket);
 
     /** \brief Get socket–callback pairs for handling replies
      *
@@ -117,18 +117,18 @@ public:
 
 private:
 
-    using Message = std::vector<zmq::message_t>;
+    using Message = std::vector<Messaging::Message>;
 
     struct Peer {
         Peer(
-            zmq::context_t& context, const std::string& endpoint,
+            Messaging::MessageContext& context, const std::string& endpoint,
             const Messaging::CurveKeys* keys, ByteSpan serverKey);
-        std::shared_ptr<zmq::socket_t> socket;
+        Messaging::SharedSocket socket;
         std::chrono::milliseconds resendTimeout;
         bool success;
     };
 
-    void internalSendMessage(zmq::socket_t& socket);
+    void internalSendMessage(Messaging::Socket& socket);
     void internalSendMessageToAll();
     void internalAddMessage(Message message);
 

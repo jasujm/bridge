@@ -13,6 +13,7 @@
 #include <optional>
 #include <iterator>
 
+using namespace Bridge::Messaging;
 using Bridge::Main::CardProtocol;
 
 using testing::Bool;
@@ -21,7 +22,7 @@ using testing::Return;
 
 class CardProtocolTest : public testing::TestWithParam<bool> {
 protected:
-    zmq::context_t context;
+    MessageContext context;
     Bridge::Main::MockCardProtocol protocol;
 };
 
@@ -30,7 +31,7 @@ TEST_P(CardProtocolTest, testAcceptPeer)
     using namespace Bridge::BlobLiterals;
     using namespace std::string_literals;
     const auto success = GetParam();
-    const auto identity = Bridge::Messaging::Identity { ""s, "identity"_B };
+    const auto identity = Identity { ""s, "identity"_B };
     const auto positions = CardProtocol::PositionVector {
         Bridge::Position::NORTH, Bridge::Position::SOUTH};
     const auto args = std::make_optional(nlohmann::json {123});
@@ -48,8 +49,7 @@ TEST_F(CardProtocolTest, testInitialize)
 
 TEST_F(CardProtocolTest, testGetMessageHandlers)
 {
-    const auto expected_handler =
-        std::make_shared<Bridge::Messaging::MockMessageHandler>();
+    const auto expected_handler = std::make_shared<MockMessageHandler>();
     EXPECT_CALL(protocol, handleGetDealMessageHandler())
         .WillOnce(Return(expected_handler));
     EXPECT_EQ(expected_handler, protocol.getDealMessageHandler());
@@ -58,8 +58,8 @@ TEST_F(CardProtocolTest, testGetMessageHandlers)
 TEST_F(CardProtocolTest, testGetSockets)
 {
     const auto socket =
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pair);
-    Bridge::Messaging::MockMessageLoopCallback callback;
+        makeSharedSocket(context, SocketType::pair);
+    MockMessageLoopCallback callback;
     EXPECT_CALL(callback, call(Ref(*socket)));
     CardProtocol::SocketVector expected_sockets {{
         { socket, [&callback](auto& socket) { callback.call(socket); } }

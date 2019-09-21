@@ -30,7 +30,6 @@
 
 #include <boost/format.hpp>
 #include <libTMCG.hh>
-#include <zmq.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -110,7 +109,7 @@ private:
 
     bool revealHelper(
         AsynchronousExecutionContext& eContext,
-        std::shared_ptr<zmq::socket_t> peerSocket, const IndexVector& ns);
+        Messaging::SharedSocket peerSocket, const IndexVector& ns);
 
     SocketVector peerSockets;
     SchindelhauerTMCG tmcg;
@@ -120,16 +119,14 @@ private:
 };
 
 auto createInputStream(
-    std::shared_ptr<zmq::socket_t> socket,
-    AsynchronousExecutionContext& eContext)
+    Messaging::SharedSocket socket, AsynchronousExecutionContext& eContext)
 {
     return Messaging::MessageIStream<AsynchronousExecutionContext> {
         socket, std::ref(eContext)};
 }
 
 auto createOutputStream(
-    std::shared_ptr<zmq::socket_t> socket,
-    AsynchronousExecutionContext& eContext)
+    Messaging::SharedSocket socket, AsynchronousExecutionContext& eContext)
 {
     return Messaging::MessageOStream<AsynchronousExecutionContext> {
         socket, std::ref(eContext)};
@@ -292,7 +289,7 @@ const CardVector& TMCG::getCards() const
 
 bool TMCG::revealHelper(
     AsynchronousExecutionContext& eContext,
-    std::shared_ptr<zmq::socket_t> peerSocket, const IndexVector& ns)
+    Messaging::SharedSocket peerSocket, const IndexVector& ns)
 {
     assert(vtmf);
     auto* p_vtmf = &(*vtmf);
@@ -314,7 +311,7 @@ bool TMCG::revealHelper(
 class CardServerMain::Impl {
 public:
     Impl(
-        zmq::context_t& zContext, std::optional<CurveKeys> keys,
+        Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
         const std::string& controlEndpoint,
         const std::string& peerEndpoint);
     void run();
@@ -338,7 +335,7 @@ private:
     void internalAddPeerNodesToAuthenticator(const PeerVector& peers, int order);
     void internalCreatePeerSocketProxy(const PeerVector& peers, int order);
 
-    zmq::context_t& zContext;
+    Messaging::MessageContext& zContext;
     const std::optional<CurveKeys> keys;
     const std::string peerEndpoint;
     std::shared_ptr<Messaging::MessageLoop> messageLoop;
@@ -352,7 +349,7 @@ private:
 };
 
 CardServerMain::Impl::Impl(
-    zmq::context_t& zContext, std::optional<CurveKeys> keys,
+    Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
     const std::string& controlEndpoint, const std::string& peerEndpoint) :
     zContext {zContext},
     keys {std::move(keys)},
@@ -402,8 +399,8 @@ CardServerMain::Impl::Impl(
             *this, &Impl::revealAll, JsonSerializer {},
             std::tie(CARDS_COMMAND),
             std::tie(CARDS_COMMAND)));
-    auto controlSocket = std::make_shared<zmq::socket_t>(
-        zContext, zmq::socket_type::router);
+    auto controlSocket = Messaging::makeSharedSocket(
+        zContext, Messaging::SocketType::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     controlSocket->bind(controlEndpoint);
@@ -561,16 +558,17 @@ void CardServerMain::Impl::internalAddPeerNodesToAuthenticator(
 void CardServerMain::Impl::internalCreatePeerSocketProxy(
     const PeerVector& peers, const int order)
 {
-    auto peerServerSocket = zmq::socket_t {zContext, zmq::socket_type::router};
+    auto peerServerSocket = Messaging::Socket {
+        zContext, Messaging::SocketType::router};
     peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     const auto* curve_keys_ptr = getPtr(keys);
     Messaging::setupCurveServer(peerServerSocket, curve_keys_ptr);
     peerServerSocket.bind(peerEndpoint);
-    auto peerClientSockets = std::vector<zmq::socket_t> {};
+    auto peerClientSockets = std::vector<Messaging::Socket> {};
     peerClientSockets.reserve(peers.size());
     for (const auto& peer : peers) {
         auto& socket = peerClientSockets.emplace_back(
-            zContext, zmq::socket_type::dealer);
+            zContext, Messaging::SocketType::dealer);
         Messaging::setupCurveClient(
             socket, getPtr(curve_keys_ptr),
             peer.serverKey ? *peer.serverKey : ByteSpan {});
@@ -587,7 +585,7 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
 }
 
 CardServerMain::CardServerMain(
-    zmq::context_t& zContext, std::optional<CurveKeys> keys,
+    Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
     const std::string& controlEndpoint, const std::string& peerEndpoint) :
     impl {
         std::make_unique<Impl>(

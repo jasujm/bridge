@@ -7,8 +7,7 @@
 #define CARDSERVER_CARDSERVERMAIN_HH_
 
 #include "messaging/Security.hh"
-
-#include <zmq.hpp>
+#include "messaging/Sockets.hh"
 
 #include <memory>
 #include <optional>
@@ -54,7 +53,8 @@ public:
      * connections from other card server peers
      */
     CardServerMain(
-        zmq::context_t& context, std::optional<Messaging::CurveKeys> keys,
+        Messaging::MessageContext& context,
+        std::optional<Messaging::CurveKeys> keys,
         const std::string& controlEndpoint,
         const std::string& peerEndpoint);
 

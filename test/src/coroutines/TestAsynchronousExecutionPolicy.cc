@@ -63,7 +63,7 @@ protected:
         };
     }
 
-    zmq::context_t context {};
+    MessageContext context {};
     MessageQueue messageQueue {};
     std::shared_ptr<NiceMock<MockPoller>> poller {
         std::make_shared<NiceMock<MockPoller>>()};
@@ -71,14 +71,14 @@ protected:
         std::shared_ptr<NiceMock<MockCallbackScheduler>>()};
     std::shared_ptr<MockAsynchronousMessageHandler> handler {
         std::make_shared<MockAsynchronousMessageHandler>()};
-    std::pair<std::shared_ptr<zmq::socket_t>, zmq::socket_t> coroSockets {
+    std::pair<SharedSocket, Socket> coroSockets {
         ([this]() {
             auto sockets = createSocketPair(context, CORO_ENDPOINT);
             return std::pair {
-                std::make_shared<zmq::socket_t>(std::move(sockets.first)),
+                makeSharedSocket(std::move(sockets.first)),
                 std::move(sockets.second)};
         })()};
-    std::pair<zmq::socket_t, zmq::socket_t> messageQueueSockets {
+    std::pair<Socket, Socket> messageQueueSockets {
         createSocketPair(context, MQ_ENDPOINT)};
 };
 
@@ -101,7 +101,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
 
     // Check reply
     constexpr auto EXPECTED_N_PARTS = 2;
-    auto reply = std::array<zmq::message_t, EXPECTED_N_PARTS> {};
+    auto reply = std::array<Message, EXPECTED_N_PARTS> {};
     const auto n_parts = recvMultipart(
         messageQueueSockets.second, reply.begin(), reply.size()).second;
     EXPECT_EQ(EXPECTED_N_PARTS, n_parts);

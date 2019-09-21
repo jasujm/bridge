@@ -1,8 +1,8 @@
+#include "messaging/Sockets.hh"
 #include "main/BridgeMain.hh"
 #include "main/Config.hh"
 #include "Logging.hh"
 
-#include <zmq.hpp>
 #include <getopt.h>
 
 #include <array>
@@ -20,7 +20,7 @@ class BridgeApp {
 public:
 
     BridgeApp(
-        zmq::context_t& zmqctx,
+        Messaging::MessageContext& zmqctx,
         const std::string& configPath) :
         app {zmqctx, Main::configFromPath(configPath)}
     {
@@ -42,7 +42,7 @@ private:
     BridgeMain app;
 };
 
-BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
+BridgeApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[])
 {
     auto configPath = std::string {};
 
@@ -76,7 +76,7 @@ BridgeApp createApp(zmq::context_t& zmqctx, int argc, char* argv[])
 
 int bridge_main(int argc, char* argv[])
 {
-    zmq::context_t zmqctx;
+    Messaging::MessageContext zmqctx;
     createApp(zmqctx, argc, argv).run();
     return EXIT_SUCCESS;
 }

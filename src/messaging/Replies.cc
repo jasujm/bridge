@@ -8,8 +8,7 @@ bool isSuccessful(std::optional<StatusCode> code)
     return code && *code >= 0;
 }
 
-std::optional<StatusCode> getStatusCode(
-    const zmq::message_t& statusMessage)
+std::optional<StatusCode> getStatusCode(const Message& statusMessage)
 {
     const auto* data = statusMessage.data();
     const auto size = statusMessage.size();

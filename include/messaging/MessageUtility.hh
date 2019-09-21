@@ -12,15 +12,15 @@
 #ifndef MESSAGING_MESSAGEUTILITY_HH_
 #define MESSAGING_MESSAGEUTILITY_HH_
 
+#include "messaging/Sockets.hh"
+#include "Blob.hh"
+
 #include <boost/endian/conversion.hpp>
-#include <zmq.hpp>
 
 #include <iterator>
 #include <limits>
 #include <type_traits>
 #include <utility>
-
-#include "Blob.hh"
 
 namespace Bridge {
 namespace Messaging {
@@ -38,11 +38,11 @@ namespace Messaging {
  *
  * \param socket the socket
  */
-inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
+inline void sendEmptyFrameIfNecessary(Socket& socket)
 {
-    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
-    if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
-        socket.send(zmq::message_t {}, ZMQ_SNDMORE);
+    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    if (type == SocketType::router || type == SocketType::dealer) {
+        socket.send(Message {}, ZMQ_SNDMORE);
     }
 }
 
@@ -58,11 +58,11 @@ inline void sendEmptyFrameIfNecessary(zmq::socket_t& socket)
  * \todo The first part is currently just ignored. It could be verified that
  * it is empty frame.
  */
-inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
+inline bool recvEmptyFrameIfNecessary(Socket& socket)
 {
-    const auto type = socket.getsockopt<zmq::socket_type>(ZMQ_TYPE);
-    if (type == zmq::socket_type::router || type == zmq::socket_type::dealer) {
-        auto empty_frame = zmq::message_t {};
+    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    if (type == SocketType::router || type == SocketType::dealer) {
+        auto empty_frame = Message {};
         socket.recv(&empty_frame);
         return empty_frame.more();
     }
@@ -71,10 +71,10 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
 
 /** \brief Send multiple ZMQ frames as single multipart message
  *
- * This function takes a range of zmq::message_t objects as input and sends them
+ * This function takes a range of Message objects as input and sends them
  * using \p socket as single multipart message.
  *
- * \tparam MessageIterator input iterator over zmq::message_t objects
+ * \tparam MessageIterator input iterator over Message objects
  *
  * \param socket the socket
  * \param first iterator to the first frame to be sent
@@ -88,7 +88,7 @@ inline bool recvEmptyFrameIfNecessary(zmq::socket_t& socket)
  */
 template<typename MessageIterator>
 void sendMultipart(
-    zmq::socket_t& socket, MessageIterator first, MessageIterator last,
+    Socket& socket, MessageIterator first, MessageIterator last,
     int flags = 0)
 {
     while (first != last) {
@@ -109,7 +109,8 @@ void sendMultipart(
  *
  * \return number of frames discarded
  */
-inline int discardMessage(zmq::socket_t& socket, int maximumParts = std::numeric_limits<int>::max())
+inline int discardMessage(
+    Socket& socket, int maximumParts = std::numeric_limits<int>::max())
 {
     auto n_parts = 0;
     char buf[0];
@@ -131,7 +132,7 @@ inline int discardMessage(zmq::socket_t& socket, int maximumParts = std::numeric
  * discarded. This may be useful for example in case where \p out points to a
  * range capable of holding a limited number of messages only.
  *
- * \tparam MessageIterator output iterator accepting zmq::message_t objects
+ * \tparam MessageIterator output iterator accepting Message objects
  *
  * \param socket the socket
  * \param out the output iterator the frames are written to
@@ -141,12 +142,12 @@ inline int discardMessage(zmq::socket_t& socket, int maximumParts = std::numeric
  */
 template<typename MessageIterator>
 std::pair<MessageIterator, int> recvMultipart(
-    zmq::socket_t& socket, MessageIterator out, int maximumParts = std::numeric_limits<int>::max())
+    Socket& socket, MessageIterator out, int maximumParts = std::numeric_limits<int>::max())
 {
     auto n_parts = 0;
     auto more = true;
     while (more && n_parts < maximumParts) {
-        auto next_message = zmq::message_t {};
+        auto next_message = Message {};
         socket.recv(&next_message);
         more = next_message.more();
         *out++ = std::move(next_message);
@@ -167,10 +168,10 @@ std::pair<MessageIterator, int> recvMultipart(
  * \param fromSocket the socket the message parts are received from
  * \param toSocket the socket the message parts are sent to
  */
-inline void forwardMessage(zmq::socket_t& fromSocket, zmq::socket_t& toSocket)
+inline void forwardMessage(Socket& fromSocket, Socket& toSocket)
 {
     auto more = true;
-    auto msg = zmq::message_t {};
+    auto msg = Message {};
     while (more) {
         fromSocket.recv(&msg);
         more = msg.more();
@@ -184,7 +185,7 @@ inline void forwardMessage(zmq::socket_t& fromSocket, zmq::socket_t& toSocket)
  *
  * \return ByteSpan object over the bytes \p message consists of
  */
-inline ByteSpan messageView(const zmq::message_t& message)
+inline ByteSpan messageView(const Message& message)
 {
     const auto* data = message.data<ByteSpan::value_type>();
     const auto size = static_cast<ByteSpan::index_type>(
@@ -195,13 +196,13 @@ inline ByteSpan messageView(const zmq::message_t& message)
 /** \brief Create ZMQ message from the content of a container
  *
  * Given a contiguous \p container of trivially copyable elements, create and
- * return a \c zmq::message_t object containing its contents as data.
+ * return a Message object containing its contents as data.
  *
  * \param container the container
  *
  * \return message containing the contents of \p container as its data
  */
-zmq::message_t messageFromContainer(const auto& container)
+Message messageFromContainer(const auto& container)
 {
     const auto* data = std::data(container);
     using ValueType = std::remove_cv_t<
@@ -215,14 +216,14 @@ zmq::message_t messageFromContainer(const auto& container)
 
 /** \brief Create ZMQ message from a value
  *
- * Given a trivially copyable \p value, create and return a \c zmq::message_t
- * object containing its object representation as data.
+ * Given a trivially copyable \p value, create and return a Message object
+ * containing its object representation as data.
  *
  * \param value the value
  *
  * \return message containing the object representation of \p value as its data
  */
-zmq::message_t messageFromValue(const auto& value)
+Message messageFromValue(const auto& value)
 {
     using ValueType = std::remove_cv_t<
         std::remove_reference_t<decltype(value)>>;

@@ -6,10 +6,10 @@
 #ifndef MESSAGING_IDENTITY_HH_
 #define MESSAGING_IDENTITY_HH_
 
+#include "messaging/Sockets.hh"
 #include "Blob.hh"
 
 #include <boost/operators.hpp>
-#include <zmq.hpp>
 
 #include <iosfwd>
 #include <string>
@@ -77,8 +77,7 @@ struct Identity : public boost::totally_ordered<Identity> {
  *
  * \return Identity of the connection related to the message
  */
-Identity identityFromMessage(
-    zmq::message_t& message, zmq::message_t* routerIdentityFrame);
+Identity identityFromMessage(Message& message, Message* routerIdentityFrame);
 
 /** \brief Equality operator for identities
  */

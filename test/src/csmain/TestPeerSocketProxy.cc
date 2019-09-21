@@ -12,11 +12,11 @@
 #include <optional>
 #include <string>
 
+using namespace Bridge::Messaging;
 using Bridge::asBytes;
 using Bridge::dereference;
 using Bridge::CardServer::PeerSocketProxy;
-using Bridge::Messaging::Identity;
-using Bridge::Messaging::messageView;
+
 using testing::_;
 using testing::Field;
 using testing::Return;
@@ -70,7 +70,7 @@ protected:
         std::optional<std::string> peer1Message,
         std::optional<std::string> peer3Message)
     {
-        auto socket = zmq::socket_t {context, zmq::socket_type::dealer};
+        auto socket = Socket {context, SocketType::dealer};
         socket.setsockopt(
             ZMQ_IDENTITY, PEER_IDENTITY.data(), PEER_IDENTITY.size());
         socket.connect(SELF_ENDPOINT);
@@ -84,7 +84,7 @@ protected:
         }
         pollAndDispatch();
         const auto stream_sockets = proxy.getStreamSockets();
-        auto msg = zmq::message_t {};
+        auto msg = Message {};
         auto msg_received = dereference(stream_sockets.at(0))
             .recv(&msg, ZMQ_DONTWAIT);
         EXPECT_EQ(bool(peer1Message), msg_received);
@@ -101,13 +101,13 @@ protected:
 
     void testOutgoingMessageHelper(int peerIndex, const std::string& peerEndpoint)
     {
-        auto socket = zmq::socket_t {context, zmq::socket_type::dealer};
+        auto socket = Socket {context, SocketType::dealer};
         socket.bind(peerEndpoint);
         const auto stream_sockets = proxy.getStreamSockets();
         dereference(stream_sockets.at(peerIndex))
             .send(MESSAGE.data(), MESSAGE.size());
         pollAndDispatch();
-        auto msg = zmq::message_t {};
+        auto msg = Message {};
         const auto msg_received = socket.recv(&msg, ZMQ_DONTWAIT);
         EXPECT_TRUE(msg_received);
         EXPECT_EQ(0u, msg.size());
@@ -123,17 +123,16 @@ protected:
         EXPECT_FALSE(msg.more());
     }
 
-    zmq::context_t context;
+    MessageContext context;
     testing::NiceMock<MockAuthorizationFunction> authorizer;
     PeerSocketProxy proxy {
         [this]() {
-            auto peerServerSocket = zmq::socket_t {
-                context, zmq::socket_type::router};
+            auto peerServerSocket = Socket {context, SocketType::router};
             peerServerSocket.bind(SELF_ENDPOINT);
-            auto peerClientSockets = std::vector<zmq::socket_t> {};
-            peerClientSockets.emplace_back(context, zmq::socket_type::dealer);
+            auto peerClientSockets = std::vector<Socket> {};
+            peerClientSockets.emplace_back(context, SocketType::dealer);
             peerClientSockets.back().connect(PEER1_ENDPOINT);
-            peerClientSockets.emplace_back(context, zmq::socket_type::dealer);
+            peerClientSockets.emplace_back(context, SocketType::dealer);
             peerClientSockets.back().connect(PEER3_ENDPOINT);
             return PeerSocketProxy {
                 context, std::move(peerServerSocket),

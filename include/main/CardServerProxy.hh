@@ -7,9 +7,9 @@
 #define MAIN_CARDSERVERPROXY_HH_
 
 #include "main/CardProtocol.hh"
+#include "messaging/Sockets.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <zmq.hpp>
 
 #include <memory>
 #include <string>
@@ -51,7 +51,7 @@ public:
      * \param controlEndpoint the control endpoint of the card server
      */
     CardServerProxy(
-        zmq::context_t& context, const Messaging::CurveKeys* keys,
+        Messaging::MessageContext& context, const Messaging::CurveKeys* keys,
         const std::string& controlEndpoint);
 
     class Impl;

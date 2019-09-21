@@ -9,9 +9,8 @@
 #ifndef MESSAGING_SECURITY_HH_
 #define MESSAGING_SECURITY_HH_
 
+#include "messaging/Sockets.hh"
 #include "Blob.hh"
-
-#include <zmq.hpp>
 
 #include <string_view>
 
@@ -51,7 +50,7 @@ Blob decodeKey(std::string_view encodedKey);
  *
  * \todo Do not fail silently if \p keys are wrong size
  */
-void setupCurveServer(zmq::socket_t& socket, const CurveKeys* keys);
+void setupCurveServer(Socket& socket, const CurveKeys* keys);
 
 /** \brief Setup socket as curve client
  *
@@ -65,7 +64,7 @@ void setupCurveServer(zmq::socket_t& socket, const CurveKeys* keys);
  * \todo Do not fail silently if \p keys are wrong size
  */
 void setupCurveClient(
-    zmq::socket_t& socket, const CurveKeys* keys, ByteSpan serverKey);
+    Socket& socket, const CurveKeys* keys, ByteSpan serverKey);
 
 }
 }

@@ -16,6 +16,7 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
+#include "messaging/Sockets.hh"
 #include "MockCardProtocol.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
@@ -23,7 +24,6 @@
 
 #include <boost/iterator/transform_iterator.hpp>
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <algorithm>
 #include <iterator>
@@ -115,12 +115,12 @@ protected:
     template<typename... Args>
     void reply(Args&&... args)
     {
-        auto routing_id = zmq::message_t {};
+        auto routing_id = Messaging::Message {};
         routing_id.copy(&routingId);
         proxySocket.send(routing_id, ZMQ_SNDMORE);
         proxySocket.send("", 0, ZMQ_SNDMORE);
         sendValue(proxySocket, REPLY_SUCCESS, true);
-        auto command = std::vector<zmq::message_t> {};
+        auto command = std::vector<Messaging::Message> {};
         makeCommand(
             std::back_inserter(command), JsonSerializer {},
             std::forward<Args>(args)...);
@@ -143,9 +143,9 @@ protected:
         }
     }
 
-    zmq::context_t context;
-    zmq::message_t routingId;
-    zmq::socket_t proxySocket {context, zmq::socket_type::router};
+    Messaging::MessageContext context;
+    Messaging::Message routingId;
+    Messaging::Socket proxySocket {context, Messaging::SocketType::router};
     CardServerProxy protocol {context, nullptr, CONTROL_ENDPOINT};
     std::vector<std::optional<CardType>> allCards;
 };

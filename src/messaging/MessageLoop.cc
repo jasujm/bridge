@@ -39,12 +39,12 @@ struct CallbackVisitor {
 
 class MessageLoop::Impl {
 public:
-    Impl(zmq::context_t& context);
+    Impl(MessageContext& context);
 
     void addPollable(PollableSocket socket, SocketCallback callback);
-    void removePollable(zmq::socket_t& socket);
+    void removePollable(Socket& socket);
     void run();
-    zmq::socket_t createTerminationSubscriber();
+    Socket createTerminationSubscriber();
 
 private:
 
@@ -63,9 +63,9 @@ private:
 
     std::string getTerminationPubSubEndpoint();
 
-    zmq::context_t& context;
-    zmq::socket_t terminationPublisher;
-    std::vector<zmq::pollitem_t> pollitems {
+    MessageContext& context;
+    Socket terminationPublisher;
+    std::vector<Pollitem> pollitems {
         { nullptr, 0, ZMQ_POLLIN, 0 }
     };
     std::vector<CallbackPair> callbacks {
@@ -123,9 +123,9 @@ MessageLoop::Impl::SignalGuard::~SignalGuard()
     }
 }
 
-MessageLoop::Impl::Impl(zmq::context_t& context) :
+MessageLoop::Impl::Impl(MessageContext& context) :
     context {context},
-    terminationPublisher {context, zmq::socket_type::pub}
+    terminationPublisher {context, SocketType::pub}
 {
     terminationPublisher.bind(getTerminationPubSubEndpoint());
 }
@@ -134,9 +134,7 @@ void MessageLoop::Impl::addPollable(
     PollableSocket socket, SocketCallback callback)
 {
     assert(socket);
-    pollitems.emplace_back(
-        zmq::pollitem_t {
-            static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0});
+    pollitems.push_back({ static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0 });
     try {
         callbacks.emplace_back(
             SocketCallbackPair {std::move(callback), std::move(socket)});
@@ -146,7 +144,7 @@ void MessageLoop::Impl::addPollable(
     }
 }
 
-void MessageLoop::Impl::removePollable(zmq::socket_t& socket)
+void MessageLoop::Impl::removePollable(Socket& socket)
 {
     const auto iter = std::find_if(
         pollitems.begin(), pollitems.end(),
@@ -165,7 +163,7 @@ void MessageLoop::Impl::run()
 {
     SignalGuard guard {*this};
     while (guard.go()) {
-        static_cast<void>(zmq::poll(pollitems));
+        pollSockets(pollitems);
         assert(callbacks.size() == pollitems.size());
         const auto n_callbacks = ssize(callbacks);
         for (auto i = 0; i < n_callbacks; ++i) {
@@ -174,7 +172,7 @@ void MessageLoop::Impl::run()
                     std::visit(CallbackVisitor {}, callbacks[i]);
                     break;
                 }
-            } catch (const zmq::error_t& e) {
+            } catch (const SocketError& e) {
                 // If receiving failed because of interrupt signal, continue
                 // Otherwise rethrow
                 if (e.num() != EINTR) {
@@ -185,9 +183,9 @@ void MessageLoop::Impl::run()
     }
 }
 
-zmq::socket_t MessageLoop::Impl::createTerminationSubscriber()
+Socket MessageLoop::Impl::createTerminationSubscriber()
 {
-    auto subscriber = zmq::socket_t {context, zmq::socket_type::sub};
+    auto subscriber = Socket {context, SocketType::sub};
     subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
     subscriber.connect(getTerminationPubSubEndpoint());
     return subscriber;
@@ -200,7 +198,7 @@ std::string MessageLoop::Impl::getTerminationPubSubEndpoint()
     return os.str();
 }
 
-MessageLoop::MessageLoop(zmq::context_t& context) :
+MessageLoop::MessageLoop(MessageContext& context) :
     impl {std::make_unique<Impl>(context)}
 {
 }
@@ -214,7 +212,7 @@ void MessageLoop::handleAddPollable(
     impl->addPollable(std::move(socket), std::move(callback));
 }
 
-void MessageLoop::handleRemovePollable(zmq::socket_t& socket)
+void MessageLoop::handleRemovePollable(Socket& socket)
 {
     assert(impl);
     impl->removePollable(socket);
@@ -226,7 +224,7 @@ void MessageLoop::run()
     impl->run();
 }
 
-zmq::socket_t MessageLoop::createTerminationSubscriber()
+Socket MessageLoop::createTerminationSubscriber()
 {
     assert(impl);
     return impl->createTerminationSubscriber();

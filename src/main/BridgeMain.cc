@@ -31,7 +31,6 @@
 #include "Logging.hh"
 
 #include <boost/uuid/uuid_io.hpp>
-#include <zmq.hpp>
 
 #include <iterator>
 #include <optional>
@@ -76,7 +75,7 @@ enum class Role {
 class BridgeMain::Impl {
 public:
 
-    Impl(zmq::context_t& context, Config config);
+    Impl(Messaging::MessageContext& context, Config config);
 
     void run();
 
@@ -109,7 +108,7 @@ private:
     UuidGenerator uuidGenerator {createUuidGenerator()};
     std::map<Identity, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
-    std::shared_ptr<zmq::socket_t> eventSocket;
+    Messaging::SharedSocket eventSocket;
     std::shared_ptr<GameMessageHandler> dealMessageHandler {
         initializeGameMessageHandler()};
     std::shared_ptr<GameMessageHandler> getMessageHandler {
@@ -122,11 +121,11 @@ private:
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
 };
 
-BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
+BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
     config {std::move(config)},
     nodePlayerControl {std::make_shared<NodePlayerControl>()},
     eventSocket {
-        std::make_shared<zmq::socket_t>(context, zmq::socket_type::pub)},
+        Messaging::makeSharedSocket(context, Messaging::SocketType::pub)},
     messageQueue {
         {
             {
@@ -184,8 +183,8 @@ BridgeMain::Impl::Impl(zmq::context_t& context, Config config) :
     authenticator.ensureRunning();
     const auto keys = this->config.getCurveConfig();
     auto endpointIterator = this->config.getEndpointIterator();
-    auto controlSocket = std::make_shared<zmq::socket_t>(
-        context, zmq::socket_type::router);
+    auto controlSocket = Messaging::makeSharedSocket(
+        context, Messaging::SocketType::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     Messaging::setupCurveServer(*controlSocket, keys);
     controlSocket->bind(*endpointIterator++);
@@ -389,7 +388,7 @@ const Player* BridgeMain::Impl::internalGetPlayerFor(
     return nodePlayerControl->getPlayer(identity, playerUuid).get();
 }
 
-BridgeMain::BridgeMain(zmq::context_t& context, Config config) :
+BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :
     impl {std::make_unique<Impl>(context, std::move(config))}
 {
 }

@@ -6,7 +6,7 @@
 #ifndef MAIN_BRIDGEMAIN_HH_
 #define MAIN_BRIDGEMAIN_HH_
 
-#include <zmq.hpp>
+#include "messaging/Sockets.hh"
 
 #include <memory>
 
@@ -41,7 +41,7 @@ public:
      * \param context the ZeroMQ context for the game
      * \param config the application configurations
      */
-    BridgeMain(zmq::context_t& context, Config config);
+    BridgeMain(Messaging::MessageContext& context, Config config);
 
     ~BridgeMain();
 

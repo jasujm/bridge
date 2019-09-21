@@ -47,9 +47,9 @@ bool operator==(
 
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
-    zmq::context_t& context,
+    Messaging::MessageContext& context,
     const Messaging::CurveKeys* keys,
-    std::shared_ptr<zmq::socket_t> eventSocket,
+    Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     const Messaging::Authenticator::NodeMap& knownPeers)
 {

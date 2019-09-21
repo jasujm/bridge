@@ -7,13 +7,13 @@
 #define MESSAGING_AUTHENTICATOR_HH_
 
 #include "messaging/Identity.hh"
+#include "messaging/Sockets.hh"
 #include "Blob.hh"
 #include "BlobMap.hh"
 #include "Thread.hh"
 
 #include <boost/operators.hpp>
 #include <boost/noncopyable.hpp>
-#include <zmq.hpp>
 
 namespace Bridge {
 namespace Messaging {
@@ -47,8 +47,7 @@ public:
      * \param knownNodes Mapping between known public keys and their user IDs
      */
     Authenticator(
-        zmq::context_t& context,
-        zmq::socket_t terminationSubscriber,
+        MessageContext& context, Socket terminationSubscriber,
         NodeMap knownNodes = {});
 
     /** \brief Block until the authenticator is ready
@@ -72,8 +71,8 @@ public:
 
 private:
 
-    zmq::context_t& context;
-    zmq::socket_t controlSocket;
+    MessageContext& context;
+    Socket controlSocket;
     Thread worker;
 };
 

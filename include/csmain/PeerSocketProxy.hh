@@ -8,9 +8,9 @@
 
 #include "messaging/Identity.hh"
 #include "messaging/MessageLoop.hh"
+#include "messaging/Sockets.hh"
 
 #include <boost/core/noncopyable.hpp>
-#include <zmq.hpp>
 
 #include <cstdint>
 #include <functional>
@@ -39,13 +39,13 @@ public:
 
     /** \brief Vector consisting of sockets
      */
-    using SocketVector = std::vector<std::shared_ptr<zmq::socket_t>>;
+    using SocketVector = std::vector<Messaging::SharedSocket>;
 
     /** \brief Vector consisting of socket–callback pairs
      */
     using SocketCallbackVector = std::vector<
         std::pair<
-            std::shared_ptr<zmq::socket_t>,
+            Messaging::SharedSocket,
             Messaging::MessageLoop::SocketCallback>>;
 
     /** \brief Function used to authorize peer message
@@ -73,8 +73,8 @@ public:
      * authorize incoming messages
      */
     PeerSocketProxy(
-        zmq::context_t& context, zmq::socket_t peerServerSocket,
-        std::vector<zmq::socket_t> peerClientSockets, int selfOrder,
+        Messaging::MessageContext& context, Messaging::Socket peerServerSocket,
+        std::vector<Messaging::Socket> peerClientSockets, int selfOrder,
         AuthorizationFunction authorizer);
 
     /** \brief Get socket–callback pairs that need to be polled
@@ -102,14 +102,14 @@ private:
 
     using OrderParameter = std::uint8_t;
 
-    void internalHandleMessageFromPeer(zmq::socket_t& socket);
+    void internalHandleMessageFromPeer(Messaging::Socket& socket);
 
     void internalHandleMessageToPeer(
-        zmq::socket_t& streamSocket, zmq::socket_t& clientSocket);
+        Messaging::Socket& streamSocket, Messaging::Socket& clientSocket);
 
     const OrderParameter selfOrder;
     const AuthorizationFunction authorizer;
-    const std::shared_ptr<zmq::socket_t> peerServerSocket;
+    const Messaging::SharedSocket peerServerSocket;
     SocketVector peerClientSockets;
     SocketVector frontStreamSockets;
     SocketVector streamSockets;

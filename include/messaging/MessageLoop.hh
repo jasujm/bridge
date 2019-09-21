@@ -7,9 +7,9 @@
 #define MESSAGING_MESSAGELOOP_HH_
 
 #include "messaging/Poller.hh"
+#include "messaging/Sockets.hh"
 
 #include <boost/noncopyable.hpp>
-#include <zmq.hpp>
 
 namespace Bridge {
 namespace Messaging {
@@ -37,7 +37,7 @@ public:
      * \param context The ZeroMQ context used by sockets registered to the
      * message loop
      */
-    MessageLoop(zmq::context_t& context);
+    MessageLoop(MessageContext& context);
 
     ~MessageLoop();
 
@@ -50,7 +50,7 @@ public:
      * doing cleanup and finally exiting run() method. Signal masks are cleaned
      * when the method is exited, whether by exception or otherwise.
      *
-     * \exception The method catches zmq::error_t indicating interruption. All
+     * \exception The method catches SocketError indicating interruption. All
      * other exceptions are propagated as is.
      */
     void run();
@@ -68,14 +68,14 @@ public:
      *
      * \return Socket that will be notified when the message loop exits
      */
-    zmq::socket_t createTerminationSubscriber();
+    Socket createTerminationSubscriber();
 
 private:
 
     void handleAddPollable(
         PollableSocket socket, SocketCallback callback) override;
 
-    void handleRemovePollable(zmq::socket_t& socket) override;
+    void handleRemovePollable(Socket& socket) override;
 
     class Impl;
     const std::unique_ptr<Impl> impl;

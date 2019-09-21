@@ -9,9 +9,9 @@
 #include "messaging/Identity.hh"
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
+#include "messaging/Sockets.hh"
 
 #include <json.hpp>
-#include <zmq.hpp>
 
 #include <memory>
 #include <optional>
@@ -54,7 +54,7 @@ public:
      */
     using SocketVector = std::vector<
         std::pair<
-            std::shared_ptr<zmq::socket_t>,
+            Messaging::SharedSocket,
             Messaging::MessageLoop::SocketCallback>>;
 
     virtual ~CardProtocol();

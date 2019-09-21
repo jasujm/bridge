@@ -3,11 +3,11 @@
 #include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/Replies.hh"
+#include "messaging/Sockets.hh"
 #include "MockMessageHandler.hh"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <zmq.hpp>
 
 #include <map>
 #include <string>
@@ -48,7 +48,7 @@ protected:
     void assertReply(
         bool success, std::optional<Blob> command, bool more = false)
     {
-        auto status_message = zmq::message_t {};
+        auto status_message = Message {};
         frontSocket.recv(&status_message);
         EXPECT_EQ(success, isSuccessful(getStatusCode(status_message)));
         if (command) {
@@ -60,9 +60,9 @@ protected:
         }
     }
 
-    zmq::context_t context;
-    zmq::socket_t frontSocket {context, zmq::socket_type::req};
-    zmq::socket_t backSocket {context, zmq::socket_type::router};
+    MessageContext context;
+    Socket frontSocket {context, SocketType::req};
+    Socket backSocket {context, SocketType::router};
     std::map<Blob, std::shared_ptr<MockMessageHandler>> handlers {
         {COMMAND, std::make_shared<MockMessageHandler>()}};
     MessageQueue messageQueue;
@@ -130,7 +130,7 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
 {
     backSocket.unbind(ENDPOINT);
     frontSocket.disconnect(ENDPOINT);
-    zmq::socket_t repSocket {context, zmq::socket_type::rep};
+    Socket repSocket {context, SocketType::rep};
     repSocket.bind(ENDPOINT);
     frontSocket.connect(ENDPOINT);
 

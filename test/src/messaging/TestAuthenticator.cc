@@ -2,6 +2,7 @@
 #include "messaging/MessageUtility.hh"
 #include "messaging/TerminationGuard.hh"
 #include "messaging/Security.hh"
+#include "messaging/Sockets.hh"
 
 #include <gtest/gtest.h>
 #include <optional>
@@ -50,7 +51,7 @@ protected:
     auto recvClientUserId()
     {
         client.send("", 0);
-        auto message = zmq::message_t {};
+        auto message = Message {};
         server.recv(&message);
         const auto ret = std::string(message.gets("User-Id"));
         server.send("", 0);
@@ -63,7 +64,7 @@ protected:
         std::optional<std::string> expectedRequestId = std::nullopt,
         std::optional<std::string> expectedUserId = std::nullopt)
     {
-        auto message = zmq::message_t {};
+        auto message = Message {};
         zap_client.recv(&message);
         EXPECT_EQ(asBytes(ZAP_VERSION), messageView(message));
         ASSERT_TRUE(message.more());
@@ -89,15 +90,15 @@ protected:
         ASSERT_FALSE(message.more());
     }
 
-    zmq::context_t context;
-    Bridge::Messaging::Authenticator authenticator {
+    MessageContext context;
+    Authenticator authenticator {
         context, TerminationGuard::createTerminationSubscriber(context),
         {
             { CLIENT_PUBLIC_KEY, CLIENT_USER_ID },
         }};
-    zmq::socket_t server {context, zmq::socket_type::rep};
-    zmq::socket_t client {context, zmq::socket_type::req};
-    zmq::socket_t zap_client {context, zmq::socket_type::req};
+    Socket server {context, SocketType::rep};
+    Socket client {context, SocketType::req};
+    Socket zap_client {context, SocketType::req};
     TerminationGuard terminationGuard {context};
 };
 
