@@ -11,7 +11,6 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/PositionJsonSerializer.hh"
@@ -104,29 +103,32 @@ protected:
     template<typename... Matchers>
     void assertMessage(Matchers&&... matchers)
     {
-        proxySocket.recv(&routingId);
-        auto message = std::vector<std::string> {};
-        recvAll<std::string>(std::back_inserter(message), proxySocket);
-        EXPECT_THAT(
-            message,
-            ElementsAre(std::forward<Matchers>(matchers)...));
+        recvMessage(proxySocket, routingId);
+        auto parts = std::vector<std::string> {};
+        auto part = Message {};
+        do {
+            recvMessage(proxySocket, part);
+            parts.emplace_back(part.data<char>(), part.size());
+        } while (part.more());
+        EXPECT_THAT(parts, ElementsAre(IsEmpty(), std::forward<Matchers>(matchers)...));
     }
 
     template<typename... Args>
     void reply(Args&&... args)
     {
-        auto routing_id = Messaging::Message {};
-        routing_id.copy(&routingId);
-        proxySocket.send(routing_id, ZMQ_SNDMORE);
-        proxySocket.send("", 0, ZMQ_SNDMORE);
-        sendValue(proxySocket, REPLY_SUCCESS, true);
-        auto command = std::vector<Messaging::Message> {};
+        auto routing_id = Message {};
+        routing_id.copy(routingId);
+        sendMessage(proxySocket, std::move(routing_id), true);
+        sendEmptyMessage(proxySocket, true);
+        const auto reply_buffer = messageBuffer(
+            &REPLY_SUCCESS, sizeof(REPLY_SUCCESS));
+        sendMessage(proxySocket, reply_buffer, true);
+        auto command = std::vector<Message> {};
         makeCommand(
             std::back_inserter(command), JsonSerializer {},
             std::forward<Args>(args)...);
         for (auto& part : command) {
-            proxySocket.send(
-                part, (&part != &command.back()) ? ZMQ_SNDMORE : 0);
+            sendMessage(proxySocket, part, &part != &command.back());
         }
         const auto sockets = protocol.getSockets();
         const auto iter = sockets.begin();
@@ -143,9 +145,9 @@ protected:
         }
     }
 
-    Messaging::MessageContext context;
-    Messaging::Message routingId;
-    Messaging::Socket proxySocket {context, Messaging::SocketType::router};
+    MessageContext context;
+    Message routingId;
+    Socket proxySocket {context, SocketType::router};
     CardServerProxy protocol {context, nullptr, CONTROL_ENDPOINT};
     std::vector<std::optional<CardType>> allCards;
 };

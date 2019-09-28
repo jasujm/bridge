@@ -1,6 +1,7 @@
-#include "messaging/MessageHelper.hh"
 #include "messaging/MessageLoop.hh"
+#include "messaging/MessageUtility.hh"
 #include "messaging/Sockets.hh"
+#include "Blob.hh"
 #include "MockMessageLoopCallback.hh"
 
 #include <boost/range/combine.hpp>
@@ -11,17 +12,18 @@
 #include <csignal>
 #include <string>
 
+using namespace Bridge::BlobLiterals;
 using namespace Bridge::Messaging;
+using namespace std::string_literals;
 
 using testing::_;
 using testing::Ref;
 using testing::Invoke;
 
 namespace {
-using namespace std::string_literals;
 constexpr auto N_SOCKETS = 2;
-const auto DEFAULT_MSG = "default"s;
-const auto OTHER_MSG = "other"s;
+constexpr auto DEFAULT_MSG = "default"_BS;
+constexpr auto OTHER_MSG = "other"_BS;
 }
 
 class MessageLoopTest : public testing::Test {
@@ -33,8 +35,10 @@ protected:
                 Invoke(
                     [this](auto& socket)
                     {
-                        const auto msg = recvMessage<std::string>(socket);
-                        EXPECT_EQ(std::make_pair(DEFAULT_MSG, false), msg);
+                        auto msg = Message {};
+                        recvMessage(socket, msg);
+                        EXPECT_EQ(DEFAULT_MSG, messageView(msg));
+                        EXPECT_FALSE(msg.more());
                         std::raise(SIGTERM);
                     }));
             t.get<2>()->bind(t.get<0>());
@@ -70,7 +74,7 @@ protected:
 TEST_F(MessageLoopTest, testSingleMessage)
 {
     EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0])));
-    sendMessage(frontSockets[0], DEFAULT_MSG);
+    sendMessage(frontSockets[0], messageBuffer(DEFAULT_MSG));
     loop.run();
 }
 
@@ -81,12 +85,14 @@ TEST_F(MessageLoopTest, testMultipleMessages)
             Invoke(
                 [this](auto& socket)
                 {
-                    const auto msg = recvMessage<std::string>(socket);
-                    EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
-                    sendMessage(frontSockets[1], DEFAULT_MSG);
+                    auto msg = Message {};
+                    recvMessage(socket, msg);
+                    EXPECT_EQ(OTHER_MSG, messageView(msg));
+                    EXPECT_FALSE(msg.more());
+                    sendMessage(frontSockets[1], messageBuffer(DEFAULT_MSG));
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
-    sendMessage(frontSockets[0], OTHER_MSG);
+    sendMessage(frontSockets[0], messageBuffer(OTHER_MSG));
     loop.run();
 }
 
@@ -97,23 +103,25 @@ TEST_F(MessageLoopTest, testTerminate)
             Invoke(
                 [this](auto& socket)
                 {
-                    const auto msg = recvMessage<std::string>(socket);
-                    EXPECT_EQ(std::make_pair(OTHER_MSG, false), msg);
+                    auto msg = Message {};
+                    recvMessage(socket, msg);
+                    EXPECT_EQ(OTHER_MSG, messageView(msg));
+                    EXPECT_FALSE(msg.more());
                     std::raise(SIGTERM);
                 }));
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1]))).Times(0);
     auto termination_subscriber = loop.createTerminationSubscriber();
-    sendMessage(frontSockets[0], OTHER_MSG);
+    sendMessage(frontSockets[0], messageBuffer(OTHER_MSG));
     loop.run();
     auto msg = Message {};
-    EXPECT_TRUE(termination_subscriber.recv(&msg, ZMQ_DONTWAIT));
+    EXPECT_TRUE(recvMessageNonblocking(termination_subscriber, msg));
 }
 
 TEST_F(MessageLoopTest, testRemove)
 {
     loop.removePollable(*backSockets[0]);
-    sendMessage(frontSockets[0], DEFAULT_MSG);
-    sendMessage(frontSockets[1], DEFAULT_MSG);
+    sendMessage(frontSockets[0], messageBuffer(DEFAULT_MSG));
+    sendMessage(frontSockets[1], messageBuffer(DEFAULT_MSG));
     EXPECT_CALL(callbacks[0], call(_)).Times(0);
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
     loop.run();

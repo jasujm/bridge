@@ -14,14 +14,16 @@
 namespace Bridge {
 namespace CardServer {
 
+using namespace Messaging;
+
 PeerSocketProxy::PeerSocketProxy(
-    Messaging::MessageContext& context, Messaging::Socket peerServerSocket,
-    std::vector<Messaging::Socket> peerClientSockets,
+    MessageContext& context, Socket peerServerSocket,
+    std::vector<Socket> peerClientSockets,
     const int selfOrder, AuthorizationFunction authorizer) :
     selfOrder {static_cast<OrderParameter>(selfOrder)},
     authorizer {std::move(authorizer)},
     peerServerSocket {
-        Messaging::makeSharedSocket(std::move(peerServerSocket))}
+        makeSharedSocket(std::move(peerServerSocket))}
 {
     const auto n_peer_sockets = peerClientSockets.size();
     peerClientSockets.reserve(n_peer_sockets);
@@ -29,18 +31,15 @@ PeerSocketProxy::PeerSocketProxy(
     streamSockets.reserve(n_peer_sockets);
     for (const auto n : to(n_peer_sockets)) {
         this->peerClientSockets.emplace_back(
-            Messaging::makeSharedSocket(
-                std::move(peerClientSockets[n])));
+            makeSharedSocket(std::move(peerClientSockets[n])));
         const auto endpoint = boost::format(
             "inproc://bridge.cardserver.peersocketproxy.%1%.peer%2%")
             % this % n;
         const auto endpoint_str = endpoint.str();
-        auto front_socket = Messaging::makeSharedSocket(
-            context, Messaging::SocketType::pair);
+        auto front_socket = makeSharedSocket(context, SocketType::pair);
         front_socket->connect(endpoint_str);
         frontStreamSockets.emplace_back(std::move(front_socket));
-        auto back_socket = Messaging::makeSharedSocket(
-            context, Messaging::SocketType::pair);
+        auto back_socket = makeSharedSocket(context, SocketType::pair);
         back_socket->bind(endpoint_str);
         streamSockets.emplace_back(std::move(back_socket));
     }
@@ -71,30 +70,37 @@ PeerSocketProxy::SocketVector PeerSocketProxy::getStreamSockets()
 }
 
 void PeerSocketProxy::internalHandleMessageToPeer(
-    Messaging::Socket& peerSocket, Messaging::Socket& clientSocket)
+    Socket& peerSocket, Socket& clientSocket)
 {
-    clientSocket.send("", 0, ZMQ_SNDMORE);
+    sendEmptyMessage(clientSocket, true);
     const auto self_order_buffer = boost::endian::native_to_big(selfOrder);
-    clientSocket.send(&self_order_buffer, sizeof(OrderParameter), ZMQ_SNDMORE);
-    Messaging::forwardMessage(peerSocket, clientSocket);
+    sendMessage(
+        clientSocket,
+        messageBuffer(&self_order_buffer, sizeof(OrderParameter)), true);
+    forwardMessage(peerSocket, clientSocket);
 }
 
-void PeerSocketProxy::internalHandleMessageFromPeer(Messaging::Socket& socket)
+void PeerSocketProxy::internalHandleMessageFromPeer(Socket& socket)
 {
     if (&socket == peerServerSocket.get()) {
-        auto router_id_frame = std::optional<Messaging::Message> {};
-        auto msg = Messaging::Message {};
-        for (socket.recv(&msg); msg.size() != 0u; socket.recv(&msg)) {
+        auto router_id_frame = std::optional<Message> {};
+        auto msg = Message {};
+        while (true) {
+            recvMessage(socket, msg);
+            if (!msg.more()) {
+                return;
+            } else if (msg.size() == 0u) {
+                break;
+            }
             router_id_frame = std::move(msg);
         }
         // discard the empty message that caused exit from the loop, receive
         // first payload frame
-        socket.recv(&msg);
-        auto identity = Messaging::identityFromMessage(
-            msg, getPtr(router_id_frame));
+        recvMessage(socket, msg);
+        auto identity = identityFromMessage(msg, getPtr(router_id_frame));
         if (msg.more()) {
             if (msg.size() != sizeof(OrderParameter)) {
-                Messaging::discardMessage(socket);
+                discardMessage(socket);
                 return;
             }
             auto peer_order = OrderParameter {};
@@ -103,7 +109,7 @@ void PeerSocketProxy::internalHandleMessageFromPeer(Messaging::Socket& socket)
             if (peer_order == selfOrder ||
                 peer_order > frontStreamSockets.size() ||
                 !authorizer(identity, peer_order)) {
-                Messaging::discardMessage(socket);
+                discardMessage(socket);
                 return;
             }
             // There is no external peer with the same order as self, so the
@@ -113,7 +119,7 @@ void PeerSocketProxy::internalHandleMessageFromPeer(Messaging::Socket& socket)
                 --peer_order;
             }
             assert(frontStreamSockets[peer_order]);
-            Messaging::forwardMessage(socket, *frontStreamSockets[peer_order]);
+            forwardMessage(socket, *frontStreamSockets[peer_order]);
         }
     }
 }

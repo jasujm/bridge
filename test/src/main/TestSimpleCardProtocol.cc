@@ -10,7 +10,6 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageHandler.hh"
-#include "messaging/MessageHelper.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Sockets.hh"
@@ -64,12 +63,6 @@ void assertCardManagerHasShuffledDeck(Engine::CardManager& cardManager)
             boost::make_transform_iterator(hand->end(), get_type_func)));
 }
 
-MATCHER(IsShuffledDeck, "")
-{
-    const auto cards = JsonSerializer::deserialize<CardVector>(arg);
-    return isShuffledDeck(cards.begin(), cards.end());
-}
-
 const auto ENDPOINT = "inproc://test"s;
 const auto LEADER = Identity { ""s, "leader"_B };
 const auto PEER = Identity { ""s, "peer"_B };
@@ -99,15 +92,15 @@ protected:
             {}, identity, args.begin(), args.end(), response);
     }
 
-    Messaging::MessageContext context;
-    Messaging::Socket backSocket {context, Messaging::SocketType::dealer};
-    Messaging::SharedSocket frontSocket;
+    MessageContext context;
+    Socket backSocket {context, SocketType::dealer};
+    SharedSocket frontSocket;
     std::shared_ptr<MockCallbackScheduler> callbackScheduler {
         std::make_shared<MockCallbackScheduler>()};
     std::shared_ptr<PeerCommandSender> peerCommandSender {
         std::make_shared<PeerCommandSender>(callbackScheduler)};
     SimpleCardProtocol protocol {GAME_UUID, peerCommandSender};
-    std::shared_ptr<Messaging::MessageHandler> dealHandler {
+    std::shared_ptr<MessageHandler> dealHandler {
         protocol.getDealMessageHandler()};
 };
 
@@ -126,13 +119,28 @@ TEST_F(SimpleCardProtocolTest, testLeader)
 
     assertCardManagerHasShuffledDeck(*card_manager);
 
-    auto command = std::vector<std::string> {};
-    recvAll<std::string>(std::back_inserter(command), backSocket);
-    EXPECT_THAT(
-        command,
-        ElementsAre(
-            DEAL_COMMAND, GAME_COMMAND, JsonSerializer::serialize(GAME_UUID),
-            CARDS_COMMAND, IsShuffledDeck()));
+    auto message = Message {};
+    recvMessage(backSocket, message);
+    EXPECT_EQ(0u, message.size());
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
+    EXPECT_EQ(asBytes(DEAL_COMMAND), messageView(message));
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
+    EXPECT_EQ(asBytes(GAME_COMMAND), messageView(message));
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
+    EXPECT_EQ(
+        asBytes(JsonSerializer::serialize(GAME_UUID)), messageView(message));
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
+    EXPECT_EQ(asBytes(CARDS_COMMAND), messageView(message));
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
+    const auto cards =
+        JsonSerializer::deserialize<CardVector>(messageView(message));
+    EXPECT_TRUE(isShuffledDeck(cards.begin(), cards.end()));
+    EXPECT_FALSE(message.more());
 }
 
 TEST_F(SimpleCardProtocolTest, testNotLeader)

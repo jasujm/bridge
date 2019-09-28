@@ -13,17 +13,19 @@ namespace Messaging {
 
 namespace {
 
-using namespace std::string_view_literals;
-const auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"sv;
-const auto CONTROL_ENDPOINT = "inproc://bridge.authenticator.control"sv;
-const auto ZAP_VERSION = "1.0"sv;
-const auto ZAP_SUCCESS = "200"sv;
-const auto ZAP_ERROR = "400"sv;
-const auto ZAP_STATUS = "OK"sv;
-const auto ZAP_STATUS_ERROR = "Error"sv;
-const auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
-const auto CURVE_MECHANISM = "CURVE"sv;
-const auto ANONYMOUS_USER_ID = "anonymous"sv;
+using namespace std::string_literals;
+using namespace Bridge::BlobLiterals;
+
+const auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"s;
+const auto CONTROL_ENDPOINT = "inproc://bridge.authenticator.control"s;
+constexpr auto ZAP_VERSION = "1.0"_BS;
+constexpr auto ZAP_SUCCESS = "200"_BS;
+constexpr auto ZAP_ERROR = "400"_BS;
+constexpr auto ZAP_STATUS = "OK"_BS;
+constexpr auto ZAP_STATUS_ERROR = "Error"_BS;
+constexpr auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
+constexpr auto CURVE_MECHANISM = "CURVE"_BS;
+const auto ANONYMOUS_USER_ID = "anonymous"s;
 
 enum class AuthenticatorCommand {
     SYNC,
@@ -37,12 +39,11 @@ void zapServer(
     auto control_socket = Socket {context, SocketType::rep};
     control_socket.bind(CONTROL_ENDPOINT.data());
     auto zap_socket = Socket {context, SocketType::rep};
-    zap_socket.bind(ZAP_ENDPOINT.data());
-    using Pi = Pollitem;
+    zap_socket.bind(ZAP_ENDPOINT);
     auto pollitems = std::array {
-        Pi { static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
-        Pi { static_cast<void*>(control_socket), 0, ZMQ_POLLIN, 0 },
-        Pi { static_cast<void*>(zap_socket), 0, ZMQ_POLLIN, 0 },
+        Pollitem { terminationSubscriber.handle(), 0, ZMQ_POLLIN, 0 },
+        Pollitem { control_socket.handle(), 0, ZMQ_POLLIN, 0 },
+        Pollitem { zap_socket.handle(), 0, ZMQ_POLLIN, 0 },
     };
     while (true) {
         pollSockets(pollitems);
@@ -51,19 +52,20 @@ void zapServer(
         }
         if (pollitems[1].revents & ZMQ_POLLIN) {
             auto command = AuthenticatorCommand {};
-            control_socket.recv(&command, sizeof(command));
+            recvMessage(
+                control_socket, messageBuffer(&command, sizeof(command)));
             if (command == AuthenticatorCommand::ADD_NODE) {
                 auto key_msg = Message {};
-                control_socket.recv(&key_msg);
+                recvMessage(control_socket, key_msg);
                 const auto key_view = messageView(key_msg);
                 auto user_id_msg = Message {};
-                control_socket.recv(&user_id_msg);
+                recvMessage(control_socket, user_id_msg);
                 knownNodes.insert_or_assign(
                     Blob(key_view.begin(), key_view.end()),
                     UserId(user_id_msg.data<char>(), user_id_msg.size()));
             }
             assert(!control_socket.getsockopt<int>(ZMQ_RCVMORE));
-            control_socket.send("", 0);
+            sendEmptyMessage(control_socket);
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {
             auto input_frames =
@@ -100,22 +102,14 @@ void zapServer(
                 }
             }
 
-            zap_socket.send(
-                ZAP_VERSION.data(), ZAP_VERSION.size(), ZMQ_SNDMORE);
-            zap_socket.send(input_frames[1], ZMQ_SNDMORE); // request id
-            zap_socket.send(status_code_message, ZMQ_SNDMORE);
-            zap_socket.send(status_text_message, ZMQ_SNDMORE);
-            zap_socket.send(user_id_message, ZMQ_SNDMORE);
-            zap_socket.send("", 0);
+            sendMessage(zap_socket, messageBuffer(ZAP_VERSION), true);
+            sendMessage(zap_socket, std::move(input_frames[1]), true);
+            sendMessage(zap_socket, std::move(status_code_message), true);
+            sendMessage(zap_socket, std::move(status_text_message), true);
+            sendMessage(zap_socket, std::move(user_id_message), true);
+            sendEmptyMessage(zap_socket);
         }
     }
-}
-
-void recvReplyFromZapThread(Socket& socket)
-{
-    Message reply_msg;
-    socket.recv(&reply_msg);
-    assert(!reply_msg.more());
 }
 
 }
@@ -134,17 +128,17 @@ Authenticator::Authenticator(
 void Authenticator::ensureRunning()
 {
     const auto cmd_buffer = AuthenticatorCommand::SYNC;
-    controlSocket.send(&cmd_buffer, sizeof(cmd_buffer));
-    recvReplyFromZapThread(controlSocket);
+    sendMessage(controlSocket, messageBuffer(&cmd_buffer, sizeof(cmd_buffer)));
+    discardMessage(controlSocket);
 }
 
 void Authenticator::addNode(const ByteSpan key, const UserIdView userId)
 {
     const auto cmd_buffer = AuthenticatorCommand::ADD_NODE;
-    controlSocket.send(&cmd_buffer, sizeof(cmd_buffer), ZMQ_SNDMORE);
-    controlSocket.send(key.data(), key.size(), ZMQ_SNDMORE);
-    controlSocket.send(userId.data(), userId.size());
-    recvReplyFromZapThread(controlSocket);
+    sendMessage(controlSocket, messageBuffer(&cmd_buffer, sizeof(cmd_buffer)), true);
+    sendMessage(controlSocket, messageBuffer(key), true);
+    sendMessage(controlSocket, messageBuffer(userId));
+    discardMessage(controlSocket);
 }
 
 }

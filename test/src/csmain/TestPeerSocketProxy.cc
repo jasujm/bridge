@@ -13,7 +13,7 @@
 #include <string>
 
 using namespace Bridge::Messaging;
-using Bridge::asBytes;
+using Bridge::ByteSpan;
 using Bridge::dereference;
 using Bridge::CardServer::PeerSocketProxy;
 
@@ -32,8 +32,8 @@ const auto SELF_ENDPOINT = "inproc://bridge.test.peersocketproxy.self"s;
 const auto PEER1_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer1"s;
 const auto PEER3_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer3"s;
 const auto PEER_IDENTITY = "peer"_B;
-const auto MESSAGE = "message"s;
-const auto ORDER = OrderParameter {1};
+constexpr auto MESSAGE = "message"_BS;
+constexpr auto ORDER = OrderParameter {1};
 
 class MockAuthorizationFunction {
 public:
@@ -66,36 +66,39 @@ protected:
     }
 
     void testIncomingMessageHelper(
-        auto order, std::optional<std::string> message,
-        std::optional<std::string> peer1Message,
-        std::optional<std::string> peer3Message)
+        auto order, std::optional<ByteSpan> message,
+        std::optional<ByteSpan> peer1Message,
+        std::optional<ByteSpan> peer3Message,
+        bool skipEmptyFrame = false)
     {
         auto socket = Socket {context, SocketType::dealer};
         socket.setsockopt(
             ZMQ_IDENTITY, PEER_IDENTITY.data(), PEER_IDENTITY.size());
         socket.connect(SELF_ENDPOINT);
         const auto order_parameter = boost::endian::native_to_big(order);
-        socket.send("", 0, ZMQ_SNDMORE);
-        socket.send(
-            &order_parameter,
-            sizeof(order_parameter), message ? ZMQ_SNDMORE : 0);
+        if (!skipEmptyFrame) {
+            sendEmptyMessage(socket, true);
+        }
+        const auto order_parameter_buffer =
+            messageBuffer(&order_parameter, sizeof(order_parameter));
+        sendMessage(socket, order_parameter_buffer, bool(message));
         if (message) {
-            socket.send(message->data(), message->size());
+            sendMessage(socket, messageBuffer(*message));
         }
         pollAndDispatch();
         const auto stream_sockets = proxy.getStreamSockets();
         auto msg = Message {};
-        auto msg_received = dereference(stream_sockets.at(0))
-            .recv(&msg, ZMQ_DONTWAIT);
-        EXPECT_EQ(bool(peer1Message), msg_received);
+        auto recv_result =
+            recvMessageNonblocking(dereference(stream_sockets.at(0)), msg);
+        EXPECT_EQ(bool(peer1Message), bool(recv_result));
         if (peer1Message) {
-            EXPECT_EQ(asBytes(*peer1Message), messageView(msg));
+            EXPECT_EQ(*peer1Message, messageView(msg));
         }
-        msg_received = dereference(stream_sockets.at(1))
-            .recv(&msg, ZMQ_DONTWAIT);
-        EXPECT_EQ(bool(peer3Message), msg_received);
+        recv_result =
+            recvMessageNonblocking(dereference(stream_sockets.at(1)), msg);
+        EXPECT_EQ(bool(peer3Message), bool(recv_result));
         if (peer3Message) {
-            EXPECT_EQ(asBytes(*peer3Message), messageView(msg));
+            EXPECT_EQ(*peer3Message, messageView(msg));
         }
     }
 
@@ -104,22 +107,22 @@ protected:
         auto socket = Socket {context, SocketType::dealer};
         socket.bind(peerEndpoint);
         const auto stream_sockets = proxy.getStreamSockets();
-        dereference(stream_sockets.at(peerIndex))
-            .send(MESSAGE.data(), MESSAGE.size());
+        sendMessage(
+            dereference(stream_sockets.at(peerIndex)), messageBuffer(MESSAGE));
         pollAndDispatch();
         auto msg = Message {};
-        const auto msg_received = socket.recv(&msg, ZMQ_DONTWAIT);
-        EXPECT_TRUE(msg_received);
+        const auto recv_result = recvMessageNonblocking(socket, msg);
+        EXPECT_TRUE(recv_result);
         EXPECT_EQ(0u, msg.size());
         ASSERT_TRUE(msg.more());
-        socket.recv(&msg);
+        recvMessage(socket, msg);
         auto order_parameter = OrderParameter {};
         ASSERT_EQ(sizeof(OrderParameter), msg.size());
         std::memcpy(&order_parameter, msg.data(), sizeof(OrderParameter));
         EXPECT_EQ(ORDER, boost::endian::big_to_native(order_parameter));
         ASSERT_TRUE(msg.more());
-        socket.recv(&msg);
-        EXPECT_EQ(asBytes(MESSAGE), messageView(msg));
+        recvMessage(socket, msg);
+        EXPECT_EQ(MESSAGE, messageView(msg));
         EXPECT_FALSE(msg.more());
     }
 
@@ -157,6 +160,12 @@ TEST_F(PeerSocketProxyTest, testMessageFromPeerHighOrder)
 {
     testIncomingMessageHelper(
         OrderParameter {2}, MESSAGE, std::nullopt, MESSAGE);
+}
+
+TEST_F(PeerSocketProxyTest, testMessageMissingEmptyFrame)
+{
+    testIncomingMessageHelper(
+        OrderParameter {0}, MESSAGE, std::nullopt, std::nullopt, true);
 }
 
 TEST_F(PeerSocketProxyTest, testNoMessage)

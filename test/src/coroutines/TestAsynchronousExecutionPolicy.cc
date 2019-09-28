@@ -34,7 +34,7 @@ using MockAsynchronousMessageHandler =
 
 using namespace Bridge::BlobLiterals;
 using namespace std::string_literals;
-const auto COMMAND = "command"_B;
+constexpr auto COMMAND = "command"_BS;
 const auto MQ_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.mq"s;
 const auto CORO_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.coro"s;
 
@@ -47,7 +47,7 @@ protected:
     {
         messageQueue.addExecutionPolicy(
             AsynchronousExecutionPolicy {poller, callbackScheduler});
-        messageQueue.trySetHandler(asBytes(COMMAND), handler);
+        messageQueue.trySetHandler(COMMAND, handler);
     }
 
     auto createCoroutine()
@@ -56,9 +56,9 @@ protected:
         {
             ensureSocketReadable(context, coroSockets.first);
             auto status = StatusCode {};
-            const auto n_recv = coroSockets.first->recv(
-                &status, sizeof(status));
-            ASSERT_EQ(n_recv, sizeof(status));
+            const auto recv_result = recvMessage(
+                *coroSockets.first, messageBuffer(&status, sizeof(status)));
+            ASSERT_FALSE(recv_result.truncated());
             response.setStatus(status);
         };
     }
@@ -86,7 +86,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
 {
     // Invoke coroutine by sending command to message queue socket
     auto socketCallback = Poller::SocketCallback {};
-    messageQueueSockets.second.send(COMMAND.data(), COMMAND.size());
+    sendMessage(messageQueueSockets.second, messageBuffer(COMMAND));
     EXPECT_CALL(*handler, doHandle(_, _, IsEmpty(), _)).WillOnce(
         WithArgs<0, 3>(Invoke(createCoroutine())));
     EXPECT_CALL(*poller, handleAddPollable(coroSockets.first, _)).WillOnce(
@@ -95,7 +95,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
 
     // Send status to coroutine communication socket
     const auto status = GetParam();
-    coroSockets.second.send(&status, sizeof(status));
+    sendMessage(coroSockets.second, messageBuffer(&status, sizeof(status)));
     ASSERT_TRUE(socketCallback);
     socketCallback(*coroSockets.first);
 
@@ -107,7 +107,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
     EXPECT_EQ(EXPECTED_N_PARTS, n_parts);
     EXPECT_EQ(
         status, boost::endian::big_to_native(*reply[0].data<StatusCode>()));
-    EXPECT_EQ(asBytes(COMMAND), messageView(reply[1]));
+    EXPECT_EQ(COMMAND, messageView(reply[1]));
 }
 
 INSTANTIATE_TEST_CASE_P(

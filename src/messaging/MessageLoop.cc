@@ -102,8 +102,9 @@ MessageLoop::Impl::SignalGuard::SignalGuard(Impl& impl)
         }
         log(LogLevel::DEBUG, "Signal received: %s", strsignal(fdsi.ssi_signo));
         if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
-            impl.terminationPublisher.send(
-                &fdsi.ssi_signo, sizeof(fdsi.ssi_signo));
+            sendMessage(
+                impl.terminationPublisher,
+                messageBuffer(&fdsi.ssi_signo, sizeof(fdsi.ssi_signo)));
             signalReceived = true;
         }
     };
@@ -134,7 +135,7 @@ void MessageLoop::Impl::addPollable(
     PollableSocket socket, SocketCallback callback)
 {
     assert(socket);
-    pollitems.push_back({ static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0 });
+    pollitems.push_back({ socket->handle(), 0, ZMQ_POLLIN, 0 });
     try {
         callbacks.emplace_back(
             SocketCallbackPair {std::move(callback), std::move(socket)});
@@ -148,7 +149,7 @@ void MessageLoop::Impl::removePollable(Socket& socket)
 {
     const auto iter = std::find_if(
         pollitems.begin(), pollitems.end(),
-        [socket_ptr = static_cast<void*>(socket)](const auto& pollitem)
+        [socket_ptr = socket.handle()](const auto& pollitem)
         {
             return pollitem.socket == socket_ptr;
         });

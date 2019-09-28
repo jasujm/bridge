@@ -17,7 +17,7 @@ inline void pollAndExecuteCallbacks(PollingCallbackScheduler& scheduler)
     using namespace std::chrono_literals;
     auto socket = scheduler.getSocket();
     auto pollitems = std::array {
-        Pollitem { static_cast<void*>(*socket), 0, ZMQ_POLLIN, 0 }
+        Pollitem { socket->handle(), 0, ZMQ_POLLIN, 0 }
     };
     pollSockets(pollitems, 100ms);
     ASSERT_TRUE(pollitems[0].revents & ZMQ_POLLIN);

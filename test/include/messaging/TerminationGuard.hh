@@ -6,6 +6,7 @@
 #ifndef MESSAGING_TERMINATIONGUARD_HH_
 #define MESSAGING_TERMINATIONGUARD_HH_
 
+#include "messaging/MessageUtility.hh"
 #include "messaging/Sockets.hh"
 
 #include <string>
@@ -36,13 +37,13 @@ public:
      *
      * \return
      */
-    static Messaging::Socket createTerminationSubscriber(Messaging::MessageContext& context);
+    static Socket createTerminationSubscriber(MessageContext& context);
 
     /** \brief Create new termination guard
      *
      * \param context The ZeroMQ context
      */
-    TerminationGuard(Messaging::MessageContext& context);
+    TerminationGuard(MessageContext& context);
 
     /** \brief Publish termination notification
      */
@@ -53,27 +54,27 @@ private:
     static inline const std::string ENDPOINT {
         "inproc://bridge.terminationguard"};
 
-    Messaging::Socket terminationPublisher;
+    Socket terminationPublisher;
 };
 
-inline Messaging::Socket
-TerminationGuard::createTerminationSubscriber(Messaging::MessageContext& context)
+inline Socket
+TerminationGuard::createTerminationSubscriber(MessageContext& context)
 {
-    auto socket = Messaging::Socket {context, Messaging::SocketType::sub};
+    auto socket = Socket {context, SocketType::sub};
     socket.setsockopt(ZMQ_SUBSCRIBE, "", 0);
     socket.connect(ENDPOINT);
     return socket;
 }
 
-inline TerminationGuard::TerminationGuard(Messaging::MessageContext& context) :
-    terminationPublisher {context, Messaging::SocketType::pub}
+inline TerminationGuard::TerminationGuard(MessageContext& context) :
+    terminationPublisher {context, SocketType::pub}
 {
     terminationPublisher.bind(ENDPOINT);
 }
 
 inline TerminationGuard::~TerminationGuard()
 {
-    terminationPublisher.send("", 0);
+    sendEmptyMessage(terminationPublisher);
 }
 
 }

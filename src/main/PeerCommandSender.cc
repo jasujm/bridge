@@ -98,8 +98,8 @@ void PeerCommandSender::internalSendMessage(Messaging::Socket& socket)
     sendEmptyFrameIfNecessary(socket);
     for (auto&& e : enumerate(message)) {
         auto msg = Messaging::Message {};
-        msg.copy(&e.second);
-        socket.send(msg, e.first + 1 < ssize(message) ? ZMQ_SNDMORE : 0);
+        msg.copy(e.second);
+        sendMessage(socket, std::move(msg), e.first + 1 < ssize(message));
     }
 }
 

@@ -92,7 +92,7 @@ int BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::sync()
 {
     const auto& msg = this->str();
     if (!msg.empty()) {
-        dereference(this->socket).send(msg.data(), msg.size() * sizeof(Char));
+        sendMessage(dereference(this->socket), messageBuffer(msg));
         this->str({});
     }
     return 0;
@@ -114,7 +114,7 @@ BasicMessageBuffer<Char, Traits, Allocator, ExecutionContext>::underflow()
     auto size = 0u;
     do {
         ensureSocketReadable(context, socket);
-        dereference(socket).recv(&msg);
+        recvMessage(dereference(socket), msg);
         size = msg.size();
     } while (size == 0u);
     const auto* data = msg.data<Char>();

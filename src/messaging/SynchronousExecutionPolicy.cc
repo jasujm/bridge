@@ -11,7 +11,7 @@ void ensureSocketReadable(SynchronousExecutionContext&, SharedSocket socket)
     auto& socket_ref = dereference(socket);
     while (!(socket_ref.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN)) {
         auto item = std::array {
-            Pollitem { static_cast<void*>(socket_ref), 0, ZMQ_POLLIN, 0 }
+            Pollitem { socket_ref.handle(), 0, ZMQ_POLLIN, 0 }
         };
         pollSockets(item);
     }

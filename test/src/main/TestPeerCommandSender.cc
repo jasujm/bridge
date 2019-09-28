@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 
+using Bridge::asBytes;
 using namespace Bridge::Messaging;
 using testing::_;
 using testing::SaveArg;
@@ -46,10 +47,19 @@ protected:
 
     void checkMessage(Socket& socket, const std::string& command)
     {
-        ASSERT_EQ(std::make_pair(""s, true), recvMessage<std::string>(socket));
-        ASSERT_EQ(std::make_pair(command, true), recvMessage<std::string>(socket));
-        ASSERT_EQ(std::make_pair(KEY, true), recvMessage<std::string>(socket));
-        EXPECT_EQ(std::make_pair(ARG, false), recvMessage<std::string>(socket));
+        auto message = Message {};
+        recvMessage(socket, message);
+        EXPECT_EQ(0u, message.size());
+        ASSERT_TRUE(message.more());
+        recvMessage(socket, message);
+        EXPECT_EQ(asBytes(command), messageView(message));
+        ASSERT_TRUE(message.more());
+        recvMessage(socket, message);
+        EXPECT_EQ(asBytes(KEY), messageView(message));
+        ASSERT_TRUE(message.more());
+        recvMessage(socket, message);
+        EXPECT_EQ(asBytes(ARG), messageView(message));
+        EXPECT_FALSE(message.more());
     }
 
     void checkReceive(
@@ -57,10 +67,9 @@ protected:
         const std::string& command = DEFAULT)
     {
         const std::array<bool, N_SOCKETS> expect_recv {{recv1, recv2}};
-        using Pi = Pollitem;
         auto pollitems = std::array {
-            Pi { static_cast<void*>(frontSockets[0]), 0, ZMQ_POLLIN, 0 },
-            Pi { static_cast<void*>(frontSockets[1]), 0, ZMQ_POLLIN, 0 },
+            Pollitem { frontSockets[0].handle(), 0, ZMQ_POLLIN, 0 },
+            Pollitem { frontSockets[1].handle(), 0, ZMQ_POLLIN, 0 },
         };
         pollSockets(pollitems, 0);
         for (auto&& t : boost::combine(expect_recv, pollitems, frontSockets)) {
@@ -72,18 +81,11 @@ protected:
         }
     }
 
-    const std::array<std::string, 3> FAILURE_MESSAGE {
-        ""s, std::string(4, '\xff'), DEFAULT
-    };
-    const std::array<std::string, 3> SUCCESS_MESSAGE {
-        ""s, std::string(4, '\0'), DEFAULT
-    };
-
     MessageContext context;
-    std::array<std::string, N_SOCKETS> endpoints {{
-        "inproc://endpoint1",
-        "inproc://endpoint2",
-    }};
+    std::array<std::string, N_SOCKETS> endpoints {
+        "inproc://endpoint1"s,
+        "inproc://endpoint2"s,
+    };
     std::array<Socket, N_SOCKETS> frontSockets {
         Socket {context, SocketType::dealer},
         Socket {context, SocketType::dealer},
@@ -104,8 +106,10 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
 {
     sendCommand();
     checkReceive();
-    sendMessage(
-        frontSockets[0], FAILURE_MESSAGE.begin(), FAILURE_MESSAGE.end());
+    const auto failure_message = std::string(4, '\xff');
+    sendEmptyMessage(frontSockets[0], true);
+    sendMessage(frontSockets[0], messageBuffer(failure_message), true);
+    sendMessage(frontSockets[0], messageBuffer(DEFAULT));
     auto callback = MockCallbackScheduler::Callback {};
     EXPECT_CALL(*callbackScheduler, handleCallLater(_, _))
         .WillOnce(SaveArg<1>(&callback));
@@ -120,8 +124,11 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive();
     sendCommand(NEXT);
     checkReceive(false, false);
+    const auto success_message = std::string(4, '\0');
     for (auto&& t : boost::combine(frontSockets, backSockets)) {
-        sendMessage(t.get<0>(), SUCCESS_MESSAGE.begin(), SUCCESS_MESSAGE.end());
+        sendEmptyMessage(t.get<0>(), true);
+        sendMessage(t.get<0>(), messageBuffer(success_message), true);
+        sendMessage(t.get<0>(), messageBuffer(DEFAULT));
         sender(*t.get<1>());
     }
     checkReceive(true, true, NEXT);

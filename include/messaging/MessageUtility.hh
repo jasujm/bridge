@@ -25,10 +25,21 @@
 namespace Bridge {
 namespace Messaging {
 
+/** \brief Send an empty message
+ *
+ * \param socket the socket used to send the empty frame
+ * \param more if true, the message will be send with ZMQ_SNDMORE flag
+ */
+inline void sendEmptyMessage(Socket& socket, bool more = false)
+{
+    char buf[0];
+    sendMessage(socket, messageBuffer(buf, 0), more);
+}
+
 /** \brief Helper for sending empty frame for router and dealer socket
  *
  * Router and dealer sockets require that message is prepended with an empty
- * frame. If \p socket is router or dealer, this function sendds the empty
+ * frame. If \p socket is router or dealer, this function sends the empty
  * frame (the caller of the function can then send the rest of the
  * parts). Otherwise this function does nothing.
  *
@@ -42,7 +53,7 @@ inline void sendEmptyFrameIfNecessary(Socket& socket)
 {
     const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
     if (type == SocketType::router || type == SocketType::dealer) {
-        socket.send(Message {}, ZMQ_SNDMORE);
+        sendEmptyMessage(socket, true);
     }
 }
 
@@ -63,7 +74,7 @@ inline bool recvEmptyFrameIfNecessary(Socket& socket)
     const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
     if (type == SocketType::router || type == SocketType::dealer) {
         auto empty_frame = Message {};
-        socket.recv(&empty_frame);
+        recvMessage(socket, empty_frame);
         return empty_frame.more();
     }
     return true;
@@ -79,21 +90,16 @@ inline bool recvEmptyFrameIfNecessary(Socket& socket)
  * \param socket the socket
  * \param first iterator to the first frame to be sent
  * \param last iterator one past the last frame to be sent
- * \param flags flags to be passed to socket.send() method
- *
- * \note ZMQ_SNDMORE flag is always or’d with \p flags for all frames except the
- * last one. ZMQ_SNDMORE can still be passed as \p flags to this function, and
- * it will then be applied to the last frame too, allowing the multipart message
- * to continue after the parts sent using the function invocation.
+ * \param more if true, the last message will be sent with ZMQ_SNDMORE flag
  */
 template<typename MessageIterator>
 void sendMultipart(
     Socket& socket, MessageIterator first, MessageIterator last,
-    int flags = 0)
+    bool more = false)
 {
     while (first != last) {
         const auto next = std::next(first);
-        socket.send(*first, (next == last) ? flags : (flags | ZMQ_SNDMORE));
+        sendMessage(socket, std::move(*first), more || (next != last));
         first = next;
     }
 }
@@ -118,7 +124,7 @@ inline int discardMessage(
         if (n_parts >= maximumParts) {
             break;
         }
-        static_cast<void>(socket.recv(&buf, 0));
+        recvMessage(socket, messageBuffer(buf, 0));
         ++n_parts;
     } while (socket.getsockopt<int>(ZMQ_RCVMORE));
     return n_parts;
@@ -148,7 +154,7 @@ std::pair<MessageIterator, int> recvMultipart(
     auto more = true;
     while (more && n_parts < maximumParts) {
         auto next_message = Message {};
-        socket.recv(&next_message);
+        recvMessage(socket, next_message);
         more = next_message.more();
         *out++ = std::move(next_message);
         ++n_parts;
@@ -173,9 +179,9 @@ inline void forwardMessage(Socket& fromSocket, Socket& toSocket)
     auto more = true;
     auto msg = Message {};
     while (more) {
-        fromSocket.recv(&msg);
+        recvMessage(fromSocket, msg);
         more = msg.more();
-        toSocket.send(msg, more ? ZMQ_SNDMORE : 0);
+        sendMessage(toSocket, std::move(msg), more);
     }
 }
 

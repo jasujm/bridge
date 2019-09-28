@@ -124,9 +124,9 @@ void sendCommand(
             {
                 // const_cast because boost function output iterator passes the
                 // parameter as const although it's unnecessary here
-                socket.send(
-                    const_cast<Message&>(msg),
-                    count < 2 * sizeof...(params) ? ZMQ_SNDMORE : 0);
+                sendMessage(
+                    socket, std::move(const_cast<Message&>(msg)),
+                    count < 2 * sizeof...(params));
                 ++count;
             }),
         std::forward<SerializationPolicy>(serializer),

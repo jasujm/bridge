@@ -59,11 +59,10 @@ void callbackSchedulerWorker(
     bs.connect(bAddr);
     // Synchronize
     static_cast<void>(discardMessage(fs));
-    bs.send("", 0);
-    using Pi = Pollitem;
+    sendEmptyMessage(bs);
     auto pollitems = std::array {
-        Pi { static_cast<void*>(terminationSubscriber), 0, ZMQ_POLLIN, 0 },
-        Pi { static_cast<void*>(fs), 0, ZMQ_POLLIN, 0 },
+        Pollitem { terminationSubscriber.handle(), 0, ZMQ_POLLIN, 0 },
+        Pollitem { fs.handle(), 0, ZMQ_POLLIN, 0 },
     };
     while (true) {
         // Poll until it's time to execute the next callback
@@ -78,11 +77,14 @@ void callbackSchedulerWorker(
             const auto now = Clk::now();
             while (fs.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
                 auto info = CallbackInfo {};
-                [[maybe_unused]] const auto n_recv = fs.recv(&info, sizeof(info));
-                assert(n_recv == sizeof(info));
+                [[maybe_unused]] const auto recv_result = recvMessage(
+                    fs, messageBuffer(&info, sizeof(info)));
+                assert(!recv_result.truncated());
                 // No need to schedule anything if there is no timeout
                 if (info.timeout == Ms::zero()) {
-                    bs.send(&info.callback_id, sizeof(info.callback_id), ZMQ_DONTWAIT);
+                    const auto buffer = messageBuffer(
+                        &info.callback_id, sizeof(info.callback_id));
+                    static_cast<void>(sendMessageNonblocking(bs, buffer));
                 } else {
                     const auto callback_time = now + info.timeout;
                     queue.emplace(
@@ -94,9 +96,10 @@ void callbackSchedulerWorker(
         // its id back to PollingCallbackScheduler
         else {
             assert(!queue.empty());
-            const auto callback_id = queue.top().callback_id;
+            const auto cbid = queue.top().callback_id;
+            const auto buffer = messageBuffer(&cbid, sizeof(cbid));
             queue.pop();
-            bs.send(&callback_id, sizeof(callback_id), ZMQ_DONTWAIT);
+            static_cast<void>(sendMessageNonblocking(bs, buffer));
         }
     }
 }
@@ -124,7 +127,7 @@ PollingCallbackScheduler::PollingCallbackScheduler(
         callbackSchedulerWorker, std::ref(context), std::move(back_name),
         std::move(front_name), std::move(terminationSubscriber) };
     // Synchronize
-    frontSocket.send("", 0);
+    sendEmptyMessage(frontSocket);
     static_cast<void>(discardMessage(*backSocket));
 }
 
@@ -134,7 +137,8 @@ void PollingCallbackScheduler::handleCallLater(
     static unsigned long counter {};
     callbacks.emplace(counter, std::move(callback));
     auto info = CallbackInfo {timeout, counter};
-    frontSocket.send(&info, sizeof(info), ZMQ_DONTWAIT);
+    const auto buffer = messageBuffer(&info, sizeof(info));
+    static_cast<void>(sendMessageNonblocking(frontSocket, buffer));
     ++counter;
 }
 
@@ -148,9 +152,9 @@ void PollingCallbackScheduler::operator()(Socket& socket)
     if (&socket == backSocket.get()) {
         while (socket.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
             unsigned long callback_id {};
-            [[maybe_unused ]]const auto n_recv =
-                socket.recv(&callback_id, sizeof(callback_id));
-            assert(n_recv == sizeof(callback_id));
+            [[maybe_unused]] const auto recv_result = recvMessage(
+                socket, messageBuffer(&callback_id, sizeof(callback_id)));
+            assert(!recv_result.truncated());
             const auto iter = callbacks.find(callback_id);
             if (iter != callbacks.end()) {
                 const auto callback = std::move(iter->second);

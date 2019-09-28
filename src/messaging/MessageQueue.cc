@@ -17,9 +17,9 @@ MessageQueue::BasicResponse::BasicResponse(
 {
     assert(0 <= nPrefix && nPrefix < ssize(inputFrames));
     for (const auto n : to(nPrefix)) {
-        frames[n].move(&inputFrames[n]);
+        frames[n].move(inputFrames[n]);
     }
-    frames.back().move(&inputFrames[nPrefix]);
+    frames.back().move(inputFrames[nPrefix]);
 }
 
 void MessageQueue::BasicResponse::sendResponse(Socket& socket)

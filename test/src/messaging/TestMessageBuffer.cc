@@ -1,5 +1,4 @@
 #include "messaging/MessageBuffer.hh"
-#include "messaging/MessageHelper.hh"
 #include "messaging/Sockets.hh"
 
 #include <gtest/gtest.h>
@@ -13,7 +12,7 @@ namespace {
 using namespace std::string_literals;
 const auto ENDPOINT = "inproc://example"s;
 const auto MESSAGE = "message"s;
-const auto NUMBER = 123;
+constexpr auto NUMBER = 123;
 const auto WHOLE_MESSAGE = "message 123\n"s;
 }
 
@@ -37,8 +36,10 @@ TEST_F(MessageBufferTest, testOutputMessage)
     SynchronousMessageOStream out {std::move(frontSocket)};
     out << MESSAGE << " " << NUMBER << std::endl;
 
-    const auto message = recvMessage<std::string>(*backSocket);
-    EXPECT_EQ(std::make_pair(WHOLE_MESSAGE, false), message);
+    auto message = Message {};
+    recvMessage(*backSocket, message);
+    EXPECT_EQ(WHOLE_MESSAGE, std::string(message.data<char>(), message.size()));
+    EXPECT_FALSE(message.more());
 }
 
 TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
@@ -47,7 +48,7 @@ TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
     out.flush();
 
     auto pollitems = std::array {
-        Pollitem { static_cast<void*>(*backSocket), 0, ZMQ_POLLIN, 0 },
+        Pollitem { backSocket->handle(), 0, ZMQ_POLLIN, 0 },
     };
     pollSockets(pollitems, 0);
     EXPECT_FALSE(pollitems[0].revents & ZMQ_POLLIN);
@@ -55,7 +56,7 @@ TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
 
 TEST_F(MessageBufferTest, testInputMessage)
 {
-    sendMessage(*frontSocket, WHOLE_MESSAGE);
+    sendMessage(*frontSocket, messageBuffer(WHOLE_MESSAGE));
 
     SynchronousMessageIStream in {std::move(backSocket)};
 
