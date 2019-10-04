@@ -312,8 +312,8 @@ class CardServerMain::Impl {
 public:
     Impl(
         Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
-        const std::string& controlEndpoint,
-        const std::string& peerEndpoint);
+        std::string_view controlEndpoint,
+        std::string_view peerEndpoint);
     void run();
 
 private:
@@ -350,7 +350,8 @@ private:
 
 CardServerMain::Impl::Impl(
     Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
-    const std::string& controlEndpoint, const std::string& peerEndpoint) :
+    const std::string_view controlEndpoint,
+    const std::string_view peerEndpoint) :
     zContext {zContext},
     keys {std::move(keys)},
     peerEndpoint {peerEndpoint},
@@ -403,7 +404,7 @@ CardServerMain::Impl::Impl(
         zContext, Messaging::SocketType::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
-    controlSocket->bind(controlEndpoint);
+    Messaging::bindSocket(*controlSocket, controlEndpoint);
     messageLoop->addPollable(std::move(controlSocket), std::ref(messageQueue));
     messageLoop->addPollable(
         callbackScheduler->getSocket(),
@@ -563,7 +564,7 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
     peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     const auto* curve_keys_ptr = getPtr(keys);
     Messaging::setupCurveServer(peerServerSocket, curve_keys_ptr);
-    peerServerSocket.bind(peerEndpoint);
+    Messaging::bindSocket(peerServerSocket, peerEndpoint);
     auto peerClientSockets = std::vector<Messaging::Socket> {};
     peerClientSockets.reserve(peers.size());
     for (const auto& peer : peers) {
@@ -572,7 +573,7 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
         Messaging::setupCurveClient(
             socket, getPtr(curve_keys_ptr),
             peer.serverKey ? *peer.serverKey : ByteSpan {});
-        socket.connect(peer.endpoint);
+        Messaging::connectSocket(socket, peer.endpoint);
     }
     peerSocketProxy.emplace(
         zContext, std::move(peerServerSocket), std::move(peerClientSockets),
@@ -586,7 +587,7 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
 
 CardServerMain::CardServerMain(
     Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
-    const std::string& controlEndpoint, const std::string& peerEndpoint) :
+    const std::string_view controlEndpoint, const std::string_view peerEndpoint) :
     impl {
         std::make_unique<Impl>(
             zContext, std::move(keys), controlEndpoint, peerEndpoint)}

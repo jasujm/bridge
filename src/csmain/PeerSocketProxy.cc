@@ -37,10 +37,10 @@ PeerSocketProxy::PeerSocketProxy(
             % this % n;
         const auto endpoint_str = endpoint.str();
         auto front_socket = makeSharedSocket(context, SocketType::pair);
-        front_socket->connect(endpoint_str);
+        connectSocket(*front_socket, endpoint_str);
         frontStreamSockets.emplace_back(std::move(front_socket));
         auto back_socket = makeSharedSocket(context, SocketType::pair);
-        back_socket->bind(endpoint_str);
+        bindSocket(*back_socket, endpoint_str);
         streamSockets.emplace_back(std::move(back_socket));
     }
 }

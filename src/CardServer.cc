@@ -22,8 +22,8 @@ public:
     CardServerApp(
         Messaging::MessageContext& zmqctx,
         std::optional<Messaging::CurveKeys> keys,
-        const std::string& controlEndpoint,
-        const std::string& basePeerEndpoint) :
+        std::string_view controlEndpoint,
+        std::string_view basePeerEndpoint) :
         app {zmqctx, std::move(keys), controlEndpoint, basePeerEndpoint}
     {
         log(Bridge::LogLevel::INFO, "Setup completed");

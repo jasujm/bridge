@@ -13,11 +13,11 @@ namespace Messaging {
 
 namespace {
 
-using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 
-const auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"s;
-const auto CONTROL_ENDPOINT = "inproc://bridge.authenticator.control"s;
+constexpr auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"sv;
+constexpr auto CONTROL_ENDPOINT = "inproc://bridge.authenticator.control"sv;
 constexpr auto ZAP_VERSION = "1.0"_BS;
 constexpr auto ZAP_SUCCESS = "200"_BS;
 constexpr auto ZAP_ERROR = "400"_BS;
@@ -25,7 +25,7 @@ constexpr auto ZAP_STATUS = "OK"_BS;
 constexpr auto ZAP_STATUS_ERROR = "Error"_BS;
 constexpr auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
 constexpr auto CURVE_MECHANISM = "CURVE"_BS;
-const auto ANONYMOUS_USER_ID = "anonymous"s;
+constexpr auto ANONYMOUS_USER_ID = "anonymous"sv;
 
 enum class AuthenticatorCommand {
     SYNC,
@@ -37,9 +37,9 @@ void zapServer(
     Authenticator::NodeMap knownNodes)
 {
     auto control_socket = Socket {context, SocketType::rep};
-    control_socket.bind(CONTROL_ENDPOINT.data());
+    bindSocket(control_socket, CONTROL_ENDPOINT);
     auto zap_socket = Socket {context, SocketType::rep};
-    zap_socket.bind(ZAP_ENDPOINT);
+    bindSocket(zap_socket, ZAP_ENDPOINT);
     auto pollitems = std::array {
         Pollitem { terminationSubscriber.handle(), 0, ZMQ_POLLIN, 0 },
         Pollitem { control_socket.handle(), 0, ZMQ_POLLIN, 0 },
@@ -72,7 +72,7 @@ void zapServer(
                 std::array<Message, ZAP_EXPECTED_MESSAGE_SIZE> {};
             auto status_code_message = Message {};
             auto status_text_message = Message {};
-            auto user_id_message = Message {};
+            auto user_id_view = UserIdView {};
 
             const auto received_parts_info = recvMultipart(
                 zap_socket, input_frames.begin(), input_frames.size());
@@ -93,12 +93,9 @@ void zapServer(
                 const auto user_id_iter =
                     knownNodes.find(messageView(public_key_message));
                 if (user_id_iter != knownNodes.end()) {
-                    const auto& user_id_str = user_id_iter->second;
-                    user_id_message.rebuild(
-                        user_id_str.data(), user_id_str.size());
+                    user_id_view = user_id_iter->second;
                 } else {
-                    user_id_message.rebuild(
-                        ANONYMOUS_USER_ID.data(), ANONYMOUS_USER_ID.size());
+                    user_id_view = ANONYMOUS_USER_ID;
                 }
             }
 
@@ -106,7 +103,7 @@ void zapServer(
             sendMessage(zap_socket, std::move(input_frames[1]), true);
             sendMessage(zap_socket, std::move(status_code_message), true);
             sendMessage(zap_socket, std::move(status_text_message), true);
-            sendMessage(zap_socket, std::move(user_id_message), true);
+            sendMessage(zap_socket, messageBuffer(user_id_view), true);
             sendEmptyMessage(zap_socket);
         }
     }
@@ -122,7 +119,7 @@ Authenticator::Authenticator(
         zapServer, std::ref(context), std::move(terminationSubscriber),
         std::move(knownNodes)}
 {
-    controlSocket.connect(CONTROL_ENDPOINT.data());
+    connectSocket(controlSocket, CONTROL_ENDPOINT);
 }
 
 void Authenticator::ensureRunning()

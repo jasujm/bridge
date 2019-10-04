@@ -14,7 +14,7 @@
 
 using namespace Bridge::BlobLiterals;
 using namespace Bridge::Messaging;
-using namespace std::string_literals;
+using namespace std::string_view_literals;
 
 using testing::_;
 using testing::Ref;
@@ -24,13 +24,17 @@ namespace {
 constexpr auto N_SOCKETS = 2;
 constexpr auto DEFAULT_MSG = "default"_BS;
 constexpr auto OTHER_MSG = "other"_BS;
+constexpr auto ENDPOINTS = std::array {
+    "inproc://endpoint1"sv,
+    "inproc://endpoint2"sv,
+};
 }
 
 class MessageLoopTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (auto&& t : boost::combine(endpoints, frontSockets, backSockets, callbacks)) {
+        for (auto&& t : boost::combine(ENDPOINTS, frontSockets, backSockets, callbacks)) {
             ON_CALL(t.get<3>(), call(_)).WillByDefault(
                 Invoke(
                     [this](auto& socket)
@@ -41,8 +45,8 @@ protected:
                         EXPECT_FALSE(msg.more());
                         std::raise(SIGTERM);
                     }));
-            t.get<2>()->bind(t.get<0>());
-            t.get<1>().connect(t.get<0>());
+            bindSocket(*t.get<2>(), t.get<0>());
+            connectSocket(t.get<1>(), t.get<0>());
             loop.addPollable(
                 t.get<2>(),
                 [&callback = t.get<3>()](auto& socket)
@@ -53,10 +57,6 @@ protected:
     }
 
     MessageContext context;
-    std::array<std::string, N_SOCKETS> endpoints {
-        "inproc://endpoint1"s,
-        "inproc://endpoint2"s,
-    };
     std::array<Socket, N_SOCKETS> frontSockets {
         Socket {context, SocketType::dealer},
         Socket {context, SocketType::dealer},

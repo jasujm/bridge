@@ -45,6 +45,7 @@ using testing::IsEmpty;
 using testing::Return;
 
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 
 using ShufflingState = CardManager::ShufflingState;
@@ -55,13 +56,12 @@ namespace {
 
 const auto CARD_SERVER_ENDPOINT = "inproc://card-server"s;
 const auto CARD_SERVER_ENDPOINT2 = "inproc://card-server-2"s;
-const auto CONTROL_ENDPOINT = "inproc://control"s;
+constexpr auto CONTROL_ENDPOINT = "inproc://control"sv;
 const auto PEER = Identity { ""s, "peer"_B };
 const auto PEER_POSITIONS = CardProtocol::PositionVector {Position::SOUTH};
 const auto PEER2 = Identity { ""s, "peer2"_B };
 const auto PEER2_POSITIONS = CardProtocol::PositionVector {
     Position::NORTH, Position::WEST};
-const auto PEER_ENDPOINT = "inproc://control"s;
 const auto SELF_POSITIONS = CardProtocol::PositionVector {Position::EAST};
 
 MATCHER_P(
@@ -96,7 +96,7 @@ class CardServerProxyTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        proxySocket.bind(CONTROL_ENDPOINT);
+        bindSocket(proxySocket, CONTROL_ENDPOINT);
         allCards.resize(N_CARDS);
     }
 

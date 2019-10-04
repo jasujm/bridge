@@ -13,6 +13,7 @@
 #include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 #include <zmq.hpp>
 
@@ -90,6 +91,46 @@ template<typename... Args>
 auto makeSharedSocket(Args&&... args)
 {
     return std::make_shared<Socket>(std::forward<Args>(args)...);
+}
+
+/** \brief Wrapper over \c Socket::bind
+ *
+ * \param socket the socket to bind
+ * \param endpoint the endpoint
+ */
+inline void bindSocket(Socket& socket, std::string_view endpoint)
+{
+    socket.bind(endpoint.data());
+}
+
+/** \brief Wrapper over \c Socket::unbind
+ *
+ * \param socket the socket to unbind
+ * \param endpoint the endpoint
+ */
+inline void unbindSocket(Socket& socket, std::string_view endpoint)
+{
+    socket.unbind(endpoint.data());
+}
+
+/** \brief Wrapper over \c Socket::connect
+ *
+ * \param socket the socket to connect
+ * \param endpoint the endpoint
+ */
+inline void connectSocket(Socket& socket, std::string_view endpoint)
+{
+    socket.connect(endpoint.data());
+}
+
+/** \brief Wrapper over \c Socket::disconnect
+ *
+ * \param socket the socket to disconnect
+ * \param endpoint the endpoint
+ */
+inline void disconnectSocket(Socket& socket, std::string_view endpoint)
+{
+    socket.disconnect(endpoint.data());
 }
 
 /** \brief Wrapper over \c zmq::poll

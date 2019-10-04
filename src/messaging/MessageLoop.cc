@@ -128,7 +128,7 @@ MessageLoop::Impl::Impl(MessageContext& context) :
     context {context},
     terminationPublisher {context, SocketType::pub}
 {
-    terminationPublisher.bind(getTerminationPubSubEndpoint());
+    bindSocket(terminationPublisher, getTerminationPubSubEndpoint());
 }
 
 void MessageLoop::Impl::addPollable(
@@ -188,7 +188,7 @@ Socket MessageLoop::Impl::createTerminationSubscriber()
 {
     auto subscriber = Socket {context, SocketType::sub};
     subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-    subscriber.connect(getTerminationPubSubEndpoint());
+    connectSocket(subscriber, getTerminationPubSubEndpoint());
     return subscriber;
 }
 

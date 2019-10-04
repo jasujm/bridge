@@ -13,9 +13,10 @@ using namespace Bridge::Messaging;
 
 namespace {
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
-const auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"s;
-const auto ENDPOINT = "tcp://127.0.0.1:5555"s;
+constexpr auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"sv;
+constexpr auto ENDPOINT = "tcp://127.0.0.1:5555"sv;
 constexpr auto ZAP_DOMAIN = "test"_BS;
 const auto SERVER_PUBLIC_KEY = decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7");
 const auto SERVER_SECRET_KEY = decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6");
@@ -38,14 +39,14 @@ protected:
         server.setsockopt(ZMQ_ZAP_DOMAIN, ZAP_DOMAIN.data(), ZAP_DOMAIN.size());
         setupCurveServer(server, &keys);
         authenticator.ensureRunning();
-        server.bind(ENDPOINT);
-        zap_client.connect(ZAP_ENDPOINT);
+        bindSocket(server, ENDPOINT);
+        connectSocket(zap_client, ZAP_ENDPOINT);
     }
 
     void setupClient(const CurveKeys& keys)
     {
         setupCurveClient(client, &keys, SERVER_PUBLIC_KEY);
-        client.connect(ENDPOINT);
+        connectSocket(client, ENDPOINT);
     }
 
     auto recvClientUserId()
@@ -53,7 +54,7 @@ protected:
         sendEmptyMessage(client);
         auto message = Message {};
         recvMessage(server, message);
-        const auto ret = std::string(message.gets("User-Id"));
+        auto ret = UserId {message.gets("User-Id")};
         sendEmptyMessage(server);
         recvMessage(client, message);
         return ret;

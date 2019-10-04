@@ -55,8 +55,8 @@ void callbackSchedulerWorker(
     auto queue = std::priority_queue<ScheduledCallback> {};
     auto fs = Socket {context, SocketType::pair};
     auto bs = Socket {context, SocketType::pair};
-    fs.connect(fAddr);
-    bs.connect(bAddr);
+    connectSocket(fs, fAddr);
+    connectSocket(bs, bAddr);
     // Synchronize
     static_cast<void>(discardMessage(fs));
     sendEmptyMessage(bs);
@@ -121,8 +121,8 @@ PollingCallbackScheduler::PollingCallbackScheduler(
 {
     auto back_name = generateSocketName("csbs", this);
     auto front_name = generateSocketName("csfs", this);
-    backSocket->bind(back_name);
-    frontSocket.bind(front_name);
+    bindSocket(*backSocket, back_name);
+    bindSocket(frontSocket, front_name);
     worker = Thread {
         callbackSchedulerWorker, std::ref(context), std::move(back_name),
         std::move(front_name), std::move(terminationSubscriber) };

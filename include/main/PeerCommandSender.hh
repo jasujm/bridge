@@ -67,7 +67,7 @@ public:
      * \return the socket created by the method
      */
     Messaging::SharedSocket addPeer(
-        Messaging::MessageContext& context, const std::string& endpoint,
+        Messaging::MessageContext& context, std::string_view endpoint,
         const Messaging::CurveKeys* keys = nullptr, ByteSpan serverKey = {});
 
     /** \brief Send command to all peers
@@ -121,7 +121,7 @@ private:
 
     struct Peer {
         Peer(
-            Messaging::MessageContext& context, const std::string& endpoint,
+            Messaging::MessageContext& context, std::string_view endpoint,
             const Messaging::CurveKeys* keys, ByteSpan serverKey);
         Messaging::SharedSocket socket;
         std::chrono::milliseconds resendTimeout;

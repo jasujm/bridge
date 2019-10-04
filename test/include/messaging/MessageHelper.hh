@@ -26,14 +26,14 @@ namespace Messaging {
  * \return std::pair containing two mutually connected sockets
  */
 inline std::pair<Socket, Socket> createSocketPair(
-    MessageContext& context, const std::string& endpoint)
+    MessageContext& context, std::string_view endpoint)
 {
     auto ret = std::pair {
         Socket {context, SocketType::pair},
         Socket {context, SocketType::pair},
     };
-    ret.first.bind(endpoint.data());
-    ret.second.connect(endpoint.data());
+    bindSocket(ret.first, endpoint);
+    connectSocket(ret.second, endpoint);
     return ret;
 }
 

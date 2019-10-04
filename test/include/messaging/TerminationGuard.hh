@@ -51,7 +51,7 @@ public:
 
 private:
 
-    static inline const std::string ENDPOINT {
+    static constexpr auto ENDPOINT = std::string_view {
         "inproc://bridge.terminationguard"};
 
     Socket terminationPublisher;
@@ -62,14 +62,14 @@ TerminationGuard::createTerminationSubscriber(MessageContext& context)
 {
     auto socket = Socket {context, SocketType::sub};
     socket.setsockopt(ZMQ_SUBSCRIBE, "", 0);
-    socket.connect(ENDPOINT);
+    connectSocket(socket, ENDPOINT);
     return socket;
 }
 
 inline TerminationGuard::TerminationGuard(MessageContext& context) :
     terminationPublisher {context, SocketType::pub}
 {
-    terminationPublisher.bind(ENDPOINT);
+    bindSocket(terminationPublisher, ENDPOINT);
 }
 
 inline TerminationGuard::~TerminationGuard()

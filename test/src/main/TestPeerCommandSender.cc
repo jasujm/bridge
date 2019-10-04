@@ -18,26 +18,31 @@ using testing::_;
 using testing::SaveArg;
 
 namespace {
-using namespace std::string_literals;
+using namespace std::string_view_literals;
 constexpr auto N_SOCKETS = 2;
-const auto DEFAULT = "default"s;
-const auto NEXT = "next"s;
-const auto KEY = "key"s;
-const auto ARG = "arg"s;
+constexpr auto DEFAULT = "default"sv;
+constexpr auto NEXT = "next"sv;
+constexpr auto KEY = "key"sv;
+constexpr auto ARG = "arg"sv;
+constexpr auto ENDPOINTS = std::array {
+    "inproc://endpoint1"sv,
+    "inproc://endpoint2"sv,
+};
+
 }
 
 class PeerCommandSenderTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        for (auto&& t : boost::combine(endpoints, frontSockets, backSockets))
+        for (auto&& t : boost::combine(ENDPOINTS, frontSockets, backSockets))
         {
-            t.get<1>().bind(t.get<0>());
+            bindSocket(t.get<1>(), t.get<0>());
             t.get<2>() = sender.addPeer(context, t.get<0>());
         }
     }
 
-    void sendCommand(const std::string& command = DEFAULT)
+    void sendCommand(std::string_view command = DEFAULT)
     {
         sender.sendCommand(
             MockSerializationPolicy {},
@@ -45,7 +50,7 @@ protected:
             std::make_pair(KEY, ARG));
     }
 
-    void checkMessage(Socket& socket, const std::string& command)
+    void checkMessage(Socket& socket, std::string_view command)
     {
         auto message = Message {};
         recvMessage(socket, message);
@@ -64,7 +69,7 @@ protected:
 
     void checkReceive(
         bool recv1 = true, bool recv2 = true,
-        const std::string& command = DEFAULT)
+        std::string_view command = DEFAULT)
     {
         const std::array<bool, N_SOCKETS> expect_recv {{recv1, recv2}};
         auto pollitems = std::array {
@@ -82,10 +87,6 @@ protected:
     }
 
     MessageContext context;
-    std::array<std::string, N_SOCKETS> endpoints {
-        "inproc://endpoint1"s,
-        "inproc://endpoint2"s,
-    };
     std::array<Socket, N_SOCKETS> frontSockets {
         Socket {context, SocketType::dealer},
         Socket {context, SocketType::dealer},

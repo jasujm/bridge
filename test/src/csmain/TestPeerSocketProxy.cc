@@ -25,12 +25,12 @@ using OrderParameter = std::uint8_t;
 
 namespace {
 
-using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 
-const auto SELF_ENDPOINT = "inproc://bridge.test.peersocketproxy.self"s;
-const auto PEER1_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer1"s;
-const auto PEER3_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer3"s;
+constexpr auto SELF_ENDPOINT = "inproc://bridge.test.peersocketproxy.self"sv;
+constexpr auto PEER1_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer1"sv;
+constexpr auto PEER3_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer3"sv;
 const auto PEER_IDENTITY = "peer"_B;
 constexpr auto MESSAGE = "message"_BS;
 constexpr auto ORDER = OrderParameter {1};
@@ -74,7 +74,7 @@ protected:
         auto socket = Socket {context, SocketType::dealer};
         socket.setsockopt(
             ZMQ_IDENTITY, PEER_IDENTITY.data(), PEER_IDENTITY.size());
-        socket.connect(SELF_ENDPOINT);
+        connectSocket(socket, SELF_ENDPOINT);
         const auto order_parameter = boost::endian::native_to_big(order);
         if (!skipEmptyFrame) {
             sendEmptyMessage(socket, true);
@@ -102,10 +102,10 @@ protected:
         }
     }
 
-    void testOutgoingMessageHelper(int peerIndex, const std::string& peerEndpoint)
+    void testOutgoingMessageHelper(int peerIndex, std::string_view peerEndpoint)
     {
         auto socket = Socket {context, SocketType::dealer};
-        socket.bind(peerEndpoint);
+        bindSocket(socket, peerEndpoint);
         const auto stream_sockets = proxy.getStreamSockets();
         sendMessage(
             dereference(stream_sockets.at(peerIndex)), messageBuffer(MESSAGE));
@@ -131,12 +131,12 @@ protected:
     PeerSocketProxy proxy {
         [this]() {
             auto peerServerSocket = Socket {context, SocketType::router};
-            peerServerSocket.bind(SELF_ENDPOINT);
+            bindSocket(peerServerSocket, SELF_ENDPOINT);
             auto peerClientSockets = std::vector<Socket> {};
             peerClientSockets.emplace_back(context, SocketType::dealer);
-            peerClientSockets.back().connect(PEER1_ENDPOINT);
+            connectSocket(peerClientSockets.back(), PEER1_ENDPOINT);
             peerClientSockets.emplace_back(context, SocketType::dealer);
-            peerClientSockets.back().connect(PEER3_ENDPOINT);
+            connectSocket(peerClientSockets.back(), PEER3_ENDPOINT);
             return PeerSocketProxy {
                 context, std::move(peerServerSocket),
                 std::move(peerClientSockets), 1, std::ref(authorizer)};

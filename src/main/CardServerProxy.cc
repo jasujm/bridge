@@ -82,12 +82,12 @@ struct DrawEventBase : public sc::event<EventType> {
 struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
     AcceptPeerEvent(
         CardProtocol::PositionVector& positions,
-        std::string& cardServerBasePeerEndpoint,
+        std::string& cardServerPeerEndpoint,
         std::optional<Blob>& cardServerKey,
         bool& ret) :
         identity {identity},
         positions {positions},
-        cardServerBasePeerEndpoint {cardServerBasePeerEndpoint},
+        cardServerPeerEndpoint {cardServerPeerEndpoint},
         cardServerKey {cardServerKey},
         ret {ret}
     {
@@ -95,7 +95,7 @@ struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
 
     const Identity& identity;
     CardProtocol::PositionVector& positions;
-    std::string& cardServerBasePeerEndpoint;
+    std::string& cardServerPeerEndpoint;
     std::optional<Blob>& cardServerKey;
     bool& ret;
 };
@@ -146,7 +146,7 @@ public:
 
     Impl(
         Messaging::MessageContext& context, const CurveKeys* keys,
-        const std::string& controlEndpoint);
+        std::string_view controlEndpoint);
 
     bool acceptPeer(
         const Identity& identity, PositionVector positions,
@@ -201,7 +201,7 @@ private:
 
 Impl::Impl(
     Messaging::MessageContext& context, const CurveKeys* const keys,
-    const std::string& controlEndpoint) :
+    const std::string_view controlEndpoint) :
     sockets {{
         {
             Messaging::makeSharedSocket(context, Messaging::SocketType::dealer),
@@ -216,20 +216,21 @@ Impl::Impl(
 {
     Messaging::setupCurveClient(
         controlSocket, keys, keys ? keys->publicKey : ByteSpan {});
-    controlSocket.connect(controlEndpoint);
+    Messaging::connectSocket(controlSocket, controlEndpoint);
 }
 
 bool Impl::acceptPeer(
     const Identity&, PositionVector positions,
-    std::string cardServerBasePeerEndpoint, std::optional<Blob> serverKey)
+    std::string cardServerPeerEndpoint, std::optional<Blob> serverKey)
 {
     auto ret = true;
     functionQueue(
-        [this, &positions, &cardServerBasePeerEndpoint, &serverKey, &ret]()
+        [this, &positions, &cardServerPeerEndpoint, &serverKey, &ret]()
         {
             process_event(
                 AcceptPeerEvent {
-                    positions, cardServerBasePeerEndpoint, serverKey, ret });
+                    positions, cardServerPeerEndpoint, serverKey, ret });
+
         });
     return ret;
 }
@@ -462,7 +463,7 @@ sc::result Initializing::react(const AcceptPeerEvent& event)
 {
     event.ret = internalAddPeer(
         std::move(event.positions),
-        std::move(event.cardServerBasePeerEndpoint),
+        std::move(event.cardServerPeerEndpoint),
         std::move(event.cardServerKey));
     return discard_event();
 }
@@ -656,7 +657,7 @@ sc::result ShuffleCompleted::react(const RevealAllSuccessfulEvent& event)
 
 CardServerProxy::CardServerProxy(
     Messaging::MessageContext& context, const CurveKeys* const keys,
-    const std::string& controlEndpoint) :
+    const std::string_view controlEndpoint) :
     impl {std::make_shared<Impl>(context, keys, controlEndpoint)}
 {
     impl->initiate();

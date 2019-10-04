@@ -52,7 +52,7 @@ public:
      */
     CardServerProxy(
         Messaging::MessageContext& context, const Messaging::CurveKeys* keys,
-        const std::string& controlEndpoint);
+        std::string_view controlEndpoint);
 
     class Impl;
 

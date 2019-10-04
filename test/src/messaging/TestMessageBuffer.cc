@@ -9,11 +9,11 @@
 #include <utility>
 
 namespace {
-using namespace std::string_literals;
-const auto ENDPOINT = "inproc://example"s;
-const auto MESSAGE = "message"s;
+using namespace std::string_view_literals;
+constexpr auto ENDPOINT = "inproc://example"sv;
+constexpr auto MESSAGE = "message"sv;
 constexpr auto NUMBER = 123;
-const auto WHOLE_MESSAGE = "message 123\n"s;
+constexpr auto WHOLE_MESSAGE = "message 123\n"sv;
 }
 
 using namespace Bridge::Messaging;
@@ -22,8 +22,8 @@ class MessageBufferTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        backSocket->bind(ENDPOINT);
-        frontSocket->connect(ENDPOINT);
+        bindSocket(*backSocket, ENDPOINT);
+        connectSocket(*frontSocket, ENDPOINT);
     }
 
     MessageContext context;
@@ -38,7 +38,8 @@ TEST_F(MessageBufferTest, testOutputMessage)
 
     auto message = Message {};
     recvMessage(*backSocket, message);
-    EXPECT_EQ(WHOLE_MESSAGE, std::string(message.data<char>(), message.size()));
+    EXPECT_EQ(
+        WHOLE_MESSAGE, std::string_view(message.data<char>(), message.size()));
     EXPECT_FALSE(message.more());
 }
 

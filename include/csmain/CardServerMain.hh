@@ -55,8 +55,8 @@ public:
     CardServerMain(
         Messaging::MessageContext& context,
         std::optional<Messaging::CurveKeys> keys,
-        const std::string& controlEndpoint,
-        const std::string& peerEndpoint);
+        std::string_view controlEndpoint,
+        std::string_view peerEndpoint);
 
     ~CardServerMain();
 

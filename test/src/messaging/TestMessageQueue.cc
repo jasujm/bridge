@@ -23,11 +23,12 @@ using namespace Bridge::Messaging;
 
 namespace {
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 const auto IDENTITY = Identity { ""s, "identity"_B };
 constexpr auto PARAM1 = "param1"_BS;
 constexpr auto PARAM2 = "param2"_BS;
-const auto ENDPOINT = "inproc://testing"s;
+constexpr auto ENDPOINT = "inproc://testing"sv;
 constexpr auto COMMAND = "cmd"_BS;
 constexpr auto OTHER_COMMAND = "cmd2"_BS;
 }
@@ -37,10 +38,10 @@ protected:
     virtual void SetUp()
     {
         messageQueue.trySetHandler(COMMAND, handler);
-        backSocket.bind(ENDPOINT);
+        bindSocket(backSocket, ENDPOINT);
         frontSocket.setsockopt(
             ZMQ_IDENTITY, IDENTITY.routingId.data(), IDENTITY.routingId.size());
-        frontSocket.connect(ENDPOINT);
+        connectSocket(frontSocket, ENDPOINT);
     }
 
     void assertReply(bool success, Bridge::ByteSpan command, bool more = false)
@@ -118,11 +119,11 @@ TEST_F(MessageQueueTest, testReply)
 
 TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
 {
-    backSocket.unbind(ENDPOINT);
-    frontSocket.disconnect(ENDPOINT);
+    unbindSocket(backSocket, ENDPOINT);
+    disconnectSocket(frontSocket, ENDPOINT);
     Socket repSocket {context, SocketType::rep};
-    repSocket.bind(ENDPOINT);
-    frontSocket.connect(ENDPOINT);
+    bindSocket(repSocket, ENDPOINT);
+    connectSocket(frontSocket, ENDPOINT);
 
     EXPECT_CALL(*handler, doHandle(_, Identity {}, ElementsAre(), _))
         .WillOnce(Respond(REPLY_SUCCESS));

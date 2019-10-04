@@ -27,18 +27,18 @@ const auto MAX_RESEND_TIMEOUT =
 }
 
 PeerCommandSender::Peer::Peer(
-    Messaging::MessageContext& context, const std::string& endpoint,
+    Messaging::MessageContext& context, const std::string_view endpoint,
     const CurveKeys* const keys, const ByteSpan serverKey) :
     socket {makeSharedSocket(context, Messaging::SocketType::dealer)},
     resendTimeout {INITIAL_RESEND_TIMEOUT},
     success {false}
 {
     setupCurveClient(*socket, keys, serverKey);
-    socket->connect(endpoint);
+    connectSocket(*socket, endpoint);
 }
 
 Messaging::SharedSocket PeerCommandSender::addPeer(
-    Messaging::MessageContext& context, const std::string& endpoint,
+    Messaging::MessageContext& context, const std::string_view endpoint,
     const CurveKeys* const keys, const ByteSpan serverKey)
 {
     peers.emplace_back(context, endpoint, keys, serverKey);

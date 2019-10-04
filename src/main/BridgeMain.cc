@@ -187,9 +187,9 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
         context, Messaging::SocketType::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
     Messaging::setupCurveServer(*controlSocket, keys);
-    controlSocket->bind(*endpointIterator++);
+    Messaging::bindSocket(*controlSocket, *endpointIterator++);
     Messaging::setupCurveServer(*eventSocket, keys);
-    eventSocket->bind(*endpointIterator);
+    Messaging::bindSocket(*eventSocket, *endpointIterator++);
     for (auto& gameConfig : this->config.getGameConfigs()) {
         const auto& uuid = gameConfig.uuid;
         const auto emplaced_game = games.emplace(

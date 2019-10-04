@@ -37,6 +37,7 @@ using namespace Bridge::Messaging;
 using testing::ElementsAre;
 
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 
 using CardVector = std::vector<CardType>;
@@ -63,7 +64,7 @@ void assertCardManagerHasShuffledDeck(Engine::CardManager& cardManager)
             boost::make_transform_iterator(hand->end(), get_type_func)));
 }
 
-const auto ENDPOINT = "inproc://test"s;
+constexpr auto ENDPOINT = "inproc://test"sv;
 const auto LEADER = Identity { ""s, "leader"_B };
 const auto PEER = Identity { ""s, "peer"_B };
 
@@ -76,7 +77,7 @@ class SimpleCardProtocolTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        backSocket.bind(ENDPOINT);
+        bindSocket(backSocket, ENDPOINT);
         frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
     }
 
