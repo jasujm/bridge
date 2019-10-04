@@ -20,8 +20,8 @@ using namespace std::chrono_literals;
 
 namespace {
 
-const auto INITIAL_RESEND_TIMEOUT = 50ms;
-const auto MAX_RESEND_TIMEOUT =
+constexpr auto INITIAL_RESEND_TIMEOUT = 50ms;
+constexpr auto MAX_RESEND_TIMEOUT =
     std::chrono::duration_cast<std::chrono::milliseconds>(1min);
 
 }

@@ -29,7 +29,7 @@ namespace Bridge {
  * \throw std::out_of_range, if i < 0 || i >= n
  */
 template<typename Integer1, typename Integer2>
-auto checkIndex(Integer1 i, Integer2 n)
+constexpr auto checkIndex(Integer1 i, Integer2 n)
 {
     if (i < 0 || i >= n) {
         throw std::out_of_range("Index out of range");
@@ -43,10 +43,9 @@ auto checkIndex(Integer1 i, Integer2 n)
  *
  * \return size of the container cast to std::ptrdiff_t
  */
-std::ptrdiff_t ssize(const auto& container)
+constexpr std::ptrdiff_t ssize(const auto& container)
 {
-    using std::size;
-    return static_cast<std::ptrdiff_t>(size(container));
+    return static_cast<std::ptrdiff_t>(std::size(container));
 }
 
 /** \brief Check if pointer (or pointer‐like object) is dereferencalbe, and
@@ -59,7 +58,7 @@ std::ptrdiff_t ssize(const auto& container)
  * \throw std::invalid_argument, if p is null
  */
 template<typename T>
-decltype(auto) dereference(const T& p)
+constexpr decltype(auto) dereference(const T& p)
 {
     if (!p) {
         throw std::invalid_argument("Trying to dereference nullptr");
@@ -75,7 +74,7 @@ decltype(auto) dereference(const T& p)
  * p is empty
  */
 template<typename T>
-auto getPtr(T& p) -> decltype(std::addressof(*p))
+constexpr auto getPtr(T& p) -> decltype(std::addressof(*p))
 {
     if (p) {
         return std::addressof(*p);

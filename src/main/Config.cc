@@ -30,26 +30,30 @@ namespace Bridge {
 namespace Main {
 
 using namespace std::string_literals;
+using namespace std::string_view_literals;
 
 namespace {
 
 struct GameConfigTag {};
-GameConfigTag gameConfigTag;
+auto GAME_CONFIG_TAG = GameConfigTag {};
 
-const auto CURVE_PUBLIC_KEY = "curve_public_key"s;
-const auto CURVE_SECRET_KEY = "curve_secret_key"s;
+constexpr auto CURVE_PUBLIC_KEY = "curve_public_key"sv;
+constexpr auto CURVE_SECRET_KEY = "curve_secret_key"sv;
 
-const auto GAME_CONFIG_UUID = "uuid"s;
-const auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"s;
-const auto GAME_CONFIG_PEERS = "peers"s;
-const auto GAME_CONFIG_ENDPOINT = "endpoint"s;
-const auto GAME_CONFIG_SERVER_KEY = "server_key"s;
-const auto GAME_CONFIG_CARD_SERVER = "card_server"s;
-const auto GAME_CONFIG_CONTROL_ENDPOINT = "control_endpoint"s;
-const auto GAME_CONFIG_PEER_ENDPOINT = "peer_endpoint"s;
+constexpr auto GAME_CONFIG_UUID = "uuid"sv;
+constexpr auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"sv;
+constexpr auto GAME_CONFIG_PEERS = "peers"sv;
+constexpr auto GAME_CONFIG_ENDPOINT = "endpoint"sv;
+constexpr auto GAME_CONFIG_SERVER_KEY = "server_key"sv;
+constexpr auto GAME_CONFIG_CARD_SERVER = "card_server"sv;
+constexpr auto GAME_CONFIG_CONTROL_ENDPOINT = "control_endpoint"sv;
+constexpr auto GAME_CONFIG_PEER_ENDPOINT = "peer_endpoint"sv;
+
+constexpr auto BIND_ADDRESS = "bind_address"sv;
+constexpr auto BIND_BASE_PORT = "bind_base_port"sv;
 
 const auto DEFAULT_BIND_ADDRESS = "*"s;
-const auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
+constexpr auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
 
 class LuaPopGuard {
 public:
@@ -123,9 +127,9 @@ void loadAndExecuteFromStream(lua_State* lua, std::istream& in)
     }
 }
 
-Blob getKeyOrEmpty(lua_State* lua, const char* key)
+Blob getKeyOrEmpty(lua_State* lua, std::string_view key)
 {
-    lua_getglobal(lua, key);
+    lua_getglobal(lua, key.data());
     LuaPopGuard guard {lua};
     if (const auto* str = lua_tostring(lua, -1)) {
         auto ret = Messaging::decodeKey(str);
@@ -138,9 +142,9 @@ Blob getKeyOrEmpty(lua_State* lua, const char* key)
     return {};
 }
 
-std::optional<std::string> getString(lua_State* lua, const char* key)
+std::optional<std::string> getString(lua_State* lua, std::string_view key)
 {
-    lua_getglobal(lua, key);
+    lua_getglobal(lua, key.data());
     LuaPopGuard guard {lua};
     if (const auto* str = lua_tostring(lua, -1)) {
         return str;
@@ -150,9 +154,9 @@ std::optional<std::string> getString(lua_State* lua, const char* key)
     return std::nullopt;
 }
 
-std::optional<int> getInt(lua_State* lua, const char* key)
+std::optional<int> getInt(lua_State* lua, std::string_view key)
 {
-    lua_getglobal(lua, key);
+    lua_getglobal(lua, key.data());
     LuaPopGuard guard {lua};
     auto success = 0;
     auto ret = 0;
@@ -172,13 +176,13 @@ int config_lua_game(lua_State* lua) {
     // can potentially cause errors.
 
     luaL_checktype(lua, 1, LUA_TTABLE);
-    lua_pushlightuserdata(lua, &gameConfigTag);
+    lua_pushlightuserdata(lua, &GAME_CONFIG_TAG);
     lua_rawget(lua, LUA_REGISTRYINDEX);
     auto& configVector = *static_cast<Config::GameConfigVector*>(
         lua_touserdata(lua, -1));
     auto& config = configVector.emplace_back();
 
-    lua_pushstring(lua, GAME_CONFIG_UUID.c_str());
+    lua_pushstring(lua, GAME_CONFIG_UUID.data());
     lua_rawget(lua, 1);
     {
         const auto* uuid_string = lua_tostring(lua, -1);
@@ -196,7 +200,7 @@ int config_lua_game(lua_State* lua) {
     }
     lua_pop(lua, 1);
 
-    lua_pushstring(lua, GAME_CONFIG_POSITIONS_CONTROLLED.c_str());
+    lua_pushstring(lua, GAME_CONFIG_POSITIONS_CONTROLLED.data());
     if (lua_rawget(lua, 1) == LUA_TTABLE) {
         for (auto i = 1;; ++i) {
             lua_rawgeti(lua, -1, i);
@@ -221,7 +225,7 @@ int config_lua_game(lua_State* lua) {
     }
     lua_pop(lua, 1);
 
-    lua_pushstring(lua, GAME_CONFIG_PEERS.c_str());
+    lua_pushstring(lua, GAME_CONFIG_PEERS.data());
     if (lua_rawget(lua, 1) == LUA_TTABLE) {
         for (auto i = 1;; ++i) {
             lua_rawgeti(lua, -1, i);
@@ -233,7 +237,7 @@ int config_lua_game(lua_State* lua) {
                 configVector.pop_back();
                 luaL_error(lua, "expected peer descriptor to be table");
             }
-            lua_pushstring(lua, GAME_CONFIG_ENDPOINT.c_str());
+            lua_pushstring(lua, GAME_CONFIG_ENDPOINT.data());
             lua_rawget(lua, -2);
             const auto* peer_endpoint = lua_tostring(lua, -1);
             if (!peer_endpoint) {
@@ -241,7 +245,7 @@ int config_lua_game(lua_State* lua) {
                 luaL_error(lua, "expected peer endpoint");
             }
             lua_pop(lua, 1);
-            lua_pushstring(lua, GAME_CONFIG_SERVER_KEY.c_str());
+            lua_pushstring(lua, GAME_CONFIG_SERVER_KEY.data());
             lua_rawget(lua, -2);
             auto peer_server_key = Blob {};
             if (const auto* encoded_key = lua_tostring(lua, -1)) {
@@ -259,9 +263,9 @@ int config_lua_game(lua_State* lua) {
     }
     lua_pop(lua, 1);
 
-    lua_pushstring(lua, GAME_CONFIG_CARD_SERVER.c_str());
+    lua_pushstring(lua, GAME_CONFIG_CARD_SERVER.data());
     if (lua_rawget(lua, 1) == LUA_TTABLE) {
-        lua_pushstring(lua, GAME_CONFIG_CONTROL_ENDPOINT.c_str());
+        lua_pushstring(lua, GAME_CONFIG_CONTROL_ENDPOINT.data());
         lua_rawget(lua, -2);
         const auto* control_endpoint = lua_tostring(lua, -1);
         if (!control_endpoint) {
@@ -269,7 +273,7 @@ int config_lua_game(lua_State* lua) {
             luaL_error(lua, "expected card server control endpoint");
         }
         lua_pop(lua, 1);
-        lua_pushstring(lua, GAME_CONFIG_PEER_ENDPOINT.c_str());
+        lua_pushstring(lua, GAME_CONFIG_PEER_ENDPOINT.data());
         lua_rawget(lua, -2);
         const auto* peer_endpoint = lua_tostring(lua, -1);
         if (!peer_endpoint) {
@@ -278,7 +282,7 @@ int config_lua_game(lua_State* lua) {
         }
         config.cardServer = BridgeGameConfig::CardServerConfig {
             control_endpoint, peer_endpoint,
-            getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.c_str()) };
+            getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.data()) };
         lua_pop(lua, 2);
     }
     lua_pop(lua, 1);
@@ -325,7 +329,7 @@ Config::Impl::Impl(std::istream& in)
     lua_pushcfunction(lua.get(), config_lua_game);
     lua_setglobal(lua.get(), "game");
 
-    lua_pushlightuserdata(lua.get(), &gameConfigTag);
+    lua_pushlightuserdata(lua.get(), &GAME_CONFIG_TAG);
     lua_pushlightuserdata(lua.get(), &gameConfigs);
     lua_settable(lua.get(), LUA_REGISTRYINDEX);
 
@@ -353,8 +357,8 @@ Config::Impl::Impl(std::istream& in)
 
 void Config::Impl::createBaseEndpointConfig(lua_State* lua)
 {
-    auto bind_address = getString(lua, "bind_address");
-    auto bind_base_port = getInt(lua, "bind_base_port");
+    auto bind_address = getString(lua, BIND_ADDRESS);
+    auto bind_base_port = getInt(lua, BIND_BASE_PORT);
     if (bind_address || bind_base_port) {
         endpointIterator = {
             bind_address.value_or(DEFAULT_BIND_ADDRESS),
@@ -364,8 +368,8 @@ void Config::Impl::createBaseEndpointConfig(lua_State* lua)
 
 void Config::Impl::createCurveConfig(lua_State* lua)
 {
-    const auto secret_key = getKeyOrEmpty(lua, CURVE_SECRET_KEY.c_str());
-    const auto public_key = getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.c_str());
+    const auto secret_key = getKeyOrEmpty(lua, CURVE_SECRET_KEY.data());
+    const auto public_key = getKeyOrEmpty(lua, CURVE_PUBLIC_KEY.data());
     if (!secret_key.empty() && !public_key.empty()) {
         curveConfig = Messaging::CurveKeys { secret_key, public_key };
     }

@@ -33,10 +33,10 @@ using MockAsynchronousMessageHandler =
     MockBasicMessageHandler<AsynchronousExecutionPolicy>;
 
 using namespace Bridge::BlobLiterals;
-using namespace std::string_literals;
+using namespace std::string_view_literals;
 constexpr auto COMMAND = "command"_BS;
-const auto MQ_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.mq"s;
-const auto CORO_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.coro"s;
+constexpr auto MQ_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.mq"sv;
+constexpr auto CORO_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.coro"sv;
 
 }
 

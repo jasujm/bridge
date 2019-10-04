@@ -151,8 +151,7 @@ std::string blobToString(const auto& bytes)
         sizeof(*std::data(bytes)) == 1,
         "Argument must contain one byte values");
     return std::string(
-        reinterpret_cast<const char*>(std::data(bytes)),
-        std::size(bytes));
+        reinterpret_cast<const char*>(std::data(bytes)), std::size(bytes));
 }
 
 /** \brief Convert string to blob
@@ -168,7 +167,8 @@ Blob stringToBlob(const auto& string)
         "Argument must contain one byte values");
     return Blob(
         reinterpret_cast<const std::byte*>(std::data(string)),
-        reinterpret_cast<const std::byte*>(std::data(string)) + std::size(string));
+        reinterpret_cast<const std::byte*>(
+            std::data(string)) + std::size(string));
 }
 
 /** \brief Get view to the bytes in object representation
@@ -177,11 +177,11 @@ Blob stringToBlob(const auto& string)
  *
  * \return ByteSpan object over the bytes in \p c
  */
-ByteSpan asBytes(const auto& c)
+constexpr ByteSpan asBytes(const auto& c)
 {
     const auto* data = reinterpret_cast<const std::byte*>((std::data(c)));
-    const auto size = std::size(c) *
-        sizeof(std::remove_pointer_t<decltype(data)>);
+    const auto size =
+        std::size(c) * sizeof(std::remove_pointer_t<decltype(data)>);
     return {data, static_cast<ByteSpan::index_type>(size)};
 }
 

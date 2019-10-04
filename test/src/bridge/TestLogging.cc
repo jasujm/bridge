@@ -9,7 +9,7 @@
 
 namespace {
 using namespace std::string_view_literals;
-const auto MESSAGE = "This is logging"sv;
+constexpr auto MESSAGE = "This is logging"sv;
 }
 
 class LoggingTest : public testing::Test {
