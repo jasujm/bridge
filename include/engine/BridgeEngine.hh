@@ -413,13 +413,6 @@ public:
      */
     const Trick* getCurrentTrick() const;
 
-    /** \brief Determine the number of tricks played in the current deal
-     *
-     * \return the number of tricks played so far, or none if the game is not
-     * in the playing phase
-     */
-    std::optional<int> getNumberOfTricksPlayed() const;
-
     /** \brief Determine the number of tricks won by each partnership
      *
      * \return TricksWon object containing tricks won by each partnership, or

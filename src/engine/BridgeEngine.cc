@@ -34,17 +34,6 @@ namespace Engine {
 
 namespace {
 
-struct PlayInfo {
-    PlayInfo(Hand& hand, int card) :
-        hand {hand},
-        card {card}
-    {
-    }
-
-    Hand& hand;
-    int card;
-};
-
 // Helper for making bimap between positions and objects managed by smart
 // pointers
 
@@ -82,16 +71,7 @@ public:
     Call call;
     bool& ret;
 };
-class GameEndedEvent : public sc::event<GameEndedEvent> {};
-class DealCompletedEvent : public sc::event<DealCompletedEvent> {
-public:
-    explicit DealCompletedEvent(const TricksWon& tricksWon) :
-        tricksWon {tricksWon}
-    {
-    }
-    TricksWon tricksWon;
-};
-class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {};
+class DealEndedEvent : public sc::event<DealEndedEvent> {};
 class NewTrickEvent : public sc::event<NewTrickEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
@@ -109,33 +89,10 @@ public:
     int card;
     bool& ret;
 };
-class CardRevealEvent : public sc::event<CardRevealEvent> {
-public:
-    CardRevealEvent(Hand::CardRevealState state, int card) :
-        state {state},
-        card {card}
-    {
-    }
-    Hand::CardRevealState state;
-    int card;
-};
-class HandRevealEvent : public sc::event<HandRevealEvent> {
-public:
-    HandRevealEvent(Hand::CardRevealState state) :
-        state {state}
-    {
-    }
-    Hand::CardRevealState state;
-};
-class RevealDummyEvent : public sc::event<RevealDummyEvent> {};
-class ShufflingStateEvent : public sc::event<ShufflingStateEvent> {
-public:
-    explicit ShufflingStateEvent(CardManager::ShufflingState state) :
-        state {state}
-    {
-    }
-    CardManager::ShufflingState state;
-};
+class CardRevealedEvent : public sc::event<CardRevealedEvent> {};
+class DummyHandRevealedEvent : public sc::event<DummyHandRevealedEvent> {};
+class DummyRevealedEvent : public sc::event<DummyRevealedEvent> {};
+class ShufflingCompletedEvent : public sc::event<ShufflingCompletedEvent> {};
 
 ////////////////////////////////////////////////////////////////////////////////
 // BridgeEngine::Impl
@@ -151,8 +108,11 @@ public:
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager);
 
-    void setPlayer(Position position, std::shared_ptr<Player> player);
+    template<typename EventGenerator>
+    auto makeCardRevealStateObserver(EventGenerator&& generator);
+    void requestShuffle();
 
+    void setPlayer(Position position, std::shared_ptr<Player> player);
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
     Observable<DealStarted>& getDealStartedNotifier()
@@ -198,10 +158,8 @@ public:
     std::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
-    std::optional<int> getNumberOfTricksPlayed() const;
     std::optional<TricksWon> getTricksWon() const;
     const Hand* getDummyHandIfVisible() const;
-    auto makeCardRevealStateObserver();
 
     FunctionQueue functionQueue;
 
@@ -240,76 +198,36 @@ BridgeEngine::Impl::Impl(
 {
 }
 
-auto BridgeEngine::Impl::makeCardRevealStateObserver()
+template<typename EventGenerator>
+auto BridgeEngine::Impl::makeCardRevealStateObserver(EventGenerator&& generator)
 {
+    // EventGenerator is a function that gets called when the observer is
+    // notified with completed card reveal event. Its parameter is the list of
+    // revealed cards. It's expected to return optional event that is
+    // subsequently processed, or none if, after examining the revealed cards it
+    // decides no event is processed.
     return makeObserver<Hand::CardRevealState, Hand::IndexVector>(
-        [this](const auto& state, const auto& ns)
+        [this, generator = std::forward<EventGenerator>(generator)](
+            const auto& state, const auto& ns)
         {
-            const auto first = ns.begin();
-            const auto last = ns.end();
-            const auto n_cards = std::distance(first, last);
-            if (n_cards == 1) {
-                functionQueue(
-                    [this, state, n = *first]()
-                    {
-                        this->process_event(CardRevealEvent {state, n});
-                    });
-            } else {
-                // All cards are included in the request
-                const auto range = to(N_CARDS_PER_PLAYER);
-                if (
-                    std::is_permutation(
-                        range.begin(), range.end(), first, last)) {
+            if (state == Hand::CardRevealState::COMPLETED) {
+                if (auto event = generator(ns)) {
                     functionQueue(
-                        [this, state]()
+                        [this, event = std::move(*event)]()
                         {
-                            this->process_event(HandRevealEvent {state});
+                            this->process_event(event);
                         });
                 }
             }
         });
 }
 
+void BridgeEngine::Impl::requestShuffle()
+{
+    dereference(cardManager).requestShuffle();
+}
+
 // Find other method definitions later (they refer to states)
-
-////////////////////////////////////////////////////////////////////////////////
-// Shuffling
-////////////////////////////////////////////////////////////////////////////////
-
-class InDeal;
-
-class Shuffling : public sc::state<Shuffling, BridgeEngine::Impl> {
-public:
-    using reactions = boost::mpl::list<
-        sc::custom_reaction<ShufflingStateEvent>,
-        sc::termination<GameEndedEvent>>;
-
-    Shuffling(my_context ctx);
-
-    sc::result react(const ShufflingStateEvent&);
-};
-
-Shuffling::Shuffling(my_context ctx) :
-    my_base {ctx}
-{
-    auto& context = outermost_context();
-    if (context.getGameManager().hasEnded()) {
-        post_event(GameEndedEvent {});
-    } else {
-        context.getCardManager().requestShuffle();
-    }
-}
-
-sc::result Shuffling::react(const ShufflingStateEvent& event)
-{
-    if (event.state == CardManager::ShufflingState::COMPLETED) {
-        const auto& card_manager = outermost_context().getCardManager();
-        if (card_manager.getNumberOfCards() == N_CARDS) {
-            return transit<InDeal>();
-        }
-    }
-    return discard_event();
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Idle
@@ -319,7 +237,30 @@ class Shuffling;
 
 class Idle : public sc::simple_state<Idle, BridgeEngine::Impl> {
 public:
-    using reactions = sc::transition<StartDealEvent, Shuffling>;
+    using reactions = sc::custom_reaction<StartDealEvent>;
+    sc::result react(const StartDealEvent&);
+};
+
+sc::result Idle::react(const StartDealEvent&)
+{
+    auto& context = outermost_context();
+    if (context.getGameManager().hasEnded()) {
+        return terminate();
+    } else {
+        context.requestShuffle();
+        return transit<Shuffling>();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Shuffling
+////////////////////////////////////////////////////////////////////////////////
+
+class InDeal;
+
+class Shuffling : public sc::simple_state<Shuffling, BridgeEngine::Impl> {
+public:
+    using reactions = sc::transition<ShufflingCompletedEvent, InDeal>;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -330,14 +271,10 @@ class InBidding;
 
 class InDeal : public sc::state<InDeal, BridgeEngine::Impl, InBidding> {
 public:
-    using reactions = boost::mpl::list<
-        sc::custom_reaction<DealCompletedEvent>,
-        sc::custom_reaction<DealPassedOutEvent>>;
+    using reactions = sc::transition<DealEndedEvent, Idle>;
 
     InDeal(my_context ctx);
-
-    sc::result react(const DealCompletedEvent&);
-    sc::result react(const DealPassedOutEvent&);
+    void exit();
 
     Bidding& getBidding();
     const Bidding& getBidding() const;
@@ -345,8 +282,15 @@ public:
     Hand& getHand(Position position);
     const Hand& getHand(Position position) const;
     auto getHands(Position first = Position::NORTH) const;
-
     Position getPosition(const Hand& player) const;
+    Hand& getHandConstCastSafe(const Hand& hand);
+
+    void addTrick(Position leader);
+    bool isLastTrick() const;
+    Trick* getCurrentTrick();
+    const Trick* getCurrentTrick() const;
+    std::optional<std::optional<Suit>> getTrump() const;
+    TricksWon getTricksWon() const;
 
 private:
 
@@ -358,6 +302,7 @@ private:
     const std::unique_ptr<Bidding> bidding;
     const std::vector<std::shared_ptr<Hand>> hands;
     const HandsMap handsMap;
+    std::vector<std::unique_ptr<Trick>> tricks;
 };
 
 auto InDeal::internalMakeBidding()
@@ -393,8 +338,27 @@ InDeal::InDeal(my_context ctx) :
         BridgeEngine::DealStarted {
             opener_position,
             dereference(game_manager.getVulnerability())});
-    context.getTurnStartedNotifier().notifyAll(
-        BridgeEngine::TurnStarted {opener_position});
+}
+
+void InDeal::exit()
+{
+    auto& context = outermost_context();
+    const auto tricks_won = getTricksWon();
+    auto deal_result = std::any {};
+
+    assert(bidding);
+    const auto declarer = bidding->getDeclarerPosition();
+    const auto contract = bidding->getContract();
+    if (!declarer || !*declarer || !contract || !*contract) {
+        deal_result = context.getGameManager().addPassedOut();
+    } else {
+        const auto declarer_partnership = partnershipFor(**declarer);
+        deal_result = context.getGameManager().addResult(
+            declarer_partnership, **contract,
+            getNumberOfTricksWon(tricks_won, declarer_partnership));
+    }
+    context.getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {tricks_won, deal_result});
 }
 
 Bidding& InDeal::getBidding()
@@ -405,6 +369,8 @@ Bidding& InDeal::getBidding()
 
 const Bidding& InDeal::getBidding() const
 {
+    // This const_cast is safe as we are not actually writing to any member
+    // variable in non-const version
     return const_cast<InDeal&>(*this).getBidding();
 }
 
@@ -441,33 +407,78 @@ Position InDeal::getPosition(const Hand& hand) const
     return handsMap.right.at(const_cast<Hand*>(&hand));
 }
 
-sc::result InDeal::react(const DealCompletedEvent& event)
+Hand& InDeal::getHandConstCastSafe(const Hand& hand)
 {
-    assert(bidding);
-    const auto declarer = bidding->getDeclarerPosition();
-    const auto contract = bidding->getContract();
-    if (!declarer || !*declarer || !contract || !*contract) {
-        return discard_event();
-    }
-
-
-    auto& context = outermost_context();
-    const auto declarer_partnership = partnershipFor(**declarer);
-    const auto result = context.getGameManager().addResult(
-        declarer_partnership, **contract,
-        getNumberOfTricksWon(event.tricksWon, declarer_partnership));
-    context.getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {event.tricksWon, result});
-    return transit<Idle>();
+    // The purpose of this method if to strip the constness of the hand pointer,
+    // but only if the hand is legitimately taking part of the deal
+    return getHand(getPosition(hand));
 }
 
-sc::result InDeal::react(const DealPassedOutEvent&)
+void InDeal::addTrick(const Position leader)
 {
-    auto& context = outermost_context();
-    const auto result = context.getGameManager().addPassedOut();
-    context.getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {TricksWon {0, 0}, result});
-    return transit<Idle>();
+    const auto& hands = getHands(leader);
+    tricks.emplace_back(
+        std::make_unique<BasicTrick>(hands.begin(), hands.end()));
+}
+
+bool InDeal::isLastTrick() const
+{
+    return tricks.size() == N_CARDS_PER_PLAYER;
+}
+
+Trick* InDeal::getCurrentTrick()
+{
+    return tricks.empty() ? nullptr : tricks.back().get();
+}
+
+const Trick* InDeal::getCurrentTrick() const
+{
+    // This const_cast is safe as we are not actually writing to any member
+    // variable in non-const version
+    return const_cast<InDeal&>(*this).getCurrentTrick();
+}
+
+std::optional<std::optional<Suit>> InDeal::getTrump() const
+{
+    const auto contract = getBidding().getContract();
+    if (!contract || !*contract) {
+        return std::nullopt;
+    }
+    switch ((*contract)->bid.strain) {
+    case Strain::CLUBS:
+        return Suit::CLUBS;
+    case Strain::DIAMONDS:
+        return Suit::DIAMONDS;
+    case Strain::HEARTS:
+        return Suit::HEARTS;
+    case Strain::SPADES:
+        return Suit::SPADES;
+    default:
+        return std::optional<Suit> {};
+    }
+}
+
+TricksWon InDeal::getTricksWon() const
+{
+    auto north_south = 0;
+    auto east_west = 0;
+    const auto trump = getTrump();
+
+    for (const auto& trick : tricks) {
+        assert(trick);
+        if (const auto winner = getWinner(*trick, dereference(trump))) {
+            const auto winner_position = getPosition(*winner);
+            const auto winner_partnership = partnershipFor(winner_position);
+            switch (winner_partnership) {
+            case Partnership::NORTH_SOUTH:
+                ++north_south;
+                break;
+            case Partnership::EAST_WEST:
+                ++east_west;
+            }
+        }
+    }
+    return {north_south, east_west};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -476,12 +487,22 @@ sc::result InDeal::react(const DealPassedOutEvent&)
 
 class Playing;
 
-class InBidding : public sc::simple_state<InBidding, InDeal> {
+class InBidding : public sc::state<InBidding, InDeal> {
 public:
     using reactions = sc::custom_reaction<CallEvent>;
 
+    InBidding(my_context ctx);
+
     sc::result react(const CallEvent&);
 };
+
+InBidding::InBidding(my_context ctx) :
+    my_base {ctx}
+{
+    outermost_context().getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {
+            context<InDeal>().getBidding().getOpeningPosition()});
+}
 
 sc::result InBidding::react(const CallEvent& event)
 {
@@ -507,7 +528,7 @@ sc::result InBidding::react(const CallEvent& event)
                         *inner_declarer_position, *inner_contract});
                 return transit<Playing>();
             } else {
-                post_event(DealPassedOutEvent {});
+                post_event(DealEndedEvent {});
             }
         }
     }
@@ -518,88 +539,41 @@ sc::result InBidding::react(const CallEvent& event)
 // Playing
 ////////////////////////////////////////////////////////////////////////////////
 
-class PlayingTrick;
+class SelectingCard;
 class DummyNotVisible;
+class DummyVisible;
 
-class Playing : public sc::simple_state<
-    Playing, InDeal, boost::mpl::list<PlayingTrick, DummyNotVisible>> {
+class Playing : public sc::state<
+    Playing, InDeal, boost::mpl::list<SelectingCard, DummyNotVisible>> {
 public:
 
-    void addTrick(std::unique_ptr<Trick>&& trick);
-    int getNumberOfTricksPlayed() const;
-    TricksWon getTricksWon() const;
-    Position getLeaderPosition() const;
-    Position getDeclarerPosition() const;
-    Position getDummyPosition() const;
+    Playing(my_context ctx);
+
     Hand& getDummyHand();
     const Hand& getDummyHand() const;
-    std::optional<Suit> getTrump() const;
+    std::optional<Position> getPositionInTurn() const;
+    const Hand* getHandInTurn() const;
+    Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
+
+    void notifyTurnStarted();
+    void commitPlay(const PlayCardEvent& event);
+    bool play();
+    void requestRevealDummy();
+    void notifyDummyRevealed(const DummyHandRevealedEvent&);
 
 private:
-    std::vector<std::unique_ptr<Trick>> tricks;
+
+    Position getDeclarerPosition() const;
+    Position getDummyPosition() const;
+
+    std::optional<std::pair<Hand&, int>> commitedPlay;
+    std::shared_ptr<Hand::CardRevealStateObserver> cardRevealStateObserver;
 };
 
-void Playing::addTrick(std::unique_ptr<Trick>&& trick)
+Playing::Playing(my_context ctx)  :
+    my_base {ctx}
 {
-    tricks.emplace_back(std::move(trick));
-    const auto& added_trick = *tricks.back();
-    const auto& winner_hand = dereference(getWinner(added_trick, getTrump()));
-    outermost_context().getTrickCompletedNotifier().notifyAll(
-        BridgeEngine::TrickCompleted {added_trick, winner_hand});
-    if (tricks.size() == N_CARDS_PER_PLAYER) {
-        post_event(DealCompletedEvent {getTricksWon()});
-    } else {
-        post_event(NewTrickEvent {});
-    }
-}
-
-int Playing::getNumberOfTricksPlayed() const
-{
-    return tricks.size();
-}
-
-TricksWon Playing::getTricksWon() const
-{
-    auto north_south = 0;
-    auto east_west = 0;
-    const auto trump = getTrump();
-
-    for (const auto& trick : tricks) {
-        assert(trick);
-        if (const auto winner = getWinner(*trick, trump)) {
-            const auto winner_position = context<InDeal>().getPosition(*winner);
-            const auto winner_partnership = partnershipFor(winner_position);
-            switch (winner_partnership) {
-            case Partnership::NORTH_SOUTH:
-                ++north_south;
-                break;
-            case Partnership::EAST_WEST:
-                ++east_west;
-            }
-        }
-    }
-    return {north_south, east_west};
-}
-
-Position Playing::getLeaderPosition() const
-{
-    if (tricks.empty()) {
-        const auto declarer_position = getDeclarerPosition();
-        return clockwise(declarer_position);
-    }
-    const auto& winner = dereference(getWinner(*tricks.back(), getTrump()));
-    return context<InDeal>().getPosition(winner);
-}
-
-Position Playing::getDeclarerPosition() const
-{
-    return dereference(
-        dereference(context<InDeal>().getBidding().getDeclarerPosition()));
-}
-
-Position Playing::getDummyPosition() const
-{
-    return partnerFor(getDeclarerPosition());
+    context<InDeal>().addTrick(clockwise(getDeclarerPosition()));
 }
 
 Hand& Playing::getDummyHand()
@@ -614,103 +588,12 @@ const Hand& Playing::getDummyHand() const
     return const_cast<Playing&>(*this).getDummyHand();
 }
 
-std::optional<Suit> Playing::getTrump() const
-{
-    const auto contract =
-        dereference(dereference(context<InDeal>().getBidding().getContract()));
-    switch (contract.bid.strain) {
-    case Strain::CLUBS:
-        return Suit::CLUBS;
-    case Strain::DIAMONDS:
-        return Suit::DIAMONDS;
-    case Strain::HEARTS:
-        return Suit::HEARTS;
-    case Strain::SPADES:
-        return Suit::SPADES;
-    default:
-        return std::nullopt;
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// PlayingTrick
-////////////////////////////////////////////////////////////////////////////////
-
-class PlayingCard;
-
-class PlayingTrick : public sc::state<PlayingTrick, Playing, PlayingCard> {
-public:
-    using reactions = sc::transition<NewTrickEvent, PlayingTrick>;
-
-    PlayingTrick(my_context ctx);
-
-    void playNext(Hand& hand, int card);
-    void play();
-
-    const Trick* getTrick() const;
-    std::optional<Position> getPositionInTurn() const;
-    const Hand* getHandInTurn() const;
-    Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
-    const auto& getNextPlay();
-
-private:
-
-    std::optional<PlayInfo> playInfo;
-    std::unique_ptr<Trick> trick;
-};
-
-PlayingTrick::PlayingTrick(my_context ctx) :
-    my_base {ctx}
-{
-    const auto leader_position = context<Playing>().getLeaderPosition();
-    const auto& hands = context<InDeal>().getHands(leader_position);
-    trick = std::make_unique<BasicTrick>(hands.begin(), hands.end());
-    outermost_context().getTurnStartedNotifier().notifyAll(
-        BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
-}
-
-void PlayingTrick::playNext(Hand& hand, int card)
-{
-    playInfo.emplace(hand, card);
-}
-
-class DummyVisible;
-
-void PlayingTrick::play()
-{
-    assert(playInfo);
-    assert(trick);
-    const auto& card = dereference(playInfo->hand.getCard(playInfo->card));
-    if (trick->play(playInfo->hand, card)) {
-        auto& context_ = outermost_context();
-        playInfo->hand.markPlayed(playInfo->card);
-        context_.getCardPlayedNotifier().notifyAll(
-            BridgeEngine::CardPlayed { playInfo->hand, card });
-        if (trick->isCompleted()) {
-            context<Playing>().addTrick(std::move(trick));
-        }
-        // If dummy is not yet visible, turn notification is deferred until
-        // revealing is completed
-        else if (state_cast<const DummyVisible*>()) {
-            context_.getTurnStartedNotifier().notifyAll(
-                BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
-        } else {
-            post_event(RevealDummyEvent {});
-        }
-    }
-}
-
-const Trick* PlayingTrick::getTrick() const
-{
-    return trick.get();
-}
-
-std::optional<Position> PlayingTrick::getPositionInTurn() const
+std::optional<Position> Playing::getPositionInTurn() const
 {
     if (const auto* hand = getHandInTurn()) {
         auto position = context<InDeal>().getPosition(*hand);
         // Declarer plays for dummy
-        if (position == context<Playing>().getDummyPosition()) {
+        if (position == getDummyPosition()) {
             position = partnerFor(position);
         }
         return position;
@@ -718,155 +601,206 @@ std::optional<Position> PlayingTrick::getPositionInTurn() const
     return std::nullopt;
 }
 
-const Hand* PlayingTrick::getHandInTurn() const
+const Hand* Playing::getHandInTurn() const
 {
-    if (trick) {
+    if (const auto* trick = context<InDeal>().getCurrentTrick()) {
         return trick->getHandInTurn();
     }
     return nullptr;
 }
 
-Hand* PlayingTrick::getHandIfHasTurn(const Player& player, const Hand& hand)
+Hand* Playing::getHandIfHasTurn(const Player& player, const Hand& hand)
 {
     if (outermost_context().getPosition(player) == getPositionInTurn() &&
         &hand == getHandInTurn()) {
-        auto& in_deal = context<InDeal>();
-        // Arguably a peculiar sequence of commands but correct in the sense
-        // that it converts const Hand& into (non-const) Hand* using the proper
-        // interface
-        const auto position = in_deal.getPosition(hand);
-        return &in_deal.getHand(position);
+        return &context<InDeal>().getHandConstCastSafe(hand);
     }
     return nullptr;
 }
 
-const auto& PlayingTrick::getNextPlay()
+void Playing::notifyTurnStarted()
 {
-    return playInfo;
+    outermost_context().getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
+}
+
+void Playing::commitPlay(const PlayCardEvent& event)
+{
+    auto& hand = context<InDeal>().getHandConstCastSafe(event.hand);
+    commitedPlay.emplace(hand, event.card);
+    cardRevealStateObserver = outermost_context().makeCardRevealStateObserver(
+        [expected_card = event.card](const auto& ns)
+            -> std::optional<CardRevealedEvent>
+        {
+            if (ns.size() == 1 && ns.front() == expected_card) {
+                return CardRevealedEvent {};
+            }
+            return std::nullopt;
+        });
+    hand.subscribe(cardRevealStateObserver);
+    hand.requestReveal(&event.card, &event.card+1);
+}
+
+bool Playing::play()
+{
+    // This method is tightly coupled with WaitingRevealCard state and it
+    // returns true if that state's reaction to CardRevealedEvent is supposed to
+    // transit to a new state, false otherwise. Kind of artificial but didn't
+    // come up with better design yet...
+    auto& indeal = context<InDeal>();
+    assert(commitedPlay);
+    auto& trick = dereference(indeal.getCurrentTrick());
+    auto& [hand, n_card] = *commitedPlay;
+    const auto& card = dereference(hand.getCard(n_card));
+    if (trick.play(hand, card)) {
+        auto& context_ = outermost_context();
+        hand.markPlayed(n_card);
+        context_.getCardPlayedNotifier().notifyAll(
+            BridgeEngine::CardPlayed { hand, card });
+        if (trick.isCompleted()) {
+            const auto& winner_hand = dereference(
+                getWinner(trick, dereference(indeal.getTrump())));
+            outermost_context().getTrickCompletedNotifier().notifyAll(
+                BridgeEngine::TrickCompleted {trick, winner_hand});
+            if (indeal.isLastTrick()) {
+                post_event(DealEndedEvent {});
+                return false;
+            } else {
+                indeal.addTrick(indeal.getPosition(winner_hand));
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+void Playing::requestRevealDummy()
+{
+    cardRevealStateObserver = outermost_context().makeCardRevealStateObserver(
+        [](const auto& ns) -> std::optional<DummyHandRevealedEvent>
+        {
+            const auto expected_cards = to(N_CARDS_PER_PLAYER);
+            const auto expected_cards_revealed = std::is_permutation(
+                ns.begin(), ns.end(),
+                expected_cards.begin(), expected_cards.end());
+            if (expected_cards_revealed) {
+                return DummyHandRevealedEvent {};
+            }
+            return std::nullopt;
+        });
+    auto& dummy_hand = getDummyHand();
+    dummy_hand.subscribe(cardRevealStateObserver);
+    requestRevealHand(dummy_hand);
+}
+
+void Playing::notifyDummyRevealed(const DummyHandRevealedEvent&)
+{
+    post_event(DummyRevealedEvent {});
+    outermost_context().getDummyRevealedNotifier().notifyAll(
+        BridgeEngine::DummyRevealed {});
+}
+
+Position Playing::getDeclarerPosition() const
+{
+    return dereference(
+        dereference(context<InDeal>().getBidding().getDeclarerPosition()));
+}
+
+Position Playing::getDummyPosition() const
+{
+    return partnerFor(getDeclarerPosition());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// PlayingCard
+// SelectingCard
 ////////////////////////////////////////////////////////////////////////////////
 
-class RevealingCard;
+class WaitingRevealCard;
 
-class PlayingCard : public sc::simple_state<PlayingCard, PlayingTrick> {
+class SelectingCard : public sc::state<SelectingCard, Playing> {
 public:
     using reactions = sc::custom_reaction<PlayCardEvent>;
+
+    SelectingCard(my_context ctx);
+
     sc::result react(const PlayCardEvent&);
 };
 
-sc::result PlayingCard::react(const PlayCardEvent& event)
+SelectingCard::SelectingCard(my_context ctx) :
+    my_base {ctx}
 {
-    auto& playing_trick = context<PlayingTrick>();
-    const auto hand = playing_trick.getHandIfHasTurn(event.player, event.hand);
+    context<Playing>().notifyTurnStarted();
+}
+
+sc::result SelectingCard::react(const PlayCardEvent& event)
+{
+    auto& playing = context<Playing>();
+    const auto hand = playing.getHandIfHasTurn(event.player, event.hand);
     if (hand && canBePlayedFromHand(*hand, event.card)) {
         event.ret = true;
-        playing_trick.playNext(*hand, event.card);
-        return transit<RevealingCard>();
+        return transit<WaitingRevealCard>(&Playing::commitPlay, event);
     }
     return discard_event();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// RevealingCard
+// WaitingRevealCard
 ////////////////////////////////////////////////////////////////////////////////
 
-class RevealingCard : public sc::state<RevealingCard, PlayingTrick> {
-public:
-    using reactions = sc::custom_reaction<CardRevealEvent>;
-    RevealingCard(my_context ctx);
-    sc::result react(const CardRevealEvent&);
+class WaitingRevealDummy;
 
-private:
-    const std::shared_ptr<Hand::CardRevealStateObserver> observer;
+class WaitingRevealCard : public sc::simple_state<WaitingRevealCard, Playing> {
+public:
+    using reactions = sc::custom_reaction<CardRevealedEvent>;
+    sc::result react(const CardRevealedEvent&);
 };
 
-RevealingCard::RevealingCard(my_context ctx) :
-    my_base {ctx},
-    observer {outermost_context().makeCardRevealStateObserver()}
+sc::result WaitingRevealCard::react(const CardRevealedEvent&)
 {
-    const auto& playInfo = dereference(context<PlayingTrick>().getNextPlay());
-    playInfo.hand.subscribe(observer);
-    const auto range = { playInfo.card };
-    playInfo.hand.requestReveal(range.begin(), range.end());
-}
-
-sc::result RevealingCard::react(const CardRevealEvent& event)
-{
-    const auto& playInfo = dereference(context<PlayingTrick>().getNextPlay());
-    if (event.state == Hand::CardRevealState::COMPLETED &&
-        event.card == playInfo.card) {
-        context<PlayingTrick>().play();
-        return transit<PlayingCard>();
+    auto& playing = context<Playing>();
+    const auto should_transit = playing.play();
+    if (should_transit) {
+        if (state_cast<const DummyVisible*>()) {
+            return transit<SelectingCard>();
+        } else {
+            playing.requestRevealDummy();
+            return transit<WaitingRevealDummy>();
+        }
     }
     return discard_event();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// WaitingRevealDummy
+////////////////////////////////////////////////////////////////////////////////
+
+class WaitingRevealDummy :
+    public sc::simple_state<WaitingRevealDummy, Playing> {
+public:
+    using reactions = sc::transition<DummyRevealedEvent, SelectingCard>;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // DummyNotVisible
 ////////////////////////////////////////////////////////////////////////////////
 
-class RevealingDummy;
-
 class DummyNotVisible : public sc::simple_state<
     DummyNotVisible, Playing::orthogonal<1>> {
 public:
-    using reactions = sc::transition<RevealDummyEvent, RevealingDummy>;
+    using reactions = sc::transition<
+        DummyHandRevealedEvent, DummyVisible,
+        Playing, &Playing::notifyDummyRevealed>;
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// RevealingDummy
-////////////////////////////////////////////////////////////////////////////////
-
-class RevealingDummy : public sc::state<
-    RevealingDummy, Playing::orthogonal<1>> {
-public:
-    using reactions = sc::custom_reaction<HandRevealEvent>;
-    RevealingDummy(my_context ctx);
-    sc::result react(const HandRevealEvent&);
-
-private:
-    const std::shared_ptr<Hand::CardRevealStateObserver> observer;
-};
-
-RevealingDummy::RevealingDummy(my_context ctx) :
-    my_base {ctx},
-    observer {outermost_context().makeCardRevealStateObserver()}
-{
-    auto& hand = context<Playing>().getDummyHand();
-    hand.subscribe(observer);
-    requestRevealHand(hand);
-}
-
-sc::result RevealingDummy::react(const HandRevealEvent& event)
-{
-    if (event.state == Hand::CardRevealState::COMPLETED) {
-        return transit<DummyVisible>();
-    }
-    return discard_event();
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // DummyVisible
 ////////////////////////////////////////////////////////////////////////////////
 
-class DummyVisible : public sc::state<DummyVisible, Playing::orthogonal<1>> {
+class DummyVisible : public sc::simple_state<
+    DummyVisible, Playing::orthogonal<1>> {
 public:
-    DummyVisible(my_context ctx);
     const Hand& getDummyHand() const;
 };
-
-DummyVisible::DummyVisible(my_context ctx) :
-    my_base {ctx}
-{
-    auto& context_ = outermost_context();
-    context_.getDummyRevealedNotifier().notifyAll(
-        BridgeEngine::DummyRevealed {});
-    context_.getTurnStartedNotifier().notifyAll(
-        BridgeEngine::TurnStarted {context<Playing>().getDeclarerPosition()});
-}
 
 const Hand& DummyVisible::getDummyHand() const
 {
@@ -928,7 +862,7 @@ std::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
     if (state_cast<const InBidding*>()) {
         const auto& bidding = state_cast<const InDeal&>().getBidding();
         return bidding.getPositionInTurn();
-    } else if (const auto* state = state_cast<const PlayingTrick*>()) {
+    } else if (const auto* state = state_cast<const Playing*>()) {
         return state->getPositionInTurn();
     }
     return std::nullopt;
@@ -945,7 +879,7 @@ const Player* BridgeEngine::Impl::getPlayerInTurn() const
 
 const Hand* BridgeEngine::Impl::getHandInTurn() const
 {
-    if (const auto* state = state_cast<const PlayingTrick*>()) {
+    if (const auto* state = state_cast<const Playing*>()) {
         return state->getHandInTurn();
     }
     return nullptr;
@@ -986,20 +920,15 @@ const Bidding* BridgeEngine::Impl::getBidding() const
 
 const Trick* BridgeEngine::Impl::getCurrentTrick() const
 {
-    if (const auto* state = state_cast<const PlayingTrick*>()) {
-        return state->getTrick();
+    if (const auto* state = state_cast<const InDeal*>()) {
+        return state->getCurrentTrick();
     }
     return nullptr;
 }
 
-std::optional<int> BridgeEngine::Impl::getNumberOfTricksPlayed() const
-{
-    return internalCallIfInState(&Playing::getNumberOfTricksPlayed);
-}
-
 std::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 {
-    return internalCallIfInState(&Playing::getTricksWon);
+    return internalCallIfInState(&InDeal::getTricksWon);
 }
 
 const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
@@ -1009,11 +938,14 @@ const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
 
 void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
 {
-    functionQueue(
-        [this, state]()
-        {
-            process_event(ShufflingStateEvent {state});
-        });
+    if (state == CardManager::ShufflingState::COMPLETED &&
+        getCardManager().getNumberOfCards() == N_CARDS) {
+        functionQueue(
+            [this]()
+            {
+                process_event(ShufflingCompletedEvent {});
+            });
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1201,12 +1133,6 @@ const Trick* BridgeEngine::getCurrentTrick() const
 {
     assert(impl);
     return impl->getCurrentTrick();
-}
-
-std::optional<int> BridgeEngine::getNumberOfTricksPlayed() const
-{
-    assert(impl);
-    return impl->getNumberOfTricksPlayed();
 }
 
 std::optional<TricksWon> BridgeEngine::getTricksWon() const
