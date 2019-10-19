@@ -558,151 +558,147 @@ namespace Main {
 
 /** \brief See \ref bridgeprotocolcontrolbridgehlo
  */
-extern const std::string HELLO_COMMAND;
+inline constexpr auto HELLO_COMMAND = std::string_view {"bridgehlo"};
 
 /** \brief See \ref bridgeprotocolcontrolbridgehlo
  */
-extern const std::string VERSION_COMMAND;
+inline constexpr auto VERSION_COMMAND = std::string_view {"version"};
 
 /** \brief See \ref bridgeprotocolcontrolbridgehlo
  */
-extern const std::string ROLE_COMMAND;
+inline constexpr auto ROLE_COMMAND = std::string_view {"role"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string GAME_COMMAND;
+inline constexpr auto GAME_COMMAND = std::string_view {"game"};
 
 /** \brief See \ref bridgeprotocolcontroljoin
  */
-extern const std::string JOIN_COMMAND;
+inline constexpr auto JOIN_COMMAND = std::string_view {"join"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string POSITIONS_COMMAND;
+inline constexpr auto POSITIONS_COMMAND = std::string_view {"positions"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string ARGS_COMMAND;
+inline constexpr auto ARGS_COMMAND = std::string_view {"args"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string CARD_SERVER_COMMAND;
+inline constexpr auto CARD_SERVER_COMMAND = std::string_view {"cardServer"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string ENDPOINT_COMMAND;
+inline constexpr auto ENDPOINT_COMMAND = std::string_view {"endpoint"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */
-extern const std::string SERVER_KEY_COMMAND;
+inline constexpr auto SERVER_KEY_COMMAND = std::string_view {"serverKey"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string GET_COMMAND;
+inline constexpr auto GET_COMMAND = std::string_view {"get"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string PLAYER_COMMAND;
+inline constexpr auto PLAYER_COMMAND = std::string_view {"player"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string POSITION_COMMAND;
+inline constexpr auto POSITION_COMMAND = std::string_view {"position"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string KEYS_COMMAND;
+inline constexpr auto KEYS_COMMAND = std::string_view {"keys"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string POSITION_IN_TURN_COMMAND;
+inline constexpr auto POSITION_IN_TURN_COMMAND = std::string_view {"positionInTurn"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string ALLOWED_CALLS_COMMAND;
+inline constexpr auto ALLOWED_CALLS_COMMAND = std::string_view {"allowedCalls"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string CALLS_COMMAND;
+inline constexpr auto CALLS_COMMAND = std::string_view {"calls"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string DECLARER_COMMAND;
+inline constexpr auto DECLARER_COMMAND = std::string_view {"declarer"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string CONTRACT_COMMAND;
+inline constexpr auto CONTRACT_COMMAND = std::string_view {"contract"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string ALLOWED_CARDS_COMMAND;
+inline constexpr auto ALLOWED_CARDS_COMMAND = std::string_view {"allowedCards"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string TRICKS_WON_COMMAND;
+inline constexpr auto TRICKS_WON_COMMAND = std::string_view {"tricksWon"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string TRICK_COMMAND;
+inline constexpr auto TRICK_COMMAND = std::string_view {"trick"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-extern const std::string VULNERABILITY_COMMAND;
+inline constexpr auto VULNERABILITY_COMMAND = std::string_view {"vulnerability"};
 
 /** \brief See \ref bridgeprotocolcontrolcall
  */
-extern const std::string CALL_COMMAND;
+inline constexpr auto CALL_COMMAND = std::string_view {"call"};
 
 /** \brief See \ref bridgeprotocolcontrolplay
  */
-extern const std::string PLAY_COMMAND;
+inline constexpr auto PLAY_COMMAND = std::string_view {"play"};
 
 /** \brief See \ref bridgeprotocolcontrolplay
  */
-extern const std::string CARD_COMMAND;
+inline constexpr auto CARD_COMMAND = std::string_view {"card"};
 
 /** \brief See \ref bridgeprotocolcontrolplay
  */
-extern const std::string INDEX_COMMAND;
+inline constexpr auto INDEX_COMMAND = std::string_view {"index"};
 
 /** \brief See \ref bridgeprotocolcontroldeal
  */
-extern const std::string DEAL_COMMAND;
+inline constexpr auto DEAL_COMMAND = std::string_view {"deal"};
 
 /** \brief See \ref bridgeprotocolcontroldeal
  */
-extern const std::string CARDS_COMMAND;
+inline constexpr auto CARDS_COMMAND = std::string_view {"cards"};
 
 /** \brief See \ref bridgeprotocoleventdeal
  */
-extern const std::string OPENER_COMMAND;
+inline constexpr auto OPENER_COMMAND = std::string_view {"opener"};
 
 /** \brief See \ref bridgeprotocoleventturn
  */
-extern const std::string TURN_COMMAND;
+inline constexpr auto TURN_COMMAND = std::string_view {"turn"};
 
 /** \brief See \ref bridgeprotocoleventbidding
  */
-extern const std::string BIDDING_COMMAND;
+inline constexpr auto BIDDING_COMMAND = std::string_view {"bidding"};
 
 /** \brief See \ref bridgeprotocoleventdummy
  */
-extern const std::string DUMMY_COMMAND;
+inline constexpr auto DUMMY_COMMAND = std::string_view {"dummy"};
 
 /** \brief See \ref bridgeprotocoleventtrick
  */
-extern const std::string TRICK_COMMAND;
-
-/** \brief See \ref bridgeprotocoleventtrick
- */
-extern const std::string WINNER_COMMAND;
+inline constexpr auto WINNER_COMMAND = std::string_view {"winner"};
 
 /** \brief See \ref bridgeprotocoleventdealend
  */
-extern const std::string DEAL_END_COMMAND;
+inline constexpr auto DEAL_END_COMMAND = std::string_view {"dealend"};
 
 /** \brief See \ref bridgeprotocoleventdealend
  */
-extern const std::string SCORE_COMMAND;
+inline constexpr auto SCORE_COMMAND = std::string_view {"score"};
 
 }
 }

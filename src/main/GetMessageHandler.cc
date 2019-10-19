@@ -26,11 +26,9 @@
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
-#include <boost/iterator/transform_iterator.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
-#include <map>
 #include <optional>
 #include <iterator>
 #include <string>
@@ -45,12 +43,6 @@ namespace {
 using Engine::BridgeEngine;
 using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
-
-const auto ALL_KEYS = std::vector<std::string> {
-    POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
-    CALLS_COMMAND, DECLARER_COMMAND, CONTRACT_COMMAND, ALLOWED_CARDS_COMMAND,
-    CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND
-};
 
 std::string getPosition(const BridgeEngine& engine, const Player& player)
 {
@@ -171,62 +163,71 @@ GetMessageHandler::GetMessageHandler(
 {
 }
 
-std::vector<std::string> GetMessageHandler::getAllKeys()
-{
-    return ALL_KEYS;
-}
-
 void GetMessageHandler::doHandle(
     ExecutionContext, const Messaging::Identity& identity,
     const ParameterVector& params, Messaging::Response& response)
 {
-    const auto keys_param = Messaging::deserializeParam<std::vector<std::string>>(
+    auto keys = Messaging::deserializeParam<std::vector<std::string>>(
         JsonSerializer {}, params.begin(), params.end(), KEYS_COMMAND);
-    const auto& keys = bool(keys_param) ? *keys_param : ALL_KEYS;
     const auto game_ = game.lock();
     const auto player = dereference(nodePlayerControl).getPlayer(identity);
     if (game_ && player) {
+        if (keys) {
+            // keys will be binary searched below
+            std::sort(keys->begin(), keys->end());
+        }
         const auto& engine = game_->getEngine();
-        for (const auto& key : keys) {
-            if (internalContainsKey(key, POSITION_COMMAND, response)) {
-                response.addFrame(asBytes(getPosition(engine, *player)));
-            } else if (internalContainsKey(key, POSITION_IN_TURN_COMMAND, response)) {
-                response.addFrame(asBytes(getPositionInTurn(engine)));
-            } else if (internalContainsKey(key, DECLARER_COMMAND, response)) {
-                response.addFrame(asBytes(getBiddingResult(engine, &Bidding::getDeclarerPosition)));
-            } else if (internalContainsKey(key, CONTRACT_COMMAND, response)) {
-                response.addFrame(asBytes(getBiddingResult(engine, &Bidding::getContract)));
-            } else if (internalContainsKey(key, ALLOWED_CALLS_COMMAND, response)) {
-                response.addFrame(asBytes(getAllowedCalls(engine, *player)));
-            } else if (internalContainsKey(key, CALLS_COMMAND, response)) {
-                response.addFrame(asBytes(getCalls(engine)));
-            } else if (internalContainsKey(key, ALLOWED_CARDS_COMMAND, response)) {
-                response.addFrame(asBytes(getAllowedCards(engine, *player)));
-            } else if (internalContainsKey(key, CARDS_COMMAND, response)) {
-                response.addFrame(asBytes(getCards(*player, engine)));
-            } else if (internalContainsKey(key, TRICK_COMMAND, response)) {
-                response.addFrame(asBytes(getTrick(engine)));
-            } else if (internalContainsKey(key, TRICKS_WON_COMMAND, response)) {
-                response.addFrame(asBytes(getTricksWon(engine)));
-            } else if (internalContainsKey(key, VULNERABILITY_COMMAND, response)) {
-                response.addFrame(asBytes(getVulnerability(game_->getGameManager())));
+        auto add_response_for_key = [this, &keys](
+            const auto& key, auto& response)
+        {
+            // keys are sorted above
+            if (!keys || std::binary_search(keys->begin(), keys->end(), key)) {
+                response.addFrame(asBytes(key));
+                return true;
             }
+            return false;
+        };
+        if (add_response_for_key(POSITION_COMMAND, response)) {
+            response.addFrame(asBytes(getPosition(engine, *player)));
+        }
+        if (add_response_for_key(POSITION_IN_TURN_COMMAND, response)) {
+            response.addFrame(asBytes(getPositionInTurn(engine)));
+        }
+        if (add_response_for_key(DECLARER_COMMAND, response)) {
+            response.addFrame(
+                asBytes(
+                    getBiddingResult(engine, &Bidding::getDeclarerPosition)));
+        }
+        if (add_response_for_key(CONTRACT_COMMAND, response)) {
+            response.addFrame(
+                asBytes(getBiddingResult(engine, &Bidding::getContract)));
+        }
+        if (add_response_for_key(ALLOWED_CALLS_COMMAND, response)) {
+            response.addFrame(asBytes(getAllowedCalls(engine, *player)));
+        }
+        if (add_response_for_key(CALLS_COMMAND, response)) {
+            response.addFrame(asBytes(getCalls(engine)));
+        }
+        if (add_response_for_key(ALLOWED_CARDS_COMMAND, response)) {
+            response.addFrame(asBytes(getAllowedCards(engine, *player)));
+        }
+        if (add_response_for_key(CARDS_COMMAND, response)) {
+            response.addFrame(asBytes(getCards(*player, engine)));
+        }
+        if (add_response_for_key(TRICK_COMMAND, response)) {
+            response.addFrame(asBytes(getTrick(engine)));
+        }
+        if (add_response_for_key(TRICKS_WON_COMMAND, response)) {
+            response.addFrame(asBytes(getTricksWon(engine)));
+        }
+        if (add_response_for_key(VULNERABILITY_COMMAND, response)) {
+            response.addFrame(
+                asBytes(getVulnerability(game_->getGameManager())));
         }
         response.setStatus(Messaging::REPLY_SUCCESS);
     } else {
         response.setStatus(Messaging::REPLY_FAILURE);
     }
-}
-
-bool GetMessageHandler::internalContainsKey(
-    const std::string& key, const std::string& expected,
-    Messaging::Response& response) const
-{
-    if (key == expected) {
-        response.addFrame(asBytes(key));
-        return true;
-    }
-    return false;
 }
 
 }

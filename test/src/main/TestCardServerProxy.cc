@@ -40,6 +40,7 @@ using namespace Bridge::Messaging;
 using testing::_;
 using testing::ElementsAre;
 using testing::ElementsAreArray;
+using testing::Eq;
 using testing::InvokeWithoutArgs;
 using testing::IsEmpty;
 using testing::Return;
@@ -203,9 +204,9 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     protocol.initialize();
 
     assertMessage(
-        INIT_COMMAND, ORDER_COMMAND, IsSerialized(1), PEERS_COMMAND,
+        Eq(INIT_COMMAND), Eq(ORDER_COMMAND), IsSerialized(1), Eq(PEERS_COMMAND),
         IsSerialized(
-            std::vector<PeerEntry> {
+            std::vector {
                 PeerEntry {CARD_SERVER_ENDPOINT2},
                 PeerEntry {CARD_SERVER_ENDPOINT} }));
 
@@ -219,20 +220,21 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         manager->requestShuffle();
     }
     EXPECT_FALSE(manager->isShuffleCompleted());
-    assertMessage(SHUFFLE_COMMAND);
+    assertMessage(Eq(SHUFFLE_COMMAND));
     assertMessage(
-        REVEAL_COMMAND, ORDER_COMMAND, IsSerialized(0),
-        CardServer::CARDS_COMMAND,
+        Eq(REVEAL_COMMAND), Eq(ORDER_COMMAND), IsSerialized(0),
+        Eq(CardServer::CARDS_COMMAND),
         IsSerialized(cardsFor(PEER2_POSITIONS.begin(), PEER2_POSITIONS.end())));
     const auto self_card_ns =
         cardsFor(SELF_POSITIONS.begin(), SELF_POSITIONS.end());
     assertMessage(
-        DRAW_COMMAND, CardServer::CARDS_COMMAND, IsSerialized(self_card_ns));
+        Eq(DRAW_COMMAND), Eq(CardServer::CARDS_COMMAND),
+        IsSerialized(self_card_ns));
     const auto peer_card_ns =
         cardsFor(PEER_POSITIONS.begin(), PEER_POSITIONS.end());
     assertMessage(
-        REVEAL_COMMAND, ORDER_COMMAND, IsSerialized(2),
-        CardServer::CARDS_COMMAND, IsSerialized(peer_card_ns));
+        Eq(REVEAL_COMMAND), Eq(ORDER_COMMAND), IsSerialized(2),
+        Eq(CardServer::CARDS_COMMAND), IsSerialized(peer_card_ns));
 
     revealCards(self_card_ns.begin(), self_card_ns.end());
     reply(SHUFFLE_COMMAND);
@@ -286,7 +288,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         peer_hand->requestReveal(reveal_ns.begin(), reveal_ns.end());
     }
     assertMessage(
-        REVEAL_ALL_COMMAND, CardServer::CARDS_COMMAND,
+        Eq(REVEAL_ALL_COMMAND), Eq(CardServer::CARDS_COMMAND),
         IsSerialized(reveal_card_ns));
     revealCards(reveal_card_ns.begin(), reveal_card_ns.end());
     {

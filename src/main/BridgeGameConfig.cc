@@ -85,10 +85,10 @@ BridgeGame gameFromConfig(
                 { ENDPOINT_COMMAND, config.cardServer->peerEndpoint }
             };
             if (!config.cardServer->serverKey.empty()) {
-                card_server_args[SERVER_KEY_COMMAND] =
-                    config.cardServer->serverKey;
+                card_server_args.emplace(
+                    SERVER_KEY_COMMAND, config.cardServer->serverKey);
             }
-            game_args[CARD_SERVER_COMMAND] = card_server_args;
+            game_args.emplace(CARD_SERVER_COMMAND, std::move(card_server_args));
         }
         peer_command_sender->sendCommand(
             Messaging::JsonSerializer {},

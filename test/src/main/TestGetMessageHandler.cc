@@ -26,7 +26,7 @@
 #include "MockBridgeGameInfo.hh"
 #include "MockMessageHandler.hh"
 
-#include <boost/range/adaptor/strided.hpp>
+#include <boost/range/adaptors.hpp>
 #include <boost/range/combine.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <gtest/gtest.h>
@@ -64,7 +64,6 @@ using testing::NiceMock;
 using namespace Bridge::BlobLiterals;
 using namespace Bridge::Main;
 
-using StringVector = std::vector<std::string>;
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
 using OptionalCardVector = std::vector<std::optional<Bridge::CardType>>;
@@ -127,15 +126,13 @@ protected:
         }
     }
 
-    template<typename... String>
     void request(
-        const Identity& identity, String&&... keys)
+        const Identity& identity, const std::optional<std::string_view> key)
     {
-        const auto keys_ = StringVector {std::forward<String>(keys)...};
         auto args = std::vector<std::string> {};
-        if (!keys_.empty()) {
+        if (key) {
             args.emplace_back(KEYS_COMMAND);
-            args.emplace_back(JsonSerializer::serialize(keys_));
+            args.emplace_back(JsonSerializer::serialize(std::vector {*key}));
         }
         EXPECT_CALL(response, handleSetStatus(REPLY_SUCCESS));
         EXPECT_CALL(response, handleAddFrame(_))
@@ -149,7 +146,7 @@ protected:
     }
 
     void testEmptyRequestReply(
-        const std::string& command, const Identity& player = PLAYER1)
+        const std::string_view command, const Identity& player = PLAYER1)
     {
         request(player, command);
         ASSERT_EQ(2u, reply.size());
@@ -177,8 +174,8 @@ protected:
 TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
 {
     const auto args = {
-        KEYS_COMMAND,
-        JsonSerializer::serialize(StringVector {ALLOWED_CALLS_COMMAND}),
+        std::string {KEYS_COMMAND},
+        JsonSerializer::serialize(std::vector {ALLOWED_CALLS_COMMAND}),
     };
     EXPECT_CALL(response, handleSetStatus(REPLY_FAILURE));
     handler.handle({}, {}, args.begin(), args.end(), response);
@@ -186,10 +183,17 @@ TEST_F(GetMessageHandlerTest, testGetFromUnknownClientIsRejected)
 
 TEST_F(GetMessageHandlerTest, testRequestWithoutKeysIncludesAllKeys)
 {
-    request(PLAYER1);
-    const auto keys = boost::adaptors::stride(reply, 2);
-    const auto expected = GetMessageHandler::getAllKeys();
-    EXPECT_THAT(keys, testing::UnorderedElementsAreArray(expected));
+    request(PLAYER1, std::nullopt);
+    const auto keys_in_reply = reply |
+        boost::adaptors::strided(2) |
+        boost::adaptors::transformed(
+            [](const auto& key) { return std::string_view {key}; });
+    constexpr auto ALL_KEYS = std::array {
+        POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
+        CALLS_COMMAND, DECLARER_COMMAND, CONTRACT_COMMAND, ALLOWED_CARDS_COMMAND,
+        CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND
+    };
+    EXPECT_THAT(keys_in_reply, testing::UnorderedElementsAreArray(ALL_KEYS));
 }
 
 TEST_F(GetMessageHandlerTest, testPositionInTurn)
@@ -245,10 +249,13 @@ TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
     EXPECT_EQ(CALLS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
     for (auto&& t : boost::combine(j, POSITIONS, CALLS)) {
-        const auto position =
-            t.get<0>().at(POSITION_COMMAND).get<Position>();
+        const auto position_iter = t.get<0>().find(POSITION_COMMAND);
+        ASSERT_NE(t.get<0>().end(), position_iter);
+        const auto position = position_iter->get<Position>();
         EXPECT_EQ(t.get<1>(), position);
-        const auto call = t.get<0>().at(CALL_COMMAND).get<Call>();
+        const auto call_iter = t.get<0>().find(CALL_COMMAND);
+        ASSERT_NE(t.get<0>().end(), call_iter);
+        const auto call = call_iter->get<Call>();
         EXPECT_EQ(t.get<2>(), call);
     }
 }
@@ -356,8 +363,12 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
     EXPECT_EQ(TRICK_COMMAND, reply[0]);
     const auto trick = nlohmann::json::parse(reply[1]);
     ASSERT_EQ(1u, trick.size());
-    EXPECT_EQ(Position::EAST, trick[0].at(POSITION_COMMAND).get<Position>());
-    EXPECT_EQ(expected_card_type, trick[0].at(CARD_COMMAND).get<CardType>());
+    const auto position_iter = trick[0].find(POSITION_COMMAND);
+    ASSERT_NE(trick[0].end(), position_iter);
+    EXPECT_EQ(Position::EAST, position_iter->get<Position>());
+    const auto card_iter = trick[0].find(CARD_COMMAND);
+    ASSERT_NE(trick[0].end(), card_iter);
+    EXPECT_EQ(expected_card_type, card_iter->get<CardType>());
 }
 
 TEST_F(GetMessageHandlerTest, testTricksWon)

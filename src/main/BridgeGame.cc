@@ -128,15 +128,15 @@ public:
 private:
 
     template<typename... Args>
-    void sendToPeers(const std::string& command, Args&&... args);
+    void sendToPeers(std::string_view command, Args&&... args);
 
     template<typename... Args>
     void sendToPeersIfClient(
-        const Identity& identity, const std::string& command,
+        const Identity& identity, std::string_view command,
         Args&&... args);
 
     template<typename... Args>
-    void publish(const std::string& command, Args&&... args);
+    void publish(std::string_view command, Args&&... args);
 
     void handleNotify(const BridgeEngine::DealStarted&) override;
     void handleNotify(const BridgeEngine::TurnStarted&) override;
@@ -194,7 +194,7 @@ BridgeGame::Impl::Impl(
 
 template<typename... Args>
 void BridgeGame::Impl::sendToPeers(
-    const std::string& command, Args&&... args)
+    const std::string_view command, Args&&... args)
 {
     if (peerCommandSender) {
         log(LogLevel::DEBUG, "Sending command to peers: %s", command);
@@ -205,7 +205,7 @@ void BridgeGame::Impl::sendToPeers(
 
 template<typename... Args>
 void BridgeGame::Impl::sendToPeersIfClient(
-    const Identity& identity, const std::string& command, Args&&... args)
+    const Identity& identity, const std::string_view command, Args&&... args)
 {
     if (peers.find(identity) == peers.end()) {
         sendToPeers(command, std::forward<Args>(args)...);
@@ -213,7 +213,7 @@ void BridgeGame::Impl::sendToPeersIfClient(
 }
 
 template<typename... Args>
-void BridgeGame::Impl::publish(const std::string& command, Args&&... args)
+void BridgeGame::Impl::publish(const std::string_view command, Args&&... args)
 {
     std::ostringstream os;
     os << uuid << ':' << command;

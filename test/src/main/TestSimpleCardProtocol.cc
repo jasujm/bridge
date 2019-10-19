@@ -84,7 +84,7 @@ protected:
     void dealCommand(const Identity& identity, StatusCode expectedStatus)
     {
         const auto args = {
-            CARDS_COMMAND,
+            std::string {CARDS_COMMAND},
             JsonSerializer::serialize(
                 CardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS)))};
         testing::StrictMock<MockResponse> response;

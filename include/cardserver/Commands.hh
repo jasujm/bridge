@@ -305,35 +305,35 @@ namespace CardServer {
 
 /** \brief Card server init command
  */
-extern const std::string INIT_COMMAND;
+inline constexpr auto INIT_COMMAND = std::string_view {"init"};
 
 /** \brief Order parameter to the card server init command
  */
-extern const std::string ORDER_COMMAND;
+inline constexpr auto ORDER_COMMAND = std::string_view {"order"};
 
 /** \brief Peers parameter to the card server init command
  */
-extern const std::string PEERS_COMMAND;
+inline constexpr auto PEERS_COMMAND = std::string_view {"peers"};
 
 /** \brief Card server shuffle command
  */
-extern const std::string SHUFFLE_COMMAND;
+inline constexpr auto SHUFFLE_COMMAND = std::string_view {"shuffle"};
 
 /** \brief Card server draw command
  */
-extern const std::string DRAW_COMMAND;
+inline constexpr auto DRAW_COMMAND = std::string_view {"draw"};
 
 /** \brief Cards parameter to several the card server commands
  */
-extern const std::string CARDS_COMMAND;
+inline constexpr auto CARDS_COMMAND = std::string_view {"cards"};
 
 /** \brief Card server reveal command
  */
-extern const std::string REVEAL_COMMAND;
+inline constexpr auto REVEAL_COMMAND = std::string_view {"reveal"};
 
 /** \brief Card server reveal all command
  */
-extern const std::string REVEAL_ALL_COMMAND;
+inline constexpr auto REVEAL_ALL_COMMAND = std::string_view {"revealall"};
 
 }
 }
