@@ -1,5 +1,7 @@
 #include "bridge/RevealableCard.hh"
 
+#include <cassert>
+
 namespace Bridge {
 
 void RevealableCard::reveal(const CardType& cardType)
