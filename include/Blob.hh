@@ -211,7 +211,7 @@ inline Blob operator"" _B(const char* str, std::size_t len)
 constexpr ByteSpan operator"" _BS(const char* str, std::size_t len)
 {
     return ByteSpan(
-        reinterpret_cast<const std::byte*>(str), len);
+        static_cast<const std::byte*>(static_cast<const void*>(str)), len);
 }
 
 }
