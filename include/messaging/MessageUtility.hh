@@ -208,7 +208,8 @@ inline ByteSpan messageView(const Message& message)
  *
  * \return message containing the contents of \p container as its data
  */
-Message messageFromContainer(const auto& container)
+template<typename Container>
+Message messageFromContainer(const Container& container)
 {
     const auto* data = std::data(container);
     using ValueType = std::remove_cv_t<
@@ -229,7 +230,8 @@ Message messageFromContainer(const auto& container)
  *
  * \return message containing the object representation of \p value as its data
  */
-Message messageFromValue(const auto& value)
+template<typename T>
+Message messageFromValue(const T& value)
 {
     using ValueType = std::remove_cv_t<
         std::remove_reference_t<decltype(value)>>;

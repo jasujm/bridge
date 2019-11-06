@@ -22,7 +22,8 @@ using testing::StrictMock;
 
 namespace {
 
-void expectAwaits(CoroutineAdapter& adapter, const auto& awaitable)
+template<typename Awaitable>
+void expectAwaits(CoroutineAdapter& adapter, const Awaitable& awaitable)
 {
     EXPECT_EQ(
         CoroutineAdapter::Awaitable {awaitable},

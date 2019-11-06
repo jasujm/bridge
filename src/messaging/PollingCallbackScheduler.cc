@@ -26,13 +26,15 @@ struct ScheduledCallback {
     unsigned long callback_id;
 };
 
+using CallbackQueue = std::priority_queue<ScheduledCallback>;
+
 // PollingCallbackScheduler workflow:
 // - callOnce() -> store callback and send message to worker thread for waiting
 // - worker thread -> wait until it's time to execute a callback, send its id
 //   back to main thread
 // - operator()() -> when the back socket receives message, callback is executed
 
-auto millisecondsUntilCallback(const auto& queue)
+auto millisecondsUntilCallback(const CallbackQueue& queue)
 {
     if (queue.empty()) {
         return -1L;
@@ -52,7 +54,7 @@ void callbackSchedulerWorker(
     MessageContext& context, const std::string& bAddr, const std::string& fAddr,
     Socket terminationSubscriber)
 {
-    auto queue = std::priority_queue<ScheduledCallback> {};
+    auto queue = CallbackQueue {};
     auto fs = Socket {context, SocketType::pair};
     auto bs = Socket {context, SocketType::pair};
     connectSocket(fs, fAddr);

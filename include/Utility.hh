@@ -43,7 +43,8 @@ constexpr auto checkIndex(Integer1 i, Integer2 n)
  *
  * \return size of the container cast to std::ptrdiff_t
  */
-constexpr std::ptrdiff_t ssize(const auto& container)
+template<typename Container>
+constexpr std::ptrdiff_t ssize(const Container& container)
 {
     return static_cast<std::ptrdiff_t>(std::size(container));
 }

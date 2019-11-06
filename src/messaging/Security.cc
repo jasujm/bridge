@@ -5,7 +5,8 @@ namespace Messaging {
 
 namespace {
 
-bool checkKeys(const auto&... keys)
+template<typename... Keys>
+bool checkKeys(const Keys&... keys)
 {
     return ( ... && (keys.size() == EXPECTED_CURVE_KEY_SIZE) );
 }

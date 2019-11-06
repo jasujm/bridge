@@ -33,7 +33,8 @@ struct BytewiseCompare {
      * \return true if the object representation of \p lhs is lexicographically
      * smaller than the object representation of \p rhs
      */
-    bool operator()(const auto& lhs, const auto& rhs) const
+    template<typename Container1, typename Container2>
+    bool operator()(const Container1& lhs, const Container2& rhs) const
     {
         return asBytes(lhs) < asBytes(rhs);
     }

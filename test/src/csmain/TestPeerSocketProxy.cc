@@ -65,8 +65,9 @@ protected:
         }
     }
 
+    template<typename OrderParameter>
     void testIncomingMessageHelper(
-        auto order, std::optional<ByteSpan> message,
+        OrderParameter order, std::optional<ByteSpan> message,
         std::optional<ByteSpan> peer1Message,
         std::optional<ByteSpan> peer3Message,
         bool skipEmptyFrame = false)

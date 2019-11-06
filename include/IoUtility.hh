@@ -111,11 +111,11 @@ std::ostream& operator<<(std::ostream& os, const std::variant<T, Ts...>& t)
  *
  * \return the result of invoking \p callback with the reference to the stream
  */
-decltype(auto) processStreamFromPath(std::string_view path, auto&& callback)
+template<typename Callable>
+decltype(auto) processStreamFromPath(std::string_view path, Callable&& callback)
 {
-    using Callback = decltype(callback);
     auto helper = [&callback](auto& in) -> decltype(auto) {
-        return std::invoke(std::forward<Callback>(callback), in);
+        return std::invoke(std::forward<Callable>(callback), in);
     };
     if (path == "-") {
         return helper(std::cin);

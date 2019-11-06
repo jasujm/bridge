@@ -55,10 +55,12 @@ namespace Messaging {
  * \return the deserialized parameter corresponding to \p param, or nullopt if
  * the parameter is not found in the range
  */
-template<typename T, typename SerializationPolicy, typename ParamIterator>
+template<
+    typename T, typename SerializationPolicy, typename ParamIterator,
+    typename Parameter>
 std::optional<T> deserializeParam(
     SerializationPolicy&& serializer,
-    ParamIterator first, ParamIterator last, const auto& param)
+    ParamIterator first, ParamIterator last, const Parameter& param)
 {
     first = std::find_if(
         first, last,

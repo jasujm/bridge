@@ -145,7 +145,8 @@ inline bool operator<(const ByteSpan& lhs, const ByteSpan& rhs)
  *
  * \return String object containing the same bytes as \p bytes
  */
-std::string blobToString(const auto& bytes)
+template<typename ByteRange>
+std::string blobToString(const ByteRange& bytes)
 {
     static_assert(
         sizeof(*std::data(bytes)) == 1,
@@ -160,7 +161,8 @@ std::string blobToString(const auto& bytes)
  *
  * \return Blob object containing the same bytes as \p string
  */
-Blob stringToBlob(const auto& string)
+template<typename String>
+Blob stringToBlob(const String& string)
 {
     static_assert(
         sizeof(*std::data(string)) == 1,
@@ -173,15 +175,16 @@ Blob stringToBlob(const auto& string)
 
 /** \brief Get view to the bytes in object representation
  *
- * \param c A contiguous container
+ * \param container A contiguous container
  *
  * \return ByteSpan object over the bytes in \p c
  */
-constexpr ByteSpan asBytes(const auto& c)
+template<typename Container>
+constexpr ByteSpan asBytes(const Container& container)
 {
-    const auto* data = reinterpret_cast<const std::byte*>((std::data(c)));
+    const auto* data = reinterpret_cast<const std::byte*>(std::data(container));
     const auto size =
-        std::size(c) * sizeof(std::remove_pointer_t<decltype(data)>);
+        std::size(container) * sizeof(std::remove_pointer_t<decltype(data)>);
     return {data, static_cast<ByteSpan::index_type>(size)};
 }
 

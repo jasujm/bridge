@@ -150,8 +150,8 @@ OutputIterator decodeHex(InputIterator first, InputIterator last, OutputIterator
  *
  * \return A string containing \p bytes encoded as hexadecimal string
  */
-template<typename Char = char>
-auto toHex(const auto& bytes)
+template<typename Char = char, typename ByteRange>
+auto toHex(const ByteRange& bytes)
 {
     auto ret = std::basic_string<Char> {};
     ret.reserve(2 * std::size(bytes));
@@ -170,7 +170,8 @@ auto toHex(const auto& bytes)
  *
  * \throw See decodeHex()
  */
-auto fromHex(const auto& string)
+template<typename String>
+auto fromHex(const String& string)
 {
     auto ret = Blob {};
     ret.reserve((std::size(string) + 1) / 2);

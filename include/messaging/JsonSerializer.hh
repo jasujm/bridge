@@ -60,7 +60,8 @@ struct JsonSerializer {
      * \throw SerializationFailureException in case any exception is caught from
      * the JSON library
      */
-    template<typename T> static T deserialize(const auto& s)
+    template<typename T, typename String>
+    static T deserialize(const String& s)
     {
         try {
             return nlohmann::json::parse(s).template get<T>();
