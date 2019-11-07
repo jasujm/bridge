@@ -26,11 +26,11 @@ using namespace std::string_literals;
 using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 const auto IDENTITY = Identity { ""s, "identity"_B };
-constexpr auto PARAM1 = "param1"_BS;
-constexpr auto PARAM2 = "param2"_BS;
+const auto PARAM1 = "param1"_BS;
+const auto PARAM2 = "param2"_BS;
 constexpr auto ENDPOINT = "inproc://testing"sv;
-constexpr auto COMMAND = "cmd"_BS;
-constexpr auto OTHER_COMMAND = "cmd2"_BS;
+const auto COMMAND = "cmd"_BS;
+const auto OTHER_COMMAND = "cmd2"_BS;
 }
 
 class MessageQueueTest : public testing::Test {

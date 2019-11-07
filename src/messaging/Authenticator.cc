@@ -14,17 +14,16 @@ namespace Messaging {
 namespace {
 
 using namespace std::string_view_literals;
-using namespace Bridge::BlobLiterals;
 
 constexpr auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"sv;
 constexpr auto CONTROL_ENDPOINT = "inproc://bridge.authenticator.control"sv;
-constexpr auto ZAP_VERSION = "1.0"_BS;
-constexpr auto ZAP_SUCCESS = "200"_BS;
-constexpr auto ZAP_ERROR = "400"_BS;
-constexpr auto ZAP_STATUS = "OK"_BS;
-constexpr auto ZAP_STATUS_ERROR = "Error"_BS;
+constexpr auto ZAP_VERSION = "1.0"sv;
+constexpr auto ZAP_SUCCESS = "200"sv;
+constexpr auto ZAP_ERROR = "400"sv;
+constexpr auto ZAP_STATUS = "OK"sv;
+constexpr auto ZAP_STATUS_ERROR = "Error"sv;
 constexpr auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
-constexpr auto CURVE_MECHANISM = "CURVE"_BS;
+constexpr auto CURVE_MECHANISM = "CURVE"sv;
 constexpr auto ANONYMOUS_USER_ID = "anonymous"sv;
 
 enum class AuthenticatorCommand {

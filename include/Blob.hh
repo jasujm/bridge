@@ -180,7 +180,7 @@ Blob stringToBlob(const String& string)
  * \return ByteSpan object over the bytes in \p c
  */
 template<typename Container>
-constexpr ByteSpan asBytes(const Container& container)
+ByteSpan asBytes(const Container& container)
 {
     const auto* data = reinterpret_cast<const std::byte*>(std::data(container));
     const auto size =
@@ -211,10 +211,10 @@ inline Blob operator"" _B(const char* str, std::size_t len)
  *
  * \return Byte span with the characters of \p str interpreted as raw memory
  */
-constexpr ByteSpan operator"" _BS(const char* str, std::size_t len)
+inline ByteSpan operator"" _BS(const char* str, std::size_t len)
 {
     return ByteSpan(
-        static_cast<const std::byte*>(static_cast<const void*>(str)), len);
+        reinterpret_cast<const std::byte*>(str), len);
 }
 
 }

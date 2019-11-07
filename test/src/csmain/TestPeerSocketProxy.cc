@@ -32,7 +32,7 @@ constexpr auto SELF_ENDPOINT = "inproc://bridge.test.peersocketproxy.self"sv;
 constexpr auto PEER1_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer1"sv;
 constexpr auto PEER3_ENDPOINT = "inproc://bridge.test.peersocketproxy.peer3"sv;
 const auto PEER_IDENTITY = "peer"_B;
-constexpr auto MESSAGE = "message"_BS;
+const auto MESSAGE = "message"_BS;
 constexpr auto ORDER = OrderParameter {1};
 
 class MockAuthorizationFunction {

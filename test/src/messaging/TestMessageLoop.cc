@@ -22,8 +22,8 @@ using testing::Invoke;
 
 namespace {
 constexpr auto N_SOCKETS = 2;
-constexpr auto DEFAULT_MSG = "default"_BS;
-constexpr auto OTHER_MSG = "other"_BS;
+const auto DEFAULT_MSG = "default"_BS;
+const auto OTHER_MSG = "other"_BS;
 constexpr auto ENDPOINTS = std::array {
     "inproc://endpoint1"sv,
     "inproc://endpoint2"sv,

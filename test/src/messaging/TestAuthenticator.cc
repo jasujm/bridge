@@ -14,10 +14,9 @@ using namespace Bridge::Messaging;
 namespace {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
-using namespace Bridge::BlobLiterals;
 constexpr auto ZAP_ENDPOINT = "inproc://zeromq.zap.01"sv;
 constexpr auto ENDPOINT = "tcp://127.0.0.1:5555"sv;
-constexpr auto ZAP_DOMAIN = "test"_BS;
+constexpr auto ZAP_DOMAIN = "test"sv;
 const auto SERVER_PUBLIC_KEY = decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7");
 const auto SERVER_SECRET_KEY = decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6");
 const auto CLIENT_PUBLIC_KEY = decodeKey("Yne@$w-vo<fVvi]a<NY6T1ed:M$fCG*[IaLV{hID");
@@ -26,9 +25,9 @@ const auto CLIENT_USER_ID = "user"s;
 const auto CLIENT2_PUBLIC_KEY = decodeKey("}Nd:*=$4Fvzi5ehoQw/ew8tZ/XKI.C8o5YBqJcMR");
 const auto CLIENT2_SECRET_KEY = decodeKey("G-Lq6{EbJ/C</gpvtK3V:4Sx[hsdePYi7[]4a3Nx");
 const auto CLIENT2_USER_ID = "user2"s;
-constexpr auto ZAP_VERSION = "1.0"_BS;
-constexpr auto ZAP_REQUEST_ID = "testreq"_BS;
-constexpr auto CURVE_MECHANISM = "CURVE"_BS;
+constexpr auto ZAP_VERSION = "1.0"sv;
+constexpr auto ZAP_REQUEST_ID = "testreq"sv;
+constexpr auto CURVE_MECHANISM = "CURVE"sv;
 }
 
 class AuthenticatorTest : public testing::Test {
@@ -62,7 +61,7 @@ protected:
 
     void testZapReply(
         bool success,
-        std::optional<Bridge::ByteSpan> expectedRequestId = std::nullopt,
+        std::optional<std::string_view> expectedRequestId = std::nullopt,
         std::optional<std::string> expectedUserId = std::nullopt)
     {
         auto message = Message {};
