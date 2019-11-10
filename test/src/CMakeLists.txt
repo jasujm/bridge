@@ -4,34 +4,34 @@ include(ExternalProject)
 
 ExternalProject_Add(googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG ac34e6c950925df7165e626becd3f9d64dcd584b
+  GIT_TAG release-1.10.0
   INSTALL_COMMAND ""
   LOG_DOWNLOAD ON
   LOG_CONFIGURE ON
   LOG_BUILD ON)
 
 ExternalProject_Get_Property(googletest SOURCE_DIR)
-set(GMOCK_INCLUDE_DIR
+set(GOOGLETEST_INCLUDE_DIR
   ${SOURCE_DIR}/googletest/include ${SOURCE_DIR}/googlemock/include)
 
 ExternalProject_Get_Property(googletest BINARY_DIR)
 
 set(GMOCK_LIBRARY gmock)
-set(GMOCK_LIBRARY_PATH ${BINARY_DIR}/googlemock/${CMAKE_STATIC_LIBRARY_PREFIX}gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(GMOCK_LIBRARY_PATH ${BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
 add_library(${GMOCK_LIBRARY} UNKNOWN IMPORTED)
 set_property(TARGET ${GMOCK_LIBRARY} PROPERTY IMPORTED_LOCATION
   ${GMOCK_LIBRARY_PATH} )
 add_dependencies(${GMOCK_LIBRARY} googletest)
 
 set(GTEST_LIBRARY gtest)
-set(GTEST_LIBRARY_PATH ${BINARY_DIR}/googlemock/gtest/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(GTEST_LIBRARY_PATH ${BINARY_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
 add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
 set_property(TARGET ${GTEST_LIBRARY} PROPERTY IMPORTED_LOCATION
   ${GTEST_LIBRARY_PATH} )
 add_dependencies(${GTEST_LIBRARY} googletest)
 
 set(BRIDGE_TEST_INCLUDE_DIRS
-  ${PROJECT_SOURCE_DIR}/test/include ${GMOCK_INCLUDE_DIR})
+  ${PROJECT_SOURCE_DIR}/test/include ${GOOGLETEST_INCLUDE_DIR})
 
 add_library(test-common STATIC TestMain.cc ${PROJECT_SOURCE_DIR}/src/Logging.cc ${PROJECT_SOURCE_DIR}/src/Thread.cc)
 target_include_directories(test-common PUBLIC ${BRIDGE_TEST_INCLUDE_DIRS})
