@@ -47,11 +47,11 @@ public:
 
 private:
 
-    std::any handleAddResult(
+    ResultType handleAddResult(
         Partnership partnership, const Contract& contract,
         int tricksWon) override;
 
-    std::any handleAddPassedOut() override;
+    ResultType handleAddPassedOut() override;
 
     bool handleHasEnded() const override;
 

@@ -437,7 +437,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
     log(LogLevel::DEBUG, "Deal ended. Tricks won: %s", event.tricksWon);
     using ScoreEntry = Engine::DuplicateGameManager::ScoreEntry;
-    const auto& result = std::any_cast<const ScoreEntry&>(event.result);
+    const auto& result = std::experimental::any_cast<const ScoreEntry&>(event.result);
     publish(
         DEAL_END_COMMAND,
         std::tie(TRICKS_WON_COMMAND, event.tricksWon),

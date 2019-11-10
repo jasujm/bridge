@@ -6,7 +6,7 @@
 #ifndef ENGINE_GAMEMANAGER_HH_
 #define ENGINE_GAMEMANAGER_HH_
 
-#include <any>
+#include <experimental/any>
 #include <optional>
 
 namespace Bridge {
@@ -29,6 +29,18 @@ namespace Engine {
 class GameManager {
 public:
 
+    /** \brief Type erased result from a deal
+     *
+     * To accommodate any kind of bridge rules (rubber, duplicate etc.),
+     * addResult() and addPassedOut() return their result with type erased from
+     * the generic GameManager interface.
+     *
+     * \note std::any breaks unit tests with recent (as of Nov 2019) version of
+     * libstdc++ (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90415).
+     * As workaround, use td::experimental::any instead of std::any.
+     */
+    using ResultType = std::experimental::any;
+
     virtual ~GameManager();
 
     /** \brief Add result from a deal
@@ -44,7 +56,7 @@ public:
      * implementation of GameManager, but the intention is for it to describe
      * the scores of each side. If the game has ended, empty object is returned.
      */
-    std::any addResult(
+    ResultType addResult(
         Partnership partnership, const Contract& contract, int tricksWon);
 
     /** \brief Add passed out deal
@@ -57,7 +69,7 @@ public:
      * implementation of GameManager, but the intention is for it to describe
      * the scores of each side. If the game has ended, empty object is returned.
      */
-    std::any addPassedOut();
+    ResultType addPassedOut();
 
     /** \brief Determine if the game has ended
      *
@@ -86,7 +98,7 @@ private:
      *
      * \sa addResult()
      */
-    virtual std::any handleAddResult(
+    virtual ResultType handleAddResult(
         Partnership partnership, const Contract& contract, int tricksWon) = 0;
 
     /** \brief Handle for adding a passed out deal
@@ -95,7 +107,7 @@ private:
      *
      * \sa addPassedOut()
      */
-    virtual std::any handleAddPassedOut() = 0;
+    virtual ResultType handleAddPassedOut() = 0;
 
     /** \brief Handle for determining if the game has ended
      *

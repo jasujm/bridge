@@ -8,7 +8,6 @@
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
 #include "engine/CardManager.hh"
-#include "engine/GameManager.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
 #include "Utility.hh"
@@ -344,7 +343,7 @@ void InDeal::exit()
 {
     auto& context = outermost_context();
     const auto tricks_won = getTricksWon();
-    auto deal_result = std::any {};
+    auto deal_result = GameManager::ResultType {};
 
     assert(bidding);
     const auto declarer = bidding->getDeclarerPosition();
@@ -1181,7 +1180,7 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 }
 
 BridgeEngine::DealEnded::DealEnded(
-    const TricksWon& tricksWon, const std::any& result) :
+    const TricksWon& tricksWon, const GameManager::ResultType& result) :
     tricksWon {tricksWon},
     result {result}
 {

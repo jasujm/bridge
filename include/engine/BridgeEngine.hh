@@ -9,6 +9,7 @@
 #include "bridge/Call.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
+#include "engine/GameManager.hh"
 #include "Observer.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -37,7 +38,6 @@ class Trick;
 namespace Engine {
 
 class CardManager;
-class GameManager;
 
 /** \brief The main state machine for handling a single instance of bridge game
  *
@@ -146,7 +146,7 @@ public:
          * \param tricksWon see \ref tricksWon
          * \param result see \ref result
          */
-        DealEnded(const TricksWon& tricksWon, const std::any& result);
+        DealEnded(const TricksWon& tricksWon, const GameManager::ResultType& result);
 
         /** \brief Tricks won in the deal
          *
@@ -159,7 +159,7 @@ public:
          * \note This is the object returned by the game manager. The client
          * needs to interpret it according to the type of the game manager.
          */
-        const std::any& result;
+        const GameManager::ResultType& result;
     };
 
     /** \brief Create new bridge engine

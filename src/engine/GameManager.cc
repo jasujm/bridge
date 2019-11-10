@@ -9,7 +9,7 @@ namespace Engine {
 
 GameManager::~GameManager() = default;
 
-std::any GameManager::addResult(
+GameManager::ResultType GameManager::addResult(
     const Partnership partnership, const Contract& contract,
     const int tricksWon)
 {
@@ -19,7 +19,7 @@ std::any GameManager::addResult(
     return {};
 }
 
-std::any GameManager::addPassedOut()
+GameManager::ResultType GameManager::addPassedOut()
 {
     if (!hasEnded()) {
         return handleAddPassedOut();

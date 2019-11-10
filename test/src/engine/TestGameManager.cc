@@ -41,7 +41,7 @@ TEST_F(GameManagerTest, testAddResult)
         gameManager, handleAddResult(PARTNERSHIP, CONTRACT, TRICKS_WON));
     const auto result = gameManager.addResult(
         PARTNERSHIP, CONTRACT, TRICKS_WON);
-    EXPECT_TRUE(std::any_cast<ResultType>(&result));
+    EXPECT_TRUE(std::experimental::any_cast<ResultType>(&result));
 }
 
 TEST_F(GameManagerTest, testAddResultWhenGameHasEnded)
@@ -50,7 +50,7 @@ TEST_F(GameManagerTest, testAddResultWhenGameHasEnded)
     EXPECT_CALL(gameManager, handleAddResult(_, _, _)).Times(0);
     const auto result = gameManager.addResult(
         PARTNERSHIP, CONTRACT, TRICKS_WON);
-    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(result.empty());
 }
 
 TEST_F(GameManagerTest, testPassedOut)
@@ -58,7 +58,7 @@ TEST_F(GameManagerTest, testPassedOut)
     EXPECT_CALL(gameManager, handleHasEnded());
     EXPECT_CALL(gameManager, handleAddPassedOut());
     const auto result = gameManager.addPassedOut();
-    EXPECT_TRUE(std::any_cast<ResultType>(&result));
+    EXPECT_TRUE(std::experimental::any_cast<ResultType>(&result));
 }
 
 TEST_F(GameManagerTest, testPassedOutWhenGameHasEnded)
@@ -66,7 +66,7 @@ TEST_F(GameManagerTest, testPassedOutWhenGameHasEnded)
     EXPECT_CALL(gameManager, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(gameManager, handleAddPassedOut()).Times(0);
     const auto result = gameManager.addPassedOut();
-    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(result.empty());
 }
 
 TEST_F(GameManagerTest, testGameNotEnded)

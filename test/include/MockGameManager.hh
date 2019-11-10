@@ -15,8 +15,8 @@ namespace Engine {
 class MockGameManager : public GameManager
 {
 public:
-    MOCK_METHOD3(handleAddResult, std::any(Partnership, const Contract&, int));
-    MOCK_METHOD0(handleAddPassedOut, std::any());
+    MOCK_METHOD3(handleAddResult, ResultType(Partnership, const Contract&, int));
+    MOCK_METHOD0(handleAddPassedOut, ResultType());
     MOCK_CONST_METHOD0(handleHasEnded, bool());
     MOCK_CONST_METHOD0(handleGetOpenerPosition, Position());
     MOCK_CONST_METHOD0(handleGetVulnerability, Vulnerability());
