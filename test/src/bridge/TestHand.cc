@@ -224,4 +224,4 @@ TEST_F(HandTest, invalidCardCannoBePlayedFromHandOverflow)
     EXPECT_FALSE(canBePlayedFromHand(hand, N_CARDS));
 }
 
-INSTANTIATE_TEST_CASE_P(SamplingCards, HandTest, ValuesIn(to(N_CARDS)));
+INSTANTIATE_TEST_SUITE_P(SamplingCards, HandTest, ValuesIn(to(N_CARDS)));

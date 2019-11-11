@@ -288,6 +288,6 @@ TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
     testHelper(*handler, {}, REPLY_SUCCESS, {});
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SuccessFailure, FunctionMessageHandlerTest,
     Values(REPLY_SUCCESS, REPLY_FAILURE));

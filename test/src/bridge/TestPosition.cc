@@ -39,4 +39,4 @@ TEST_F(PositionTest, testCardsForEachPositionAreUnique)
             boost::make_counting_iterator(Bridge::N_CARDS)));
 }
 
-INSTANTIATE_TEST_CASE_P(Positions, PositionTest, testing::ValuesIn(POSITIONS));
+INSTANTIATE_TEST_SUITE_P(Positions, PositionTest, testing::ValuesIn(POSITIONS));

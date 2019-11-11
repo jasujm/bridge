@@ -85,4 +85,4 @@ TEST_P(BasicHandTest, testFailedReveal)
     EXPECT_FALSE(hand.reveal(range.begin(), range.end()));
 }
 
-INSTANTIATE_TEST_CASE_P(SamplingCards, BasicHandTest, Values(1, 2, 3, 5, 8));
+INSTANTIATE_TEST_SUITE_P(SamplingCards, BasicHandTest, Values(1, 2, 3, 5, 8));

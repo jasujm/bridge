@@ -81,4 +81,4 @@ TEST_F(CardProtocolTest, testGetCardManager)
     EXPECT_EQ(card_manager, protocol.getCardManager());
 }
 
-INSTANTIATE_TEST_CASE_P(SamplingBools, CardProtocolTest, Bool());
+INSTANTIATE_TEST_SUITE_P(SamplingBools, CardProtocolTest, Bool());

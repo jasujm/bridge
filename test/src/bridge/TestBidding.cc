@@ -294,5 +294,5 @@ TEST_F(BiddingTest, testCallIterators)
         std::equal(calls.begin(), calls.end(), bidding.begin(), bidding.end()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SamplingRounds, BiddingTest, ValuesIn(to(2 * Bridge::N_PLAYERS)));

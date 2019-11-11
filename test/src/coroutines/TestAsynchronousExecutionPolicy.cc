@@ -110,6 +110,6 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
     EXPECT_EQ(COMMAND, messageView(reply[1]));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     StatusCodes, AsynchronousExecutionPolicyTest,
     testing::Values(REPLY_SUCCESS, REPLY_FAILURE));
