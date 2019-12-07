@@ -2,6 +2,8 @@ macro(add_bridge_library target)
   file(GLOB src *.cc)
   add_library(${target} ${src})
   set_property(TARGET ${target} PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
+  target_include_directories(${target} PUBLIC ${BRIDGE_INCLUDE_DIR})
+  target_link_libraries(${target} PRIVATE Boost::boost)
 endmacro()
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -15,6 +17,7 @@ add_subdirectory(bridge)
 
 add_library(bridge-common STATIC Logging.cc Boilerplate.cc Thread.cc)
 set_property(TARGET bridge-common PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
+target_include_directories(bridge-common PUBLIC ${BRIDGE_INCLUDE_DIR})
 
 add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
@@ -27,7 +30,6 @@ if(LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
   set(BRIDGE_BUILD_CARD_SERVER ON CACHE BOOL "Build card server")
   if (${BRIDGE_BUILD_CARD_SERVER})
     add_subdirectory(coroutines)
-    include_directories(${LibTMCG_INCLUDE_DIR})
     add_subdirectory(csmain)
     add_executable(bridgecs CardServer.cc)
     target_link_libraries(bridgecs bridge-csmain bridge-coroutines

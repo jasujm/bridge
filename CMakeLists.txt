@@ -19,7 +19,7 @@ find_package(Lua 5.3 REQUIRED)
 find_package(LibTMCG)
 find_package(PythonInterp)
 
-include_directories(include ${Boost_INCLUDE_DIR})
+set(BRIDGE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
   set(BRIDGE_PYTHON_AVAILABLE ON)
