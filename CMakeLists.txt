@@ -19,6 +19,8 @@ find_package(Lua 5.3 REQUIRED)
 find_package(LibTMCG)
 find_package(PythonInterp)
 
+add_subdirectory(external/enhanced-enum)
+
 set(BRIDGE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
