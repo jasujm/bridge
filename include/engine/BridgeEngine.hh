@@ -7,6 +7,7 @@
 #define ENGINE_BRIDGEENINE_HH_
 
 #include "bridge/Call.hh"
+#include "bridge/Position.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/GameManager.hh"
@@ -26,7 +27,6 @@ class Card;
 class Bidding;
 struct Contract;
 class Hand;
-enum class Position;
 class Player;
 class Trick;
 

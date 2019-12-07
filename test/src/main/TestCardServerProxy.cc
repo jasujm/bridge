@@ -13,7 +13,6 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
 #include "messaging/Sockets.hh"
 #include "MockCardProtocol.hh"
@@ -59,11 +58,11 @@ const auto CARD_SERVER_ENDPOINT = "inproc://card-server"s;
 const auto CARD_SERVER_ENDPOINT2 = "inproc://card-server-2"s;
 constexpr auto CONTROL_ENDPOINT = "inproc://control"sv;
 const auto PEER = Identity { ""s, "peer"_B };
-const auto PEER_POSITIONS = CardProtocol::PositionVector {Position::SOUTH};
+const auto PEER_POSITIONS = CardProtocol::PositionVector {Positions::SOUTH};
 const auto PEER2 = Identity { ""s, "peer2"_B };
 const auto PEER2_POSITIONS = CardProtocol::PositionVector {
-    Position::NORTH, Position::WEST};
-const auto SELF_POSITIONS = CardProtocol::PositionVector {Position::EAST};
+    Positions::NORTH, Positions::WEST};
+const auto SELF_POSITIONS = CardProtocol::PositionVector {Positions::EAST};
 
 MATCHER_P(
     IsSerialized, value,
@@ -160,7 +159,7 @@ TEST_F(CardServerProxyTest, testNoDealMessageHandlers)
 
 TEST_F(CardServerProxyTest, testAcceptPeerMissingArgs)
 {
-    EXPECT_FALSE(protocol.acceptPeer(PEER, {Position::SOUTH}, std::nullopt));
+    EXPECT_FALSE(protocol.acceptPeer(PEER, {Positions::SOUTH}, std::nullopt));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerInvalidArgs)
@@ -168,7 +167,7 @@ TEST_F(CardServerProxyTest, testAcceptPeerInvalidArgs)
     const auto args = nlohmann::json::array();
     EXPECT_FALSE(
         protocol.acceptPeer(
-            PEER, {Position::SOUTH}, CardProtocol::OptionalArgs {args}));
+            PEER, {Positions::SOUTH}, CardProtocol::OptionalArgs {args}));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerWithInvalidEndpoint)
@@ -181,7 +180,7 @@ TEST_F(CardServerProxyTest, testAcceptPeerWithInvalidEndpoint)
     };
     EXPECT_FALSE(
         protocol.acceptPeer(
-            PEER, {Position::SOUTH}, CardProtocol::OptionalArgs {args}));
+            PEER, {Positions::SOUTH}, CardProtocol::OptionalArgs {args}));
 }
 
 TEST_F(CardServerProxyTest, testAcceptPeerMissingPosition)
@@ -195,11 +194,11 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
 {
     EXPECT_TRUE(
         protocol.acceptPeer(
-            PEER, {Position::SOUTH},
+            PEER, {Positions::SOUTH},
             makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT)));
     EXPECT_TRUE(
         protocol.acceptPeer(
-            PEER2, {Position::NORTH, Position::WEST},
+            PEER2, {Positions::NORTH, Positions::WEST},
             makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT2)));
     protocol.initialize();
 

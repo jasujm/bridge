@@ -7,7 +7,6 @@
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"
 

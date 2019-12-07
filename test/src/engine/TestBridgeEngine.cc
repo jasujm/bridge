@@ -69,7 +69,7 @@ private:
 protected:
     virtual void SetUp()
     {
-        for (const auto t : boost::combine(POSITIONS, players)) {
+        for (const auto t : boost::combine(Position::all(), players)) {
             engine.setPlayer(t.get<0>(), t.get<1>());
         }
         for (const auto e : enumerate(cards)) {
@@ -77,7 +77,7 @@ protected:
                 .WillByDefault(Return(enumerateCardType(e.first)));
             ON_CALL(e.second, handleIsKnown()).WillByDefault(Return(true));
         }
-        for (const auto position : POSITIONS) {
+        for (const auto position : Position::all()) {
             ON_CALL(
                 *cardManager,
                 handleGetHand(ElementsAreArray(cardsFor(position))))
@@ -89,7 +89,7 @@ protected:
             .WillByDefault(Return(N_CARDS));
         EXPECT_CALL(*cardManager, handleRequestShuffle());
         ON_CALL(*gameManager, handleGetOpenerPosition())
-            .WillByDefault(Return(Position::NORTH));
+            .WillByDefault(Return(Positions::NORTH));
         ON_CALL(*gameManager, handleGetVulnerability())
             .WillByDefault(Return(Vulnerability {true, true}));
         engine.startDeal();
@@ -181,7 +181,7 @@ protected:
     {
         // Deal states for different positions (remove all visible cards
         // except position and dummy)
-        for (const auto position : POSITIONS) {
+        for (const auto position : Position::all()) {
             auto state = expectedState;
             if (state.cards) {
                 for (auto iter = state.cards->begin();
@@ -204,16 +204,16 @@ protected:
 
     void assertNoHands()
     {
-        for (const auto position : POSITIONS) {
+        for (const auto position : Position::all()) {
             EXPECT_FALSE(engine.getHand(position));
         }
     }
 
     void assertHandsVisible(const Player* dummy = nullptr)
     {
-        for (const auto player_position : POSITIONS) {
+        for (const auto player_position : Position::all()) {
             const auto& player = dereference(engine.getPlayer(player_position));
-            for (const auto hand_position : POSITIONS) {
+            for (const auto hand_position : Position::all()) {
                 const auto& hand_player = engine.getPlayer(hand_position);
                 const auto& hand = dereference(engine.getHand(hand_position));
                 EXPECT_EQ(
@@ -290,24 +290,24 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             *deal_observer,
             handleNotify(
                 BridgeEngine::DealStarted {
-                    Position::NORTH, Vulnerability {true, true}}));
+                    Positions::NORTH, Vulnerability {true, true}}));
         engine.subscribeToDealStarted(deal_observer);
         auto turn_observer = std::make_shared<
             MockObserver<BridgeEngine::TurnStarted>>();
         EXPECT_CALL(
             *turn_observer,
             handleNotify(
-                BridgeEngine::TurnStarted {Position::NORTH}));
+                BridgeEngine::TurnStarted {Positions::NORTH}));
         engine.subscribeToTurnStarted(turn_observer);
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::COMPLETED);
     }
     expectedState.stage = Stage::BIDDING;
-    expectedState.positionInTurn = Position::NORTH;
+    expectedState.positionInTurn = Positions::NORTH;
     expectedState.cards.emplace();
     expectedState.calls.emplace();
     expectedState.tricksWon.emplace(0, 0);
-    for (const auto position : POSITIONS) {
+    for (const auto position : Position::all()) {
         // TODO: Make this prettier
         const auto hand = engine.getHand(position);
         ASSERT_TRUE(hand);
@@ -342,14 +342,14 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             handleNotify(
                 BridgeEngine::TurnStarted {
                     // After last call south leads the first card
-                    is_last_call ? Position::SOUTH : clockwise(position) }));
+                    is_last_call ? Positions::SOUTH : clockwise(position) }));
         auto bidding_observer = std::make_shared<
             MockObserver<BridgeEngine::BiddingCompleted>>();
         EXPECT_CALL(
             *bidding_observer,
             handleNotify(
                 BridgeEngine::BiddingCompleted {
-                    Position::EAST, Contract {BID, Doubling::REDOUBLED}}))
+                    Positions::EAST, Contract {BID, Doubling::REDOUBLED}}))
             .Times(is_last_call ? 1 : 0);
         engine.subscribeToTurnStarted(turn_observer);
         engine.subscribeToBiddingCompleted(bidding_observer);
@@ -360,16 +360,16 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
     // Playing
     expectedState.stage = Stage::PLAYING;
-    expectedState.positionInTurn = Position::SOUTH;
-    expectedState.declarer = Position::EAST;
+    expectedState.positionInTurn = Positions::SOUTH;
+    expectedState.declarer = Positions::EAST;
     expectedState.contract.emplace(BID, Doubling::REDOUBLED);
     expectedState.currentTrick.emplace();
-    std::array<Position, N_PLAYERS> next_positions_first_turn {{
-        Position::EAST, Position::NORTH, Position::EAST, Position::NORTH
-    }};
+    std::array<Position, N_PLAYERS> next_positions_first_turn {
+        Positions::EAST, Positions::NORTH, Positions::EAST, Positions::NORTH
+    };
     for (const auto i : to(players.size())) {
         assertDealState(
-            i == 0 ? std::nullopt : std::make_optional(Position::WEST));
+            i == 0 ? std::nullopt : std::make_optional(Positions::WEST));
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         auto observer = std::make_shared<
@@ -381,14 +381,14 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         engine.subscribeToTurnStarted(observer);
         playCard(player, 0, i == 0, i == players.size() - 1);
         updateExpectedStateAfterPlay(player);
-        assertHandsVisible(engine.getPlayer(Position::WEST));
+        assertHandsVisible(engine.getPlayer(Positions::WEST));
     }
 
-    expectedState.positionInTurn = Position::NORTH;
+    expectedState.positionInTurn = Positions::NORTH;
     addTrickToNorthSouth();
-    std::array<Position, N_PLAYERS> next_positions {{
-        Position::EAST, Position::SOUTH, Position::EAST, Position::NORTH
-    }};
+    std::array<Position, N_PLAYERS> next_positions {
+        Positions::EAST, Positions::SOUTH, Positions::EAST, Positions::NORTH
+    };
     for (const auto i : from_to(1, N_CARDS_PER_PLAYER)) {
         for (const auto t : boost::combine(players, next_positions)) {
             auto& player = t.get<0>();
@@ -411,8 +411,8 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 *deal_observer,
                 handleNotify(BridgeEngine::DealEnded {{13, 0}, {}}))
                 .Times(deal_notify_count);
-            assertDealState(Position::WEST);
-            assertHandsVisible(engine.getPlayer(Position::WEST));
+            assertDealState(Positions::WEST);
+            assertHandsVisible(engine.getPlayer(Positions::WEST));
 
             engine.subscribeToTurnStarted(turn_observer);
             engine.subscribeToDealEnded(deal_observer);

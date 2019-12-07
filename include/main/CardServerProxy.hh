@@ -16,7 +16,7 @@
 
 namespace Bridge {
 
-enum class Position;
+struct Position;
 
 namespace Messaging {
 

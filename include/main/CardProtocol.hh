@@ -19,7 +19,7 @@
 
 namespace Bridge {
 
-enum class Position;
+struct Position;
 
 namespace Engine {
 class CardManager;

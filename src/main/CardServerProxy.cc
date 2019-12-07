@@ -14,7 +14,6 @@
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationUtility.hh"
@@ -455,7 +454,7 @@ private:
 };
 
 Initializing::Initializing() :
-    selfPositions(POSITIONS.begin(), POSITIONS.end())
+    selfPositions(Position::begin(), Position::end())
 {
 }
 

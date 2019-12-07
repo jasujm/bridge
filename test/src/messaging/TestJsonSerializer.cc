@@ -15,7 +15,6 @@
 #include "messaging/DuplicateScoreJsonSerializer.hh"
 #include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "messaging/TricksWonJsonSerializer.hh"

@@ -15,7 +15,7 @@
 
 namespace Bridge {
 
-enum class Position;
+struct Position;
 
 /** \brief Bridge partnership
  */

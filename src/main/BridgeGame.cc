@@ -22,7 +22,6 @@
 #include "messaging/DuplicateScoreJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
@@ -343,7 +342,7 @@ bool BridgeGame::Impl::play(
 
 void BridgeGame::Impl::startIfReady()
 {
-    if (positionsInUse.size() == N_POSITIONS) {
+    if (positionsInUse.size() == Position::size()) {
         log(LogLevel::DEBUG, "Starting bridge engine");
         if (cardProtocol) {
             cardProtocol->initialize();
@@ -487,7 +486,7 @@ BridgeGame::BridgeGame(
     const Uuid& uuid, Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler) :
     BridgeGame {
-        uuid, PositionSet(POSITIONS.begin(), POSITIONS.end()),
+        uuid, PositionSet(Position::begin(), Position::end()),
         std::move(eventSocket), nullptr, nullptr, callbackScheduler, {}}
 {
 }

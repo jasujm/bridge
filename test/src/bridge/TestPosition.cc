@@ -10,7 +10,8 @@
 #include <gtest/gtest.h>
 
 using Bridge::Position;
-using Bridge::POSITIONS;
+using Bridge::PositionLabel;
+namespace Positions = Bridge::Positions;
 
 class PositionTest : public testing::TestWithParam<Position> {};
 
@@ -22,13 +23,13 @@ TEST_P(PositionTest, testCardsForPositionHasCorrectSize)
 
 TEST_F(PositionTest, testInvalidPosition)
 {
-    EXPECT_THROW(cardsFor(static_cast<Position>(-1)), std::invalid_argument);
+    EXPECT_THROW(cardsFor(static_cast<PositionLabel>(-1)), std::invalid_argument);
 }
 
 TEST_F(PositionTest, testCardsForEachPositionAreUnique)
 {
     auto all_cards = std::vector<int> {};
-    for (const auto position : POSITIONS) {
+    for (const auto position : Position::all()) {
         const auto cards = cardsFor(position);
         std::copy(cards.begin(), cards.end(), std::back_inserter(all_cards));
     }
@@ -39,4 +40,6 @@ TEST_F(PositionTest, testCardsForEachPositionAreUnique)
             boost::make_counting_iterator(Bridge::N_CARDS)));
 }
 
-INSTANTIATE_TEST_SUITE_P(Positions, PositionTest, testing::ValuesIn(POSITIONS));
+INSTANTIATE_TEST_SUITE_P(
+    Positions, PositionTest,
+    testing::ValuesIn(Position::begin(), Position::end()));

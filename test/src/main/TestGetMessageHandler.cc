@@ -19,7 +19,6 @@
 #include "messaging/ContractJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
@@ -46,8 +45,6 @@ using Bridge::cardTypeIterator;
 using Bridge::N_CARDS_PER_PLAYER;
 using Bridge::Player;
 using Bridge::Position;
-using Bridge::POSITIONS;
-using Bridge::POSITION_TO_STRING_MAP;
 using Bridge::Engine::BridgeEngine;
 using Bridge::Engine::DuplicateGameManager;
 using Bridge::Engine::SimpleCardManager;
@@ -63,6 +60,7 @@ using testing::NiceMock;
 
 using namespace Bridge::BlobLiterals;
 using namespace Bridge::Main;
+namespace Positions = Bridge::Positions;
 
 using CallVector = std::vector<Call>;
 using CardVector = std::vector<CardType>;
@@ -107,7 +105,7 @@ protected:
         players[1] = nodePlayerControl->createPlayer(PLAYER2, std::nullopt);
         players[2] = nodePlayerControl->createPlayer(PLAYER3, std::nullopt);
         players[3] = nodePlayerControl->createPlayer(PLAYER4, std::nullopt);
-        for (const auto t : boost::combine(POSITIONS, players)) {
+        for (const auto t : boost::combine(Position::all(), players)) {
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
         engine->startDeal();
@@ -203,7 +201,7 @@ TEST_F(GetMessageHandlerTest, testPositionInTurn)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(POSITION_IN_TURN_COMMAND, reply[0]);
     const auto position = JsonSerializer::deserialize<Position>(reply[1]);
-    EXPECT_EQ(Position::NORTH, position);
+    EXPECT_EQ(Positions::NORTH, position);
 }
 
 TEST_F(GetMessageHandlerTest, testPositionInTurnBeforeDealStarted)
@@ -248,7 +246,7 @@ TEST_F(GetMessageHandlerTest, testCallsIfNotEmpty)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(CALLS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
-    for (auto&& t : boost::combine(j, POSITIONS, CALLS)) {
+    for (auto&& t : boost::combine(j, Position::all(), CALLS)) {
         const auto position_iter = t.get<0>().find(POSITION_COMMAND);
         ASSERT_NE(t.get<0>().end(), position_iter);
         const auto position = position_iter->get<Position>();
@@ -273,7 +271,7 @@ TEST_F(GetMessageHandlerTest, testDeclarerIfBiddingCompleted)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(DECLARER_COMMAND, reply[0]);
     const auto position = JsonSerializer::deserialize<Position>(reply[1]);
-    EXPECT_EQ(Position::NORTH, position);
+    EXPECT_EQ(Positions::NORTH, position);
 }
 
 TEST_F(GetMessageHandlerTest, testContractIfBiddingNotCompleted)
@@ -334,10 +332,9 @@ TEST_F(GetMessageHandlerTest, testCardsIfNotEmpty)
     ASSERT_EQ(2u, reply.size());
     EXPECT_EQ(CARDS_COMMAND, reply[0]);
     const auto j = nlohmann::json::parse(reply[1]);
-    for (const auto position : POSITIONS) {
-        const auto actual =
-            j.at(POSITION_TO_STRING_MAP.left.at(position)).get<OptionalCardVector>();
-        const auto expected = (position == Position::NORTH) ?
+    for (const auto position : Position::all()) {
+        const auto actual = j.at(std::string {position.value()}).get<OptionalCardVector>();
+        const auto expected = (position == Positions::NORTH) ?
             OptionalCardVector(cardTypeIterator(0), cardTypeIterator(N_CARDS_PER_PLAYER)) :
             OptionalCardVector(N_CARDS_PER_PLAYER, std::nullopt);
         EXPECT_EQ(expected, actual);
@@ -354,7 +351,7 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
 {
     shuffle();
     makeBidding();
-    const auto& hand = dereference(engine->getHand(Position::EAST));
+    const auto& hand = dereference(engine->getHand(Positions::EAST));
     const auto expected_card_type =
         dereference(dereference(hand.getCard(0)).getType());
     engine->play(*players[1], hand, 0);
@@ -365,7 +362,7 @@ TEST_F(GetMessageHandlerTest, testCurrentTrickIfNotEmpty)
     ASSERT_EQ(1u, trick.size());
     const auto position_iter = trick[0].find(POSITION_COMMAND);
     ASSERT_NE(trick[0].end(), position_iter);
-    EXPECT_EQ(Position::EAST, position_iter->get<Position>());
+    EXPECT_EQ(Positions::EAST, position_iter->get<Position>());
     const auto card_iter = trick[0].find(CARD_COMMAND);
     ASSERT_NE(trick[0].end(), card_iter);
     EXPECT_EQ(expected_card_type, card_iter->get<CardType>());

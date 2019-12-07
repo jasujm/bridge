@@ -17,7 +17,6 @@
 using Bridge::Bidding;
 using Bridge::Call;
 using Bridge::Contract;
-using Bridge::Position;
 using Bridge::to;
 
 using testing::_;
@@ -25,6 +24,8 @@ using testing::NiceMock;
 using testing::Return;
 using testing::Ref;
 using testing::ValuesIn;
+
+namespace Positions = Bridge::Positions;
 
 namespace {
 constexpr Contract CONTRACT {
@@ -47,7 +48,7 @@ protected:
         ON_CALL(bidding, handleIsCallAllowed(VALID_CALL))
             .WillByDefault(Return(true));
         ON_CALL(bidding, handleGetOpeningPosition())
-            .WillByDefault(Return(Position::NORTH));
+            .WillByDefault(Return(Positions::NORTH));
         ON_CALL(bidding, handleGetCall(_))
             .WillByDefault(Return(VALID_CALL));
         ON_CALL(bidding, handleIsCallAllowed(INVALID_CALL))
@@ -59,7 +60,7 @@ protected:
         ON_CALL(bidding, handleGetContract())
             .WillByDefault(Return(CONTRACT));
         ON_CALL(bidding, handleGetDeclarerPosition())
-            .WillByDefault(Return(Position::NORTH));
+            .WillByDefault(Return(Positions::NORTH));
     }
 
     NiceMock<Bridge::MockBidding> bidding;
@@ -74,7 +75,7 @@ TEST_F(BiddingTest, testNumberOfCalls)
 TEST_F(BiddingTest, testOpeningPosition)
 {
     EXPECT_CALL(bidding, handleGetOpeningPosition());
-    EXPECT_EQ(Position::NORTH, bidding.getOpeningPosition());
+    EXPECT_EQ(Positions::NORTH, bidding.getOpeningPosition());
 }
 
 TEST_F(BiddingTest, testGetCallInRange)
@@ -97,7 +98,7 @@ TEST_P(BiddingTest, testAllowedCallWhenPlayerHasTurn)
     EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(n));
     EXPECT_CALL(bidding, handleAddCall(VALID_CALL));
     EXPECT_CALL(bidding, handleIsCallAllowed(VALID_CALL));
-    EXPECT_TRUE(bidding.call(clockwise(Position::NORTH, n), VALID_CALL));
+    EXPECT_TRUE(bidding.call(clockwise(Positions::NORTH, n), VALID_CALL));
 }
 
 TEST_F(BiddingTest, testAllowedCallWhenPlayerDoesNotHaveTurn)
@@ -105,7 +106,7 @@ TEST_F(BiddingTest, testAllowedCallWhenPlayerDoesNotHaveTurn)
     EXPECT_CALL(bidding, handleHasEnded());
     EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
     EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
-    EXPECT_FALSE(bidding.call(Position::EAST, VALID_CALL));
+    EXPECT_FALSE(bidding.call(Positions::EAST, VALID_CALL));
 }
 
 TEST_F(BiddingTest, testNotAllowedCallWhenPlayerHasTurn)
@@ -113,7 +114,7 @@ TEST_F(BiddingTest, testNotAllowedCallWhenPlayerHasTurn)
     EXPECT_CALL(bidding, handleHasEnded());
     EXPECT_CALL(bidding, handleIsCallAllowed(INVALID_CALL));
     EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
-    EXPECT_FALSE(bidding.call(Position::NORTH, INVALID_CALL));
+    EXPECT_FALSE(bidding.call(Positions::NORTH, INVALID_CALL));
 }
 
 TEST_F(BiddingTest, testCallWhenBiddingHasEnded)
@@ -121,7 +122,7 @@ TEST_F(BiddingTest, testCallWhenBiddingHasEnded)
     EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
     EXPECT_CALL(bidding, handleAddCall(INVALID_CALL)).Times(0);
-    EXPECT_FALSE(bidding.call(Position::NORTH, VALID_CALL));
+    EXPECT_FALSE(bidding.call(Positions::NORTH, VALID_CALL));
 }
 
 TEST_F(BiddingTest, testLowestAllowedBidWhenBiddingIsOngoing)
@@ -188,7 +189,7 @@ TEST_P(BiddingTest, testPlayerInTurnWhenBiddingIsOngoing)
 {
     const auto n = GetParam();
     EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(n));
-    EXPECT_EQ(clockwise(Position::NORTH, n), bidding.getPositionInTurn());
+    EXPECT_EQ(clockwise(Positions::NORTH, n), bidding.getPositionInTurn());
 }
 
 TEST_F(BiddingTest, testPlayerInTurnWhenBiddingHasEnded)
@@ -251,7 +252,7 @@ TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsContract)
     EXPECT_CALL(bidding, handleGetDeclarerPosition());
     const auto declarer = bidding.getDeclarerPosition();
     ASSERT_TRUE(declarer);
-    EXPECT_EQ(Position::NORTH, *declarer);
+    EXPECT_EQ(Positions::NORTH, *declarer);
 }
 
 TEST_F(BiddingTest, testHasContractWhenBiddingHasEndedAndThereIsNoContract)
@@ -283,10 +284,10 @@ TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsNoContract)
 TEST_F(BiddingTest, testCallIterators)
 {
     const auto calls = {
-        std::make_pair(Position::NORTH, VALID_CALL),
-        std::make_pair(Position::EAST,  VALID_CALL),
-        std::make_pair(Position::SOUTH, VALID_CALL),
-        std::make_pair(Position::WEST,  VALID_CALL),
+        std::make_pair(Positions::NORTH, VALID_CALL),
+        std::make_pair(Positions::EAST,  VALID_CALL),
+        std::make_pair(Positions::SOUTH, VALID_CALL),
+        std::make_pair(Positions::WEST,  VALID_CALL),
     };
     EXPECT_CALL(bidding, handleGetNumberOfCalls())
         .WillRepeatedly(Return(Bridge::N_PLAYERS));

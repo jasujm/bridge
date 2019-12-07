@@ -6,7 +6,6 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
-#include "bridge/Position.hh"
 #include "engine/CardManager.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
@@ -44,7 +43,7 @@ auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
     {
         return {t.template get<0>(), t.template get<1>().get()};
     };
-    auto&& z = boost::combine(POSITIONS, values);
+    auto&& z = boost::combine(Position::all(), values);
     return MapType(
         boost::make_transform_iterator(z.begin(), func),
         boost::make_transform_iterator(z.end(),   func));
@@ -280,7 +279,7 @@ public:
 
     Hand& getHand(Position position);
     const Hand& getHand(Position position) const;
-    auto getHands(Position first = Position::NORTH) const;
+    auto getHands(Position first = Positions::NORTH) const;
     Position getPosition(const Hand& player) const;
     Hand& getHandConstCastSafe(const Hand& hand);
 
@@ -320,8 +319,8 @@ auto InDeal::internalMakeHands()
         return card_manager.getHand(ns.begin(), ns.end());
     };
     return std::vector<std::shared_ptr<Hand>>(
-        boost::make_transform_iterator(POSITIONS.begin(), func),
-        boost::make_transform_iterator(POSITIONS.end(),   func));
+        boost::make_transform_iterator(Position::begin(), func),
+        boost::make_transform_iterator(Position::end(),   func));
 }
 
 InDeal::InDeal(my_context ctx) :
@@ -387,7 +386,8 @@ const Hand& InDeal::getHand(const Position position) const
 
 auto InDeal::getHands(const Position first) const
 {
-    auto positions = POSITIONS;
+    auto positions = std::array<Position, Position::size()> {};
+    std::copy(Position::begin(), Position::end(), positions.begin());
     const auto position_iter = std::find(
         positions.begin(), positions.end(), first);
     std::rotate(positions.begin(), position_iter, positions.end());

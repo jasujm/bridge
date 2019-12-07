@@ -7,7 +7,6 @@
 
 #include <gtest/gtest.h>
 
-using Bridge::Position;
 using Bridge::Vulnerability;
 
 using testing::_;
@@ -85,8 +84,8 @@ TEST_F(GameManagerTest, testGetOpenerPosition)
 {
     EXPECT_CALL(gameManager, handleHasEnded()).WillOnce(Return(false));
     EXPECT_CALL(gameManager, handleGetOpenerPosition()).WillOnce(
-        Return(Position::NORTH));
-    EXPECT_EQ(Position::NORTH, gameManager.getOpenerPosition());
+        Return(Bridge::Positions::NORTH));
+    EXPECT_EQ(Bridge::Positions::NORTH, gameManager.getOpenerPosition());
 }
 
 TEST_F(GameManagerTest, testGetOpenerPositionWhenGameHasEnded)

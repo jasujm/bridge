@@ -23,7 +23,7 @@ namespace Bridge {
 
 class CardType;
 class Player;
-enum class Position;
+struct Position;
 
 namespace Engine {
 

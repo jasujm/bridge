@@ -18,7 +18,6 @@
 #include "messaging/ContractJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Replies.hh"
 #include "messaging/SerializationUtility.hh"
 #include "messaging/TricksWonJsonSerializer.hh"
@@ -109,7 +108,7 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
 {
     using CardTypeVector = std::vector<std::optional<CardType>>;
     auto cards = nlohmann::json::object();
-    for (const auto position : POSITIONS) {
+    for (const auto position : Position::all()) {
         if (const auto hand = engine.getHand(position)) {
             auto type_func = [](const auto& card) { return card.getType(); };
             const auto cards_in_hand = engine.isVisible(*hand, player) ?
@@ -118,8 +117,7 @@ std::string getCards(const Player& player, const BridgeEngine& engine)
                     boost::make_transform_iterator(hand->end(), type_func)) :
                 CardTypeVector(
                     std::distance(hand->begin(), hand->end()), std::nullopt);
-            const auto& position_str = POSITION_TO_STRING_MAP.left.at(position);
-            cards[position_str] = cards_in_hand;
+            cards.emplace(position.value(), cards_in_hand);
         }
     }
     return cards.dump();

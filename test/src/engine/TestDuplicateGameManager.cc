@@ -14,9 +14,9 @@
 #include <optional>
 #include <tuple>
 
-using Bridge::Position;
 using Bridge::Scoring::DuplicateScore;
 using ScoreEntry = Bridge::Engine::DuplicateGameManager::ScoreEntry;
+namespace Positions = Bridge::Positions;
 
 namespace {
 constexpr Bridge::Partnership PARTNERSHIP {Bridge::Partnership::NORTH_SOUTH};
@@ -54,24 +54,24 @@ TEST_F(DuplicateGameManagerTest, testAddResult)
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)
 {
-    //                  Position         NS     EW     vulnerable
-    const std::array<std::tuple<Position, bool, bool>, 16> rotation {
-        std::make_tuple(Position::NORTH, false, false),
-        std::make_tuple(Position::EAST,  true,  false),
-        std::make_tuple(Position::SOUTH, false, true ),
-        std::make_tuple(Position::WEST,  true,  true ),
-        std::make_tuple(Position::NORTH, true,  false),
-        std::make_tuple(Position::EAST,  false, true ),
-        std::make_tuple(Position::SOUTH, true,  true ),
-        std::make_tuple(Position::WEST,  false, false),
-        std::make_tuple(Position::NORTH, false, true ),
-        std::make_tuple(Position::EAST,  true,  true ),
-        std::make_tuple(Position::SOUTH, false, false),
-        std::make_tuple(Position::WEST,  true,  false),
-        std::make_tuple(Position::NORTH, true,  true ),
-        std::make_tuple(Position::EAST,  false, false),
-        std::make_tuple(Position::SOUTH, true,  false),
-        std::make_tuple(Position::WEST,  false, true ),
+    //                  Position          NS     EW     vulnerable
+    constexpr auto rotation = std::array {
+        std::tuple {Positions::NORTH, false, false},
+        std::tuple {Positions::EAST,  true,  false},
+        std::tuple {Positions::SOUTH, false, true },
+        std::tuple {Positions::WEST,  true,  true },
+        std::tuple {Positions::NORTH, true,  false},
+        std::tuple {Positions::EAST,  false, true },
+        std::tuple {Positions::SOUTH, true,  true },
+        std::tuple {Positions::WEST,  false, false},
+        std::tuple {Positions::NORTH, false, true },
+        std::tuple {Positions::EAST,  true,  true },
+        std::tuple {Positions::SOUTH, false, false},
+        std::tuple {Positions::WEST,  true,  false},
+        std::tuple {Positions::NORTH, true,  true },
+        std::tuple {Positions::EAST,  false, false},
+        std::tuple {Positions::SOUTH, true,  false},
+        std::tuple {Positions::WEST,  false, true },
     };
     for (const auto e : Bridge::enumerate(rotation)) {
         EXPECT_EQ(std::get<0>(e.second), gameManager.getOpenerPosition());

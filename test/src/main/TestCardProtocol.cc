@@ -33,7 +33,7 @@ TEST_P(CardProtocolTest, testAcceptPeer)
     const auto success = GetParam();
     const auto identity = Identity { ""s, "identity"_B };
     const auto positions = CardProtocol::PositionVector {
-        Bridge::Position::NORTH, Bridge::Position::SOUTH};
+        Bridge::Positions::NORTH, Bridge::Positions::SOUTH};
     const auto args = std::make_optional(nlohmann::json {123});
     EXPECT_CALL(
         protocol,

@@ -25,7 +25,6 @@
 #include "messaging/MessageLoop.hh"
 #include "messaging/MessageQueue.hh"
 #include "messaging/PollingCallbackScheduler.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"

@@ -1,6 +1,6 @@
 #include "bridge/Partnership.hh"
-
 #include "bridge/Position.hh"
+
 #include "IoUtility.hh"
 
 #include <stdexcept>
@@ -26,9 +26,9 @@ std::pair<Position, Position> positionsFor(const Partnership partnership)
 {
     switch (partnership) {
     case Partnership::NORTH_SOUTH:
-        return std::make_pair(Position::NORTH, Position::SOUTH);
+        return std::make_pair(Positions::NORTH, Positions::SOUTH);
     case Partnership::EAST_WEST:
-        return std::make_pair(Position::EAST, Position::WEST);
+        return std::make_pair(Positions::EAST, Positions::WEST);
     default:
         throw std::invalid_argument("Invalid partnership");
     }
@@ -36,12 +36,12 @@ std::pair<Position, Position> positionsFor(const Partnership partnership)
 
 Partnership partnershipFor(const Position position)
 {
-    switch (position) {
-    case Position::NORTH:
-    case Position::SOUTH:
+    switch (position.get()) {
+    case PositionLabel::NORTH:
+    case PositionLabel::SOUTH:
         return Partnership::NORTH_SOUTH;
-    case Position::EAST:
-    case Position::WEST:
+    case PositionLabel::EAST:
+    case PositionLabel::WEST:
         return Partnership::EAST_WEST;
     default:
         throw std::invalid_argument("Invalid position");

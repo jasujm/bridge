@@ -6,6 +6,7 @@
 #ifndef CARDSFORPOSITION_HH_
 #define CARDSFORPOSITION_HH_
 
+#include "bridge/BridgeConstants.hh"
 #include "bridge/Position.hh"
 #include "Utility.hh"
 
@@ -48,7 +49,7 @@ inline std::vector<int> cardsFor(Position position)
  * \throw std::invalid_argument if any position in the range is invalid
  */
 template<typename PositionIterator>
-inline std::vector<int> cardsFor(
+std::vector<int> cardsFor(
     PositionIterator first, PositionIterator last)
 {
     if (first != last) {

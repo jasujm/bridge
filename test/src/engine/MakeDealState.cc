@@ -79,7 +79,7 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     // Fill cards
     {
         state.cards.emplace();
-        for (const auto position : POSITIONS) {
+        for (const auto position : Position::all()) {
             const auto& hand = dereference(engine.getHand(position));
             if (engine.isVisible(hand, player)) {
                 fillCards(state, position, hand);

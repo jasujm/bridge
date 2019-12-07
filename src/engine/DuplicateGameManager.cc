@@ -14,7 +14,7 @@ namespace {
 Vulnerability getVulnerabilityHelper(const int round)
 {
     // Skip one vulnerability after each four deals
-    const auto offset = (round + round / N_POSITIONS) % N_POSITIONS;
+    const auto offset = (round + round / Position::size()) % Position::size();
     return {offset == 1 || offset == 3, offset == 2 || offset == 3};
 }
 
@@ -50,7 +50,7 @@ bool DuplicateGameManager::handleHasEnded() const
 
 Position DuplicateGameManager::handleGetOpenerPosition() const
 {
-    return POSITIONS[round % N_POSITIONS];
+    return static_cast<PositionLabel>(round % Position::size());
 }
 
 Vulnerability DuplicateGameManager::handleGetVulnerability() const

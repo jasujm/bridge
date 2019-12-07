@@ -22,6 +22,8 @@ using Bridge::Redouble;
 using Bridge::Strain;
 using Bridge::enumerate;
 
+namespace Positions = Bridge::Positions;
+
 namespace {
 constexpr Bid BID {2, Strain::CLUBS};
 constexpr Bid HIGHER_BID {7, Strain::NO_TRUMP};
@@ -32,7 +34,7 @@ protected:
     void makeCallsHelper(const std::vector<Call>& calls)
     {
         for (const auto e : enumerate(calls)) {
-            const auto position = clockwise(Position::NORTH, e.first);
+            const auto position = clockwise(Positions::NORTH, e.first);
             EXPECT_EQ(position, bidding.getPositionInTurn());
             EXPECT_TRUE(bidding.call(position, e.second));
         }
@@ -50,7 +52,7 @@ protected:
                   bidding.getDeclarerPosition());
     }
 
-    BasicBidding bidding {Position::NORTH};
+    BasicBidding bidding {Positions::NORTH};
 };
 
 TEST_F(BasicBiddingTest, testInitialNumberOfCalls)
@@ -60,12 +62,12 @@ TEST_F(BasicBiddingTest, testInitialNumberOfCalls)
 
 TEST_F(BasicBiddingTest, testOpeningPosition)
 {
-    EXPECT_EQ(Position::NORTH, bidding.getOpeningPosition());
+    EXPECT_EQ(Positions::NORTH, bidding.getOpeningPosition());
 }
 
 TEST_F(BasicBiddingTest, testCallsAfterOpeningHasBeenMade)
 {
-    bidding.call(Position::NORTH, BID);
+    bidding.call(Positions::NORTH, BID);
     EXPECT_EQ(1, bidding.getNumberOfCalls());
     EXPECT_EQ(Bridge::Call {BID}, bidding.getCall(0));
 }
@@ -95,14 +97,14 @@ TEST_F(BasicBiddingTest, testHighestBidWinsContract)
 
 TEST_F(BasicBiddingTest, testSameBidIsNotAllowed)
 {
-    bidding.call(Position::NORTH, BID);
-    EXPECT_FALSE(bidding.call(Position::EAST, BID));
+    bidding.call(Positions::NORTH, BID);
+    EXPECT_FALSE(bidding.call(Positions::EAST, BID));
 }
 
 TEST_F(BasicBiddingTest, testLowerBidIsNotAllowed)
 {
-    bidding.call(Position::NORTH, HIGHER_BID);
-    EXPECT_FALSE(bidding.call(Position::EAST, BID));
+    bidding.call(Positions::NORTH, HIGHER_BID);
+    EXPECT_FALSE(bidding.call(Positions::EAST, BID));
 }
 
 TEST_F(BasicBiddingTest, testInitiallyLowestBidIsAllowed)
@@ -112,34 +114,34 @@ TEST_F(BasicBiddingTest, testInitiallyLowestBidIsAllowed)
 
 TEST_F(BasicBiddingTest, testAfterBiddingTheNextHigherBidIsAllowed)
 {
-    bidding.call(Position::NORTH, BID);
+    bidding.call(Positions::NORTH, BID);
     EXPECT_EQ(nextHigherBid(BID), bidding.getLowestAllowedBid());
 }
 
 TEST_F(BasicBiddingTest, testEmptyContractMayNotBeDoubled)
 {
-    EXPECT_FALSE(bidding.call(Position::NORTH, Double {}));
+    EXPECT_FALSE(bidding.call(Positions::NORTH, Double {}));
 }
 
 TEST_F(BasicBiddingTest, testOpponentsContractMayBeDoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    EXPECT_TRUE(bidding.call(Position::EAST, Double {}));
+    bidding.call(Positions::NORTH, BID);
+    EXPECT_TRUE(bidding.call(Positions::EAST, Double {}));
 }
 
 TEST_F(BasicBiddingTest, testOwnContractMayNotBeDoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Pass {});
-    EXPECT_FALSE(bidding.call(Position::SOUTH, Double {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Pass {});
+    EXPECT_FALSE(bidding.call(Positions::SOUTH, Double {}));
 }
 
 TEST_F(BasicBiddingTest, testDoubledContractMayNotBeDoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Double {});
-    bidding.call(Position::SOUTH, Pass {});
-    EXPECT_FALSE(bidding.call(Position::WEST, Double {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Double {});
+    bidding.call(Positions::SOUTH, Pass {});
+    EXPECT_FALSE(bidding.call(Positions::WEST, Double {}));
 }
 
 TEST_F(BasicBiddingTest, testDoubledContract)
@@ -152,46 +154,46 @@ TEST_F(BasicBiddingTest, testDoubledContract)
 
 TEST_F(BasicBiddingTest, testEmptyContractMayNotBeRedoubled)
 {
-    EXPECT_FALSE(bidding.call(Position::NORTH, Redouble {}));
+    EXPECT_FALSE(bidding.call(Positions::NORTH, Redouble {}));
 }
 
 TEST_F(BasicBiddingTest, testOwnContractMayBeRedoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Double {});
-    EXPECT_TRUE(bidding.call(Position::SOUTH, Redouble {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Double {});
+    EXPECT_TRUE(bidding.call(Positions::SOUTH, Redouble {}));
 }
 
 TEST_F(BasicBiddingTest, testOpponentsContractMayNotBeRedoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Double {});
-    bidding.call(Position::SOUTH, Pass {});
-    EXPECT_FALSE(bidding.call(Position::WEST, Redouble {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Double {});
+    bidding.call(Positions::SOUTH, Pass {});
+    EXPECT_FALSE(bidding.call(Positions::WEST, Redouble {}));
 }
 
 TEST_F(BasicBiddingTest, testUndoubledContractMayNotBeRedoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Pass {});
-    EXPECT_FALSE(bidding.call(Position::SOUTH, Redouble {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Pass {});
+    EXPECT_FALSE(bidding.call(Positions::SOUTH, Redouble {}));
 }
 
 TEST_F(BasicBiddingTest, testRedoubledContractMayNotBeDoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Double {});
-    bidding.call(Position::SOUTH, Redouble {});
-    EXPECT_FALSE(bidding.call(Position::WEST, Double {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Double {});
+    bidding.call(Positions::SOUTH, Redouble {});
+    EXPECT_FALSE(bidding.call(Positions::WEST, Double {}));
 }
 
 TEST_F(BasicBiddingTest, testRedoubledContractMayNotBeRedoubled)
 {
-    bidding.call(Position::NORTH, BID);
-    bidding.call(Position::EAST, Double {});
-    bidding.call(Position::SOUTH, Redouble {});
-    bidding.call(Position::WEST, Pass {});
-    EXPECT_FALSE(bidding.call(Position::NORTH, Redouble {}));
+    bidding.call(Positions::NORTH, BID);
+    bidding.call(Positions::EAST, Double {});
+    bidding.call(Positions::SOUTH, Redouble {});
+    bidding.call(Positions::WEST, Pass {});
+    EXPECT_FALSE(bidding.call(Positions::NORTH, Redouble {}));
 }
 
 TEST_F(BasicBiddingTest, testRedoubledContract)
@@ -207,14 +209,14 @@ TEST_F(BasicBiddingTest, testOnlyBidderIsDeclarer)
     const auto calls = std::vector<Call>{
         BID, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectDeclarerPositionIs(Position::NORTH);
+    expectDeclarerPositionIs(Positions::NORTH);
 }
 
 TEST_F(BasicBiddingTest, testDeclarerIsInWinningPartnership)
 {
     const std::vector<Call> calls { BID, HIGHER_BID, Pass {}, Pass {}, Pass {} };
     makeCallsHelper(calls);
-    expectDeclarerPositionIs(Position::EAST);
+    expectDeclarerPositionIs(Positions::EAST);
 }
 
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarer)
@@ -225,7 +227,7 @@ TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarer)
         Pass {}, Bid {4, Strain::SPADES},
         Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectDeclarerPositionIs(Position::WEST);
+    expectDeclarerPositionIs(Positions::WEST);
 }
 
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInDoubledContract)
@@ -236,7 +238,7 @@ TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInDoubledContract)
         Pass {}, Bid {4, Strain::SPADES},
         Double {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectDeclarerPositionIs(Position::WEST);
+    expectDeclarerPositionIs(Positions::WEST);
 }
 
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInRedoubledContract)
@@ -247,5 +249,5 @@ TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInRedoubledContract)
         Pass {}, Bid {4, Strain::SPADES},
         Double {}, Redouble {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectDeclarerPositionIs(Position::WEST);
+    expectDeclarerPositionIs(Positions::WEST);
 }

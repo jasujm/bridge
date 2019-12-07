@@ -131,7 +131,7 @@ game {
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     const auto expected_positions = std::vector {
-        Bridge::Position::NORTH, Bridge::Position::SOUTH };
+        Bridge::Positions::NORTH, Bridge::Positions::SOUTH };
     EXPECT_EQ(expected_positions, games.front().positionsControlled);
 }
 

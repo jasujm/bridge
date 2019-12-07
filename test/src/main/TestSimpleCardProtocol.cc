@@ -11,7 +11,6 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/Sockets.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "MockCallbackScheduler.hh"
@@ -109,7 +108,7 @@ TEST_F(SimpleCardProtocolTest, testLeader)
 {
     EXPECT_TRUE(
         protocol.acceptPeer(
-            PEER, {Position::SOUTH, Position::WEST}, std::nullopt));
+            PEER, {Positions::SOUTH, Positions::WEST}, std::nullopt));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();
@@ -148,8 +147,8 @@ TEST_F(SimpleCardProtocolTest, testNotLeader)
 {
     EXPECT_TRUE(
         protocol.acceptPeer(
-            LEADER, {Position::NORTH, Position::EAST}, std::nullopt));
-    EXPECT_TRUE(protocol.acceptPeer(PEER, {Position::SOUTH}, std::nullopt));
+            LEADER, {Positions::NORTH, Positions::EAST}, std::nullopt));
+    EXPECT_TRUE(protocol.acceptPeer(PEER, {Positions::SOUTH}, std::nullopt));
     protocol.initialize();
 
     const auto card_manager = protocol.getCardManager();

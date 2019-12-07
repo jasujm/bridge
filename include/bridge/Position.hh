@@ -6,50 +6,61 @@
 #ifndef POSITION_HH_
 #define POSITION_HH_
 
-#include "bridge/BridgeConstants.hh"
+#include "enhanced_enum/enhanced_enum.hh"
 
-#include <boost/bimap/bimap.hpp>
-
-#include <array>
 #include <iosfwd>
-#include <string>
+#include <string_view>
 
 namespace Bridge {
 
-/** \brief Bridge player position
- */
-enum class Position {
+/// \cond internal
+
+/*[[[cog
+import cog
+import enumecg
+import enum
+class Position(enum.Enum):
+    NORTH = "north"
+    EAST = "east"
+    SOUTH = "south"
+    WEST = "west"
+cog.out(enumecg.generate(Position, primary_type="enhanced"))
+]]]*/
+enum class PositionLabel {
     NORTH,
     EAST,
     SOUTH,
-    WEST
+    WEST,
 };
 
-/** \brief Number of possible positions
- *
- * \sa Position
- */
-constexpr auto N_POSITIONS = N_PLAYERS;
-
-/** \brief Array containing all positions
- *
- * \sa Position
- */
-constexpr std::array<Position, N_POSITIONS> POSITIONS {
-    Position::NORTH,
-    Position::EAST,
-    Position::SOUTH,
-    Position::WEST,
+struct Position : ::enhanced_enum::enum_base<Position, PositionLabel, std::string_view> {
+    using ::enhanced_enum::enum_base<Position, PositionLabel, std::string_view>::enum_base;
+    static constexpr std::array values {
+        value_type { "north" },
+        value_type { "east" },
+        value_type { "south" },
+        value_type { "west" },
+    };
 };
 
-/** \brief Type of \ref POSITION_TO_STRING_MAP
- */
-using PositionToStringMap = boost::bimaps::bimap<Position, std::string>;
+constexpr Position enhance(PositionLabel e) noexcept
+{
+    return e;
+}
 
-/** \brief Two-way map between Position enumerations and their string
- * representation
- */
-extern const PositionToStringMap POSITION_TO_STRING_MAP;
+namespace Positions {
+inline constexpr const Position::value_type& NORTH_VALUE { std::get<0>(Position::values) };
+inline constexpr const Position::value_type& EAST_VALUE { std::get<1>(Position::values) };
+inline constexpr const Position::value_type& SOUTH_VALUE { std::get<2>(Position::values) };
+inline constexpr const Position::value_type& WEST_VALUE { std::get<3>(Position::values) };
+inline constexpr Position NORTH { PositionLabel::NORTH };
+inline constexpr Position EAST { PositionLabel::EAST };
+inline constexpr Position SOUTH { PositionLabel::SOUTH };
+inline constexpr Position WEST { PositionLabel::WEST };
+}
+//[[[end]]]
+
+/// \endcond
 
 /** \brief Return order of the position
  *

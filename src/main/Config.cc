@@ -213,9 +213,8 @@ int config_lua_game(lua_State* lua) {
                 configVector.pop_back();
                 luaL_error(lua, "unexpected position value");
             }
-            const auto iter = POSITION_TO_STRING_MAP.right.find(position_string);
-            if (iter != POSITION_TO_STRING_MAP.right.end()) {
-                config.positionsControlled.emplace_back(iter->second);
+            if (const auto position = Position::from(position_string)) {
+                config.positionsControlled.emplace_back(*position);
                 lua_pop(lua, 1);
             } else {
                 configVector.pop_back();

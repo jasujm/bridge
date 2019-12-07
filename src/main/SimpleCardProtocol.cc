@@ -11,7 +11,6 @@
 #include "messaging/FunctionMessageHandler.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/PositionJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "Logging.hh"
 
@@ -93,7 +92,7 @@ void SimpleCardProtocol::Impl::handleNotify(
 bool SimpleCardProtocol::Impl::acceptPeer(
     const Identity& identity, const PositionVector& positions)
 {
-    if (std::find(positions.begin(), positions.end(), Position::NORTH) !=
+    if (std::find(positions.begin(), positions.end(), Positions::NORTH) !=
         positions.end()) {
         leaderIdentity = identity;
     }
