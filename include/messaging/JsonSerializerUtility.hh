@@ -7,6 +7,8 @@
 #include "messaging/SerializationFailureException.hh"
 #include "Blob.hh"
 
+#include "enhanced_enum/enhanced_enum.hh"
+
 #include <json.hpp>
 
 #include <functional>
@@ -66,6 +68,30 @@ struct adl_serializer<Bridge::Blob>
     /** \brief Convert JSON to blob
      */
     static void from_json(const json&, Bridge::Blob&);
+};
+
+/** \brief JSON converter for enums
+ */
+template<typename Enum>
+struct adl_serializer<Enum, std::enable_if_t<enhanced_enum::is_enhanced_enum_v<Enum>>>
+{
+    /** \brief Convert optional type to JSON
+     */
+    static void to_json(json& j, const Enum& e)
+    {
+        j = e.value();
+    }
+
+    /** \brief Convert JSON to optional type
+     */
+    static void from_json(const json& j, Enum& e)
+    {
+        if (const auto opt_e = Enum::from(j.get<typename Enum::value_type>())) {
+            e = *opt_e;
+        } else {
+            throw Bridge::Messaging::SerializationFailureException {};
+        }
+    }
 };
 
 }
