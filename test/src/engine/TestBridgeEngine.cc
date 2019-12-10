@@ -274,7 +274,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
         *gameManager, handleAddResult(
-            Partnership::EAST_WEST, Contract {BID, Doubling::REDOUBLED}, 0));
+            Partnerships::EAST_WEST, Contract {BID, Doubling::REDOUBLED}, 0));
 
     // Startup
     expectedState.stage = Stage::SHUFFLING;

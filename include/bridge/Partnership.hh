@@ -6,47 +6,54 @@
 #ifndef PARTNERSHIP_HH_
 #define PARTNERSHIP_HH_
 
-#include <boost/bimap/bimap.hpp>
+#include "enhanced_enum/enhanced_enum.hh"
 
-#include <array>
 #include <iosfwd>
 #include <utility>
-#include <string>
+#include <string_view>
 
 namespace Bridge {
 
 struct Position;
 
-/** \brief Bridge partnership
- */
-enum class Partnership {
+/// \cond internal
+
+/*[[[cog
+import cog
+import enumecg
+import enum
+class Partnership(enum.Enum):
+    NORTH_SOUTH = "northSouth"
+    EAST_WEST = "eastWest"
+cog.out(enumecg.generate(Partnership, primary_type="enhanced"))
+]]]*/
+enum class PartnershipLabel {
     NORTH_SOUTH,
-    EAST_WEST
+    EAST_WEST,
 };
 
-/** \brief Number of partnerships
- *
- * \sa Partnership
- */
-constexpr auto N_PARTNERSHIPS = 2;
-
-/** \brief Array containing all partnerships
- *
- * \sa Partnership
- */
-constexpr std::array<Partnership, N_PARTNERSHIPS> PARTNERSHIPS {
-    Partnership::NORTH_SOUTH,
-    Partnership::EAST_WEST,
+struct Partnership : ::enhanced_enum::enum_base<Partnership, PartnershipLabel, std::string_view> {
+    using ::enhanced_enum::enum_base<Partnership, PartnershipLabel, std::string_view>::enum_base;
+    static constexpr std::array values {
+        value_type { "northSouth" },
+        value_type { "eastWest" },
+    };
 };
 
-/** \brief Type of \ref PARTNERSHIP_TO_STRING_MAP
- */
-using PartnershipToStringMap = boost::bimaps::bimap<Partnership, std::string>;
+constexpr Partnership enhance(PartnershipLabel e) noexcept
+{
+    return e;
+}
 
-/** \brief Two-way map between Partnership enumerations and their string
- * representation
- */
-extern const PartnershipToStringMap PARTNERSHIP_TO_STRING_MAP;
+namespace Partnerships {
+inline constexpr const Partnership::value_type& NORTH_SOUTH_VALUE { std::get<0>(Partnership::values) };
+inline constexpr const Partnership::value_type& EAST_WEST_VALUE { std::get<1>(Partnership::values) };
+inline constexpr Partnership NORTH_SOUTH { PartnershipLabel::NORTH_SOUTH };
+inline constexpr Partnership EAST_WEST { PartnershipLabel::EAST_WEST };
+}
+//[[[end]]]
+
+/// \endcond
 
 /** \brief Determine the positions in a partnership
  *

@@ -6,7 +6,7 @@
 #ifndef TRICKSWON_HH_
 #define TRICKSWON_HH_
 
-#include "BridgeConstants.hh"
+#include "bridge/BridgeConstants.hh"
 
 #include <boost/operators.hpp>
 
@@ -15,7 +15,7 @@
 
 namespace Bridge {
 
-enum class Partnership;
+struct Partnership;
 
 /** \brief The tricks won in a (possibly ongoing) bridge deal
  *

@@ -1,33 +1,16 @@
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 
-#include "IoUtility.hh"
-
 #include <stdexcept>
 
 namespace Bridge {
 
-namespace {
-
-using namespace std::string_literals;
-using PartnershipStringRelation = PartnershipToStringMap::value_type;
-
-const auto PARTNERSHIP_STRING_PAIRS = {
-    PartnershipStringRelation { Partnership::NORTH_SOUTH, "northSouth"s },
-    PartnershipStringRelation { Partnership::EAST_WEST,   "eastWest"s   },
-};
-
-}
-
-const PartnershipToStringMap PARTNERSHIP_TO_STRING_MAP(
-    PARTNERSHIP_STRING_PAIRS.begin(), PARTNERSHIP_STRING_PAIRS.end());
-
 std::pair<Position, Position> positionsFor(const Partnership partnership)
 {
-    switch (partnership) {
-    case Partnership::NORTH_SOUTH:
+    switch (partnership.get()) {
+    case PartnershipLabel::NORTH_SOUTH:
         return std::make_pair(Positions::NORTH, Positions::SOUTH);
-    case Partnership::EAST_WEST:
+    case PartnershipLabel::EAST_WEST:
         return std::make_pair(Positions::EAST, Positions::WEST);
     default:
         throw std::invalid_argument("Invalid partnership");
@@ -39,10 +22,10 @@ Partnership partnershipFor(const Position position)
     switch (position.get()) {
     case PositionLabel::NORTH:
     case PositionLabel::SOUTH:
-        return Partnership::NORTH_SOUTH;
+        return Partnerships::NORTH_SOUTH;
     case PositionLabel::EAST:
     case PositionLabel::WEST:
-        return Partnership::EAST_WEST;
+        return Partnerships::EAST_WEST;
     default:
         throw std::invalid_argument("Invalid position");
     }
@@ -50,11 +33,11 @@ Partnership partnershipFor(const Position position)
 
 Partnership otherPartnership(const Partnership partnership)
 {
-    switch(partnership) {
-    case Partnership::NORTH_SOUTH:
-        return Partnership::EAST_WEST;
-    case Partnership::EAST_WEST:
-        return Partnership::NORTH_SOUTH;
+    switch(partnership.get()) {
+    case PartnershipLabel::NORTH_SOUTH:
+        return Partnerships::EAST_WEST;
+    case PartnershipLabel::EAST_WEST:
+        return Partnerships::NORTH_SOUTH;
     default:
         throw std::invalid_argument("Invalid partnership");
     }
@@ -62,7 +45,7 @@ Partnership otherPartnership(const Partnership partnership)
 
 std::ostream& operator<<(std::ostream& os, Partnership partnership)
 {
-    return outputEnum(os, partnership, PARTNERSHIP_TO_STRING_MAP.left);
+    return os << partnership.value();
 }
 
 }

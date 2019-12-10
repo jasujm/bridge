@@ -65,7 +65,7 @@ inline constexpr Position WEST { PositionLabel::WEST };
 /** \brief Return order of the position
  *
  * In bridge positions have defined playing order north, east, south,
- * west. This function can be used to cast the position to its order in type
+ o* west. This function can be used to cast the position to its order in type
  * safe manner.
  *
  * \return order of \p position (between 0—3)

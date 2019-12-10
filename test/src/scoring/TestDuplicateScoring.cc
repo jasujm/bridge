@@ -11,7 +11,8 @@
 
 using Bridge::Strain;
 using Bridge::Doubling;
-using Bridge::Partnership;
+
+namespace Partnerships = Bridge::Partnerships;
 
 namespace {
 
@@ -21,11 +22,11 @@ void test(
     const std::string& message)
 {
     const auto winner_partnership = won ?
-        Partnership::NORTH_SOUTH : Partnership::EAST_WEST;
+        Partnerships::NORTH_SOUTH : Partnerships::EAST_WEST;
     EXPECT_EQ(
         Bridge::Scoring::DuplicateScore(winner_partnership, score),
         Bridge::Scoring::calculateDuplicateScore(
-            Partnership::NORTH_SOUTH,
+            Partnerships::NORTH_SOUTH,
             Bridge::Contract {Bridge::Bid {level, strain}, doubling},
             vulnerable, tricksWon)) << message;
 }

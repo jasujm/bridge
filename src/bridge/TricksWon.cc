@@ -10,10 +10,10 @@ namespace Bridge {
 int getNumberOfTricksWon(
     const TricksWon& tricksWon, const Partnership partnership)
 {
-    switch (partnership) {
-    case Partnership::NORTH_SOUTH:
+    switch (partnership.get()) {
+    case PartnershipLabel::NORTH_SOUTH:
         return tricksWon.tricksWonByNorthSouth;
-    case Partnership::EAST_WEST:
+    case PartnershipLabel::EAST_WEST:
         return tricksWon.tricksWonByEastWest;
     default:
         throw std::invalid_argument("Invalid partnership");
@@ -29,9 +29,9 @@ bool operator==(const TricksWon& lhs, const TricksWon& rhs)
 
 std::ostream& operator<<(std::ostream& os, const TricksWon& tricksWon)
 {
-    return os << Partnership::NORTH_SOUTH << ": " <<
+    return os << Partnerships::NORTH_SOUTH_VALUE << ": " <<
         tricksWon.tricksWonByNorthSouth << ", " <<
-        Partnership::EAST_WEST << ": " <<
+        Partnerships::EAST_WEST_VALUE << ": " <<
         tricksWon.tricksWonByEastWest;
 }
 

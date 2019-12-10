@@ -1,7 +1,7 @@
 #include "messaging/DuplicateScoreJsonSerializer.hh"
 
+#include "messaging/JsonSerializerUtility.hh"
 #include "scoring/DuplicateScore.hh"
-#include "messaging/PartnershipJsonSerializer.hh"
 
 using nlohmann::json;
 

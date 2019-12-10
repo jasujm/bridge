@@ -10,18 +10,14 @@ namespace Bridge {
 
 void to_json(nlohmann::json& j, const TricksWon& tricksWon)
 {
-    j[PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)] =
-        tricksWon.tricksWonByNorthSouth;
-    j[PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST)] =
-        tricksWon.tricksWonByEastWest;
+    j.emplace(Partnerships::NORTH_SOUTH_VALUE, tricksWon.tricksWonByNorthSouth);
+    j.emplace(Partnerships::EAST_WEST_VALUE, tricksWon.tricksWonByEastWest);
 }
 
 void from_json(const nlohmann::json& j, TricksWon& tricksWon)
 {
-    tricksWon.tricksWonByNorthSouth =
-        j.at(PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH));
-    tricksWon.tricksWonByEastWest =
-        j.at(PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST));
+    tricksWon.tricksWonByNorthSouth = j.at(std::string {Partnerships::NORTH_SOUTH_VALUE});
+    tricksWon.tricksWonByEastWest = j.at(std::string {Partnerships::EAST_WEST_VALUE});
 }
 
 }

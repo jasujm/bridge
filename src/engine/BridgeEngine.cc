@@ -468,11 +468,11 @@ TricksWon InDeal::getTricksWon() const
         if (const auto winner = getWinner(*trick, dereference(trump))) {
             const auto winner_position = getPosition(*winner);
             const auto winner_partnership = partnershipFor(winner_position);
-            switch (winner_partnership) {
-            case Partnership::NORTH_SOUTH:
+            switch (winner_partnership.get()) {
+            case PartnershipLabel::NORTH_SOUTH:
                 ++north_south;
                 break;
-            case Partnership::EAST_WEST:
+            case PartnershipLabel::EAST_WEST:
                 ++east_west;
             }
         }

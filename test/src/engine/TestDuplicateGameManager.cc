@@ -19,10 +19,11 @@ using ScoreEntry = Bridge::Engine::DuplicateGameManager::ScoreEntry;
 namespace Positions = Bridge::Positions;
 
 namespace {
-constexpr Bridge::Partnership PARTNERSHIP {Bridge::Partnership::NORTH_SOUTH};
-constexpr Bridge::Contract CONTRACT {
+constexpr auto PARTNERSHIP = Bridge::Partnership {
+    Bridge::Partnerships::NORTH_SOUTH};
+constexpr auto CONTRACT = Bridge::Contract {
     Bridge::Bid {1, Bridge::Strain::CLUBS}, Bridge::Doubling::UNDOUBLED};
-constexpr int TRICKS_WON {7};
+constexpr auto TRICKS_WON = 7;
 }
 
 class DuplicateGameManagerTest : public testing::Test

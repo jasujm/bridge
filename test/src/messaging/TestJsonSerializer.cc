@@ -13,7 +13,6 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
 #include "messaging/DuplicateScoreJsonSerializer.hh"
-#include "messaging/PartnershipJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationFailureException.hh"
@@ -212,38 +211,43 @@ TEST_F(JsonSerializerTest, testCardTypeSuitInvalid)
 TEST_F(JsonSerializerTest, testVulnerability)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+        {Partnerships::NORTH_SOUTH_VALUE, true},
+        {Partnerships::EAST_WEST_VALUE, false}
+    };
     testHelper(VULNERABILITY, j);
 }
 
 TEST_F(JsonSerializerTest, testVulnerabilityNorthSouthMissing)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true}};
+        {Partnerships::NORTH_SOUTH_VALUE, true}
+    };
     testFailedDeserializationHelper<Vulnerability>(j);
 }
 
 TEST_F(JsonSerializerTest, testVulnerabilityNorthSouthInvalid)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), nullptr},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+        {Partnerships::NORTH_SOUTH_VALUE, nullptr},
+        {Partnerships::EAST_WEST_VALUE, false}
+    };
     testFailedDeserializationHelper<Vulnerability>(j);
 }
 
 TEST_F(JsonSerializerTest, testVulnerabilityEastWestMissing)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), false}};
+        {Partnerships::EAST_WEST_VALUE, false}
+    };
     testFailedDeserializationHelper<Vulnerability>(j);
 }
 
 TEST_F(JsonSerializerTest, testVulnerabilityEastWestInvalid)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), true},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
+        {Partnerships::NORTH_SOUTH_VALUE, true},
+        {Partnerships::EAST_WEST_VALUE, nullptr}
+    };
     testFailedDeserializationHelper<Vulnerability>(j);
 }
 
@@ -282,45 +286,51 @@ TEST_F(JsonSerializerTest, testContractInvalidDoubling)
 {
     const auto j = json {
         {CONTRACT_BID_KEY, BID},
-        {CONTRACT_DOUBLING_KEY, nullptr}};
+        {CONTRACT_DOUBLING_KEY, nullptr}
+    };
     testFailedDeserializationHelper<Contract>(j);
 }
 
 TEST_F(JsonSerializerTest, testTricksWon)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), 5},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), 6}};
+        {Partnerships::NORTH_SOUTH_VALUE, 5},
+        {Partnerships::EAST_WEST_VALUE, 6}
+    };
     testHelper(TRICKS_WON, j);
 }
 
 TEST_F(JsonSerializerTest, testTricksWonNorthSouthMissing)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), 5}};
+        {Partnerships::NORTH_SOUTH_VALUE, 5}
+    };
     testFailedDeserializationHelper<TricksWon>(j);
 }
 
 TEST_F(JsonSerializerTest, testTricksWonNorthSouthInvalid)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), nullptr},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), 6}};
+        {Partnerships::NORTH_SOUTH_VALUE, nullptr},
+        {Partnerships::EAST_WEST_VALUE, 6}
+    };
     testFailedDeserializationHelper<TricksWon>(j);
 }
 
 TEST_F(JsonSerializerTest, testTricksWonEastWestMissing)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), 6}};
+        {Partnerships::EAST_WEST_VALUE, 6}
+    };
     testFailedDeserializationHelper<TricksWon>(j);
 }
 
 TEST_F(JsonSerializerTest, testTricksWonEastWestInvalid)
 {
     const auto j = json {
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH), 5},
-        {PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::EAST_WEST), nullptr}};
+        {Partnerships::NORTH_SOUTH_VALUE, 5},
+        {Partnerships::EAST_WEST_VALUE, nullptr}
+    };
     testFailedDeserializationHelper<TricksWon>(j);
 }
 
@@ -411,10 +421,14 @@ TEST_F(JsonSerializerTest, testDuplicateScore)
     const auto j = json {
         {
             Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+            Partnerships::NORTH_SOUTH
         },
-        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
-    const auto score = DuplicateScore {Partnership::NORTH_SOUTH, 100};
+        {
+            Scoring::DUPLICATE_SCORE_SCORE_KEY,
+            100
+        }
+    };
+    const auto score = DuplicateScore {Partnerships::NORTH_SOUTH, 100};
     testHelper(score, j);
 }
 
@@ -438,7 +452,7 @@ TEST_F(JsonSerializerTest, testDuplicateScoreScoreMissing)
     const auto j = json {
         {
             Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+            Partnerships::NORTH_SOUTH
         }
     };
     testFailedDeserializationHelper<DuplicateScore>(j);
@@ -449,8 +463,9 @@ TEST_F(JsonSerializerTest, testDuplicateScoreScoreInvalid)
     const auto j = json {
         {
             Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            PARTNERSHIP_TO_STRING_MAP.left.at(Partnership::NORTH_SOUTH)
+            Partnerships::NORTH_SOUTH
         },
-        {Scoring::DUPLICATE_SCORE_SCORE_KEY, "invalid"}};
+        {Scoring::DUPLICATE_SCORE_SCORE_KEY, "invalid"}
+    };
     testFailedDeserializationHelper<DuplicateScore>(j);
 }

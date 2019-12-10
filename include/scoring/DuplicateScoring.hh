@@ -9,7 +9,7 @@
 namespace Bridge {
 
 class Contract;
-enum class Partnership;
+struct Partnership;
 
 /** \brief Services related to duplicate bridge scoring
  */
