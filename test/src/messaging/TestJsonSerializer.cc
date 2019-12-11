@@ -172,16 +172,18 @@ TEST_F(JsonSerializerTest, testCallCallMissing)
 TEST_F(JsonSerializerTest, testCardType)
 {
     const auto j = json {
-        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)},
-        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
-    const auto card_type = CardType {Rank::ACE, Suit::SPADES};
+        {CARD_TYPE_RANK_KEY, Ranks::ACE},
+        {CARD_TYPE_SUIT_KEY, Suits::SPADES}
+    };
+    const auto card_type = CardType {Ranks::ACE, Suits::SPADES};
     testHelper(card_type, j);
 }
 
 TEST_F(JsonSerializerTest, testCardTypeRankMissing)
 {
     const auto j = json {
-        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)}};
+        {CARD_TYPE_RANK_KEY, Ranks::ACE}
+    };
     testFailedDeserializationHelper<CardType>(j);
 }
 
@@ -189,22 +191,25 @@ TEST_F(JsonSerializerTest, testCardTypeRankInvalid)
 {
     const auto j = json {
         {CARD_TYPE_RANK_KEY, "invalid"},
-        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
+        {CARD_TYPE_SUIT_KEY, Suits::SPADES}
+    };
     testFailedDeserializationHelper<CardType>(j);
 }
 
 TEST_F(JsonSerializerTest, testCardTypeSuitMissing)
 {
     const auto j = json {
-        {CARD_TYPE_SUIT_KEY, SUIT_TO_STRING_MAP.left.at(Suit::SPADES)}};
+        {CARD_TYPE_SUIT_KEY, Suits::SPADES}
+    };
     testFailedDeserializationHelper<CardType>(j);
 }
 
 TEST_F(JsonSerializerTest, testCardTypeSuitInvalid)
 {
     const auto j = json {
-        {CARD_TYPE_RANK_KEY, RANK_TO_STRING_MAP.left.at(Rank::ACE)},
-        {CARD_TYPE_SUIT_KEY, "invalid"}};
+        {CARD_TYPE_RANK_KEY, Ranks::ACE},
+        {CARD_TYPE_SUIT_KEY, "invalid"}
+    };
     testFailedDeserializationHelper<CardType>(j);
 }
 

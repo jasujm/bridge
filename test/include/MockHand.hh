@@ -2,6 +2,7 @@
 #define MOCKHAND_HH_
 
 #include "bridge/Card.hh"
+#include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 
 #include <boost/logic/tribool.hpp>

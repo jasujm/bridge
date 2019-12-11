@@ -14,8 +14,6 @@
 using Bridge::Card;
 using Bridge::CardType;
 using Bridge::to;
-using Bridge::Rank;
-using Bridge::Suit;
 using Bridge::Trick;
 
 using testing::_;
@@ -24,6 +22,9 @@ using testing::Ref;
 using testing::Return;
 using testing::ReturnRef;
 using testing::ValuesIn;
+
+namespace Ranks = Bridge::Ranks;
+namespace Suits = Bridge::Suits;
 
 class TrickTest : public testing::TestWithParam<int> {
 protected:
@@ -114,10 +115,10 @@ TEST_F(TrickTest, testPlayWhenHandHasTurnAndFollowsSuit)
     EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::SPADES},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::SPADES},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.play(hands[1], cards[1]));
 }
 
@@ -126,10 +127,10 @@ TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndFollowsSuit)
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::SPADES},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::SPADES},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
 }
 
@@ -137,28 +138,28 @@ TEST_F(TrickTest, testPlayWhenHandHasTurnAndIsOutOfSuit)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
     EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(true));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.play(hands[1], cards[1]));
 }
 
 TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndIsOutOfSuit)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(true));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
 }
 
@@ -166,28 +167,28 @@ TEST_F(TrickTest, testPlayWhenHandHasTurnAndOutOfSuitIsIndeterminate)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
     EXPECT_CALL(trick, handleAddCardToTrick(Ref(cards[1])));
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(boost::indeterminate));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.play(hands[1], cards[1]));
 }
 
 TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndOutOfSuitIsIndeterminate)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(boost::indeterminate));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_TRUE(trick.canPlay(hands[1], cards[1]));
 }
 
@@ -195,28 +196,28 @@ TEST_F(TrickTest, testPlayWhenHandHasTurnAndDoesNotFollowSuit)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
     EXPECT_CALL(trick, handleAddCardToTrick(_)).Times(0);
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(false));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_FALSE(trick.play(hands[1], cards[1]));
 }
 
 TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndDoesNotFollowSuit)
 {
     EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(1));
-    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suit::SPADES))
+    EXPECT_CALL(hands[1], handleIsOutOfSuit(Suits::SPADES))
         .WillOnce(Return(false));
 
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_FALSE(trick.canPlay(hands[1], cards[1]));
 }
 
@@ -242,10 +243,10 @@ TEST_F(TrickTest, testHighestCardOfOriginalSuitWinsNoTrump)
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::SPADES},
-        {Rank::ACE,   Suit::SPADES},
-        {Rank::FOUR,  Suit::SPADES});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::SPADES},
+        {Ranks::ACE,   Suits::SPADES},
+        {Ranks::FOUR,  Suits::SPADES});
     EXPECT_EQ(&hands[2], getWinner(trick));
 }
 
@@ -254,10 +255,10 @@ TEST_F(TrickTest, testOnlyCardOfOriginalSuitWinsNoTrump)
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::ACE,   Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::ACE,   Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
     EXPECT_EQ(&hands[0], getWinner(trick));
 }
 
@@ -266,11 +267,11 @@ TEST_F(TrickTest, testHighestTrumpWinsIfTrumpIsLead)
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
     setCardTypes(
-        {Rank::TWO,   Suit::SPADES},
-        {Rank::THREE, Suit::SPADES},
-        {Rank::ACE,   Suit::SPADES},
-        {Rank::FOUR,  Suit::SPADES});
-    EXPECT_EQ(&hands[2], getWinner(trick, Suit::SPADES));
+        {Ranks::TWO,   Suits::SPADES},
+        {Ranks::THREE, Suits::SPADES},
+        {Ranks::ACE,   Suits::SPADES},
+        {Ranks::FOUR,  Suits::SPADES});
+    EXPECT_EQ(&hands[2], getWinner(trick, Suits::SPADES));
 }
 
 TEST_F(TrickTest, testHighestTrumpWinsIfTrumpIsNotLead)
@@ -278,11 +279,11 @@ TEST_F(TrickTest, testHighestTrumpWinsIfTrumpIsNotLead)
     ON_CALL(trick, handleGetNumberOfCardsPlayed())
         .WillByDefault(Return(Bridge::Trick::N_CARDS_IN_TRICK));
     setCardTypes(
-        {Rank::ACE,   Suit::SPADES},
-        {Rank::TWO,   Suit::CLUBS},
-        {Rank::THREE, Suit::CLUBS},
-        {Rank::FOUR,  Suit::CLUBS});
-    EXPECT_EQ(&hands[3], getWinner(trick, Suit::CLUBS));
+        {Ranks::ACE,   Suits::SPADES},
+        {Ranks::TWO,   Suits::CLUBS},
+        {Ranks::THREE, Suits::CLUBS},
+        {Ranks::FOUR,  Suits::CLUBS});
+    EXPECT_EQ(&hands[3], getWinner(trick, Suits::CLUBS));
 }
 
 TEST_P(TrickTest, testGetCardWhenTrickIsEmpty)

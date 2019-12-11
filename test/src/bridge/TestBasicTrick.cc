@@ -27,7 +27,9 @@ protected:
                 .WillByDefault(Return(false));
             ON_CALL(e.second.get<1>(), handleGetType())
                 .WillByDefault(
-                    Return(CardType {Bridge::RANKS.at(e.first), Suit::SPADES}));
+                    Return(CardType {
+                        static_cast<Bridge::RankLabel>(e.first),
+                        Bridge::Suits::SPADES}));
             ON_CALL(e.second.get<1>(), handleIsKnown())
                 .WillByDefault(Return(true));
         }

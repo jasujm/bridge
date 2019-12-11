@@ -11,8 +11,6 @@
 #include <vector>
 
 using Bridge::CardType;
-using Bridge::Rank;
-using Bridge::Suit;
 
 using testing::_;
 using testing::NiceMock;
@@ -20,18 +18,21 @@ using testing::Ref;
 using testing::Return;
 using testing::ReturnRef;
 
+namespace Ranks = Bridge::Ranks;
+namespace Suits = Bridge::Suits;
+
 class AllowedCardsTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
         ON_CALL(cardInTrick, handleGetType())
-            .WillByDefault(Return(CardType {Rank::TWO, Suit::CLUBS}));
+            .WillByDefault(Return(CardType {Ranks::TWO, Suits::CLUBS}));
         ON_CALL(cardInTrick, handleIsKnown()).WillByDefault(Return(true));
         ON_CALL(cards[0], handleGetType())
-            .WillByDefault(Return(CardType {Rank::THREE, Suit::CLUBS}));
+            .WillByDefault(Return(CardType {Ranks::THREE, Suits::CLUBS}));
         ON_CALL(cards[0], handleIsKnown()).WillByDefault(Return(true));
         ON_CALL(cards[1], handleGetType())
-            .WillByDefault(Return(CardType {Rank::ACE, Suit::SPADES}));
+            .WillByDefault(Return(CardType {Ranks::ACE, Suits::SPADES}));
         ON_CALL(cards[1], handleIsKnown()).WillByDefault(Return(true));
         ON_CALL(hand, handleGetNumberOfCards()).WillByDefault(Return(2));
         ON_CALL(hand, handleGetCard(0)).WillByDefault(ReturnRef(cards[0]));

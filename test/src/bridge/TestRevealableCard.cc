@@ -4,7 +4,8 @@
 #include <gtest/gtest.h>
 
 namespace {
-constexpr Bridge::CardType CARD_TYPE {Bridge::Rank::TWO, Bridge::Suit::SPADES};
+constexpr auto CARD_TYPE = Bridge::CardType {
+    Bridge::Ranks::TWO, Bridge::Suits::SPADES};
 }
 
 class RevealableCardTest : public testing::Test {

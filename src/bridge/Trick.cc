@@ -1,7 +1,6 @@
 #include "bridge/Trick.hh"
 
 #include "bridge/Card.hh"
-#include "bridge/CardType.hh"
 #include "bridge/Hand.hh"
 #include "Utility.hh"
 

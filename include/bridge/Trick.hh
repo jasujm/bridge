@@ -7,6 +7,7 @@
 #define TRICK_HH_
 
 #include "bridge/BridgeConstants.hh"
+#include "bridge/CardType.hh"
 
 #include <boost/iterator/counting_iterator.hpp>
 #include <boost/iterator/transform_iterator.hpp>
@@ -18,7 +19,6 @@ namespace Bridge {
 
 class Card;
 class Hand;
-enum class Suit;
 
 /** \brief A trick in contract bridge
  *

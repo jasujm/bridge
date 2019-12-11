@@ -445,13 +445,13 @@ std::optional<std::optional<Suit>> InDeal::getTrump() const
     }
     switch ((*contract)->bid.strain) {
     case Strain::CLUBS:
-        return Suit::CLUBS;
+        return Suits::CLUBS;
     case Strain::DIAMONDS:
-        return Suit::DIAMONDS;
+        return Suits::DIAMONDS;
     case Strain::HEARTS:
-        return Suit::HEARTS;
+        return Suits::HEARTS;
     case Strain::SPADES:
-        return Suit::SPADES;
+        return Suits::SPADES;
     default:
         return std::optional<Suit> {};
     }

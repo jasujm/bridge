@@ -24,7 +24,7 @@ namespace Bridge {
 
 struct CardType;
 class Player;
-enum class Suit;
+struct Suit;
 
 /** \brief A bridge hand
  */

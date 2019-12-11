@@ -35,8 +35,9 @@ protected:
                 .WillByDefault(Return(false));
             ON_CALL(e.second, handleGetType())
                 .WillByDefault(
-                    Return(Bridge::CardType {Bridge::RANKS.at(e.first),
-                                             Bridge::Suit::SPADES}));
+                    Return(Bridge::CardType {
+                        static_cast<Bridge::RankLabel>(e.first),
+                        Bridge::Suits::SPADES}));
             ON_CALL(e.second, handleIsKnown())
                 .WillByDefault(Return(true));
         }
@@ -132,14 +133,14 @@ TEST_F(HandTest, testIsPlayedOutOfRange)
 
 TEST_F(HandTest, testIsKnownToBeOutOfSuit)
 {
-    EXPECT_CALL(hand, handleIsOutOfSuit(Bridge::Suit::SPADES))
+    EXPECT_CALL(hand, handleIsOutOfSuit(Bridge::Suits::SPADES))
         .WillOnce(Return(true));
-    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suit::SPADES));
+    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suits::SPADES));
 }
 
 TEST_F(HandTest, testIsOutOfSuitWhenNoSuitDealt)
 {
-    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suit::HEARTS));
+    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suits::HEARTS));
 }
 
 TEST_F(HandTest, testIsOutOfSuitWhenSuitIsPlayed)
@@ -147,31 +148,31 @@ TEST_F(HandTest, testIsOutOfSuitWhenSuitIsPlayed)
     for (const auto i : to(N_CARDS)) {
         EXPECT_CALL(hand, handleIsPlayed(i)).WillOnce(Return(true));
     }
-    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suit::SPADES));
+    EXPECT_TRUE(hand.isOutOfSuit(Bridge::Suits::SPADES));
 }
 
 TEST_F(HandTest, testIsKnownToNotBeOutOfSuit)
 {
-    EXPECT_CALL(hand, handleIsOutOfSuit(Bridge::Suit::HEARTS))
+    EXPECT_CALL(hand, handleIsOutOfSuit(Bridge::Suits::HEARTS))
         .WillOnce(Return(false));
-    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suit::HEARTS));
+    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suits::HEARTS));
 }
 
 TEST_F(HandTest, testIsNotOutOfSuit)
 {
-    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suit::SPADES));
+    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suits::SPADES));
 }
 
 TEST_F(HandTest, testIsOutOfSuitIsIndeterminateWhenCardsAreNotKnown)
 {
     EXPECT_CALL(cards[3], handleIsKnown()).WillOnce(Return(false));
-    EXPECT_TRUE(boost::indeterminate(hand.isOutOfSuit(Bridge::Suit::HEARTS)));
+    EXPECT_TRUE(boost::indeterminate(hand.isOutOfSuit(Bridge::Suits::HEARTS)));
 }
 
 TEST_F(HandTest, testIsNotOutOfSuitIsWhenCardsAreNotKnown)
 {
     EXPECT_CALL(cards[0], handleIsKnown()).WillOnce(Return(false));
-    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suit::SPADES));
+    EXPECT_FALSE(hand.isOutOfSuit(Bridge::Suits::SPADES));
 }
 
 TEST_F(HandTest, testFindCardSuccessfully)

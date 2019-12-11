@@ -31,8 +31,6 @@
 namespace Bridge {
 
 class CardType;
-enum class Rank;
-enum class Suit;
 
 /** \brief Key for CardType::rank
  *
@@ -45,22 +43,6 @@ extern const std::string CARD_TYPE_RANK_KEY;
  * \sa \ref jsoncardtype
  */
 extern const std::string CARD_TYPE_SUIT_KEY;
-
-/** \brief Convert Rank to JSON
- */
-void to_json(nlohmann::json&, Rank);
-
-/** \brief Convert JSON to Rank
- */
-void from_json(const nlohmann::json&, Rank&);
-
-/** \brief Convert Suit to JSON
- */
-void to_json(nlohmann::json&, Suit);
-
-/** \brief Convert JSON to Suit
- */
-void from_json(const nlohmann::json&, Suit&);
 
 /** \brief Convert CardType to JSON
  */
