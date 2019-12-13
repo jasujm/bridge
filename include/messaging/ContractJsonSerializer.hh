@@ -30,7 +30,7 @@
 namespace Bridge {
 
 class Contract;
-enum class Doubling;
+struct Doubling;
 
 /** \brief Key for Contract::bid in JSON object
  *
@@ -43,14 +43,6 @@ extern const std::string CONTRACT_BID_KEY;
  * \sa \ref jsoncontract
  */
 extern const std::string CONTRACT_DOUBLING_KEY;
-
-/** \brief Convert Doubling to JSON
- */
-void to_json(nlohmann::json&, Doubling);
-
-/** \brief Convert JSON to Doubling
- */
-void from_json(const nlohmann::json&, Doubling&);
 
 /** \brief Convert Contract to JSON
  */

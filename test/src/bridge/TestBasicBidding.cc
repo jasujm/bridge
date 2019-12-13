@@ -21,6 +21,7 @@ using Bridge::Position;
 using Bridge::Redouble;
 using Bridge::enumerate;
 
+namespace Doublings = Bridge::Doublings;
 namespace Positions = Bridge::Positions;
 namespace Strains = Bridge::Strains;
 
@@ -84,7 +85,7 @@ TEST_F(BasicBiddingTest, testOnlyBidWinsContract)
 {
     const auto calls = std::vector<Call>{BID, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectContractEquals(BID, Doubling::UNDOUBLED);
+    expectContractEquals(BID, Doublings::UNDOUBLED);
 }
 
 TEST_F(BasicBiddingTest, testHighestBidWinsContract)
@@ -92,7 +93,7 @@ TEST_F(BasicBiddingTest, testHighestBidWinsContract)
     const auto calls = std::vector<Call>{
         BID, HIGHER_BID, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectContractEquals(HIGHER_BID, Doubling::UNDOUBLED);
+    expectContractEquals(HIGHER_BID, Doublings::UNDOUBLED);
 }
 
 TEST_F(BasicBiddingTest, testSameBidIsNotAllowed)
@@ -149,7 +150,7 @@ TEST_F(BasicBiddingTest, testDoubledContract)
     const auto calls = std::vector<Call>{
         BID, Double {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectContractEquals(BID, Doubling::DOUBLED);
+    expectContractEquals(BID, Doublings::DOUBLED);
 }
 
 TEST_F(BasicBiddingTest, testEmptyContractMayNotBeRedoubled)
@@ -201,7 +202,7 @@ TEST_F(BasicBiddingTest, testRedoubledContract)
     const auto calls = std::vector<Call>{
         BID, Double {}, Redouble {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
-    expectContractEquals(BID, Doubling::REDOUBLED);
+    expectContractEquals(BID, Doublings::REDOUBLED);
 }
 
 TEST_F(BasicBiddingTest, testOnlyBidderIsDeclarer)

@@ -1,26 +1,8 @@
 #include "bridge/Contract.hh"
 
-#include "IoUtility.hh"
-
 #include <ostream>
 
 namespace Bridge {
-
-namespace {
-
-using namespace std::string_literals;
-using DoublingStringRelation = DoublingToStringMap::value_type;
-
-const auto DOUBLING_STRING_PAIRS = {
-    DoublingStringRelation { Doubling::UNDOUBLED, "undoubled"s },
-    DoublingStringRelation { Doubling::DOUBLED,   "doubled"s   },
-    DoublingStringRelation { Doubling::REDOUBLED, "redoubled"s },
-};
-
-}
-
-const DoublingToStringMap DOUBLING_TO_STRING_MAP(
-    DOUBLING_STRING_PAIRS.begin(), DOUBLING_STRING_PAIRS.end());
 
 bool isMade(const Contract& contract, const int tricksWon)
 {
@@ -29,14 +11,13 @@ bool isMade(const Contract& contract, const int tricksWon)
 
 bool operator==(const Contract& lhs, const Contract& rhs)
 {
-    return &lhs == &rhs ||
-        (lhs.bid == rhs.bid &&
-         lhs.doubling == rhs.doubling);
+    return std::pair {lhs.bid, lhs.doubling} ==
+        std::pair {rhs.bid, rhs.doubling};
 }
 
 std::ostream& operator<<(std::ostream& os, const Doubling doubling)
 {
-    return outputEnum(os, doubling, DOUBLING_TO_STRING_MAP.left);
+    return os << doubling.value();
 }
 
 std::ostream& operator<<(std::ostream& os, const Contract& contract)

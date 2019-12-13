@@ -31,7 +31,7 @@ public:
 
     BiddingState operator()(const Bid& bid) const
     {
-        return {Contract {bid, Doubling::UNDOUBLED}, false};
+        return {Contract {bid, Doublings::UNDOUBLED}, false};
     }
 
     BiddingState operator()(Pass) const
@@ -42,14 +42,14 @@ public:
     BiddingState operator()(Double) const
     {
         assert(contract);
-        return {Contract {contract->bid, Doubling::DOUBLED},
+        return {Contract {contract->bid, Doublings::DOUBLED},
                 !lastBidderHasTurn};
     }
 
     BiddingState operator()(Redouble) const
     {
         assert(contract);
-        return {Contract {contract->bid, Doubling::REDOUBLED},
+        return {Contract {contract->bid, Doublings::REDOUBLED},
                 !lastBidderHasTurn};
     }
 
@@ -81,13 +81,13 @@ public:
     bool operator()(Double) const
     {
         return bool(!lastBidderHasTurn) &&
-            contract->doubling == Doubling::UNDOUBLED;
+            contract->doubling == Doublings::UNDOUBLED;
     }
 
     bool operator()(Redouble) const
     {
         return bool(lastBidderHasTurn) &&
-            contract->doubling == Doubling::DOUBLED;
+            contract->doubling == Doublings::DOUBLED;
     }
 
 private:
@@ -180,7 +180,7 @@ Position BasicBidding::handleGetDeclarerPosition() const
     StrainBidVisitor visitor {contract->bid.strain};
     // If contract is doubled, the last call was made by declarer's opponent,
     // otherwise by declarer's partnership.
-    const auto offset = (contract->doubling == Doubling::DOUBLED);
+    const auto offset = (contract->doubling == Doublings::DOUBLED);
     auto i = (calls.size() + offset) % 2;
     while(true) {
         if (std::visit(visitor, calls.at(i))) {

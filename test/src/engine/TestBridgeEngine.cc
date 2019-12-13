@@ -274,7 +274,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
         *gameManager, handleAddResult(
-            Partnerships::EAST_WEST, Contract {BID, Doubling::REDOUBLED}, 0));
+            Partnerships::EAST_WEST, Contract {BID, Doublings::REDOUBLED}, 0));
 
     // Startup
     expectedState.stage = Stage::SHUFFLING;
@@ -349,7 +349,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             *bidding_observer,
             handleNotify(
                 BridgeEngine::BiddingCompleted {
-                    Positions::EAST, Contract {BID, Doubling::REDOUBLED}}))
+                    Positions::EAST, Contract {BID, Doublings::REDOUBLED}}))
             .Times(is_last_call ? 1 : 0);
         engine.subscribeToTurnStarted(turn_observer);
         engine.subscribeToBiddingCompleted(bidding_observer);
@@ -362,7 +362,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.stage = Stage::PLAYING;
     expectedState.positionInTurn = Positions::SOUTH;
     expectedState.declarer = Positions::EAST;
-    expectedState.contract.emplace(BID, Doubling::REDOUBLED);
+    expectedState.contract.emplace(BID, Doublings::REDOUBLED);
     expectedState.currentTrick.emplace();
     std::array<Position, N_PLAYERS> next_positions_first_turn {
         Positions::EAST, Positions::NORTH, Positions::EAST, Positions::NORTH

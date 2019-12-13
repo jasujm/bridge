@@ -8,53 +8,64 @@
 
 #include "bridge/Bid.hh"
 
-#include <boost/bimap/bimap.hpp>
+#include "enhanced_enum/enhanced_enum.hh"
+
 #include <boost/operators.hpp>
 
-#include <array>
 #include <iosfwd>
-#include <string>
+#include <string_view>
 
 namespace Bridge {
 
-/** \brief Doubling status of a bridge contract
- */
-enum class Doubling {
+/// \cond internal
+
+/*[[[cog
+import cog
+import enumecg
+import enum
+class Doubling(enum.Enum):
+  UNDOUBLED = "undoubled"
+  DOUBLED = "doubled"
+  REDOUBLED = "redoubled"
+cog.out(enumecg.generate(Doubling, primary_type="enhanced"))
+]]]*/
+enum class DoublingLabel {
     UNDOUBLED,
     DOUBLED,
-    REDOUBLED
+    REDOUBLED,
 };
 
-/** \brief Number of doublings
- *
- * \sa Doubling
- */
-constexpr auto N_DOUBLINGS = 3;
-
-/** \brief Array containing all doublings
- *
- * \sa Doubling
- */
-constexpr std::array<Doubling, N_DOUBLINGS> DOUBLINGS {
-    Doubling::UNDOUBLED,
-    Doubling::DOUBLED,
-    Doubling::REDOUBLED,
+struct Doubling : ::enhanced_enum::enum_base<Doubling, DoublingLabel, std::string_view> {
+    using ::enhanced_enum::enum_base<Doubling, DoublingLabel, std::string_view>::enum_base;
+    static constexpr std::array values {
+        value_type { "undoubled" },
+        value_type { "doubled" },
+        value_type { "redoubled" },
+    };
 };
 
-/** \brief Type of \ref DOUBLING_TO_STRING_MAP
- */
-using DoublingToStringMap = boost::bimaps::bimap<Doubling, std::string>;
+constexpr Doubling enhance(DoublingLabel e) noexcept
+{
+    return e;
+}
 
-/** \brief Two-way map between Doubling enumerations and their string
- * representation
- */
-extern const DoublingToStringMap DOUBLING_TO_STRING_MAP;
+namespace Doublings {
+inline constexpr const Doubling::value_type& UNDOUBLED_VALUE { std::get<0>(Doubling::values) };
+inline constexpr const Doubling::value_type& DOUBLED_VALUE { std::get<1>(Doubling::values) };
+inline constexpr const Doubling::value_type& REDOUBLED_VALUE { std::get<2>(Doubling::values) };
+inline constexpr Doubling UNDOUBLED { DoublingLabel::UNDOUBLED };
+inline constexpr Doubling DOUBLED { DoublingLabel::DOUBLED };
+inline constexpr Doubling REDOUBLED { DoublingLabel::REDOUBLED };
+}
+///[[[end]]]
+
+/// \endcond
 
 /** \brief Number of tricks in a book
  *
  * \sa isMade()
  */
-constexpr int N_TRICKS_IN_BOOK = 6;
+constexpr auto N_TRICKS_IN_BOOK = 6;
 
 /** \brief A bridge contract
  *

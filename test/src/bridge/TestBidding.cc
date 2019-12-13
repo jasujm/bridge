@@ -30,7 +30,7 @@ namespace Positions = Bridge::Positions;
 namespace {
 constexpr auto CONTRACT = Contract {
     Bridge::Bid {2, Bridge::Strains::CLUBS},
-    Bridge::Doubling::UNDOUBLED,
+    Bridge::Doublings::UNDOUBLED,
 };
 constexpr auto LOWEST_ALLOWED_BID = Bridge::Bid {2, Bridge::Strains::DIAMONDS};
 const auto VALID_CALL = Call {Bridge::Pass {}};

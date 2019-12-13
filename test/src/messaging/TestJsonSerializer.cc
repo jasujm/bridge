@@ -41,7 +41,7 @@ using namespace Bridge::BlobLiterals;
 
 namespace {
 constexpr auto BID = Bid {4, Strains::HEARTS};
-constexpr auto CONTRACT = Contract {BID, Doubling::DOUBLED};
+constexpr auto CONTRACT = Contract {BID, Doublings::DOUBLED};
 constexpr auto VULNERABILITY = Vulnerability {true, false};
 constexpr auto TRICKS_WON = TricksWon {5, 6};
 const auto PEER_ENDPOINT = "inproc://test"s;
@@ -264,14 +264,14 @@ TEST_F(JsonSerializerTest, testContract)
 {
     const auto j = json {
         {CONTRACT_BID_KEY, BID},
-        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}};
+        {CONTRACT_DOUBLING_KEY, Doublings::DOUBLED}};
     testHelper(CONTRACT, j);
 }
 
 TEST_F(JsonSerializerTest, testContractMissingBid)
 {
     const auto j = json {
-        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}};
+        {CONTRACT_DOUBLING_KEY, Doublings::DOUBLED}};
     testFailedDeserializationHelper<Contract>(j);
 }
 
@@ -279,7 +279,7 @@ TEST_F(JsonSerializerTest, testContractInvalidBid)
 {
     const auto j = json {
         {CONTRACT_BID_KEY, nullptr},
-        {CONTRACT_DOUBLING_KEY, Doubling::DOUBLED}
+        {CONTRACT_DOUBLING_KEY, Doublings::DOUBLED}
     };
     testFailedDeserializationHelper<Contract>(j);
 }

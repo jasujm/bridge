@@ -88,7 +88,7 @@ constexpr auto CALLS = std::array<Call, 4> {
 
 const auto CONTRACT = Bridge::Contract {
     { 1, Bridge::Strains::CLUBS },
-    { Bridge::Doubling::UNDOUBLED }
+    { Bridge::Doublings::UNDOUBLED }
 };
 
 }

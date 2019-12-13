@@ -26,9 +26,9 @@ int contractPoints(
     const Strain strain, const Doubling doubling, const int oddContractTricks)
 {
     static const auto FACTOR = std::map<Doubling, int>{
-        { Doubling::UNDOUBLED, 1 },
-        { Doubling::DOUBLED,   2 },
-        { Doubling::REDOUBLED, 4 },
+        { Doublings::UNDOUBLED, 1 },
+        { Doublings::DOUBLED,   2 },
+        { Doublings::REDOUBLED, 4 },
     };
     const auto no_trump_bonus = (strain == Strains::NO_TRUMP) ? 10 : 0;
     return FACTOR.at(doubling) *
@@ -40,10 +40,10 @@ int overtrickPoints(
     const int overtricks)
 {
     static const auto FACTOR = std::map<std::pair<Doubling, bool>, int>{
-        { { Doubling::DOUBLED,   false }, 100 },
-        { { Doubling::REDOUBLED, false }, 200 },
-        { { Doubling::DOUBLED,   true },  200 },
-        { { Doubling::REDOUBLED, true },  400 },
+        { { Doublings::DOUBLED,   false }, 100 },
+        { { Doublings::REDOUBLED, false }, 200 },
+        { { Doublings::DOUBLED,   true },  200 },
+        { { Doublings::REDOUBLED, true },  400 },
     };
     const auto factor_iter = FACTOR.find(std::make_pair(doubling, vulnerable));
     const auto factor =
@@ -86,8 +86,8 @@ int calculateDuplicateScoreForMadeContract(
     constexpr auto partial_game_bonus = 50;
     const auto game_bonus = gameBonus(contract_points, vulnerable);
     const auto slam_bonus = slamBonus(tricks_bid_and_made, vulnerable);
-    const auto doubling_bonus = (doubling == Doubling::DOUBLED) ? 50 : 0;
-    const auto redoubling_bonus = (doubling == Doubling::REDOUBLED) ? 100 : 0;
+    const auto doubling_bonus = (doubling == Doublings::DOUBLED) ? 50 : 0;
+    const auto redoubling_bonus = (doubling == Doublings::REDOUBLED) ? 100 : 0;
     return contract_points +
         overtrick_points +
         partial_game_bonus +
@@ -100,12 +100,12 @@ int calculateDuplicateScoreForMadeContract(
 int penaltyForFirstUndertrick(const Doubling doubling, const bool vulnerable)
 {
     static const auto FACTOR = std::map<std::pair<Doubling, bool>, int>{
-        { { Doubling::UNDOUBLED, false }, 50  },
-        { { Doubling::DOUBLED,   false }, 100 },
-        { { Doubling::REDOUBLED, false }, 200 },
-        { { Doubling::UNDOUBLED, true  }, 100 },
-        { { Doubling::DOUBLED,   true  }, 200 },
-        { { Doubling::REDOUBLED, true  }, 400 },
+        { { Doublings::UNDOUBLED, false }, 50  },
+        { { Doublings::DOUBLED,   false }, 100 },
+        { { Doublings::REDOUBLED, false }, 200 },
+        { { Doublings::UNDOUBLED, true  }, 100 },
+        { { Doublings::DOUBLED,   true  }, 200 },
+        { { Doublings::REDOUBLED, true  }, 400 },
     };
     return FACTOR.at(std::make_pair(doubling, vulnerable));
 }
@@ -114,12 +114,12 @@ int penaltyForSecondAndThirdUndertricks(
     const Doubling doubling, const bool vulnerable, const int undertricks)
 {
     static const auto FACTOR = std::map<std::pair<Doubling, bool>, int>{
-        { { Doubling::UNDOUBLED, false }, 50  },
-        { { Doubling::DOUBLED,   false }, 200 },
-        { { Doubling::REDOUBLED, false }, 400 },
-        { { Doubling::UNDOUBLED, true  }, 100 },
-        { { Doubling::DOUBLED,   true  }, 300 },
-        { { Doubling::REDOUBLED, true  }, 600 },
+        { { Doublings::UNDOUBLED, false }, 50  },
+        { { Doublings::DOUBLED,   false }, 200 },
+        { { Doublings::REDOUBLED, false }, 400 },
+        { { Doublings::UNDOUBLED, true  }, 100 },
+        { { Doublings::DOUBLED,   true  }, 300 },
+        { { Doublings::REDOUBLED, true  }, 600 },
     };
     return FACTOR.at(std::make_pair(doubling, vulnerable)) * undertricks;
 }
@@ -128,9 +128,9 @@ int penaltyForSubsequentUndertricks(
     const Doubling doubling, const int undertricks)
 {
     static const auto FACTOR = std::map<Doubling, int>{
-        { Doubling::UNDOUBLED, 50  },
-        { Doubling::DOUBLED,   300 },
-        { Doubling::REDOUBLED, 600 },
+        { Doublings::UNDOUBLED, 50  },
+        { Doublings::DOUBLED,   300 },
+        { Doublings::REDOUBLED, 600 },
     };
     return FACTOR.at(doubling) * undertricks;
 }
