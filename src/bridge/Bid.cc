@@ -1,44 +1,24 @@
 #include "bridge/Bid.hh"
 
-#include "IoUtility.hh"
-
-#include <istream>
 #include <ostream>
 #include <string>
 #include <utility>
 
 namespace Bridge {
 
-namespace {
-
-using namespace std::string_literals;
-using StrainStringRelation = StrainToStringMap::value_type;
-
-const auto STRAIN_STRING_PAIRS = {
-    StrainStringRelation { Strain::CLUBS,    "clubs"s    },
-    StrainStringRelation { Strain::DIAMONDS, "diamonds"s },
-    StrainStringRelation { Strain::HEARTS,   "hearts"s   },
-    StrainStringRelation { Strain::SPADES,   "spades"s   },
-    StrainStringRelation { Strain::NO_TRUMP, "notrump"s  },
-};
-
-}
-
-const StrainToStringMap STRAIN_TO_STRING_MAP(
-    STRAIN_STRING_PAIRS.begin(), STRAIN_STRING_PAIRS.end());
-
-const Bid Bid::LOWEST_BID {Bid::MINIMUM_LEVEL, Strain::CLUBS};
-const Bid Bid::HIGHEST_BID {Bid::MAXIMUM_LEVEL, Strain::NO_TRUMP};
+const Bid Bid::LOWEST_BID {Bid::MINIMUM_LEVEL, Strains::CLUBS};
+const Bid Bid::HIGHEST_BID {Bid::MAXIMUM_LEVEL, Strains::NO_TRUMP};
 
 std::optional<Bid> nextHigherBid(const Bid& bid)
 {
-    if (bid.strain < Strain::NO_TRUMP) {
+    if (bid.strain < Strains::NO_TRUMP) {
         // Safe because strains are continuous with Strain::NO_TRUMP being the
         // highest
         return Bid {
-            bid.level, static_cast<Strain>(static_cast<int>(bid.strain) + 1)};
+            bid.level,
+            static_cast<StrainLabel>(static_cast<int>(bid.strain.get()) + 1)};
     } else if (bid.level < Bid::MAXIMUM_LEVEL) {
-        return Bid {bid.level + 1, Strain::CLUBS};
+        return Bid {bid.level + 1, Strains::CLUBS};
     }
     return std::nullopt;
 }
@@ -51,23 +31,18 @@ bool operator==(const Bid& lhs, const Bid& rhs)
 
 bool operator<(const Bid& lhs, const Bid& rhs)
 {
-    return std::make_pair(lhs.level, static_cast<int>(lhs.strain)) <
-        std::make_pair(rhs.level, static_cast<int>(rhs.strain));
+    return std::make_pair(lhs.level, lhs.strain) <
+        std::make_pair(rhs.level, rhs.strain);
 }
 
 std::ostream& operator<<(std::ostream& os, Strain strain)
 {
-    return outputEnum(os, strain, STRAIN_TO_STRING_MAP.left);
+    return os << strain.value();
 }
 
 std::ostream& operator<<(std::ostream& os, const Bid& bid)
 {
     return os << bid.level << " " << bid.strain;
-}
-
-std::istream& operator>>(std::istream& is, Strain& strain)
-{
-    return inputEnum(is, strain, STRAIN_TO_STRING_MAP.right);
 }
 
 }

@@ -19,14 +19,14 @@ using Bridge::Doubling;
 using Bridge::Pass;
 using Bridge::Position;
 using Bridge::Redouble;
-using Bridge::Strain;
 using Bridge::enumerate;
 
 namespace Positions = Bridge::Positions;
+namespace Strains = Bridge::Strains;
 
 namespace {
-constexpr Bid BID {2, Strain::CLUBS};
-constexpr Bid HIGHER_BID {7, Strain::NO_TRUMP};
+constexpr auto BID = Bid {2, Strains::CLUBS};
+constexpr auto HIGHER_BID = Bid {7, Strains::NO_TRUMP};
 }
 
 class BasicBiddingTest : public testing::Test {
@@ -222,9 +222,9 @@ TEST_F(BasicBiddingTest, testDeclarerIsInWinningPartnership)
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarer)
 {
     const auto calls = std::vector<Call>{
-        Bid {1, Strain::HEARTS}, Bid {2, Strain::HEARTS},
-        Pass {}, Bid {2, Strain::SPADES},
-        Pass {}, Bid {4, Strain::SPADES},
+        Bid {1, Strains::HEARTS}, Bid {2, Strains::HEARTS},
+        Pass {}, Bid {2, Strains::SPADES},
+        Pass {}, Bid {4, Strains::SPADES},
         Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
     expectDeclarerPositionIs(Positions::WEST);
@@ -233,9 +233,9 @@ TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarer)
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInDoubledContract)
 {
     const auto calls = std::vector<Call>{
-        Bid {1, Strain::HEARTS}, Bid {2, Strain::HEARTS},
-        Pass {}, Bid {2, Strain::SPADES},
-        Pass {}, Bid {4, Strain::SPADES},
+        Bid {1, Strains::HEARTS}, Bid {2, Strains::HEARTS},
+        Pass {}, Bid {2, Strains::SPADES},
+        Pass {}, Bid {4, Strains::SPADES},
         Double {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
     expectDeclarerPositionIs(Positions::WEST);
@@ -244,9 +244,9 @@ TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInDoubledContract)
 TEST_F(BasicBiddingTest, testFirstToCallStrainIsDeclarerInRedoubledContract)
 {
     const auto calls = std::vector<Call>{
-        Bid {1, Strain::HEARTS}, Bid {2, Strain::HEARTS},
-        Pass {}, Bid {2, Strain::SPADES},
-        Pass {}, Bid {4, Strain::SPADES},
+        Bid {1, Strains::HEARTS}, Bid {2, Strains::HEARTS},
+        Pass {}, Bid {2, Strains::SPADES},
+        Pass {}, Bid {4, Strains::SPADES},
         Double {}, Redouble {}, Pass {}, Pass {}, Pass {}};
     makeCallsHelper(calls);
     expectDeclarerPositionIs(Positions::WEST);

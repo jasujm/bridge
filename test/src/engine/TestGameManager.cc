@@ -16,7 +16,7 @@ namespace {
 constexpr auto PARTNERSHIP = Bridge::Partnership {
     Bridge::Partnerships::NORTH_SOUTH};
 constexpr auto CONTRACT = Bridge::Contract {
-    Bridge::Bid {1, Bridge::Strain::CLUBS}, Bridge::Doubling::UNDOUBLED};
+    Bridge::Bid {1, Bridge::Strains::CLUBS}, Bridge::Doubling::UNDOUBLED};
 constexpr auto TRICKS_WON = 7;
 
 struct ResultType {};

@@ -443,14 +443,14 @@ std::optional<std::optional<Suit>> InDeal::getTrump() const
     if (!contract || !*contract) {
         return std::nullopt;
     }
-    switch ((*contract)->bid.strain) {
-    case Strain::CLUBS:
+    switch ((*contract)->bid.strain.get()) {
+    case StrainLabel::CLUBS:
         return Suits::CLUBS;
-    case Strain::DIAMONDS:
+    case StrainLabel::DIAMONDS:
         return Suits::DIAMONDS;
-    case Strain::HEARTS:
+    case StrainLabel::HEARTS:
         return Suits::HEARTS;
-    case Strain::SPADES:
+    case StrainLabel::SPADES:
         return Suits::SPADES;
     default:
         return std::optional<Suit> {};

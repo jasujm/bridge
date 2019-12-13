@@ -28,15 +28,15 @@ using testing::ValuesIn;
 namespace Positions = Bridge::Positions;
 
 namespace {
-constexpr Contract CONTRACT {
-    Bridge::Bid {2, Bridge::Strain::CLUBS},
+constexpr auto CONTRACT = Contract {
+    Bridge::Bid {2, Bridge::Strains::CLUBS},
     Bridge::Doubling::UNDOUBLED,
 };
-constexpr Bridge::Bid LOWEST_ALLOWED_BID {2, Bridge::Strain::DIAMONDS};
-const Call VALID_CALL {Bridge::Pass {}};
-const Call INVALID_CALL {Bridge::Double {}};
-const Call DOUBLE_CALL {Bridge::Double {}};
-const Call REDOUBLE_CALL {Bridge::Redouble {}};
+constexpr auto LOWEST_ALLOWED_BID = Bridge::Bid {2, Bridge::Strains::DIAMONDS};
+const auto VALID_CALL = Call {Bridge::Pass {}};
+const auto INVALID_CALL = Call {Bridge::Double {}};
+const auto DOUBLE_CALL = Call {Bridge::Double {}};
+const auto REDOUBLE_CALL = Call {Bridge::Redouble {}};
 }
 
 class BiddingTest : public testing::TestWithParam<int> {

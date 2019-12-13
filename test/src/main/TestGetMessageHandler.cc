@@ -79,15 +79,15 @@ const auto PLAYER2 = Identity { ""s, "player2"_B };
 const auto PLAYER3 = Identity { ""s, "player3"_B };
 const auto PLAYER4 = Identity { ""s, "player4"_B };
 
-std::array<Call, 4> CALLS {{
-    Bridge::Bid {1, Bridge::Strain::CLUBS},
+constexpr auto CALLS = std::array<Call, 4> {
+    Bridge::Bid {1, Bridge::Strains::CLUBS},
     Bridge::Pass {},
     Bridge::Pass {},
     Bridge::Pass {},
-}};
+};
 
 const auto CONTRACT = Bridge::Contract {
-    { 1, Bridge::Strain::CLUBS },
+    { 1, Bridge::Strains::CLUBS },
     { Bridge::Doubling::UNDOUBLED }
 };
 

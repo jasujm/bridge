@@ -27,7 +27,7 @@
 
 namespace Bridge {
 
-enum class Strain;
+struct Strain;
 class Bid;
 
 /** \brief Key for Bid::level in JSON object
@@ -41,14 +41,6 @@ extern const std::string BID_LEVEL_KEY;
  * \sa \ref jsonbid
  */
 extern const std::string BID_STRAIN_KEY;
-
-/** \brief Convert Strain to JSON
- */
-void to_json( nlohmann::json&, Strain);
-
-/** \brief Convert JSON to Strain
- */
-void from_json(const nlohmann::json&, Strain&);
 
 /** \brief Convert Bid to JSON
  */

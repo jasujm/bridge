@@ -6,35 +6,36 @@
 #include <stdexcept>
 
 using Bridge::Bid;
-using Bridge::Strain;
+
+namespace Strains = Bridge::Strains;
 
 TEST(BidTest, testConstruction)
 {
-    constexpr Bid bid {1, Strain::NO_TRUMP};
+    constexpr Bid bid {1, Strains::NO_TRUMP};
     EXPECT_EQ(bid.level, 1);
-    EXPECT_EQ(bid.strain, Strain::NO_TRUMP);
+    EXPECT_EQ(bid.strain, Strains::NO_TRUMP);
 }
 
 TEST(BidTest, testLevelBelowLowerBound)
 {
-    EXPECT_THROW(Bid(Bid::MINIMUM_LEVEL - 1, Strain::NO_TRUMP),
+    EXPECT_THROW(Bid(Bid::MINIMUM_LEVEL - 1, Strains::NO_TRUMP),
                  std::invalid_argument);
 }
 
 TEST(BidTest, testLevelAboveUpperBound)
 {
-    EXPECT_THROW(Bid(Bid::MAXIMUM_LEVEL + 1, Strain::NO_TRUMP),
+    EXPECT_THROW(Bid(Bid::MAXIMUM_LEVEL + 1, Strains::NO_TRUMP),
                  std::invalid_argument);
 }
 
 TEST(BidTest, testNextHigherBidWhenStrainIsNotNoTrumpIncreasesStrain)
 {
-    EXPECT_EQ(Bid(1, Strain::HEARTS), nextHigherBid(Bid(1, Strain::DIAMONDS)));
+    EXPECT_EQ(Bid(1, Strains::HEARTS), nextHigherBid(Bid(1, Strains::DIAMONDS)));
 }
 
 TEST(BidTest, testNextHigherBidWhenStrainIsNoTrumpIncreasesLevel)
 {
-    EXPECT_EQ(Bid(2, Strain::CLUBS), nextHigherBid(Bid(1, Strain::NO_TRUMP)));
+    EXPECT_EQ(Bid(2, Strains::CLUBS), nextHigherBid(Bid(1, Strains::NO_TRUMP)));
 }
 
 TEST(BidTest, testThereIsNoHigherBidThanHighestBid)
@@ -44,22 +45,22 @@ TEST(BidTest, testThereIsNoHigherBidThanHighestBid)
 
 TEST(BidTest, testEquality)
 {
-    EXPECT_EQ(Bid(1, Strain::CLUBS), Bid(1, Strain::CLUBS));
+    EXPECT_EQ(Bid(1, Strains::CLUBS), Bid(1, Strains::CLUBS));
 }
 
 TEST(BidTest, testBidAtLowerLevelIsLessThanBidAtHigherLevel)
 {
-    EXPECT_LT(Bid(3, Strain::SPADES), Bid(4, Strain::HEARTS));
+    EXPECT_LT(Bid(3, Strains::SPADES), Bid(4, Strains::HEARTS));
 }
 
 TEST(BidTest, testBidAtHigherStrainIsGreaterThanBidWithLowerStrainAtSameLevel)
 {
-    EXPECT_GT(Bid(4, Strain::SPADES), Bid(4, Strain::HEARTS));
+    EXPECT_GT(Bid(4, Strains::SPADES), Bid(4, Strains::HEARTS));
 }
 
 TEST(BidTest, testOutput)
 {
     std::ostringstream os;
-    os << Bid {2, Strain::CLUBS};
+    os << Bid {2, Strains::CLUBS};
     EXPECT_EQ("2 clubs", os.str());
 }

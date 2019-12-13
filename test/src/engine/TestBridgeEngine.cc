@@ -269,7 +269,7 @@ protected:
 TEST_F(BridgeEngineTest, testBridgeEngine)
 {
     // TODO: Could this test be less ugly?
-    constexpr Bid BID {7, Strain::CLUBS};
+    constexpr Bid BID {7, Strains::CLUBS};
 
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
@@ -464,7 +464,7 @@ TEST_F(BridgeEngineTest, testSuccessfulCall)
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
     const auto& player = *players.front();
-    const auto call = Bid {1, Strain::CLUBS};
+    const auto call = Bid {1, Strains::CLUBS};
     EXPECT_CALL(*observer, handleNotify(BridgeEngine::CallMade {player, call}));
     engine.subscribeToCallMade(observer);
     EXPECT_TRUE(engine.call(player, call));
@@ -475,7 +475,7 @@ TEST_F(BridgeEngineTest, testFailedCall)
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
     const auto& player = *players.back();
-    const auto call = Bid {1, Strain::CLUBS};
+    const auto call = Bid {1, Strains::CLUBS};
     EXPECT_CALL(*observer, handleNotify(_)).Times(0);
     engine.subscribeToCallMade(observer);
     EXPECT_FALSE(engine.call(player, call));
@@ -484,7 +484,7 @@ TEST_F(BridgeEngineTest, testFailedCall)
 TEST_F(BridgeEngineTest, testSuccessfulPlay)
 {
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    engine.call(*players[0], Bid {1, Strain::CLUBS});
+    engine.call(*players[0], Bid {1, Strains::CLUBS});
     engine.call(*players[1], Pass {});
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});
@@ -503,7 +503,7 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
 TEST_F(BridgeEngineTest, testFailedPlay)
 {
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    engine.call(*players[0], Bid {1, Strain::CLUBS});
+    engine.call(*players[0], Bid {1, Strains::CLUBS});
     engine.call(*players[1], Pass {});
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});

@@ -10,20 +10,10 @@ namespace Bridge {
 const std::string BID_LEVEL_KEY {"level"};
 const std::string BID_STRAIN_KEY {"strain"};
 
-void to_json(json& j, const Strain strain)
-{
-    j = Messaging::enumToJson(strain, STRAIN_TO_STRING_MAP.left);
-}
-
-void from_json(const json& j, Strain& strain)
-{
-    strain = Messaging::jsonToEnum<Strain>(j, STRAIN_TO_STRING_MAP.right);
-}
-
 void to_json(json& j, const Bid& bid)
 {
-    j[BID_LEVEL_KEY] = bid.level;
-    j[BID_STRAIN_KEY] = bid.strain;
+    j.emplace(BID_LEVEL_KEY, bid.level);
+    j.emplace(BID_STRAIN_KEY, bid.strain);
 }
 
 void from_json(const json& j, Bid& bid)

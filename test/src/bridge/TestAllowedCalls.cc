@@ -19,7 +19,7 @@ using testing::Return;
 
 namespace {
 
-constexpr Bid LOWEST_ALLOWED_BID {2, Bridge::Strain::DIAMONDS};
+constexpr Bid LOWEST_ALLOWED_BID {2, Bridge::Strains::DIAMONDS};
 const Call PASS_CALL {Bridge::Pass {}};
 const Call DOUBLE_CALL {Bridge::Double {}};
 const Call REDOUBLE_CALL {Bridge::Redouble {}};

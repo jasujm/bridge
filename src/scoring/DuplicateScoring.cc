@@ -15,11 +15,11 @@ namespace Scoring {
 namespace {
 
 static const auto SCORE_PER_TRICK = std::map<Strain, int>{
-    { Strain::CLUBS,    20 },
-    { Strain::DIAMONDS, 20 },
-    { Strain::HEARTS,   30 },
-    { Strain::SPADES,   30 },
-    { Strain::NO_TRUMP, 30 },
+    { Strains::CLUBS,    20 },
+    { Strains::DIAMONDS, 20 },
+    { Strains::HEARTS,   30 },
+    { Strains::SPADES,   30 },
+    { Strains::NO_TRUMP, 30 },
 };
 
 int contractPoints(
@@ -30,7 +30,7 @@ int contractPoints(
         { Doubling::DOUBLED,   2 },
         { Doubling::REDOUBLED, 4 },
     };
-    const auto no_trump_bonus = (strain == Strain::NO_TRUMP) ? 10 : 0;
+    const auto no_trump_bonus = (strain == Strains::NO_TRUMP) ? 10 : 0;
     return FACTOR.at(doubling) *
         (no_trump_bonus + oddContractTricks * SCORE_PER_TRICK.at(strain));
 }

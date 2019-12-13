@@ -6,53 +6,70 @@
 #ifndef BID_HH_
 #define BID_HH_
 
-#include <boost/bimap/bimap.hpp>
+#include "enhanced_enum/enhanced_enum.hh"
+
 #include <boost/operators.hpp>
 
-#include <array>
 #include <iosfwd>
 #include <optional>
 #include <stdexcept>
-#include <string>
+#include <string_view>
 
 namespace Bridge {
 
-/** \brief Strain (denomination) of bridge bid
- */
-enum class Strain {
+/// \cond internal
+
+/*[[[cog
+import cog
+import enumecg
+import enum
+class Strain(enum.Enum):
+  CLUBS = "clubs"
+  DIAMONDS = "diamonds"
+  HEARTS = "hearts"
+  SPADES = "spades"
+  NO_TRUMP = "notrump"
+cog.out(enumecg.generate(Strain, primary_type="enhanced"))
+]]]*/
+enum class StrainLabel {
     CLUBS,
     DIAMONDS,
     HEARTS,
     SPADES,
-    NO_TRUMP
+    NO_TRUMP,
 };
 
-/** \brief Number of strains
- *
- * \sa Strain
- */
-constexpr auto N_STRAINS = 5;
-
-/** \brief Array containing all strains
- *
- * \sa Strain
- */
-constexpr std::array<Strain, N_STRAINS> STRAINS {
-    Strain::CLUBS,
-    Strain::DIAMONDS,
-    Strain::HEARTS,
-    Strain::SPADES,
-    Strain::NO_TRUMP
+struct Strain : ::enhanced_enum::enum_base<Strain, StrainLabel, std::string_view> {
+    using ::enhanced_enum::enum_base<Strain, StrainLabel, std::string_view>::enum_base;
+    static constexpr std::array values {
+        value_type { "clubs" },
+        value_type { "diamonds" },
+        value_type { "hearts" },
+        value_type { "spades" },
+        value_type { "notrump" },
+    };
 };
 
-/** \brief Type of \ref STRAIN_TO_STRING_MAP
- */
-using StrainToStringMap = boost::bimaps::bimap<Strain, std::string>;
+constexpr Strain enhance(StrainLabel e) noexcept
+{
+    return e;
+}
 
-/** \brief Two-way map between Strain enumerations and their string
- * representation
- */
-extern const StrainToStringMap STRAIN_TO_STRING_MAP;
+namespace Strains {
+inline constexpr const Strain::value_type& CLUBS_VALUE { std::get<0>(Strain::values) };
+inline constexpr const Strain::value_type& DIAMONDS_VALUE { std::get<1>(Strain::values) };
+inline constexpr const Strain::value_type& HEARTS_VALUE { std::get<2>(Strain::values) };
+inline constexpr const Strain::value_type& SPADES_VALUE { std::get<3>(Strain::values) };
+inline constexpr const Strain::value_type& NO_TRUMP_VALUE { std::get<4>(Strain::values) };
+inline constexpr Strain CLUBS { StrainLabel::CLUBS };
+inline constexpr Strain DIAMONDS { StrainLabel::DIAMONDS };
+inline constexpr Strain HEARTS { StrainLabel::HEARTS };
+inline constexpr Strain SPADES { StrainLabel::SPADES };
+inline constexpr Strain NO_TRUMP { StrainLabel::NO_TRUMP };
+}
+///[[[end]]]
+
+/// \endcond
 
 /** \brief Bid in bridge game bidding round
  *
@@ -148,15 +165,6 @@ std::ostream& operator<<(std::ostream& os, Strain strain);
  * \return parameter \p os
  */
 std::ostream& operator<<(std::ostream& os, const Bid& bid);
-
-/** \brief Input a Strain from stream
- *
- * \param is the input stream
- * \param strain the strain to input
- *
- * \return parameter \p is
- */
-std::istream& operator>>(std::istream& is, Strain& strain);
 
 }
 

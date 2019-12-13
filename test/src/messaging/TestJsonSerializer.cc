@@ -40,7 +40,7 @@ using namespace std::string_view_literals;
 using namespace Bridge::BlobLiterals;
 
 namespace {
-constexpr auto BID = Bid {4, Strain::HEARTS};
+constexpr auto BID = Bid {4, Strains::HEARTS};
 constexpr auto CONTRACT = Contract {BID, Doubling::DOUBLED};
 constexpr auto VULNERABILITY = Vulnerability {true, false};
 constexpr auto TRICKS_WON = TricksWon {5, 6};
@@ -86,14 +86,16 @@ TEST_F(JsonSerializerTest, testBid)
 {
     const auto j = json {
         {BID_LEVEL_KEY, json(4)},
-        {BID_STRAIN_KEY, json(STRAIN_TO_STRING_MAP.left.at(Strain::HEARTS))}};
+        {BID_STRAIN_KEY, Strains::HEARTS},
+    };
     testHelper(BID, j);
 }
 
 TEST_F(JsonSerializerTest, testBidMissingLevel)
 {
     const auto j = json {
-        {BID_STRAIN_KEY, STRAIN_TO_STRING_MAP.left.at(Strain::HEARTS)}};
+        {BID_STRAIN_KEY, Strains::HEARTS},
+    };
     testFailedDeserializationHelper<Bid>(j);
 }
 
@@ -101,7 +103,8 @@ TEST_F(JsonSerializerTest, testBidLevelNotInteger)
 {
     const auto j = json {
         {BID_LEVEL_KEY, json {}},
-        {BID_STRAIN_KEY, json(STRAIN_TO_STRING_MAP.left.at(Strain::HEARTS))}};
+        {BID_STRAIN_KEY, Strains::HEARTS},
+    };
     testFailedDeserializationHelper<Bid>(j);
 }
 
@@ -109,7 +112,8 @@ TEST_F(JsonSerializerTest, testBidLevelInvalid)
 {
     const auto j = json {
         {BID_LEVEL_KEY, Bid::MAXIMUM_LEVEL + 1},
-        {BID_STRAIN_KEY, json(STRAIN_TO_STRING_MAP.left.at(Strain::HEARTS))}};
+        {BID_STRAIN_KEY, Strains::HEARTS},
+    };
     testFailedDeserializationHelper<Bid>(j);
 }
 
