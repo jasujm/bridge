@@ -8,23 +8,6 @@
 
 namespace Bridge {
 
-namespace {
-
-using namespace std::string_literals;
-using StageStringRelation = StageToStringMap::value_type;
-
-const auto STAGE_STRING_PAIRS = {
-    StageStringRelation { Stage::SHUFFLING, "shuffling"s },
-    StageStringRelation { Stage::BIDDING,   "bidding"s   },
-    StageStringRelation { Stage::PLAYING,   "playing"s   },
-    StageStringRelation { Stage::ENDED,     "ended"s     },
-};
-
-}
-
-const StageToStringMap STAGE_TO_STRING_MAP(
-    STAGE_STRING_PAIRS.begin(), STAGE_STRING_PAIRS.end());
-
 bool operator==(const DealState& lhs, const DealState& rhs)
 {
     return &lhs == &rhs || (
@@ -41,7 +24,13 @@ bool operator==(const DealState& lhs, const DealState& rhs)
 
 std::ostream& operator<<(std::ostream& os, const Stage stage)
 {
-    return outputEnum(os, stage, STAGE_TO_STRING_MAP.left);
+    switch (stage) {
+    case Stage::SHUFFLING: os << "shuffling"; break;
+    case Stage::BIDDING: os << "bidding"; break;
+    case Stage::PLAYING: os << "playing"; break;
+    case Stage::ENDED: os << "ended"; break;
+    }
+    return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const DealState& state)
