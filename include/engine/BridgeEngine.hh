@@ -391,11 +391,7 @@ public:
      * \param hand the hand
      *
      * \return the position corresponding to the hand, or none if the game in
-     * not in the deal phase
-     *
-     * \throw std::out_of_range if the hand is not in the current deal
-     *
-     * \todo Return none if the hand is not in the game
+     * not in the deal phase, or the hand does not participate in the deal
      */
     std::optional<Position> getPosition(const Hand& hand) const;
 

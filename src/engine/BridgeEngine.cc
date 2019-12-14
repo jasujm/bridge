@@ -11,7 +11,6 @@
 #include "FunctionQueue.hh"
 #include "Utility.hh"
 
-#include <boost/bimap/bimap.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
@@ -32,21 +31,16 @@ namespace Engine {
 
 namespace {
 
-// Helper for making bimap between positions and objects managed by smart
-// pointers
-
-template<template<typename...> class PtrType, typename RightType>
-auto internalMakePositionMapping(const std::vector<PtrType<RightType>>& values)
+template<typename T>
+std::optional<Position> getPositionHelper(
+    const std::vector<std::shared_ptr<T>> ts, const T& t)
 {
-    using MapType = boost::bimaps::bimap<Position, RightType*>;
-    auto func = [](const auto& t) -> typename MapType::value_type
-    {
-        return {t.template get<0>(), t.template get<1>().get()};
-    };
-    auto&& z = boost::combine(Position::all(), values);
-    return MapType(
-        boost::make_transform_iterator(z.begin(), func),
-        boost::make_transform_iterator(z.end(),   func));
+    const auto iter = std::find_if(
+        ts.begin(), ts.end(), [&t](const auto& tp) { return &t == tp.get(); });
+    if (iter != ts.end()) {
+        return static_cast<PositionLabel>(iter - ts.begin());
+    }
+    return std::nullopt;
 }
 
 }
@@ -176,7 +170,6 @@ private:
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
     std::vector<std::shared_ptr<Player>> players;
-    boost::bimaps::bimap<Position, Player*> playersMap;
     std::shared_ptr<Hand> lockedHand;
     Observable<DealStarted> dealStartedNotifier;
     Observable<TurnStarted> turnStartedNotifier;
@@ -192,7 +185,8 @@ BridgeEngine::Impl::Impl(
     std::shared_ptr<CardManager> cardManager,
     std::shared_ptr<GameManager> gameManager) :
     cardManager {std::move(cardManager)},
-    gameManager {std::move(gameManager)}
+    gameManager {std::move(gameManager)},
+    players(Position::size())
 {
 }
 
@@ -280,7 +274,7 @@ public:
     Hand& getHand(Position position);
     const Hand& getHand(Position position) const;
     auto getHands(Position first = Positions::NORTH) const;
-    Position getPosition(const Hand& player) const;
+    std::optional<Position> getPosition(const Hand& player) const;
     Hand& getHandConstCastSafe(const Hand& hand);
 
     void addTrick(Position leader);
@@ -292,14 +286,11 @@ public:
 
 private:
 
-    using HandsMap = boost::bimaps::bimap<Position, Hand*>;
-
     auto internalMakeBidding();
     auto internalMakeHands();
 
     const std::unique_ptr<Bidding> bidding;
     const std::vector<std::shared_ptr<Hand>> hands;
-    const HandsMap handsMap;
     std::vector<std::unique_ptr<Trick>> tricks;
 };
 
@@ -326,8 +317,7 @@ auto InDeal::internalMakeHands()
 InDeal::InDeal(my_context ctx) :
     my_base {ctx},
     bidding {internalMakeBidding()},
-    hands {internalMakeHands()},
-    handsMap {internalMakePositionMapping(hands)}
+    hands {internalMakeHands()}
 {
     auto& context = outermost_context();
     const auto& game_manager = context.getGameManager();
@@ -374,7 +364,8 @@ const Bidding& InDeal::getBidding() const
 
 Hand& InDeal::getHand(const Position position)
 {
-    return dereference(handsMap.left.at(position));
+    const auto n = static_cast<std::size_t>(position.get());
+    return dereference(hands.at(n));
 }
 
 const Hand& InDeal::getHand(const Position position) const
@@ -400,17 +391,16 @@ auto InDeal::getHands(const Position first) const
         boost::make_transform_iterator(positions.end(), func));
 }
 
-Position InDeal::getPosition(const Hand& hand) const
+std::optional<Position> InDeal::getPosition(const Hand& hand) const
 {
-    // This const_cast is safe as the hand is only used as key
-    return handsMap.right.at(const_cast<Hand*>(&hand));
+    return getPositionHelper(hands, hand);
 }
 
 Hand& InDeal::getHandConstCastSafe(const Hand& hand)
 {
     // The purpose of this method if to strip the constness of the hand pointer,
     // but only if the hand is legitimately taking part of the deal
-    return getHand(getPosition(hand));
+    return getHand(dereference(getPosition(hand)));
 }
 
 void InDeal::addTrick(const Position leader)
@@ -466,7 +456,7 @@ TricksWon InDeal::getTricksWon() const
     for (const auto& trick : tricks) {
         assert(trick);
         if (const auto winner = getWinner(*trick, dereference(trump))) {
-            const auto winner_position = getPosition(*winner);
+            const auto winner_position = dereference(getPosition(*winner));
             const auto winner_partnership = partnershipFor(winner_position);
             switch (winner_partnership.get()) {
             case PartnershipLabel::NORTH_SOUTH:
@@ -590,7 +580,7 @@ const Hand& Playing::getDummyHand() const
 std::optional<Position> Playing::getPositionInTurn() const
 {
     if (const auto* hand = getHandInTurn()) {
-        auto position = context<InDeal>().getPosition(*hand);
+        auto position = dereference(context<InDeal>().getPosition(*hand));
         // Declarer plays for dummy
         if (position == getDummyPosition()) {
             position = partnerFor(position);
@@ -665,7 +655,7 @@ bool Playing::play()
                 post_event(DealEndedEvent {});
                 return false;
             } else {
-                indeal.addTrick(indeal.getPosition(winner_hand));
+                indeal.addTrick(dereference(indeal.getPosition(winner_hand)));
             }
         }
         return true;
@@ -847,8 +837,8 @@ auto BridgeEngine::Impl::internalCallIfInState(
 void BridgeEngine::Impl::setPlayer(
     const Position position, std::shared_ptr<Player> player)
 {
-    players.push_back(std::move(player));
-    playersMap.insert({position, players.back().get()});
+    const auto n = static_cast<std::size_t>(position.get());
+    players[n] = std::move(player);
 }
 
 std::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
@@ -886,19 +876,14 @@ const Hand* BridgeEngine::Impl::getHandInTurn() const
 
 const Player* BridgeEngine::Impl::getPlayer(const Position position) const
 {
-    const auto iter = playersMap.left.find(position);
-    return (iter != playersMap.left.end()) ? iter->second : nullptr;
+    const auto n = static_cast<std::size_t>(position.get());
+    return (n < Position::size()) ? players[n].get() : nullptr;
 }
 
 std::optional<Position> BridgeEngine::Impl::getPosition(
     const Player& player) const
 {
-    // This const_cast is safe as the player is only used as key
-    const auto iter = playersMap.right.find(const_cast<Player*>(&player));
-    if (iter != playersMap.right.end()) {
-        return iter->second;
-    }
-    return std::nullopt;
+    return getPositionHelper(players, player);
 }
 
 const Hand* BridgeEngine::Impl::getHand(const Position position) const
@@ -909,7 +894,10 @@ const Hand* BridgeEngine::Impl::getHand(const Position position) const
 std::optional<Position> BridgeEngine::Impl::getPosition(
     const Hand& hand) const
 {
-    return internalCallIfInState(&InDeal::getPosition, hand);
+    if (const auto* state = state_cast<const InDeal*>()) {
+        return state->getPosition(hand);
+    }
+    return std::nullopt;
 }
 
 const Bidding* BridgeEngine::Impl::getBidding() const
