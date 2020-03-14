@@ -6,7 +6,7 @@ verify_ssl = true
 [dev-packages]
 pyzmq = "*"
 cogapp = "*"
-enumecg = "==0.2"
+enumecg = {git = "https://github.com/jasujm/enhanced-enum.git",subdirectory = "python"}
 
 [packages]
 
