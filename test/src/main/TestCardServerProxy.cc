@@ -100,8 +100,8 @@ protected:
         allCards.resize(N_CARDS);
     }
 
-    template<typename... Matchers>
-    void assertMessage(Matchers&&... matchers)
+    template<typename CommandMatcher, typename... Matchers>
+    void assertCommand(CommandMatcher&& commandMatcher, Matchers&&... matchers)
     {
         recvMessage(proxySocket, routingId);
         auto parts = std::vector<std::string> {};
@@ -110,23 +110,28 @@ protected:
             recvMessage(proxySocket, part);
             parts.emplace_back(part.data<char>(), part.size());
         } while (part.more());
-        EXPECT_THAT(parts, ElementsAre(IsEmpty(), std::forward<Matchers>(matchers)...));
+        EXPECT_THAT(
+            parts,
+            ElementsAre(
+                IsEmpty(), commandMatcher, commandMatcher,
+                std::forward<Matchers>(matchers)...));
     }
 
-    template<typename... Args>
-    void reply(Args&&... args)
+    template<typename Command, typename... Args>
+    void reply(Command&& command, Args&&... args)
     {
         auto routing_id = Message {};
         routing_id.copy(routingId);
         sendMessage(proxySocket, std::move(routing_id), true);
         sendEmptyMessage(proxySocket, true);
-        sendMessage(proxySocket, messageBuffer(REPLY_SUCCESS), true);
-        auto command = std::vector<Message> {};
-        makeCommand(
-            std::back_inserter(command), JsonSerializer {},
+        sendMessage(proxySocket, messageBuffer(command), true);
+        sendMessage(proxySocket, messageBuffer(REPLY_SUCCESS), sizeof...(args) > 0);
+        auto command_parts = std::vector<Message> {};
+        makeCommandParameters(
+            std::back_inserter(command_parts), JsonSerializer {},
             std::forward<Args>(args)...);
-        for (auto& part : command) {
-            sendMessage(proxySocket, part, &part != &command.back());
+        for (auto& part : command_parts) {
+            sendMessage(proxySocket, part, &part != &command_parts.back());
         }
         const auto sockets = protocol.getSockets();
         const auto iter = sockets.begin();
@@ -200,7 +205,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
             makePeerArgsForCardServerProxy(CARD_SERVER_ENDPOINT2)));
     protocol.initialize();
 
-    assertMessage(
+    assertCommand(
         Eq(INIT_COMMAND), Eq(ORDER_COMMAND), IsSerialized(1), Eq(PEERS_COMMAND),
         IsSerialized(
             std::vector {
@@ -217,19 +222,19 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         manager->requestShuffle();
     }
     EXPECT_FALSE(manager->isShuffleCompleted());
-    assertMessage(Eq(SHUFFLE_COMMAND));
-    assertMessage(
+    assertCommand(Eq(SHUFFLE_COMMAND));
+    assertCommand(
         Eq(REVEAL_COMMAND), Eq(ORDER_COMMAND), IsSerialized(0),
         Eq(CardServer::CARDS_COMMAND),
         IsSerialized(cardsFor(PEER2_POSITIONS.begin(), PEER2_POSITIONS.end())));
     const auto self_card_ns =
         cardsFor(SELF_POSITIONS.begin(), SELF_POSITIONS.end());
-    assertMessage(
+    assertCommand(
         Eq(DRAW_COMMAND), Eq(CardServer::CARDS_COMMAND),
         IsSerialized(self_card_ns));
     const auto peer_card_ns =
         cardsFor(PEER_POSITIONS.begin(), PEER_POSITIONS.end());
-    assertMessage(
+    assertCommand(
         Eq(REVEAL_COMMAND), Eq(ORDER_COMMAND), IsSerialized(2),
         Eq(CardServer::CARDS_COMMAND), IsSerialized(peer_card_ns));
 
@@ -284,7 +289,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         peer_hand->subscribe(observer);
         peer_hand->requestReveal(reveal_ns.begin(), reveal_ns.end());
     }
-    assertMessage(
+    assertCommand(
         Eq(REVEAL_ALL_COMMAND), Eq(CardServer::CARDS_COMMAND),
         IsSerialized(reveal_card_ns));
     revealCards(reveal_card_ns.begin(), reveal_card_ns.end());

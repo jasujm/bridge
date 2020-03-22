@@ -128,6 +128,9 @@ TEST_F(SimpleCardProtocolTest, testLeader)
     EXPECT_EQ(asBytes(DEAL_COMMAND), messageView(message));
     ASSERT_TRUE(message.more());
     recvMessage(backSocket, message);
+    EXPECT_EQ(asBytes(DEAL_COMMAND), messageView(message));
+    ASSERT_TRUE(message.more());
+    recvMessage(backSocket, message);
     EXPECT_EQ(asBytes(GAME_COMMAND), messageView(message));
     ASSERT_TRUE(message.more());
     recvMessage(backSocket, message);

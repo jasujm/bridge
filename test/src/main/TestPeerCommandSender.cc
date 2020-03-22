@@ -60,6 +60,9 @@ protected:
         EXPECT_EQ(asBytes(command), messageView(message));
         ASSERT_TRUE(message.more());
         recvMessage(socket, message);
+        EXPECT_EQ(asBytes(command), messageView(message));
+        ASSERT_TRUE(message.more());
+        recvMessage(socket, message);
         EXPECT_EQ(asBytes(KEY), messageView(message));
         ASSERT_TRUE(message.more());
         recvMessage(socket, message);
@@ -107,9 +110,8 @@ TEST_F(PeerCommandSenderTest, testResendOnFailure)
 {
     sendCommand();
     checkReceive();
-    const auto failure_message = std::string(4, '\xff');
     sendEmptyMessage(frontSockets[0], true);
-    sendMessage(frontSockets[0], messageBuffer(failure_message), true);
+    sendMessage(frontSockets[0], messageBuffer(REPLY_FAILURE), true);
     sendMessage(frontSockets[0], messageBuffer(DEFAULT));
     auto callback = MockCallbackScheduler::Callback {};
     EXPECT_CALL(*callbackScheduler, handleCallLater(_, _))
@@ -127,8 +129,8 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive(false, false);
     for (auto&& t : boost::combine(frontSockets, backSockets)) {
         sendEmptyMessage(t.get<0>(), true);
-        sendMessage(t.get<0>(), messageBuffer(REPLY_SUCCESS), true);
-        sendMessage(t.get<0>(), messageBuffer(DEFAULT));
+        sendMessage(t.get<0>(), messageBuffer(DEFAULT), true);
+        sendMessage(t.get<0>(), messageBuffer(REPLY_SUCCESS));
         sender(*t.get<1>());
     }
     checkReceive(true, true, NEXT);

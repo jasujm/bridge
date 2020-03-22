@@ -98,10 +98,13 @@
  *
  * \section bridgeprotocolcontrolmessage Command messages
  *
- * A \b command is a message whose prefix consists of an empty frame and the
- * command frame. Other peers and clients send control commands to the control
- * socket of the peer in order to control its behavior and the flow of a bridge
- * game.
+ * A \b command is a message whose prefix consists of an empty frame,
+ * tag frame and the command frame. Other peers and clients send
+ * control commands to the control socket of the peer in order to
+ * control its behavior and the flow of a bridge game.
+ *
+ * \note The intention of the tag is to allow the identification of a
+ * particular reply, as it is echoed back verbatim.
  *
  * \note Whenever there is no risk of disambiguity, both the whole command
  * message, and the command frame identifying it are called commands.
@@ -112,13 +115,14 @@
  * | N | Content                                | Notes                        |
  * |---|----------------------------------------|------------------------------|
  * | 1 |                                        | Empty frame                  |
- * | 2 | play                                   | No quotes (not JSON)         |
- * | 3 | game                                   | Key for game argument        |
- * | 4 | "9c3fc66b-ab10-4006-8c15-3b4f7eb04846" | Quotes required (valid JSON) |
- * | 5 | player                                 | Key for player argument      |
- * | 6 | "8bc7c6ca-1f19-440c-b5e2-88dc049bca53" |                              |
- * | 7 | card                                   | Key for card argument        |
- * | 8 | {"rank":"7","suit":"diamonds"}         |                              |
+ * | 2 | MYTAG                                  | Client chosen tag            |
+ * | 3 | play                                   | No quotes (not JSON)         |
+ * | 4 | game                                   | Key for game argument        |
+ * | 5 | "9c3fc66b-ab10-4006-8c15-3b4f7eb04846" | Quotes required (valid JSON) |
+ * | 6 | player                                 | Key for player argument      |
+ * | 7 | "8bc7c6ca-1f19-440c-b5e2-88dc049bca53" |                              |
+ * | 8 | card                                   | Key for card argument        |
+ * | 9 | {"rank":"7","suit":"diamonds"}         |                              |
  *
  * Commands with additional unspecified arguments MUST be accepted. Unrecognized
  * arguments SHOULD be ignored.
@@ -130,14 +134,17 @@
  * \section bridgeprotocolreplymessage Reply messages
  *
  * The peer MUST send a \b reply message to a node sending a control
- * command. However, it MAY omit reply to any command message not consisting of
- * at least the empty frame and the command frame.
+ * command. However, it SHOULD omit reply to any command message not
+ * consisting of at least the empty frame, tag frame and command
+ * frame.
  *
- * The prefix of a reply consist of an empty frame, status frame, and
- * a frame echoing back the command. The status frame MUST be a string
- * starting with “OK” for successful reply, or “ERR” for failed
- * reply. The command frame MUST be the same as the command frame of
- * the message it replies to.
+ * The prefix of a reply consist of an empty frame, tag frame and
+ * status frame. The tag sent by the client MUST be echoed back
+ * verbatim.
+ *
+ * The status frame MUST be a string starting with “OK” for successful
+ * reply, or “ERR” for failed reply. The command frame MUST be the
+ * same as the command frame of the message it replies to.
  *
  * \b Example. A successful reply to a get command requesting the position of
  * the current player consists of the following five frames:
@@ -145,8 +152,8 @@
  * | N | Content  | Notes       |
  * |---|----------|-------------|
  * | 1 |          | Empty frame |
- * | 2 | OK       |             |
- * | 3 | get      |             |
+ * | 2 | MYTAG    |             |
+ * | 3 | OK       |             |
  * | 4 | position |             |
  * | 5 | "north"  |             |
  *
@@ -156,19 +163,18 @@
  * | N | Content  | Notes       |
  * |---|----------|-------------|
  * | 1 |          | Empty frame |
- * | 2 | ERR      |             |
- * | 3 | get      |             |
+ * | 2 | MYTAG    |             |
+ * | 3 | ERR      |             |
  *
  * \note To determine if a reply is successful, an implementation MUST
  * match for the prefix of the string. “OK” and “OK!!!” are equally
  * successful replies. The purpose is to allow new revisions to define
  * more specific status codes by adding suffixes to the base status.
  *
- * The peer SHOULD reply to messages that are not valid commands, commands it
- * does not recognize or commands from peers and clients it has not
- * accepted. The reply to any of the previous MUST be failure. The peer SHOULD
- * NOT reply to messages which do not contain the empty frame and the command
- * frame.
+ * The peer SHOULD reply to messages that are not valid commands,
+ * commands it does not recognize or commands from peers and clients
+ * it has not accepted. The reply to any of the previous MUST be
+ * failure.
  *
  * A peer MUST NOT send any other messages through the control socket than
  * replies to the commands received.

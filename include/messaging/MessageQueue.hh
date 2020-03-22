@@ -105,12 +105,13 @@ public:
 
     /** \brief Receive and reply the next message
      *
-     * When called, the method receives a message from \p socket, dispatches it
-     * to the correct handler and sends the reply through \p socket. The reply
-     * consists of a status frame, the echoed command frame and optional reply
-     * argument frames, as determined by the message handler. If there is no
-     * handler for the command, REPLY_FAILURE is sent with the echoed command
-     * frame.
+     * When called, the method receives a message from \p socket,
+     * dispatches it to the correct handler and sends the reply
+     * through \p socket. The reply consists of the echoed tag frame,
+     * the status frame, and optional reply argument frames, as
+     * determined by the message handler. If there is no handler for
+     * the command, REPLY_FAILURE is sent with the echoed tag and
+     * command frames.
      *
      * When dispatching the command, the MessageQueue object creates a copy of
      * the execution policy object expected by the registered

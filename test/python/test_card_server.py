@@ -19,6 +19,7 @@ SUIT_KEY = "suit"
 PeerEntry = namedtuple("PeerEntry", (IDENTITY_KEY, CONTROL_KEY, ENDPOINT_KEY))
 Card = namedtuple("Card", (RANK_KEY, SUIT_KEY))
 
+TAG = b'tag'
 INIT_COMMAND = b'init'
 SHUFFLE_COMMAND = b'shuffle'
 DRAW_COMMAND = b'draw'
@@ -46,7 +47,7 @@ def cleanup(servers):
         server.wait()
         print(server.stderr.read().decode())
 
-REPLY_SUCCESS = [b'', b'OK']
+REPLY_SUCCESS = [b'', TAG, b'OK']
 PEERS = [
     PeerEntry("12", 5501, 5510),
     PeerEntry("34", 5502, 5520),
@@ -90,6 +91,7 @@ for (n, (socket, peer, keys)) in enumerate(zip(sockets, PEERS, CURVE_KEYS)):
     socket.curve_secretkey = keys[0].encode() + b'\0'
     socket.connect(get_endpoint(peer.control))
     socket.send(b'', flags=zmq.SNDMORE)
+    socket.send(TAG, flags=zmq.SNDMORE)
     socket.send(INIT_COMMAND, flags=zmq.SNDMORE)
     socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)
     socket.send_json(n, flags=zmq.SNDMORE)
@@ -99,18 +101,19 @@ for (n, (socket, peer, keys)) in enumerate(zip(sockets, PEERS, CURVE_KEYS)):
 print("Receiving reply...")
 
 for socket in sockets:
-    assert(socket.recv_multipart() == REPLY_SUCCESS + [INIT_COMMAND])
+    assert(socket.recv_multipart() == REPLY_SUCCESS)
 
 print("Shuffling...")
 
 for socket in sockets:
     socket.send(b'', flags=zmq.SNDMORE)
+    socket.send(TAG, flags=zmq.SNDMORE)
     socket.send(SHUFFLE_COMMAND)
 
 print("Receiving reply...")
 
 for socket in sockets:
-    assert(socket.recv_multipart() == REPLY_SUCCESS + [SHUFFLE_COMMAND])
+    assert(socket.recv_multipart() == REPLY_SUCCESS)
 
 print("Drawing cards...")
 
@@ -118,11 +121,13 @@ for (i, socket) in enumerate(sockets):
     for j in range(len(sockets)):
         if i == j:
             socket.send(b'', flags=zmq.SNDMORE)
+            socket.send(TAG, flags=zmq.SNDMORE)
             socket.send(DRAW_COMMAND, flags=zmq.SNDMORE)
             socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(CARD_RANGE[j])
         else:
             socket.send(b'', flags=zmq.SNDMORE)
+            socket.send(TAG, flags=zmq.SNDMORE)
             socket.send(REVEAL_COMMAND, flags=zmq.SNDMORE)
             socket.send(ORDER_COMMAND, flags=zmq.SNDMORE)
             socket.send_json(j, flags=zmq.SNDMORE)
@@ -135,8 +140,7 @@ all_cards = set()
 for (i, socket) in enumerate(sockets):
     for j in range(len(sockets)):
         if i == j:
-            assert([socket.recv(), socket.recv()] == REPLY_SUCCESS)
-            assert(socket.recv(flags=zmq.NOBLOCK) == DRAW_COMMAND)
+            assert([socket.recv(), socket.recv(), socket.recv()] == REPLY_SUCCESS)
             key = socket.recv_string(flags=zmq.NOBLOCK)
             assert(key == CARDS_KEY)
             cards = socket.recv_json(flags=zmq.NOBLOCK)
@@ -146,13 +150,14 @@ for (i, socket) in enumerate(sockets):
                     for (k, card) in enumerate(cards)))
             all_cards |= set(Card(**cards[k]) for k in CARD_RANGE[j])
         else:
-            assert(socket.recv_multipart() == REPLY_SUCCESS + [REVEAL_COMMAND])
+            assert(socket.recv_multipart() == REPLY_SUCCESS)
 assert(len(all_cards) == 52)
 
 print("Revealing dummy...")
 
 for socket in sockets:
     socket.send(b'', flags=zmq.SNDMORE)
+    socket.send(TAG, flags=zmq.SNDMORE)
     socket.send(REVEAL_ALL_COMMAND, flags=zmq.SNDMORE)
     socket.send(CARDS_COMMAND, flags=zmq.SNDMORE)
     socket.send_json(CARD_RANGE[0])
@@ -161,8 +166,7 @@ print("Receiving reply...")
 
 dummy_cards = None
 for socket in sockets:
-    assert([socket.recv(), socket.recv()] == REPLY_SUCCESS)
-    assert(socket.recv(flags=zmq.NOBLOCK) == REVEAL_ALL_COMMAND)
+    assert([socket.recv(), socket.recv(), socket.recv()] == REPLY_SUCCESS)
     key = socket.recv_string(flags=zmq.NOBLOCK)
     assert(key == CARDS_KEY)
     cards = socket.recv_json(flags=zmq.NOBLOCK)

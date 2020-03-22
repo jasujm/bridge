@@ -12,13 +12,12 @@ MessageQueue::BasicResponse::BasicResponse(
     // the first frame after the prefix is the status frame
     // thus the prefix length is status frame index
     nStatusFrame {nPrefix},
-    frames(nPrefix + 2)
+    frames(nPrefix + 1)
 {
     assert(0 <= nPrefix && nPrefix < ssize(inputFrames));
     for (const auto n : to(nPrefix)) {
         frames[n].move(inputFrames[n]);
     }
-    frames.back().move(inputFrames[nPrefix]);
 }
 
 void MessageQueue::BasicResponse::sendResponse(Socket& socket)
@@ -98,16 +97,18 @@ void MessageQueue::operator()(Socket& socket)
         ++payload_frame_iter;
     }
 
-    // If command is missing, silently drop the message and don't reply
-    if (payload_frame_iter == input_frames.end()) {
+    // If the command and tag are missing, silently drop the message
+    // and don't reply
+    if (input_frames.end() - payload_frame_iter < 2) {
         return;
     }
 
-    const auto executor_iter = executors.find(messageView(*payload_frame_iter));
+    const auto executor_iter = executors.find(
+        messageView(payload_frame_iter[1]));
     auto& executor = (executor_iter != executors.end()) ?
         executor_iter->second : defaultExecutor;
     auto identity = identityFromMessage(*payload_frame_iter, identity_msg);
-    const auto n_prefix = payload_frame_iter - input_frames.begin();
+    const auto n_prefix = payload_frame_iter - input_frames.begin() + 1;
     executor(std::move(identity), std::move(input_frames), n_prefix, socket);
 }
 

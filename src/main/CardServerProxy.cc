@@ -256,9 +256,8 @@ void Impl::enqueueIfHasCardsParam(ParamIterator first, ParamIterator last)
 template<typename... Args>
 void Impl::sendCommand(Args&&... args)
 {
-    Messaging::sendCommand(
-        controlSocket, JsonSerializer {},
-        std::forward<Args>(args)...);
+    Messaging::sendCommandMessage(
+        controlSocket, JsonSerializer {}, std::forward<Args>(args)...);
 }
 
 void Impl::doRequestShuffle(const RequestShuffleEvent&)
@@ -267,7 +266,8 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
     handObservers.clear();
     shufflingStateNotifier.notifyAll(ShufflingState::REQUESTED);
     log(LogLevel::DEBUG, "Card server proxy: Shuffling");
-    sendCommand(CardServer::SHUFFLE_COMMAND);
+    // Command is also used as tag
+    sendCommand(CardServer::SHUFFLE_COMMAND, CardServer::SHUFFLE_COMMAND);
     // For each peer, reveal their cards. For self draw cards.
     for (const auto& [order, peer] : enumerate(peerRecords)) {
         auto deckNs = cardsFor(
@@ -275,13 +275,13 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
         if (peer.isSelf) {
             log(LogLevel::DEBUG, "Card server proxy: Drawing cards");
             sendCommand(
-                CardServer::DRAW_COMMAND,
+                CardServer::DRAW_COMMAND, CardServer::DRAW_COMMAND,
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
         } else {
             log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
                 order);
             sendCommand(
-                CardServer::REVEAL_COMMAND,
+                CardServer::REVEAL_COMMAND, CardServer::REVEAL_COMMAND,
                 std::tie(CardServer::ORDER_COMMAND, order),
                 std::tie(CardServer::CARDS_COMMAND, deckNs));
         }
@@ -403,25 +403,34 @@ void Impl::internalHandleCardServerMessage(Messaging::Socket& socket)
                 "Unable to proceed.");
             return;
         }
-        const auto first_payload_iter = reply.begin() + 1;
-        const auto iter = isSuccessfulReply(first_payload_iter, reply.end());
-        if (iter == reply.end()) {
+        const auto tag_iter = reply.begin() + 1;
+        if (tag_iter == reply.end()) {
             log(LogLevel::WARNING,
                 "Card server failure. "
                 "It is unlikely that the protocol can proceed.");
             return;
         }
-        const auto command_view = messageView(*iter);
-        if (command_view == asBytes(CardServer::SHUFFLE_COMMAND)) {
+        const auto status_iter = tag_iter + 1;
+        if (status_iter == reply.end() ||
+            !isSuccessful(messageView(*status_iter))) {
+            log(LogLevel::WARNING,
+                "Card server failure. "
+                "It is unlikely that the protocol can proceed.");
+            return;
+        }
+        const auto tag_view = messageView(*tag_iter);
+        if (tag_view == asBytes(CardServer::SHUFFLE_COMMAND)) {
             functionQueue(
                 [this]() { process_event(ShuffleSuccessfulEvent {}); });
-        } else if (command_view == asBytes(CardServer::REVEAL_COMMAND)) {
+        } else if (tag_view == asBytes(CardServer::REVEAL_COMMAND)) {
             functionQueue(
                 [this]() { process_event(RevealSuccessfulEvent {}); });
-        } else if (command_view == asBytes(CardServer::DRAW_COMMAND)) {
-            enqueueIfHasCardsParam<DrawSuccessfulEvent>(iter, reply.end());
-        } else if (command_view == asBytes(CardServer::REVEAL_ALL_COMMAND)) {
-            enqueueIfHasCardsParam<RevealAllSuccessfulEvent>(iter, reply.end());
+        } else if (tag_view == asBytes(CardServer::DRAW_COMMAND)) {
+            enqueueIfHasCardsParam<DrawSuccessfulEvent>(
+                status_iter + 1, reply.end());
+        } else if (tag_view == asBytes(CardServer::REVEAL_ALL_COMMAND)) {
+            enqueueIfHasCardsParam<RevealAllSuccessfulEvent>(
+                status_iter + 1, reply.end());
         }
     }
 }
@@ -518,8 +527,9 @@ void Initializing::internalInitCardServer()
     auto& impl = outermost_context();
     log(LogLevel::DEBUG,
         "Card server proxy: Initializing card server. Order: %d.", order);
+    // Command is also used as tag
     impl.sendCommand(
-        CardServer::INIT_COMMAND,
+        CardServer::INIT_COMMAND, CardServer::INIT_COMMAND,
         std::tie(CardServer::ORDER_COMMAND, order),
         std::tie(CardServer::PEERS_COMMAND, peers));
     // Record peers and positions for the future use
@@ -630,8 +640,9 @@ private:
 sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
 {
     log(LogLevel::DEBUG,"Card server proxy: Revealing card(s) to all players");
+    // Command is also used as tag
     outermost_context().sendCommand(
-        CardServer::REVEAL_ALL_COMMAND,
+        CardServer::REVEAL_ALL_COMMAND, CardServer::REVEAL_ALL_COMMAND,
         std::tie(CardServer::CARDS_COMMAND, event.deckNs));
     assert(event.hand);
     requestQueue.emplace(RequestInfo {event.hand, event.handNs});

@@ -69,8 +69,8 @@ void PeerCommandSender::operator()(Messaging::Socket& socket)
     }
     const auto& current_message = messages.front();
     assert(!current_message.empty());
-    const auto reply_iter = isSuccessfulReply(message.begin(), message.end());
-    if (reply_iter != message.end() && *reply_iter == current_message.front()) {
+    if (message.size() >= 2 && message[0] == current_message.front() &&
+        isSuccessful(messageView(message[1]))) {
         iter->success = true;
         if (
             std::all_of(

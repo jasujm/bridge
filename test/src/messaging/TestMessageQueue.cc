@@ -29,6 +29,7 @@ const auto IDENTITY = Identity { ""s, "identity"_B };
 const auto PARAM1 = "param1"_BS;
 const auto PARAM2 = "param2"_BS;
 constexpr auto ENDPOINT = "inproc://testing"sv;
+const auto TAG = "tag"_BS;
 const auto COMMAND = "cmd"_BS;
 const auto OTHER_COMMAND = "cmd2"_BS;
 }
@@ -44,14 +45,14 @@ protected:
         connectSocket(frontSocket, ENDPOINT);
     }
 
-    void assertReply(bool success, Bridge::ByteSpan command, bool more = false)
+    void assertReply(bool success, bool more = false)
     {
         auto message = Message {};
         recvMessage(frontSocket, message);
-        EXPECT_EQ(success, isSuccessful(messageView(message)));
+        EXPECT_EQ(TAG, messageView(message));
         ASSERT_TRUE(message.more());
         recvMessage(frontSocket, message);
-        EXPECT_EQ(command, messageView(message));
+        EXPECT_EQ(success, isSuccessful(messageView(message)));
         EXPECT_EQ(more, message.more());
     }
 
@@ -67,53 +68,55 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
 {
     EXPECT_CALL(*handler, doHandle(_, IDENTITY, ElementsAre(PARAM1, PARAM2), _))
         .WillOnce(Respond(REPLY_SUCCESS));
+    sendMessage(frontSocket, messageBuffer(TAG), true);
     sendMessage(frontSocket, messageBuffer(COMMAND), true);
     sendMessage(frontSocket, messageBuffer(PARAM1), true);
     sendMessage(frontSocket, messageBuffer(PARAM2));
 
     messageQueue(backSocket);
-    assertReply(true, COMMAND);
+    assertReply(true);
 }
 
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 {
     EXPECT_CALL(*handler, doHandle(_, IDENTITY, ElementsAre(PARAM1, PARAM2), _))
         .WillOnce(Respond(REPLY_FAILURE));
+    sendMessage(frontSocket, messageBuffer(TAG), true);
     sendMessage(frontSocket, messageBuffer(COMMAND), true);
     sendMessage(frontSocket, messageBuffer(PARAM1), true);
     sendMessage(frontSocket, messageBuffer(PARAM2));
 
     messageQueue(backSocket);
-    assertReply(false, COMMAND);
+    assertReply(false);
 }
 
 TEST_F(MessageQueueTest, testInvalidCommandReturnsError)
 {
     EXPECT_CALL(*handler, doHandle(_, _, _, _)).Times(0);
+    sendMessage(frontSocket, messageBuffer(TAG), true);
     sendMessage(frontSocket, messageBuffer(OTHER_COMMAND));
 
     messageQueue(backSocket);
 
-    assertReply(false, OTHER_COMMAND);
+    assertReply(false);
 }
 
 TEST_F(MessageQueueTest, testReply)
 {
-    const auto outputs = { PARAM1, PARAM2 };
-
     EXPECT_CALL(*handler, doHandle(_, IDENTITY, ElementsAre(), _))
         .WillOnce(Respond(REPLY_SUCCESS, PARAM1, PARAM2));
-    sendMessage(frontSocket, messageBuffer(COMMAND), false);
+    sendMessage(frontSocket, messageBuffer(TAG), true);
+    sendMessage(frontSocket, messageBuffer(COMMAND));
 
     messageQueue(backSocket);
 
-    assertReply(true, COMMAND, true);
+    assertReply(true, true);
     auto message = Message {};
     recvMessage(frontSocket, message);
-    EXPECT_EQ(outputs.begin()[0], messageView(message));
+    EXPECT_EQ(PARAM1, messageView(message));
     EXPECT_TRUE(message.more());
     recvMessage(frontSocket, message);
-    EXPECT_EQ(outputs.begin()[1], messageView(message));
+    EXPECT_EQ(PARAM2, messageView(message));
     EXPECT_FALSE(message.more());
 }
 
@@ -128,9 +131,10 @@ TEST_F(MessageQueueTest, testWhenBackSocketIsNotRouterIdentityIsEmpty)
     EXPECT_CALL(*handler, doHandle(_, Identity {}, ElementsAre(), _))
         .WillOnce(Respond(REPLY_SUCCESS));
 
-    sendMessage(frontSocket, messageBuffer(COMMAND), false);
+    sendMessage(frontSocket, messageBuffer(TAG), true);
+    sendMessage(frontSocket, messageBuffer(COMMAND));
     messageQueue(repSocket);
-    assertReply(true, COMMAND);
+    assertReply(true);
 }
 
 TEST_F(MessageQueueTest, testTrySetNewHandlerForNewCommand)
@@ -139,9 +143,10 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForNewCommand)
     EXPECT_TRUE(messageQueue.trySetHandler(OTHER_COMMAND, other_handler));
     EXPECT_CALL(*other_handler, doHandle(_, IDENTITY, _, _))
         .WillOnce(Respond(REPLY_SUCCESS));
+    sendMessage(frontSocket, messageBuffer(TAG), true);
     sendMessage(frontSocket, messageBuffer(OTHER_COMMAND));
     messageQueue(backSocket);
-    assertReply(true, OTHER_COMMAND);
+    assertReply(true);
 }
 
 TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
@@ -151,7 +156,8 @@ TEST_F(MessageQueueTest, testTrySetNewHandlerForOldCommand)
             COMMAND, std::make_shared<MockMessageHandler>()));
     EXPECT_CALL(*handler, doHandle(_, IDENTITY, _, _))
         .WillOnce(Respond(REPLY_SUCCESS));
+    sendMessage(frontSocket, messageBuffer(TAG), true);
     sendMessage(frontSocket, messageBuffer(COMMAND));
     messageQueue(backSocket);
-    assertReply(true, COMMAND);
+    assertReply(true);
 }

@@ -217,7 +217,7 @@ void BridgeGame::Impl::publish(const std::string_view command, Args&&... args)
     std::ostringstream os;
     os << uuid << ':' << command;
     log(LogLevel::DEBUG, "Publishing event: %s", command);
-    sendCommand(
+    sendEventMessage(
         dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...);
 }

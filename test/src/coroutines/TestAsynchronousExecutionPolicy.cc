@@ -32,6 +32,7 @@ using MockAsynchronousMessageHandler =
 
 using namespace Bridge::BlobLiterals;
 using namespace std::string_view_literals;
+const auto TAG = "tag"_BS;
 const auto COMMAND = "command"_BS;
 constexpr auto MQ_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.mq"sv;
 constexpr auto CORO_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.coro"sv;
@@ -82,6 +83,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
 {
     // Invoke coroutine by sending command to message queue socket
     auto socketCallback = Poller::SocketCallback {};
+    sendMessage(messageQueueSockets.second, messageBuffer(TAG), true);
     sendMessage(messageQueueSockets.second, messageBuffer(COMMAND));
     EXPECT_CALL(*handler, doHandle(_, _, IsEmpty(), _)).WillOnce(
         WithArgs<0, 3>(Invoke(createCoroutine())));
@@ -101,8 +103,8 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
     const auto n_parts = recvMultipart(
         messageQueueSockets.second, reply.begin(), reply.size()).second;
     EXPECT_EQ(EXPECTED_N_PARTS, n_parts);
-    EXPECT_EQ(status, messageView(reply[0]));
-    EXPECT_EQ(COMMAND, messageView(reply[1]));
+    EXPECT_EQ(TAG, messageView(reply[0]));
+    EXPECT_EQ(status, messageView(reply[1]));
 }
 
 INSTANTIATE_TEST_SUITE_P(

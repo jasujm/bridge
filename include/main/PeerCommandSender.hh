@@ -78,17 +78,16 @@ public:
      * from all peers to the previous messages.
      *
      * \param serializer serialization policy for the command parameters
-     * \param command the command sent as the first part of the message
+     * \param command the content of the command frame
      * \param params the parameters serialized and sent as the subsequent
      * parts of the message
      *
      * \sa \ref serializationpolicy
      */
     template<
-        typename SerializationPolicy, typename CommandString,
-        typename... Params>
+        typename SerializationPolicy, typename String, typename... Params>
     void sendCommand(
-        SerializationPolicy&& serializer, CommandString&& command,
+        SerializationPolicy&& serializer, const String& command,
         Params&&... params);
 
     /** \brief Receive and process reply from socket
@@ -138,20 +137,19 @@ private:
 };
 
 template<
-    typename SerializationPolicy, typename CommandString, typename... Params>
+    typename SerializationPolicy, typename String, typename... Params>
 void PeerCommandSender::sendCommand(
-    SerializationPolicy&& serializer, CommandString&& command,
+    SerializationPolicy&& serializer, const String& command,
     Params&&... params)
 {
     if (!peers.empty()) {
-        constexpr auto count = 1 + 2 * sizeof...(params);
         auto message = Message {};
-        message.reserve(count);
-        Messaging::makeCommand(
+        message.reserve(2 + 2 * sizeof...(params));
+        // Command is used also as tag
+        Messaging::makeCommandMessage(
             std::back_inserter(message),
             std::forward<SerializationPolicy>(serializer),
-            std::forward<CommandString>(command),
-            std::forward<Params>(params)...);
+            command, command, std::forward<Params>(params)...);
         internalAddMessage(std::move(message));
     }
 }
