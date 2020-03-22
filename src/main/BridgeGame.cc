@@ -10,7 +10,6 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
-#include "main/BridgeGameInfo.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/GameStateHelper.hh"
@@ -87,8 +86,7 @@ class BridgeGame::Impl  :
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::TrickCompleted>,
     public Observer<BridgeEngine::DummyRevealed>,
-    public Observer<BridgeEngine::DealEnded>,
-    public BridgeGameInfo {
+    public Observer<BridgeEngine::DealEnded>  {
 public:
 
     Impl(
@@ -150,9 +148,6 @@ private:
     void handleNotify(const BridgeEngine::TrickCompleted&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
     void handleNotify(const BridgeEngine::DealEnded&) override;
-
-    const BridgeEngine& handleGetEngine() const override;
-    const Engine::DuplicateGameManager& handleGetGameManager() const override;
 
     const Uuid uuid;
     std::shared_ptr<Engine::DuplicateGameManager> gameManager;
@@ -458,17 +453,6 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         &BridgeEngine::startDeal, std::ref(engine));
 }
 
-const BridgeEngine& BridgeGame::Impl::handleGetEngine() const
-{
-    return engine;
-}
-
-const Engine::DuplicateGameManager& BridgeGame::Impl::handleGetGameManager() const
-{
-    assert(gameManager);
-    return *gameManager;
-}
-
 BridgeGame::BridgeGame(
     const Uuid& uuid,
     PositionSet positionsControlled,
@@ -560,11 +544,6 @@ CardProtocol* BridgeGame::getCardProtocol()
 {
     assert(impl);
     return impl->getCardProtocol();
-}
-
-std::weak_ptr<const BridgeGameInfo> BridgeGame::getInfo() const
-{
-    return impl;
 }
 
 }

@@ -40,7 +40,6 @@ class CallbackScheduler;
 
 namespace Main {
 
-class BridgeGameInfo;
 class CardProtocol;
 class PeerCommandSender;
 
@@ -247,12 +246,6 @@ public:
      * peerless
      */
     CardProtocol* getCardProtocol();
-
-    /** \brief Get info object for this game
-     *
-     * \return BridgeGameInfo object describing this game
-     */
-    std::weak_ptr<const BridgeGameInfo> getInfo() const;
 
 private:
 
