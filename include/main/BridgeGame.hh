@@ -44,6 +44,10 @@ class BridgeGameInfo;
 class CardProtocol;
 class PeerCommandSender;
 
+/** \brief Representation of the state of the game
+ */
+using GameState = nlohmann::json;
+
 /** \brief Single hosted bridge game
  *
  * Each BridgeGame instance glues together an BridgeEngine object, CardProtocol
@@ -182,6 +186,21 @@ public:
     void join(
         const Messaging::Identity& identity, Position position,
         std::shared_ptr<Player> player);
+
+    /** \brief Get current state of the game
+     *
+     * This method is intended to implement the \ref
+     * bridgeprotocolcontrolget command.
+     *
+     * \param player The player requesting the state. This affect
+     * which card and call/play choice information is available.
+     * \param keys The list of keys to retrieve
+     *
+     * \return Current state of the game visible to \p player
+     */
+    GameState getState(
+        const Player& player,
+        const std::optional<std::vector<std::string>>& keys);
 
     /** \brief Make call
      *

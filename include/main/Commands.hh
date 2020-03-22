@@ -306,51 +306,55 @@
  * - \b Command: get
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
- *   - \e keys: array of keys for the values to be retrieved (optional)
+ *   - \e get: array of keys for the values to be retrieved (optional)
  * - \b Reply:
- *   - \e position: the position of the controlled player
- *   - \e positionInTurn: the position of the player who is in turn to act
- *   - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
- *   - \e calls: array of \e calls that have been made in the current deal
- *   - \e declarer: the \e position of the declarer
- *   - \e contract: the \e contract reached, see \ref jsoncontract
- *   - \e allowedCards: array of allowed \e cards to play, if any,
- *     \ref jsoncardtype
- *   - \e cards: object containing \e cards that are visible to the player
- *   - \e trick: array containing \e cards in the current trick
- *   - \e tricksWon: see \ref jsontrickswon
- *   - \e vulnerability: \e vulnerabilities of the current deal,
- *     see \ref jsonvulnerability
+ *   - \e get: object describing the current state of the game
  *
- * Get commands retrieves one or multiple key–value pairs describing the state
- * of a game. The keys argument is a array of keys to be retrieved. It MAY be
- * omitted in which case the reply MUST contain all key–value pairs mentioned in
- * the reply arguments list. If included, the reply SHOULD only contain the
- * key–value pairs contained in the array. Keys that are not recognized SHOULD
- * be ignored.
+ * Get commands retrieves one or multiple key–value pairs describing
+ * the state of a game. The \e get argument is a array of keys to be
+ * retrieved. It MAY be omitted in which case the reply MUST contain
+ * the whole state of the game. If included, the reply SHOULD only
+ * contain the key–value pairs contained in the array. Keys that are
+ * not recognized SHOULD be ignored.
  *
- * The intention is that this command is used by the clients to query the state
- * of the game. All peers are expected to track the state of the game
- * themselves, and in fact it is not possible for a peer to know what a player
- * represented by another peer is supposed to see (in particular their
- * cards). Therefore, the result of this command is unspecified if it comes from
- * another peer. In particular, get command from peer MAY be ignored with
- * failure message. In any case any information about hidden cards of a player
- * MUST NOT be revealed to a node not controlling or representing that player.
+ * The intention is that this command is used by the clients to query
+ * the state of the game. All peers are expected to track the state of
+ * the game themselves. Therefore, the result of this command is
+ * unspecified if it comes from another peer. In particular, get
+ * command from peer MAY simply return a failure. In any case any
+ * information about hidden cards of a player MUST NOT be revealed to
+ * a node not controlling or representing that player.
  *
- * The \b position parameter contains the position of the player that the client
+ * The \e get parameter in the reply is a JSON object consisting of (a
+ * subset of) the following key–value pairs:
+ *
+ * - \e position: the position of the controlled player
+ * - \e positionInTurn: the position of the player who is in turn to act
+ * - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
+ * - \e calls: array of \e calls that have been made in the current deal
+ * - \e declarer: the \e position of the declarer
+ * - \e contract: the \e contract reached, see \ref jsoncontract
+ * - \e allowedCards: array of allowed \e cards to play, if any,
+ *   \ref jsoncardtype
+ * - \e cards: object containing \e cards that are visible to the player
+ * - \e trick: array containing \e cards in the current trick
+ * - \e tricksWon: see \ref jsontrickswon
+ * - \e vulnerability: \e vulnerabilities of the current deal,
+ *   see \ref jsonvulnerability
+ *
+ * The \e position parameter contains the position of the player that the client
  * controls.
  *
- * The \b positionInTurn parameter contains the position of the player that has
+ * The \e positionInTurn parameter contains the position of the player that has
  * the turn to act next. If no player has turn (e.g. because deal has ended and
  * the cards are not dealt yet for the next deal), the position is null. The
  * declarer plays for dummy, so if the next card will be played from the hand of
  * the dummy, the declarer has turn.
  *
- * If the deal is in the bidding phase and the player has turn, the \b
+ * If the deal is in the bidding phase and the player has turn, the \e
  * allowedCalls parameter is the set of calls allowed to be made by the player.
  *
- * The \b calls parameter is an array of positon–call pairs, each containing a
+ * The \e calls parameter is an array of positon–call pairs, each containing a
  * position (field “position”) and a call (field “call”) made by the player at
  * the position. The array is ordered in the order the calls were made. The
  * array is empty if no calls have been made (possibly because cards have not
@@ -366,32 +370,32 @@
  * }
  * \endcode
  *
- * The \b declarer and \b contract parameters are the position of the declarer
+ * The \e declarer and \e contract parameters are the position of the declarer
  * and the contract reached in a completed bidding, respectively. If contract
  * has not been reached in the current deal (or perhaps because the deal is not
  * ongoing), both declarer and contract are null values.
  *
- * If the deal is in the playing phase and the player has turn, the \b
+ * If the deal is in the playing phase and the player has turn, the \e
  * allowedCards parameter is the set of cards allowed to be played by the
  * player.
  *
- * The \b cards parameter is an object containing mapping from positions to list
+ * The \e cards parameter is an object containing mapping from positions to list
  * of cards held by the player in that position. The mapping MUST only contain
  * those hands that are visible to the player, i.e. his own hand and dummy if it
  * has been revealed. The object is empty if cards have not been dealt yet.
  *
- * The \b trick parameter is an array of position–card pairs, each containing a
+ * The \e trick parameter is an array of position–card pairs, each containing a
  * position (field “position”) and a card (field “card”) played by the position
  * to the trick. The array is ordered in the order that the cards were played to
  * the trick. The array is empty if no cards have been played to the current
  * trick (possibly because the last trick was just completed or the playing
  * phase has not started).
  *
- * The \b tricksWon parameter is an object containing mapping from partnerships
+ * The \e tricksWon parameter is an object containing mapping from partnerships
  * to the number of tricks won by each side. If no tricks have been completed
  * (perhaps because bidding is not yet completed), both fields are zero.
  *
- * The \b vulnerability parameter is an object containing the current
+ * The \e vulnerability parameter is an object containing the current
  * vulnerabilities of the partnerships. If they are not known (perhaps because
  * there is no ongoing deal), the value is empty.
  *
@@ -607,10 +611,6 @@ inline constexpr auto PLAYER_COMMAND = std::string_view {"player"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto POSITION_COMMAND = std::string_view {"position"};
-
-/** \brief See \ref bridgeprotocolcontrolget
- */
-inline constexpr auto KEYS_COMMAND = std::string_view {"keys"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

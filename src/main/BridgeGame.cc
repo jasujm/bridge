@@ -13,6 +13,7 @@
 #include "main/BridgeGameInfo.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
+#include "main/GameStateHelper.hh"
 #include "main/PeerCommandSender.hh"
 #include "messaging/CallbackScheduler.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -107,6 +108,10 @@ public:
     void join(
         const Identity& identity, Position position,
         std::shared_ptr<Player> player);
+
+    GameState getState(
+        const Player& player,
+        const std::optional<std::vector<std::string>>& keys);
 
     bool call(
         const Identity& identity, const Player& player, const Call& call);
@@ -296,6 +301,14 @@ void BridgeGame::Impl::join(
             std::cref(PLAYER_COMMAND), dereference(player).getUuid()),
         std::tie(POSITION_COMMAND, position));
     engine.setPlayer(position, std::move(player));
+}
+
+GameState BridgeGame::Impl::getState(
+    const Player& player,
+    const std::optional<std::vector<std::string>>& keys)
+{
+    assert(gameManager);
+    return getGameState(player, engine, *gameManager, keys);
 }
 
 bool BridgeGame::Impl::call(
@@ -511,6 +524,14 @@ void BridgeGame::join(
 {
     assert(impl);
     impl->join(identity, position, std::move(player));
+}
+
+GameState BridgeGame::getState(
+    const Player& player,
+    const std::optional<std::vector<std::string>>& keys)
+{
+    assert(impl);
+    return impl->getState(player, keys);
 }
 
 bool BridgeGame::call(
