@@ -143,7 +143,7 @@ private:
         void sendResponse(Socket&);
 
     private:
-        void handleSetStatus(StatusCode) override;
+        void handleSetStatus(ByteSpan) override;
         void handleAddFrame(ByteSpan) override;
 
         std::ptrdiff_t nStatusFrame;

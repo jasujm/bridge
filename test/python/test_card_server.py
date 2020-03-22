@@ -46,7 +46,7 @@ def cleanup(servers):
         server.wait()
         print(server.stderr.read().decode())
 
-REPLY_SUCCESS = [b'', b'\0\0OK']
+REPLY_SUCCESS = [b'', b'OK']
 PEERS = [
     PeerEntry("12", 5501, 5510),
     PeerEntry("34", 5502, 5520),

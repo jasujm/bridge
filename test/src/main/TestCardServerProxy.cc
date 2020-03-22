@@ -120,9 +120,7 @@ protected:
         routing_id.copy(routingId);
         sendMessage(proxySocket, std::move(routing_id), true);
         sendEmptyMessage(proxySocket, true);
-        const auto reply_buffer = messageBuffer(
-            &REPLY_SUCCESS, sizeof(REPLY_SUCCESS));
-        sendMessage(proxySocket, reply_buffer, true);
+        sendMessage(proxySocket, messageBuffer(REPLY_SUCCESS), true);
         auto command = std::vector<Message> {};
         makeCommand(
             std::back_inserter(command), JsonSerializer {},

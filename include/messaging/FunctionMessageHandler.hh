@@ -8,6 +8,7 @@
 
 #include "messaging/Identity.hh"
 #include "messaging/MessageHandler.hh"
+#include "messaging/Replies.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "Blob.hh"
 #include "Utility.hh"

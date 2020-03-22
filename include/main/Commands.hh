@@ -133,31 +133,36 @@
  * command. However, it MAY omit reply to any command message not consisting of
  * at least the empty frame and the command frame.
  *
- * The prefix of a reply consist of an empty frame, status frame, and a frame
- * echoing back the command. The status MUST be a four byte big endian integer
- * which is equal or greater than zero if the command was successfully handled,
- * or less than zero otherwise. The command frame MUST be the same as the
- * command frame of the message it replies to.
+ * The prefix of a reply consist of an empty frame, status frame, and
+ * a frame echoing back the command. The status frame MUST be a string
+ * starting with “OK” for successful reply, or “ERR” for failed
+ * reply. The command frame MUST be the same as the command frame of
+ * the message it replies to.
  *
  * \b Example. A successful reply to a get command requesting the position of
  * the current player consists of the following five frames:
  *
- * | N | Content                        | Notes                          |
- * |---|--------------------------------|--------------------------------|
- * | 1 |                                | Empty frame                    |
- * | 2 | \\0\\0\\0\\0                   | Four byte representation of 0  |
- * | 3 | get                            |                                |
- * | 4 | position                       |                                |
- * | 5 | "north"                        |                                |
+ * | N | Content  | Notes       |
+ * |---|----------|-------------|
+ * | 1 |          | Empty frame |
+ * | 2 | OK       |             |
+ * | 3 | get      |             |
+ * | 4 | position |             |
+ * | 5 | "north"  |             |
  *
  * \b Example. A failed reply to the get command consists of the following three
  * frames:
  *
- * | N | Content                        | Notes                          |
- * |---|--------------------------------|--------------------------------|
- * | 1 |                                | Empty frame                    |
- * | 2 | \\xff\\xff\\xff\\xff           | Four byte representation of -1 |
- * | 3 | get                            |                                |
+ * | N | Content  | Notes       |
+ * |---|----------|-------------|
+ * | 1 |          | Empty frame |
+ * | 2 | ERR      |             |
+ * | 3 | get      |             |
+ *
+ * \note To determine if a reply is successful, an implementation MUST
+ * match for the prefix of the string. “OK” and “OK!!!” are equally
+ * successful replies. The purpose is to allow new revisions to define
+ * more specific status codes by adding suffixes to the base status.
  *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not

@@ -1,23 +1,21 @@
 #include "messaging/Replies.hh"
 
+#include <algorithm>
+
 namespace Bridge {
 namespace Messaging {
 
-bool isSuccessful(std::optional<StatusCode> code)
-{
-    return code && *code >= 0;
-}
+using namespace BlobLiterals;
 
-std::optional<StatusCode> getStatusCode(const Message& statusMessage)
+const ByteSpan REPLY_SUCCESS = "OK"_BS;
+const ByteSpan REPLY_FAILURE = "ERR"_BS;
+
+bool isSuccessful(const ByteSpan code)
 {
-    const auto* data = statusMessage.data();
-    const auto size = statusMessage.size();
-    if (size == sizeof(StatusCode)) {
-        auto ret = StatusCode {};
-        std::memcpy(&ret, data, size);
-        return boost::endian::big_to_native(ret);
-    }
-    return std::nullopt;
+    const auto first_to_differ = std::mismatch(
+        code.begin(), code.end(),
+        REPLY_SUCCESS.begin(), REPLY_SUCCESS.end()).second;
+    return first_to_differ == REPLY_SUCCESS.end();
 }
 
 }

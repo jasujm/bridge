@@ -15,8 +15,6 @@
 #include "messaging/Sockets.hh"
 #include "Blob.hh"
 
-#include <boost/endian/conversion.hpp>
-
 #include <iterator>
 #include <limits>
 #include <type_traits>

@@ -6,6 +6,7 @@
 #ifndef MESSAGING_DISPATCHINGMESSAGEHANDLER_HH_
 #define MESSAGING_DISPATCHINGMESSAGEHANDLER_HH_
 
+#include "messaging/Replies.hh"
 #include "messaging/MessageHandler.hh"
 #include "Blob.hh"
 #include "Utility.hh"

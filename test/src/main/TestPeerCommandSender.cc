@@ -125,10 +125,9 @@ TEST_F(PeerCommandSenderTest, testSendNextCommandWhenAllSucceed)
     checkReceive();
     sendCommand(NEXT);
     checkReceive(false, false);
-    const auto success_message = std::string(4, '\0');
     for (auto&& t : boost::combine(frontSockets, backSockets)) {
         sendEmptyMessage(t.get<0>(), true);
-        sendMessage(t.get<0>(), messageBuffer(success_message), true);
+        sendMessage(t.get<0>(), messageBuffer(REPLY_SUCCESS), true);
         sendMessage(t.get<0>(), messageBuffer(DEFAULT));
         sender(*t.get<1>());
     }

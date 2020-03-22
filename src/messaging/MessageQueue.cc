@@ -1,9 +1,8 @@
 #include "messaging/MessageQueue.hh"
 
 #include "messaging/MessageUtility.hh"
+#include "messaging/Replies.hh"
 #include "Utility.hh"
-
-#include <boost/endian/conversion.hpp>
 
 namespace Bridge {
 namespace Messaging {
@@ -27,11 +26,10 @@ void MessageQueue::BasicResponse::sendResponse(Socket& socket)
     sendMultipart(socket, frames.begin(), frames.end());
 }
 
-void MessageQueue::BasicResponse::handleSetStatus(StatusCode status)
+void MessageQueue::BasicResponse::handleSetStatus(ByteSpan status)
 {
     assert(0 <= nStatusFrame && nStatusFrame < ssize(frames));
-    const auto data = boost::endian::native_to_big(status);
-    frames[nStatusFrame].rebuild(&data, sizeof(data));
+    frames[nStatusFrame].rebuild(status.data(), status.size());
 }
 
 void MessageQueue::BasicResponse::handleAddFrame(ByteSpan frame)

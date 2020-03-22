@@ -7,7 +7,6 @@
 #define MESSAGING_MESSAGEHANDLER_HH_
 
 #include "messaging/Identity.hh"
-#include "messaging/Replies.hh"
 #include "messaging/SynchronousExecutionPolicy.hh"
 #include "Blob.hh"
 
@@ -35,7 +34,7 @@ public:
      *
      * \param status the status
      */
-    void setStatus(StatusCode status);
+    void setStatus(ByteSpan status);
 
     /** \brief Add another frame to the response
      *
@@ -47,7 +46,7 @@ private:
 
     /** \brief Handle for setStatus()
      */
-    virtual void handleSetStatus(StatusCode status) = 0;
+    virtual void handleSetStatus(ByteSpan status) = 0;
 
     /** \brief Handle for addFrame()
      */

@@ -10,7 +10,6 @@
 #include "MockPoller.hh"
 #include "Blob.hh"
 
-#include <boost/endian/conversion.hpp>
 #include <gtest/gtest.h>
 
 #include <array>
@@ -18,7 +17,6 @@
 
 using namespace Bridge::Coroutines;
 using namespace Bridge::Messaging;
-using Bridge::asBytes;
 using testing::_;
 using testing::Invoke;
 using testing::IsEmpty;
@@ -41,7 +39,7 @@ constexpr auto CORO_ENDPOINT = "inproc://bridge.test.asyncexecpolicy.coro"sv;
 }
 
 class AsynchronousExecutionPolicyTest :
-    public testing::TestWithParam<StatusCode> {
+    public testing::TestWithParam<Bridge::ByteSpan> {
 protected:
     virtual void SetUp()
     {
@@ -55,11 +53,9 @@ protected:
         return [this](auto context, auto& response)
         {
             ensureSocketReadable(context, coroSockets.first);
-            auto status = StatusCode {};
-            const auto recv_result = recvMessage(
-                *coroSockets.first, messageBuffer(&status, sizeof(status)));
-            ASSERT_FALSE(recv_result.truncated());
-            response.setStatus(status);
+            auto status_message = Message {};
+            recvMessage(*coroSockets.first, status_message);
+            response.setStatus(messageView(status_message));
         };
     }
 
@@ -95,7 +91,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
 
     // Send status to coroutine communication socket
     const auto status = GetParam();
-    sendMessage(coroSockets.second, messageBuffer(&status, sizeof(status)));
+    sendMessage(coroSockets.second, messageBuffer(status));
     ASSERT_TRUE(socketCallback);
     socketCallback(*coroSockets.first);
 
@@ -105,8 +101,7 @@ TEST_P(AsynchronousExecutionPolicyTest, testAsynchronousExecution)
     const auto n_parts = recvMultipart(
         messageQueueSockets.second, reply.begin(), reply.size()).second;
     EXPECT_EQ(EXPECTED_N_PARTS, n_parts);
-    EXPECT_EQ(
-        status, boost::endian::big_to_native(*reply[0].data<StatusCode>()));
+    EXPECT_EQ(status, messageView(reply[0]));
     EXPECT_EQ(COMMAND, messageView(reply[1]));
 }
 

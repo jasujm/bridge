@@ -5,7 +5,7 @@ namespace Messaging {
 
 Response::~Response() = default;
 
-void Response::setStatus(StatusCode status)
+void Response::setStatus(ByteSpan status)
 {
     handleSetStatus(status);
 }

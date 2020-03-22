@@ -1,3 +1,4 @@
+#include "messaging/Replies.hh"
 #include "MockMessageHandler.hh"
 
 #include <gtest/gtest.h>

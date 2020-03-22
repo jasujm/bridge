@@ -11,6 +11,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/MessageHandler.hh"
 #include "messaging/MessageQueue.hh"
+#include "messaging/Replies.hh"
 #include "messaging/Sockets.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "MockCallbackScheduler.hh"
@@ -80,7 +81,7 @@ protected:
         frontSocket = peerCommandSender->addPeer(context, ENDPOINT);
     }
 
-    void dealCommand(const Identity& identity, StatusCode expectedStatus)
+    void dealCommand(const Identity& identity, ByteSpan expectedStatus)
     {
         const auto args = {
             std::string {CARDS_COMMAND},

@@ -1,4 +1,5 @@
 #include "messaging/FunctionMessageHandler.hh"
+#include "messaging/Replies.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "MockMessageHandler.hh"
 #include "MockSerializationPolicy.hh"
@@ -12,6 +13,7 @@
 #include <vector>
 
 using Bridge::Blob;
+using Bridge::ByteSpan;
 using namespace Bridge::Messaging;
 
 using testing::_;
@@ -52,9 +54,9 @@ const auto REPLY_KEY2 = "replykey2"s;
 const auto REPLY1 = "reply"s;
 const auto REPLY2 = 3;
 
-Reply<> makeReply(const StatusCode status)
+Reply<> makeReply(const ByteSpan status)
 {
-    if (status >= 0) {
+    if (status == REPLY_SUCCESS) {
         return success();
     }
     return failure();
@@ -102,12 +104,12 @@ T FailingPolicy::deserialize(Bridge::ByteSpan)
 
 }
 
-class FunctionMessageHandlerTest : public testing::TestWithParam<StatusCode> {
+class FunctionMessageHandlerTest : public testing::TestWithParam<ByteSpan> {
 protected:
     void testHelper(
         MessageHandler& handler,
         const std::vector<std::string> params,
-        const StatusCode expectedStatus,
+        const ByteSpan expectedStatus,
         const std::vector<std::string> expectedOutput = {})
     {
         EXPECT_CALL(response, handleSetStatus(expectedStatus));
@@ -204,7 +206,7 @@ TEST_F(FunctionMessageHandlerTest, testExtraParameters)
             return function.call1(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
     EXPECT_CALL(function, call1(IDENTITY, "param"))
-        .WillOnce(Return(makeReply(true)));
+        .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {KEY1, "param", KEY2, "1"}, REPLY_SUCCESS);
 }
 
@@ -237,7 +239,7 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
             return function.call_opt(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
     EXPECT_CALL(function, call_opt(IDENTITY, std::make_optional(123)))
-        .WillOnce(Return(makeReply(true)));
+        .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {KEY1, "123"}, REPLY_SUCCESS);
 }
 
@@ -250,7 +252,7 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
             return function.call_opt(identity, param);
         }, MockSerializationPolicy {}, std::make_tuple(KEY1));
     EXPECT_CALL(function, call_opt(IDENTITY, std::optional<int> {}))
-        .WillOnce(Return(makeReply(true)));
+        .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {}, REPLY_SUCCESS);
 }
 

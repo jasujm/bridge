@@ -48,7 +48,7 @@ protected:
     {
         auto message = Message {};
         recvMessage(frontSocket, message);
-        EXPECT_EQ(success, isSuccessful(getStatusCode(message)));
+        EXPECT_EQ(success, isSuccessful(messageView(message)));
         ASSERT_TRUE(message.more());
         recvMessage(frontSocket, message);
         EXPECT_EQ(command, messageView(message));

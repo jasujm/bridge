@@ -24,12 +24,12 @@ using MockMessageHandler = MockBasicMessageHandler<SynchronousExecutionPolicy>;
 
 class MockResponse : public Response {
 public:
-    MOCK_METHOD1(handleSetStatus, void(StatusCode));
+    MOCK_METHOD1(handleSetStatus, void(ByteSpan));
     MOCK_METHOD1(handleAddFrame, void(ByteSpan));
 };
 
 template<typename... Args>
-auto Respond(StatusCode status, const Args&... frames)
+auto Respond(ByteSpan status, const Args&... frames)
 {
     using namespace Messaging;
     return ::testing::WithArg<3>(
