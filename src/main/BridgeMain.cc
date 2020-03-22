@@ -91,6 +91,7 @@ private:
         std::optional<Position> positions);
     Reply<GameState> get(
         const Identity& identity, const Uuid& gameUuid,
+        const std::optional<Uuid>& playerUuid,
         const std::optional<std::vector<std::string>>& keys);
     Reply<> call(
         const Identity& identity, const Uuid& gameUuid,
@@ -170,7 +171,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 stringToBlob(GET_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::get, JsonSerializer {},
-                    std::make_tuple(GAME_COMMAND, GET_COMMAND),
+                    std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, GET_COMMAND),
                     std::make_tuple(GET_COMMAND)),
             }
         }},
@@ -335,10 +336,12 @@ Reply<Uuid> BridgeMain::Impl::join(
 
 Reply<GameState> BridgeMain::Impl::get(
     const Identity& identity, const Uuid& gameUuid,
+    const std::optional<Uuid>& playerUuid,
     const std::optional<std::vector<std::string>>& keys)
 {
-    log(LogLevel::DEBUG, "Get command from %s. Game: %s", identity, gameUuid);
-    if (const auto player = internalGetPlayerFor(identity, std::nullopt)) {
+    log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
+        identity, gameUuid, playerUuid);
+    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
             return success(game->getState(*player, keys));
         }

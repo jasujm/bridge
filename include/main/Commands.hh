@@ -311,6 +311,7 @@
  * - \b Command: get
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
+ *   - \e player
  *   - \e get: array of keys for the values to be retrieved (optional)
  * - \b Reply:
  *   - \e get: object describing the current state of the game
@@ -321,6 +322,12 @@
  * the whole state of the game. If included, the reply SHOULD only
  * contain the key–value pairs contained in the array. Keys that are
  * not recognized SHOULD be ignored.
+ *
+ * The \e player argument is the player whose viewpoint is applied to
+ * the state representation. The player argument MAY be omitted if the
+ * player the client is allowed to act for is unique. The command MUST
+ * fail without output if the client is not allowed to act for the
+ * player.
  *
  * The intention is that this command is used by the clients to query
  * the state of the game. All peers are expected to track the state of
@@ -333,7 +340,7 @@
  * The \e get parameter in the reply is a JSON object consisting of (a
  * subset of) the following key–value pairs:
  *
- * - \e position: the position of the controlled player
+ * - \e position: the position of the player
  * - \e positionInTurn: the position of the player who is in turn to act
  * - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
  * - \e calls: array of \e calls that have been made in the current deal
