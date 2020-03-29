@@ -686,7 +686,7 @@ void Playing::notifyDummyRevealed(const DummyHandRevealedEvent&)
 {
     post_event(DummyRevealedEvent {});
     outermost_context().getDummyRevealedNotifier().notifyAll(
-        BridgeEngine::DummyRevealed {});
+        BridgeEngine::DummyRevealed {getDummyPosition(), getDummyHand()});
 }
 
 Position Playing::getDeclarerPosition() const
@@ -1165,6 +1165,13 @@ BridgeEngine::TrickCompleted::TrickCompleted(
 {
 }
 
+BridgeEngine::DummyRevealed::DummyRevealed(
+    const Position position, const Hand& hand) :
+    position {position},
+    hand {hand}
+{
+}
+
 BridgeEngine::DealEnded::DealEnded(
     const TricksWon& tricksWon, const GameManager::ResultType& result) :
     tricksWon {tricksWon},
@@ -1209,6 +1216,13 @@ bool operator==(
     const BridgeEngine::TrickCompleted& rhs)
 {
     return &lhs.trick == &rhs.trick && &lhs.winner == &rhs.winner;
+}
+
+bool operator==(
+    const BridgeEngine::DummyRevealed& lhs,
+    const BridgeEngine::DummyRevealed& rhs)
+{
+    return lhs.position == rhs.position && &lhs.hand == &rhs.hand;
 }
 
 bool operator==(

@@ -1,7 +1,8 @@
+#include "main/GameStateHelper.hh"
+
 #include "bridge/AllowedCalls.hh"
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
-#include "bridge/CardType.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
@@ -35,21 +36,13 @@
 namespace Bridge {
 namespace Main {
 
+using CardTypeVector = std::vector<std::optional<CardType>>;
+
 namespace {
 
 using Engine::BridgeEngine;
 using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
-
-using CardTypeVector = std::vector<std::optional<CardType>>;
-
-auto getCardsFromHandHelper(const Hand& hand)
-{
-    const auto func = [](const auto& card) { return card.getType(); };
-    return std::vector(
-        boost::make_transform_iterator(hand.begin(), func),
-        boost::make_transform_iterator(hand.end(), func));
-}
 
 auto getPosition(const BridgeEngine& engine, const Player& player)
 {
@@ -118,7 +111,7 @@ auto getPublicCards(const BridgeEngine& engine)
     for (const auto position : Position::all()) {
         if (const auto hand = engine.getHand(position)) {
             const auto cards_in_hand = engine.isVisibleToAll(*hand) ?
-                getCardsFromHandHelper(*hand) :
+                getCardsFromHand(*hand) :
                 CardTypeVector(
                     std::distance(hand->begin(), hand->end()), std::nullopt);
             cards.emplace(position.value(), cards_in_hand);
@@ -132,7 +125,7 @@ auto getPrivateCards(const BridgeEngine& engine, const Player& player)
     if (const auto position = engine.getPosition(player)) {
         if (const auto hand = engine.getHand(*position)) {
             return nlohmann::json {
-                { *position, getCardsFromHandHelper(*hand) },
+                { *position, getCardsFromHand(*hand) },
             };
         }
     }
@@ -199,6 +192,14 @@ auto getSelfSubobject(const Engine::BridgeEngine& engine, const Player& player)
     };
 }
 
+}
+
+CardTypeVector getCardsFromHand(const Hand& hand)
+{
+    const auto func = [](const auto& card) { return card.getType(); };
+    return std::vector(
+        boost::make_transform_iterator(hand.begin(), func),
+        boost::make_transform_iterator(hand.end(), func));
 }
 
 nlohmann::json getGameState(

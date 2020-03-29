@@ -612,6 +612,8 @@
  *
  * - \b Command: dummy
  * - \b Parameters:
+ *   - \e position: the position of the dummy
+ *   - \e cards: the cards of the dummy (an array of card objects)
  *   - \e counter: the running counter
  *
  * This event is published whenever the hand of the dummy is revealed.

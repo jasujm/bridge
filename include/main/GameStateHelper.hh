@@ -10,8 +10,11 @@
 
 #include <optional>
 
+#include "bridge/CardType.hh"
+
 namespace Bridge {
 
+class Hand;
 class Player;
 
 namespace Engine {
@@ -20,6 +23,15 @@ class DuplicateGameManager;
 }
 
 namespace Main {
+
+/** \brief Helper for extracting cards from a hand
+ *
+ * \param hand A hand object
+ *
+ * \return A vector containing CardType object for each visible card
+ * in the hand, and none for each non‐visible card
+ */
+std::vector<std::optional<CardType>> getCardsFromHand(const Hand& hand);
 
 /** \brief Helper for composing the current state of a game
  *

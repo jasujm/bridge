@@ -446,10 +446,13 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
     publish(TRICK_COMMAND, std::tie(WINNER_COMMAND, position));
 }
 
-void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed&)
+void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed& event)
 {
     log(LogLevel::DEBUG, "Dummy hand revealed");
-    publish(DUMMY_COMMAND);
+    publish(
+        DUMMY_COMMAND,
+        std::pair {POSITION_COMMAND, event.position},
+        std::pair {CARDS_COMMAND, getCardsFromHand(event.hand)});
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)

@@ -136,7 +136,17 @@ public:
 
     /** \brief Event for announcing that dummy has been revealed
      */
-    struct DummyRevealed {};
+    struct DummyRevealed : private boost::equality_comparable<DummyRevealed> {
+        /** ]brief Create new dummy revealed event
+         *
+         * \param position see \ref position
+         * \param hand see \ref hand
+         */
+        DummyRevealed(Position position, const Hand& hand);
+
+        Position position;       ///< \brief The position of the dummy
+        const Hand& hand;        ///< \brief The hand of the dummy
+    };
 
     /** \brief Event for announcing that deal has ended
      */
@@ -447,6 +457,11 @@ bool operator==(
  */
 bool operator==(
     const BridgeEngine::TrickCompleted&, const BridgeEngine::TrickCompleted&);
+
+/** \brief Equality operator for dummy revealed events
+ */
+bool operator==(
+    const BridgeEngine::DummyRevealed&, const BridgeEngine::DummyRevealed&);
 
 /** \brief Equality operator for deal ended events
  */
