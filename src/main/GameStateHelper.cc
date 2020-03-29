@@ -41,6 +41,16 @@ using Engine::BridgeEngine;
 using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
 
+using CardTypeVector = std::vector<std::optional<CardType>>;
+
+auto getCardsFromHandHelper(const Hand& hand)
+{
+    const auto func = [](const auto& card) { return card.getType(); };
+    return std::vector(
+        boost::make_transform_iterator(hand.begin(), func),
+        boost::make_transform_iterator(hand.end(), func));
+}
+
 auto getPosition(const BridgeEngine& engine, const Player& player)
 {
     return engine.getPosition(player);
@@ -102,23 +112,31 @@ auto getAllowedCards(const BridgeEngine& engine, const Player& player)
     return allowed_cards;
 }
 
-auto getCards(const Player& player, const BridgeEngine& engine)
+auto getPublicCards(const BridgeEngine& engine)
 {
-    using CardTypeVector = std::vector<std::optional<CardType>>;
     auto cards = nlohmann::json::object();
     for (const auto position : Position::all()) {
         if (const auto hand = engine.getHand(position)) {
-            auto type_func = [](const auto& card) { return card.getType(); };
-            const auto cards_in_hand = engine.isVisible(*hand, player) ?
-                CardTypeVector(
-                    boost::make_transform_iterator(hand->begin(), type_func),
-                    boost::make_transform_iterator(hand->end(), type_func)) :
+            const auto cards_in_hand = engine.isVisibleToAll(*hand) ?
+                getCardsFromHandHelper(*hand) :
                 CardTypeVector(
                     std::distance(hand->begin(), hand->end()), std::nullopt);
             cards.emplace(position.value(), cards_in_hand);
         }
     }
     return cards;
+}
+
+auto getPrivateCards(const BridgeEngine& engine, const Player& player)
+{
+    if (const auto position = engine.getPosition(player)) {
+        if (const auto hand = engine.getHand(*position)) {
+            return nlohmann::json {
+                { *position, getCardsFromHandHelper(*hand) },
+            };
+        }
+    }
+    return nlohmann::json::object();
 }
 
 auto getTrick(const BridgeEngine& engine)
@@ -148,6 +166,39 @@ auto getVulnerability(const DuplicateGameManager& gameManager)
     return gameManager.getVulnerability();
 }
 
+auto getPubstateSubobject(
+    const Engine::BridgeEngine& engine,
+    const Engine::DuplicateGameManager& gameManager)
+{
+    return nlohmann::json {
+        { POSITION_IN_TURN_COMMAND, getPositionInTurn(engine) },
+        { DECLARER_COMMAND, getBiddingResult(engine, &Bidding::getDeclarerPosition) },
+        { CONTRACT_COMMAND, getBiddingResult(engine, &Bidding::getContract) },
+        { CALLS_COMMAND, getCalls(engine) },
+        { CARDS_COMMAND, getPublicCards(engine) },
+        { TRICK_COMMAND, getTrick(engine) },
+        { TRICKS_WON_COMMAND, getTricksWon(engine) },
+        { VULNERABILITY_COMMAND, getVulnerability(gameManager) },
+    };
+}
+
+auto getPrivstateSubobject(
+    const Engine::BridgeEngine& engine, const Player& player)
+{
+    return nlohmann::json {
+        { CARDS_COMMAND, getPrivateCards(engine, player) },
+    };
+}
+
+auto getSelfSubobject(const Engine::BridgeEngine& engine, const Player& player)
+{
+    return nlohmann::json {
+        { POSITION_COMMAND, getPosition(engine, player) },
+        { ALLOWED_CALLS_COMMAND, getAllowedCalls(engine, player) },
+        { ALLOWED_CARDS_COMMAND, getAllowedCards(engine, player) },
+    };
+}
+
 }
 
 nlohmann::json getGameState(
@@ -156,56 +207,25 @@ nlohmann::json getGameState(
     const Engine::DuplicateGameManager& gameManager,
     std::optional<std::vector<std::string>> keys)
 {
-    auto state = nlohmann::json::object();
     if (keys) {
-        // keys will be binary searched below
-        std::sort(keys->begin(), keys->end());
+        auto state = nlohmann::json::object();
+        for (const auto& key : *keys) {
+            if (key == PUBSTATE_COMMAND) {
+                state.emplace(key, getPubstateSubobject(engine, gameManager));
+            } else if (key == PRIVSTATE_COMMAND) {
+                state.emplace(key, getPrivstateSubobject(engine, player));
+            } else if (key == SELF_COMMAND) {
+                state.emplace(key, getSelfSubobject(engine, player));
+            }
+        }
+        return state;
+    } else {
+        return {
+            { PUBSTATE_COMMAND, getPubstateSubobject(engine, gameManager) },
+            { PRIVSTATE_COMMAND, getPrivstateSubobject(engine, player) },
+            { SELF_COMMAND, getSelfSubobject(engine, player) },
+        };
     }
-    auto include_key = [&keys](const auto& key)
-    {
-        // keys are sorted above
-        return !keys || std::binary_search(keys->begin(), keys->end(), key);
-    };
-    if (include_key(POSITION_COMMAND)) {
-        state.emplace(POSITION_COMMAND, getPosition(engine, player));
-    }
-    if (include_key(POSITION_IN_TURN_COMMAND)) {
-        state.emplace(POSITION_IN_TURN_COMMAND, getPositionInTurn(engine));
-    }
-    if (include_key(DECLARER_COMMAND)) {
-        state.emplace(
-            DECLARER_COMMAND,
-            getBiddingResult(engine, &Bidding::getDeclarerPosition));
-    }
-    if (include_key(CONTRACT_COMMAND)) {
-        state.emplace(
-            CONTRACT_COMMAND,
-            getBiddingResult(engine, &Bidding::getContract));
-    }
-    if (include_key(ALLOWED_CALLS_COMMAND)) {
-        state.emplace(
-            ALLOWED_CALLS_COMMAND, getAllowedCalls(engine, player));
-    }
-    if (include_key(CALLS_COMMAND)) {
-        state.emplace(CALLS_COMMAND, getCalls(engine));
-    }
-    if (include_key(ALLOWED_CARDS_COMMAND)) {
-        state.emplace(
-            ALLOWED_CARDS_COMMAND, getAllowedCards(engine, player));
-    }
-    if (include_key(CARDS_COMMAND)) {
-        state.emplace(CARDS_COMMAND, getCards(player, engine));
-    }
-    if (include_key(TRICK_COMMAND)) {
-        state.emplace(TRICK_COMMAND, getTrick(engine));
-    }
-    if (include_key(TRICKS_WON_COMMAND)) {
-        state.emplace(TRICKS_WON_COMMAND, getTricksWon(engine));
-    }
-    if (include_key(VULNERABILITY_COMMAND)) {
-        state.emplace(VULNERABILITY_COMMAND, getVulnerability(gameManager));
-    }
-    return state;
 }
 
 }

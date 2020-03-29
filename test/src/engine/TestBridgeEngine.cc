@@ -211,21 +211,10 @@ protected:
 
     void assertHandsVisible(const Player* dummy = nullptr)
     {
-        for (const auto player_position : Position::all()) {
-            const auto& player = dereference(engine.getPlayer(player_position));
-            for (const auto hand_position : Position::all()) {
-                const auto& hand_player = engine.getPlayer(hand_position);
-                const auto& hand = dereference(engine.getHand(hand_position));
-                EXPECT_EQ(
-                    player_position == hand_position || dummy == hand_player,
-                    engine.isVisible(hand, player));
-            }
-        }
-        if (dummy) {
-            const auto& hand = dereference(
-                engine.getHand(dereference(engine.getPosition(*dummy))));
-            const MockPlayer other_player;
-            EXPECT_TRUE(engine.isVisible(hand, other_player));
+        for (const auto position : Position::all()) {
+            const auto* player = engine.getPlayer(position);
+            const auto& hand = dereference(engine.getHand(position));
+            EXPECT_EQ(dummy == player, engine.isVisibleToAll(hand));
         }
     }
 

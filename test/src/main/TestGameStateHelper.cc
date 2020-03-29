@@ -121,19 +121,21 @@ protected:
     }
 
     auto getStatusValue(
-        const std::string_view key, const Player* player = nullptr)
+        const std::string_view key, const std::string_view subkey,
+        const Player* player = nullptr)
     {
         if (!player) {
             player = players[0].get();
         }
         const auto state = getStatusValues(*player, key);
-        return state.at(std::string {key});
+        return state.at(std::string {key}).at(std::string {subkey});
     }
 
     void assertEmptyStatusValue(
-        const std::string_view key, const Player* player = nullptr)
+        const std::string_view key, const std::string_view subkey,
+        const Player* player = nullptr)
     {
-        EXPECT_TRUE(getStatusValue(key, player).empty()) << key;
+        EXPECT_TRUE(getStatusValue(key, subkey, player).empty()) << key;
     }
 
     std::shared_ptr<SimpleCardManager> cardManager {
@@ -154,58 +156,71 @@ TEST_F(GameStateHelperTest, testRequestWithoutKeysIncludesAllKeys)
 {
     const auto state = getStatusValues(*players[0], std::nullopt);
     constexpr auto ALL_KEYS = std::array {
-        POSITION_COMMAND, POSITION_IN_TURN_COMMAND, ALLOWED_CALLS_COMMAND,
-        CALLS_COMMAND, DECLARER_COMMAND, CONTRACT_COMMAND, ALLOWED_CARDS_COMMAND,
-        CARDS_COMMAND, TRICK_COMMAND, TRICKS_WON_COMMAND, VULNERABILITY_COMMAND
+        PUBSTATE_COMMAND, PRIVSTATE_COMMAND, SELF_COMMAND,
     };
     for (const auto key : ALL_KEYS) {
         EXPECT_TRUE(state.contains(key)) << key;
     }
 }
 
+TEST_F(GameStateHelperTest, testPosition)
+{
+    for (const auto t : boost::combine(Position::all(), players)) {
+        const auto expected = t.get<0>();
+        const auto actual =
+            getStatusValue(SELF_COMMAND, POSITION_COMMAND, t.get<1>().get())
+            .get<Position>();
+        EXPECT_EQ(expected, actual);
+    }
+}
+
 TEST_F(GameStateHelperTest, testPositionInTurn)
 {
     shuffle();
-    const auto position = getStatusValue(POSITION_IN_TURN_COMMAND).get<Position>();
+    const auto position = getStatusValue(
+        PUBSTATE_COMMAND, POSITION_IN_TURN_COMMAND)
+        .get<Position>();
     EXPECT_EQ(Positions::NORTH, position);
 }
 
 TEST_F(GameStateHelperTest, testPositionInTurnBeforeDealStarted)
 {
-    assertEmptyStatusValue(POSITION_IN_TURN_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, POSITION_IN_TURN_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testAllowedCallsForPlayerInTurn)
 {
     shuffle();
-    const auto calls = getStatusValue(ALLOWED_CALLS_COMMAND).get<CallVector>();
+    const auto calls = getStatusValue(SELF_COMMAND, ALLOWED_CALLS_COMMAND)
+        .get<CallVector>();
     EXPECT_FALSE(calls.empty());
 }
 
 TEST_F(GameStateHelperTest, testAllowedCallsForPlayerNotInTurn)
 {
     shuffle();
-    assertEmptyStatusValue(ALLOWED_CALLS_COMMAND, players[1].get());
+    assertEmptyStatusValue(
+        SELF_COMMAND, ALLOWED_CALLS_COMMAND, players[1].get());
 }
 
 TEST_F(GameStateHelperTest, testAllowedCallsAfterBidding)
 {
     shuffle();
     makeBidding();
-    assertEmptyStatusValue(ALLOWED_CALLS_COMMAND);
+    assertEmptyStatusValue(SELF_COMMAND, ALLOWED_CALLS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCallsIfEmpty)
 {
     shuffle();
-    assertEmptyStatusValue(CALLS_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, CALLS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCallsIfNotEmpty)
 {
     shuffle();
     makeBidding();
-    const auto j = getStatusValue(CALLS_COMMAND);
+    const auto j = getStatusValue(PUBSTATE_COMMAND, CALLS_COMMAND);
     for (auto&& t : boost::combine(j, Position::all(), CALLS)) {
         const auto position_iter = t.get<0>().find(POSITION_COMMAND);
         ASSERT_NE(t.get<0>().end(), position_iter);
@@ -220,28 +235,30 @@ TEST_F(GameStateHelperTest, testCallsIfNotEmpty)
 
 TEST_F(GameStateHelperTest, testDeclarerIfBiddingNotCompleted)
 {
-    assertEmptyStatusValue(DECLARER_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, DECLARER_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testDeclarerIfBiddingCompleted)
 {
     shuffle();
     makeBidding();
-    const auto position = getStatusValue(DECLARER_COMMAND).get<Position>();
+    const auto position = getStatusValue(PUBSTATE_COMMAND, DECLARER_COMMAND)
+        .get<Position>();
     EXPECT_EQ(Positions::NORTH, position);
 }
 
 TEST_F(GameStateHelperTest, testContractIfBiddingNotCompleted)
 {
     shuffle();
-    assertEmptyStatusValue(CONTRACT_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, CONTRACT_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testContractIfBiddingCompleted)
 {
     shuffle();
     makeBidding();
-    const auto contract = getStatusValue(CONTRACT_COMMAND).get<Bridge::Contract>();
+    const auto contract = getStatusValue(PUBSTATE_COMMAND, CONTRACT_COMMAND)
+        .get<Bridge::Contract>();
     EXPECT_EQ(CONTRACT, contract);
 }
 
@@ -250,7 +267,8 @@ TEST_F(GameStateHelperTest, testAllowedCardsForPlayerInTurn)
     shuffle();
     makeBidding();
     const auto cards = getStatusValue(
-        ALLOWED_CARDS_COMMAND, players[1].get()).get<CardVector>();
+        SELF_COMMAND, ALLOWED_CARDS_COMMAND, players[1].get())
+        .get<CardVector>();
     EXPECT_TRUE(
         std::equal(
             cardTypeIterator(N_CARDS_PER_PLAYER),
@@ -262,40 +280,55 @@ TEST_F(GameStateHelperTest, testAllowedCardsForPlayerNotInTurn)
 {
     shuffle();
     makeBidding();
-    assertEmptyStatusValue(ALLOWED_CARDS_COMMAND);
+    assertEmptyStatusValue(SELF_COMMAND, ALLOWED_CARDS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testAllowedCardsBeforeBiddingIsCompleted)
 {
     shuffle();
-    assertEmptyStatusValue(ALLOWED_CARDS_COMMAND);
+    assertEmptyStatusValue(SELF_COMMAND, ALLOWED_CARDS_COMMAND);
 }
 
-TEST_F(GameStateHelperTest, testCardsIfEmpty)
+TEST_F(GameStateHelperTest, testPublicCardsIfEmpty)
 {
-    assertEmptyStatusValue(CARDS_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, CARDS_COMMAND);
 }
 
-TEST_F(GameStateHelperTest, testCardsIfNotEmpty)
+TEST_F(GameStateHelperTest, testPrivateCardsIfEmpty)
+{
+    assertEmptyStatusValue(PRIVSTATE_COMMAND, CARDS_COMMAND);
+}
+
+TEST_F(GameStateHelperTest, testPublicCardsIfNotEmpty)
 {
     shuffle();
-    const auto j = getStatusValue(CARDS_COMMAND);
+    const auto j = getStatusValue(PUBSTATE_COMMAND, CARDS_COMMAND);
     for (const auto position : Position::all()) {
         const auto actual = j.at(std::string {position.value()})
             .get<OptionalCardVector>();
-        const auto expected = (position == Positions::NORTH) ?
-            OptionalCardVector(
-                cardTypeIterator(0),
-                cardTypeIterator(N_CARDS_PER_PLAYER)) :
+        const auto expected =
             OptionalCardVector(N_CARDS_PER_PLAYER, std::nullopt);
         EXPECT_EQ(expected, actual);
     }
 }
 
+TEST_F(GameStateHelperTest, testPrivateCardsIfNotEmpty)
+{
+    shuffle();
+    const auto j = getStatusValue(PRIVSTATE_COMMAND, CARDS_COMMAND);
+    const auto actual = j.at(std::string {Positions::NORTH.value()})
+        .get<OptionalCardVector>();
+    const auto expected =
+        OptionalCardVector(
+            cardTypeIterator(0),
+            cardTypeIterator(N_CARDS_PER_PLAYER));
+    EXPECT_EQ(expected, actual);
+}
+
 TEST_F(GameStateHelperTest, testCurrentTrickIfEmpty)
 {
     shuffle();
-    assertEmptyStatusValue(TRICK_COMMAND);
+    assertEmptyStatusValue(PUBSTATE_COMMAND, TRICK_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
@@ -306,7 +339,7 @@ TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
     const auto expected_card_type =
         dereference(dereference(hand.getCard(0)).getType());
     engine->play(*players[1], hand, 0);
-    const auto trick = getStatusValue(TRICK_COMMAND);
+    const auto trick = getStatusValue(PUBSTATE_COMMAND, TRICK_COMMAND);
     ASSERT_EQ(1u, trick.size());
     const auto position_iter = trick[0].find(POSITION_COMMAND);
     ASSERT_NE(trick[0].end(), position_iter);
@@ -318,14 +351,14 @@ TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
 
 TEST_F(GameStateHelperTest, testTricksWon)
 {
-    const auto tricks_won = getStatusValue(TRICKS_WON_COMMAND)
+    const auto tricks_won = getStatusValue(PUBSTATE_COMMAND, TRICKS_WON_COMMAND)
     .get<Bridge::TricksWon>();
     EXPECT_EQ(Bridge::TricksWon(0, 0), tricks_won);
 }
 
 TEST_F(GameStateHelperTest, testVulnerability)
 {
-    const auto vulnerability = getStatusValue(VULNERABILITY_COMMAND)
+    const auto vulnerability = getStatusValue(PUBSTATE_COMMAND, VULNERABILITY_COMMAND)
         .get<Bridge::Vulnerability>();
     EXPECT_EQ(Bridge::Vulnerability(false, false), vulnerability);
 }

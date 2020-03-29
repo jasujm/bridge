@@ -1084,12 +1084,10 @@ const Player* BridgeEngine::getPlayer(const Position position) const
     return impl->getPlayer(position);
 }
 
-bool BridgeEngine::isVisible(const Hand& hand, const Player& player) const
+bool BridgeEngine::isVisibleToAll(const Hand& hand) const
 {
     assert(impl);
-    const auto position = getPosition(player);
-    return (position && &hand == getHand(*position)) ||
-        &hand == impl->getDummyHandIfVisible();
+    return &hand == impl->getDummyHandIfVisible();
 }
 
 std::optional<Position> BridgeEngine::getPosition(const Player& player) const

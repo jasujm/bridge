@@ -371,20 +371,14 @@ public:
      */
     const Hand* getHand(Position position) const;
 
-    /** \brief Determine whether the given player is allowed to see the hand
+    /** \brief Determine whether the hand is publicly visible
      *
-     * If a deal is ongoing, each player taking part in the game sees his own
-     * hand. If the opening lead has been played, each player (whether or not
-     * taking part in the game) also sees the hand of the dummy. This method can
-     * be used to determine whether \p player can see \p hand according to those
-     * rules.
+     * \param hand the hand
      *
-     * \param hand the hand \p player is interested in
-     * \param player the player interested in \p hand
-     *
-     * \return true if \p player is allowed to see \p hand, false otherwise
+     * \return true if \p hand belongs to the dummy and the opening
+     * lead has been played, false otherwise
      */
-    bool isVisible(const Hand& hand, const Player& player) const;
+    bool isVisibleToAll(const Hand& hand) const;
 
     /** \brief Determine the position of given hand
      *

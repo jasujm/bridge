@@ -342,7 +342,7 @@
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
  *   - \e player
- *   - \e get: array of keys for the values to be retrieved (optional)
+ *   - \e get: array of keys (optional)
  * - \b Reply:
  *   - \e get: object describing the current state of the game
  *   - \e counter: the running counter
@@ -350,7 +350,7 @@
  * Get commands retrieves one or multiple key–value pairs describing
  * the state of a game. The \e get argument is a array of keys to be
  * retrieved. It MAY be omitted in which case the reply MUST contain
- * the whole state of the game. If included, the reply SHOULD only
+ * all the keys described below. If included, the reply SHOULD only
  * contain the key–value pairs contained in the array. Keys that are
  * not recognized SHOULD be ignored.
  *
@@ -365,43 +365,66 @@
  * the game themselves. Therefore, the result of this command is
  * unspecified if it comes from another peer. In particular, get
  * command from peer MAY simply return a failure. In any case any
- * information about hidden cards of a player MUST NOT be revealed to
+ * private information available to the player MUST NOT be revealed to
  * a node not controlling or representing that player.
  *
- * The \e get parameter in the reply is a JSON object consisting of (a
- * subset of) the following key–value pairs:
+ * The \e get parameter in the reply is a JSON object with the
+ * following outline:
  *
- * - \e position: the position of the player
- * - \e positionInTurn: the position of the player who is in turn to act
- * - \e allowedCalls: array of allowed \e calls to make, if any, \ref jsoncall
- * - \e calls: array of \e calls that have been made in the current deal
- * - \e declarer: the \e position of the declarer
- * - \e contract: the \e contract reached, see \ref jsoncontract
- * - \e allowedCards: array of allowed \e cards to play, if any,
- *   \ref jsoncardtype
- * - \e cards: object containing \e cards that are visible to the player
- * - \e trick: array containing \e cards in the current trick
- * - \e tricksWon: see \ref jsontrickswon
- * - \e vulnerability: \e vulnerabilities of the current deal,
- *   see \ref jsonvulnerability
+ * \code{.json}
+ * {
+ *     "pubstate": {
+ *         "positionInTurn": <the position of the player who is in turn to act>,
+ *         "calls": [<calls that have been made in the current deal>],
+ *         "declarer": <the position of the declarer, or null>,
+ *         "contract": <the contract reached, or null>,
+ *         "cards": <cards that are visible to all players>,
+ *         "trick": [<cards in the current trick>],
+ *         "tricksWon": <tricks won by each partnership>,
+ *         "vulnerability": <vulnerability>
+ *     },
+ *     "prvstate": {
+ *         "cards": <cards that are visible to the player>,
+ *     },
+ *     "self": {
+ *         "position": <the position of the player>,
+ *         "allowedCalls": [<allowed calls to make, if any>],
+ *         "allowedCards": [<allowed cards to play, if any>]
+ *     }
+ * }
+ * \endcode
  *
- * The \e position parameter contains the position of the player that the client
- * controls.
+ * On a high level the top level subobjects contain the following
+ * kinds of information:
  *
- * The \e positionInTurn parameter contains the position of the player that has
- * the turn to act next. If no player has turn (e.g. because deal has ended and
- * the cards are not dealt yet for the next deal), the position is null. The
- * declarer plays for dummy, so if the next card will be played from the hand of
- * the dummy, the declarer has turn.
+ * - \b pubstate contains public information available to all the
+ *   players taking part in the game. The contents of this object are
+ *   independent of the player requesting it.
  *
- * If the deal is in the bidding phase and the player has turn, the \e
- * allowedCalls parameter is the set of calls allowed to be made by the player.
+ * - \b privstate contains information only available to the
+ *   requesting player. In order to determine the full state of the
+ *   game from the point of view of the requesting player, the client
+ *   MAY consider this object a merge patch following the semantics of
+ *   RFC 7386, that is applied on top of pubstate.
  *
- * The \e calls parameter is an array of positon–call pairs, each containing a
- * position (field “position”) and a call (field “call”) made by the player at
- * the position. The array is ordered in the order the calls were made. The
- * array is empty if no calls have been made (possibly because cards have not
- * been dealt and bidding not started).
+ * - \b self contains information about the player itself within the
+ *   game.
+ *
+ * \subsubsection bridgeprotocolcontrolgetstate Game state subobject
+ *
+ * The \e positionInTurn subobject contains the position of the player
+ * that has the turn to act next. If no player has turn (e.g. because
+ * deal has ended and the cards are not dealt yet for the next deal),
+ * the position is null. The declarer plays for dummy, so if the next
+ * card will be played from the hand of the dummy, the declarer has
+ * turn.
+ *
+ * The \e calls subobject is an array of positon–call pairs, each
+ * containing a position (field “position”) and a call (field “call”)
+ * made by the player at the position. The array is ordered in the
+ * order the calls were made. The array is empty if no calls have been
+ * made (possibly because cards have not been dealt and bidding not
+ * started).
  *
  * An example of an object corresponding to the player at north bidding
  * one clubs would be:
@@ -413,34 +436,47 @@
  * }
  * \endcode
  *
- * The \e declarer and \e contract parameters are the position of the declarer
- * and the contract reached in a completed bidding, respectively. If contract
- * has not been reached in the current deal (or perhaps because the deal is not
- * ongoing), both declarer and contract are null values.
+ * The \e declarer and \e contract subobjects are the position of the
+ * declarer and the contract reached in a completed bidding,
+ * respectively. If contract has not been reached in the current deal
+ * (or perhaps because the deal is not ongoing), both declarer and
+ * contract are null values.
  *
- * If the deal is in the playing phase and the player has turn, the \e
- * allowedCards parameter is the set of cards allowed to be played by the
- * player.
+ * The \e cards subobject contains mapping from positions to list of
+ * cards held by the player in that position.  Cards not visible to
+ * all players are represented as nulls in the pubstate object. The
+ * cards visible to the requesting player are only included in the
+ * privstate object, unless the requesting player is dummy. The object
+ * is empty if cards have not been dealt yet.
  *
- * The \e cards parameter is an object containing mapping from positions to list
- * of cards held by the player in that position. The mapping MUST only contain
- * those hands that are visible to the player, i.e. his own hand and dummy if it
- * has been revealed. The object is empty if cards have not been dealt yet.
+ * The \e trick subobject is an array of position–card pairs, each
+ * containing a position (field “position”) and a card (field “card”)
+ * played by the position to the trick. The array is ordered in the
+ * order that the cards were played to the trick. The array is empty
+ * if no cards have been played to the current trick (possibly because
+ * the last trick was just completed or the playing phase has not
+ * started).
  *
- * The \e trick parameter is an array of position–card pairs, each containing a
- * position (field “position”) and a card (field “card”) played by the position
- * to the trick. The array is ordered in the order that the cards were played to
- * the trick. The array is empty if no cards have been played to the current
- * trick (possibly because the last trick was just completed or the playing
- * phase has not started).
+ * The \e tricksWon subobject contains mapping from partnerships to
+ * the number of tricks won by each side. If no tricks have been
+ * completed (perhaps because bidding is not yet completed), both
+ * fields are zero.
  *
- * The \e tricksWon parameter is an object containing mapping from partnerships
- * to the number of tricks won by each side. If no tricks have been completed
- * (perhaps because bidding is not yet completed), both fields are zero.
+ * The \e vulnerability subobject contains the current vulnerabilities
+ * of the partnerships. If they are not known (perhaps because there
+ * is no ongoing deal), the value is empty.
  *
- * The \e vulnerability parameter is an object containing the current
- * vulnerabilities of the partnerships. If they are not known (perhaps because
- * there is no ongoing deal), the value is empty.
+ * \subsubsection bridgeprotocolcontrolgetself Self subobject
+ *
+ * The \e position subobject contains the position of the player.
+ *
+ * The \e allowedCalls subobject is an array of the calls allowed to
+ * be made by the player. It is always empty if the game is not in the
+ * bidding phase or the player doesn’t have turn.
+ *
+ * The \e allowedCards subobject is an array of the cards allowed to
+ * be played by the player. It is always empty if the game is not in
+ * the playing phase or the player doesn’t have turn.
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -652,6 +688,15 @@ inline constexpr auto SERVER_KEY_COMMAND = std::string_view {"serverKey"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto GET_COMMAND = std::string_view {"get"};
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto PUBSTATE_COMMAND = std::string_view {"pubstate"};
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto PRIVSTATE_COMMAND = std::string_view {"privstate"};
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto SELF_COMMAND = std::string_view {"self"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
