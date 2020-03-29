@@ -50,7 +50,6 @@ using Messaging::success;
 
 namespace {
 
-using VersionVector = std::vector<int>;
 using GameMessageHandler = Messaging::DispatchingMessageHandler<
     Uuid, JsonSerializer>;
 
@@ -60,8 +59,10 @@ auto initializeGameMessageHandler()
         stringToBlob(GAME_COMMAND), JsonSerializer {});
 }
 
-const std::string PEER_ROLE {"peer"};
-const std::string CLIENT_ROLE {"client"};
+using namespace std::string_view_literals;
+const auto VERSION = "0.1"sv;
+const auto PEER_ROLE = "peer"sv;
+const auto CLIENT_ROLE = "client"sv;
 
 enum class Role {
     PEER,
@@ -80,7 +81,7 @@ public:
 private:
 
     Reply<> hello(
-        const Identity& identity, const VersionVector& version,
+        const Identity& identity, const std::string& version,
         const std::string& role);
     Reply<Uuid> game(
         const Identity& identity, const std::optional<Uuid>& uuid,
@@ -237,13 +238,12 @@ void BridgeMain::Impl::run()
 }
 
 Reply<> BridgeMain::Impl::hello(
-    const Identity& identity, const VersionVector& version,
+    const Identity& identity, const std::string& version,
     const std::string& role)
 {
     log(LogLevel::DEBUG, "Hello command from %s. Version: %d. Role: %s",
-        identity, version.empty() ? -1 : version.front(), role);
-    if (version.empty() || version.front() > 0 ||
-        nodes.find(identity) != nodes.end()) {
+        identity, version, role);
+    if (version != "0.1"sv) {
         return failure();
     } else if (role == PEER_ROLE) {
         log(LogLevel::DEBUG, "Peer accepted: %s", identity);

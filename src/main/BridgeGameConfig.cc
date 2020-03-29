@@ -21,10 +21,9 @@ namespace Main {
 
 namespace {
 
-using namespace std::string_literals;
-
-const auto VERSION_VECTOR = std::vector {0};
-const auto PEER_ROLE = "peer"s;
+using namespace std::string_view_literals;
+const auto VERSION = "0.1"sv;
+const auto PEER_ROLE = "peer"sv;
 
 }
 
@@ -73,9 +72,8 @@ BridgeGame gameFromConfig(
         peer_command_sender->sendCommand(
             Messaging::JsonSerializer {},
             HELLO_COMMAND,
-            std::make_tuple(
-                std::cref(VERSION_COMMAND), std::cref(VERSION_VECTOR)),
-            std::make_tuple(std::cref(ROLE_COMMAND), std::cref(PEER_ROLE)));
+            std::pair {VERSION_COMMAND, VERSION},
+            std::pair {ROLE_COMMAND, PEER_ROLE});
         auto game_args = nlohmann::json {
             { POSITIONS_COMMAND, config.positionsControlled },
         };

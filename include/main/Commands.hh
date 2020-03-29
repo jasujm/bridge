@@ -4,6 +4,8 @@
  *
  * \page bridgeprotocol Bridge protocol
  *
+ * This document describes the birdge protocol version 0.1.
+ *
  * \note The protocol is not stable and evolves as the application is
  * developed.
  *
@@ -232,25 +234,27 @@
  *
  * - \b Command: bridgehlo
  * - \b Parameters:
- *   - \e version: an array of integers describing the version of the protocol
+ *   - \e version: a string containing the version of the protocol
  *   - \e role: a string, either “peer” or “client”
  * - \b Reply: \e none
  *
- * Each node MUST start the communication with this command before sending any
- * other command.
+ * Each node MUST start the communication with this command before
+ * sending any other command.
  *
- * The version MUST be an array of integers containing at least one element (the
- * major version). The version MAY contain further elements describing minor,
- * patch etc. versions.
+ * The version MUST be a string containing the requested protocol
+ * version. Semantic versioning 2.0.0
+ * (https://semver.org/spec/v2.0.0.html) MUST be used.
  *
- * The role MUST be either "peer" or "client". The roles are described in \ref
- * bridgeprotocolroles.
+ * The role MUST be either "peer" or "client". The roles are described
+ * in \ref bridgeprotocolroles.
  *
- * The peer MAY accept a node if it is compatible with the major version of the
- * protocol. The peer MUST reject the peer if it is not compatible with the
- * version. If rejected, the other peer MAY try to send another bridgehlo
- * command with downgraded version. The development protocol is denoted by major
- * version 0.
+ * The peer MAY accept a node if it is compatible with the major
+ * version of the protocol. The peer MUST reject the peer if it is not
+ * compatible with the version. If rejected, the other peer MAY try to
+ * send another bridgehlo command with a downgraded version.
+ *
+ * A peer following this protocol specification MUST use "0.1" as the
+ * version number.
  *
  * \subsection bridgeprotocolcontrolgame game
  *
