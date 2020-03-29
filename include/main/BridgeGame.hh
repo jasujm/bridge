@@ -67,6 +67,12 @@ public:
      */
     using IdentitySet = std::set<Messaging::UserId>;
 
+    /** \brief Type of the running counter
+     *
+     * \sa \ref bridgeprotocolcounter
+     */
+    using Counter = std::uint64_t;
+
     /** \brief Create new bridge game
      *
      * The client who creates an instance of BridgeGame is responsible for
@@ -199,7 +205,16 @@ public:
      */
     GameState getState(
         const Player& player,
-        const std::optional<std::vector<std::string>>& keys);
+        const std::optional<std::vector<std::string>>& keys) const;
+
+    /** \brief Get the value of the running counter
+     *
+     * The running counter is used to synchronize state snapshots to
+     * the events published by the BridgeGame instance.
+     *
+     * \sa \ref bridgeprotocolcounter
+     */
+    Counter getCounter() const;
 
     /** \brief Make call
      *

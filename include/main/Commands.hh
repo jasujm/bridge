@@ -52,6 +52,7 @@
  *   sending commands required in \ref bridgeprotocolcontrolmessage
  * - SHOULD hand over connection to nodes that connect with the same identity as
  *   previously connected node
+ * - MUST keep a running counter for synchronization purposes
  *
  * \subsection bridgeprotocolclients Clients
  *
@@ -202,6 +203,29 @@
  * | 4 | card                                       | Argument key
  * | 5 | {"rank":"ace","suit":"spades"}             | Argument value (JSON)
  *
+ *
+ * \section bridgeprotocolcounter Running counter
+ *
+ * In order to enable the clients to reconstruct the state of a game
+ * from the combination of a full state snapshot returned in the reply
+ * of the \ref bridgeprotocolcontrolget command, and the continuous
+ * stream of events published via the event socket, a peer MUST
+ * maintain a running counter that is
+ *
+ * - published with each event message
+ * - returned as part of the reply to the
+ *   \ref bridgeprotocolcontrolget command
+ *
+ * The counter values in the event messages concerning a single game
+ * MUST form a strictly increasing sequence of unsigned integers. The
+ * counter MAY be maintained for each game separately, or there MAY be
+ * a global counter incremented each time the peer publishes an event
+ * for any game.
+ *
+ * When a client receives a reply to the get command with a counter
+ * value N, it SHOULD consider any event with a counter value less
+ * than N stale and ignore it.
+ *
  * \section bridgeprotocolcontrolcommands Control commands
  *
  * \subsection bridgeprotocolcontrolbridgehlo bridgehlo
@@ -321,6 +345,7 @@
  *   - \e get: array of keys for the values to be retrieved (optional)
  * - \b Reply:
  *   - \e get: object describing the current state of the game
+ *   - \e counter: the running counter
  *
  * Get commands retrieves one or multiple key–value pairs describing
  * the state of a game. The \e get argument is a array of keys to be
@@ -523,6 +548,7 @@
  * - \b Parameters:
  *   - \e position: the position of the player to make the call
  *   - \e call: see \ref jsoncall
+ *   - \e counter: the running counter
  *
  * This event is published whenever a call is made.
  *
@@ -532,6 +558,7 @@
  * - \b Parameters:
  *   - \e declarer: the declarer determined by the bidding
  *   - \e contract: the contract reached
+ *   - \e counter: the running counter
  *
  * This event is published whenever contract is reached in bidding
  *
@@ -541,13 +568,15 @@
  * - \b Parameters:
  *   - \e position: the position of the hand the card is played from
  *   - \e card: see \ref jsoncardtype
+ *   - \e counter: the running counter
  *
  * This event is published whenever a card is played.
  *
  * \subsection bridgeprotocoleventdummy dummy
  *
  * - \b Command: dummy
- * - \b Parameters: \e none
+ * - \b Parameters:
+ *   - \e counter: the running counter
  *
  * This event is published whenever the hand of the dummy is revealed.
  *
@@ -556,6 +585,7 @@
  * - \b Command: trick
  * - \b Parameters:
  *   - \e winner: the \e position of the player that wins the trick
+ *   - \e counter: the running counter
  *
  * This event is published whenever a trick is completed.
  *
@@ -563,8 +593,9 @@
  *
  * - \b Command: dealend
  * - \b Parameters:
- *   - tricksWon: the number of tricks won by each partnership
- *   - score: the score awarded to the winner, see \ref jsonduplicatescore
+ *   - \e tricksWon: the number of tricks won by each partnership
+ *   - \e score: the score awarded to the winner, see \ref jsonduplicatescore
+ *   - \e counter: the running counter
  *
  * This event is published whenever a deal ends. If the deal passes out,
  * tricksWon are 0 for each partnership and score is null.
@@ -621,6 +652,10 @@ inline constexpr auto SERVER_KEY_COMMAND = std::string_view {"serverKey"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto GET_COMMAND = std::string_view {"get"};
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto COUNTER_COMMAND = std::string_view {"counter"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

@@ -89,7 +89,7 @@ private:
         const Identity& identity, const std::optional<Uuid>& gameUuid,
         const std::optional<Uuid>& playerUuid,
         std::optional<Position> positions);
-    Reply<GameState> get(
+    Reply<GameState, BridgeGame::Counter> get(
         const Identity& identity, const Uuid& gameUuid,
         const std::optional<Uuid>& playerUuid,
         const std::optional<std::vector<std::string>>& keys);
@@ -172,7 +172,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 makeMessageHandler(
                     *this, &Impl::get, JsonSerializer {},
                     std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, GET_COMMAND),
-                    std::make_tuple(GET_COMMAND)),
+                    std::make_tuple(GET_COMMAND, COUNTER_COMMAND)),
             }
         }},
     messageLoop {context},
@@ -334,7 +334,7 @@ Reply<Uuid> BridgeMain::Impl::join(
     return failure();
 }
 
-Reply<GameState> BridgeMain::Impl::get(
+Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     const Identity& identity, const Uuid& gameUuid,
     const std::optional<Uuid>& playerUuid,
     const std::optional<std::vector<std::string>>& keys)
@@ -343,7 +343,7 @@ Reply<GameState> BridgeMain::Impl::get(
         identity, gameUuid, playerUuid);
     if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
-            return success(game->getState(*player, keys));
+            return success(game->getState(*player, keys), game->getCounter());
         }
     }
     return failure();

@@ -109,7 +109,9 @@ public:
 
     GameState getState(
         const Player& player,
-        const std::optional<std::vector<std::string>>& keys);
+        const std::optional<std::vector<std::string>>& keys) const;
+
+    Counter getCounter() const;
 
     bool call(
         const Identity& identity, const Player& player, const Call& call);
@@ -161,6 +163,7 @@ private:
     const IdentitySet participants;
     BridgeEngine engine;
     std::unique_ptr<CardProtocol> cardProtocol;
+    std::uint64_t counter;
 };
 
 BridgeGame::Impl::Impl(
@@ -184,7 +187,8 @@ BridgeGame::Impl::Impl(
         cardProtocol ?
             cardProtocol->getCardManager() : shuffler->getCardManager(),
         gameManager},
-    cardProtocol {std::move(cardProtocol)}
+    cardProtocol {std::move(cardProtocol)},
+    counter {}
 {
     if (shuffler) {
         shuffler->getCardManager()->subscribe(shuffler);
@@ -219,7 +223,9 @@ void BridgeGame::Impl::publish(const std::string_view command, Args&&... args)
     log(LogLevel::DEBUG, "Publishing event: %s", command);
     sendEventMessage(
         dereference(eventSocket), JsonSerializer {}, os.str(),
-        std::forward<Args>(args)...);
+        std::forward<Args>(args)...,
+        std::tie(COUNTER_COMMAND, counter));
+    ++counter;
 }
 
 bool BridgeGame::Impl::addPeer(
@@ -300,11 +306,17 @@ void BridgeGame::Impl::join(
 
 GameState BridgeGame::Impl::getState(
     const Player& player,
-    const std::optional<std::vector<std::string>>& keys)
+    const std::optional<std::vector<std::string>>& keys) const
 {
     assert(gameManager);
     return getGameState(player, engine, *gameManager, keys);
 }
+
+BridgeGame::Counter BridgeGame::Impl::getCounter() const
+{
+    return counter;
+}
+
 
 bool BridgeGame::Impl::call(
     const Identity& identity, const Player& player, const Call& call)
@@ -512,10 +524,16 @@ void BridgeGame::join(
 
 GameState BridgeGame::getState(
     const Player& player,
-    const std::optional<std::vector<std::string>>& keys)
+    const std::optional<std::vector<std::string>>& keys) const
 {
     assert(impl);
     return impl->getState(player, keys);
+}
+
+BridgeGame::Counter BridgeGame::getCounter() const
+{
+    assert(impl);
+    return impl->getCounter();
 }
 
 bool BridgeGame::call(
