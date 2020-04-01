@@ -133,36 +133,35 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 stringToBlob(HELLO_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::hello, JsonSerializer {},
-                    std::make_tuple(VERSION_COMMAND, ROLE_COMMAND))
+                    std::tuple {VERSION_COMMAND, ROLE_COMMAND})
             },
             {
                 stringToBlob(GAME_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::game, JsonSerializer {},
-                    std::make_tuple(GAME_COMMAND, ARGS_COMMAND),
-                    std::make_tuple(GAME_COMMAND))
+                    std::tuple {GAME_COMMAND, ARGS_COMMAND},
+                    std::tuple {GAME_COMMAND})
             },
             {
                 stringToBlob(JOIN_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::join, JsonSerializer {},
-                    std::make_tuple(
-                        GAME_COMMAND, PLAYER_COMMAND, POSITION_COMMAND),
-                    std::make_tuple(GAME_COMMAND))
+                    std::tuple {GAME_COMMAND, PLAYER_COMMAND, POSITION_COMMAND},
+                    std::tuple {GAME_COMMAND})
             },
             {
                 stringToBlob(CALL_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::call, JsonSerializer {},
-                    std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, CALL_COMMAND))
+                    std::tuple {GAME_COMMAND, PLAYER_COMMAND, CALL_COMMAND})
             },
             {
                 stringToBlob(PLAY_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::play, JsonSerializer {},
-                    std::make_tuple(
+                    std::tuple {
                         GAME_COMMAND, PLAYER_COMMAND, CARD_COMMAND,
-                        INDEX_COMMAND))
+                        INDEX_COMMAND})
             },
             {
                 stringToBlob(DEAL_COMMAND),
@@ -172,8 +171,8 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 stringToBlob(GET_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::get, JsonSerializer {},
-                    std::make_tuple(GAME_COMMAND, PLAYER_COMMAND, GET_COMMAND),
-                    std::make_tuple(GET_COMMAND, COUNTER_COMMAND)),
+                    std::tuple {GAME_COMMAND, PLAYER_COMMAND, GET_COMMAND},
+                    std::tuple {GET_COMMAND, COUNTER_COMMAND}),
             }
         }},
     messageLoop {context},
@@ -275,8 +274,8 @@ Reply<Uuid> BridgeMain::Impl::game(
             const auto uuid_for_game = gameUuid ? *gameUuid : uuidGenerator();
             const auto game = games.emplace(
                 std::piecewise_construct,
-                std::make_tuple(uuid_for_game),
-                std::make_tuple(uuid_for_game, eventSocket, callbackScheduler));
+                std::tuple {uuid_for_game},
+                std::tuple {uuid_for_game, eventSocket, callbackScheduler});
             if (game.second) {
                 auto& game_ = game.first->second;
                 availableGames.emplace(uuid_for_game, &game_);

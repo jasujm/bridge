@@ -378,7 +378,7 @@ CardServerMain::Impl::Impl(
         asBytes(INIT_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
             *this, &Impl::init, JsonSerializer {},
-            std::tie(ORDER_COMMAND, PEERS_COMMAND)));
+            std::tuple {ORDER_COMMAND, PEERS_COMMAND}));
     messageQueue.trySetHandler(
         asBytes(SHUFFLE_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
@@ -387,19 +387,19 @@ CardServerMain::Impl::Impl(
         asBytes(DRAW_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
             *this, &Impl::draw, JsonSerializer {},
-            std::tie(CARDS_COMMAND),
-            std::tie(CARDS_COMMAND)));
+            std::tuple {CARDS_COMMAND},
+            std::tuple {CARDS_COMMAND}));
     messageQueue.trySetHandler(
         asBytes(REVEAL_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
             *this, &Impl::reveal, JsonSerializer {},
-            std::tie(ORDER_COMMAND, CARDS_COMMAND)));
+            std::tuple {ORDER_COMMAND, CARDS_COMMAND}));
     messageQueue.trySetHandler(
         asBytes(REVEAL_ALL_COMMAND),
         makeMessageHandler<AsynchronousExecutionPolicy>(
             *this, &Impl::revealAll, JsonSerializer {},
-            std::tie(CARDS_COMMAND),
-            std::tie(CARDS_COMMAND)));
+            std::tuple {CARDS_COMMAND},
+            std::tuple {CARDS_COMMAND}));
     auto controlSocket = Messaging::makeSharedSocket(
         zContext, Messaging::SocketType::router);
     controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
