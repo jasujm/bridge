@@ -29,12 +29,6 @@ namespace Messaging {
  * string. For deserialization it parses the incoming string as JSON and
  * converts to the desired type.
  *
- * \note JsonSerializer::deserialize() catches all exceptions from the JSON
- * library. While this somewhat contradicts the general design purpose of
- * limiting scopes of try clauses in order not to mask bugs, this is
- * purposefully done to greatly simplify implementing JsonConverter for
- * individual types.
- *
  * \sa FunctionMessageHandler
  */
 struct JsonSerializer {
