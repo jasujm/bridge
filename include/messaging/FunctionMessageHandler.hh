@@ -172,18 +172,18 @@ public:
     void operator()(ReplyFailure);
 
     template<typename... Args2>
-    void operator()(const ReplySuccess<Args2...>& reply);
+    void operator()(ReplySuccess<Args2...>& reply);
 
 private:
 
     template<typename T>
-    void internalAddFrameImpl(int n, const T& t);
+    void internalAddFrameImpl(int n, T& t);
 
     template<typename T>
-    void internalAddFrame(int n, const T& t);
+    void internalAddFrame(int n, T& t);
 
     template<typename T>
-    void internalAddFrame(int n, const std::optional<T>& t);
+    void internalAddFrame(int n, std::optional<T>& t);
 
     SerializationPolicy& serializer;
     Response& response;
@@ -209,17 +209,17 @@ void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(ReplyFailure)
 template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrameImpl(int n, const T& t)
+internalAddFrameImpl(int n, T& t)
 {
     assert(0 <= n && n < ssize(replyKeys));
     response.addFrame(replyKeys[n]);
-    response.addFrame(asBytes(serializer.serialize(t)));
+    response.addFrame(asBytes(serializer.serialize(std::move(t))));
 }
 
 template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrame(int n, const T& t)
+internalAddFrame(int n, T& t)
 {
     internalAddFrameImpl(n, t);
 }
@@ -227,7 +227,7 @@ internalAddFrame(int n, const T& t)
 template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrame(int n, const std::optional<T>& t)
+internalAddFrame(int n, std::optional<T>& t)
 {
     if (t) {
         internalAddFrameImpl(n, *t);
@@ -237,11 +237,11 @@ internalAddFrame(int n, const std::optional<T>& t)
 template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename... Args2>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
-    const ReplySuccess<Args2...>& reply)
+    ReplySuccess<Args2...>& reply)
 {
     response.setStatus(REPLY_SUCCESS);
     std::apply(
-        [this](const auto&... args)
+        [this](auto&... args)
         {
             auto n = 0;
             ( ..., internalAddFrame(n++, args) );
@@ -261,7 +261,7 @@ template<
     std::enable_if_t<
         IsInvocableWithExecutionContext<
             Function, ExecutionContext, Args...>, int> = 0>
-decltype(auto) invokeWithExecutionContextIfPossible(
+auto invokeWithExecutionContextIfPossible(
     Function&& function, ExecutionContext&& context, const Identity& identity,
     Args&&... args)
 {
@@ -275,7 +275,7 @@ template<
     typename ExecutionContext, typename Function, typename... Args,
     std::enable_if_t<
         IsInvocableWithoutExecutionContext<Function, Args...>, int> = 0>
-decltype(auto) invokeWithExecutionContextIfPossible(
+auto invokeWithExecutionContextIfPossible(
     Function&& function, ExecutionContext&&, const Identity& identity,
     Args&&... args)
 {
@@ -327,7 +327,7 @@ decltype(auto) invokeWithExecutionContextIfPossible(
  * BasicFunctionMessageHandler supports optional arguments. If any of the \p
  * Args decays into \c std::optional<T> for some type \c T, the corresponding
  * key–value pair may be omitted from the message. If it is present, the value
- * is deserializez as \c T (and not \c std::optional<T> itself). Similarly, if
+ * is deserialize as \c T (and not \c std::optional<T> itself). Similarly, if
  * the reply contains any empty optional values, they are not present in the
  * serialized reply.
  *
@@ -423,7 +423,7 @@ auto BasicFunctionMessageHandler<
 internalMakeKeys(Keys keys)
 {
     return std::apply(
-        [](auto&&... keys)
+        [](const auto&... keys)
         {
             return std::array<Blob, sizeof...(keys)> {stringToBlob(keys)...};
         }, keys);
@@ -464,7 +464,7 @@ internalDeserializeAndWrapArg(ByteSpan from, WrappedType& to)
     if (from.data() == nullptr) {
         return ParamWrapper<ArgType>::optional;
     }
-    auto&& deserialized_param =
+    auto deserialized_param =
         serializer.template deserialize<DeserializedType>(from);
     ParamWrapper<ArgType>::wrap(std::move(deserialized_param), to);
     return true;
@@ -520,7 +520,7 @@ internalCallFunction(
     // Call the function. We need to unwrap the parameters. If function excepts
     // std::optional<T>, then unwrapping does nothing.
     using namespace FunctionMessageHandlerImpl;
-    auto&& result = invokeWithExecutionContextIfPossible(
+    auto result = invokeWithExecutionContextIfPossible(
         function, std::move(context), identity,
         std::move(ParamWrapper<Args>::unwrap(std::get<Ns>(wrapped_params)))...);
     std::visit(
