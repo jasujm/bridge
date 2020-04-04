@@ -47,7 +47,7 @@ protected:
         sender.sendCommand(
             MockSerializationPolicy {},
             command,
-            std::make_pair(KEY, ARG));
+            std::pair {KEY, ARG});
     }
 
     void checkMessage(Socket& socket, std::string_view command)

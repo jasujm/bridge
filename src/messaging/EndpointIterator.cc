@@ -24,9 +24,9 @@ auto parseEndpoint(const std::string_view endpoint)
         throw std::invalid_argument {"Invalid endpoint format"};
     }
     assert(match.size() == 3);
-    return std::make_pair(
+    return std::pair {
         match[1],
-        boost::lexical_cast<int>(match[2]));
+        boost::lexical_cast<int>(match[2])};
 }
 
 }
@@ -37,7 +37,7 @@ EndpointIterator::EndpointIterator(const std::string_view endpoint) :
 }
 
 EndpointIterator::EndpointIterator(std::string address, int port) :
-    EndpointIterator {std::make_pair(std::move(address), port)}
+    EndpointIterator {std::pair {std::move(address), port}}
 {
 }
 

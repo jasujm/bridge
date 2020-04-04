@@ -242,7 +242,7 @@ TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsContract)
     EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(bidding, handleHasContract());
     EXPECT_CALL(bidding, handleGetContract());
-    EXPECT_EQ(std::make_optional(CONTRACT), bidding.getContract());
+    EXPECT_EQ(std::optional(CONTRACT), bidding.getContract());
 }
 
 TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsContract)
@@ -267,8 +267,9 @@ TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsNoContract)
     EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
     EXPECT_CALL(bidding, handleHasContract()).WillOnce(Return(false));
     EXPECT_CALL(bidding, handleGetContract()).Times(0);
-    EXPECT_EQ(std::make_optional(std::optional<Contract>(std::nullopt)),
-              bidding.getContract());
+    EXPECT_EQ(
+        std::make_optional(std::optional<Contract> {}),
+        bidding.getContract());
 }
 
 TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsNoContract)
@@ -284,10 +285,10 @@ TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsNoContract)
 TEST_F(BiddingTest, testCallIterators)
 {
     const auto calls = {
-        std::make_pair(Positions::NORTH, VALID_CALL),
-        std::make_pair(Positions::EAST,  VALID_CALL),
-        std::make_pair(Positions::SOUTH, VALID_CALL),
-        std::make_pair(Positions::WEST,  VALID_CALL),
+        std::pair {Positions::NORTH, VALID_CALL},
+        std::pair {Positions::EAST,  VALID_CALL},
+        std::pair {Positions::SOUTH, VALID_CALL},
+        std::pair {Positions::WEST,  VALID_CALL},
     };
     EXPECT_CALL(bidding, handleGetNumberOfCalls())
         .WillRepeatedly(Return(Bridge::N_PLAYERS));

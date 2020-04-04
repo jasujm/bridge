@@ -688,7 +688,7 @@ bool CardServerProxy::handleAcceptPeer(
                 return impl->acceptPeer(
                     identity, positions, *endpoint_iter,
                     key_iter == cs_iter->end() ?
-                        std::nullopt : std::make_optional(key_iter->get<Blob>()));
+                    std::nullopt : std::optional {key_iter->get<Blob>()});
             }
         }
     }

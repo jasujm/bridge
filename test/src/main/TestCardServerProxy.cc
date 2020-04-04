@@ -241,7 +241,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
     revealCards(self_card_ns.begin(), self_card_ns.end());
     reply(SHUFFLE_COMMAND);
     reply(REVEAL_COMMAND);
-    reply(DRAW_COMMAND, std::make_pair(CardServer::CARDS_COMMAND, allCards));
+    reply(DRAW_COMMAND, std::pair {CardServer::CARDS_COMMAND, allCards});
     {
         const auto observer = std::make_shared<ShufflingStateObserver>();
         EXPECT_CALL(*observer, handleNotify(ShufflingState::COMPLETED))
@@ -303,7 +303,7 @@ TEST_F(CardServerProxyTest, testCardServerProxy)
         peer_hand->subscribe(observer);
         reply(
             REVEAL_ALL_COMMAND,
-            std::make_pair(CardServer::CARDS_COMMAND, allCards));
+            std::pair {CardServer::CARDS_COMMAND, allCards});
     }
     EXPECT_TRUE(
         std::equal(

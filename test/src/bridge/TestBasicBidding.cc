@@ -43,14 +43,16 @@ protected:
 
     void expectContractEquals(const Bid& bid, const Doubling doubling)
     {
-        EXPECT_EQ(std::make_optional(Contract(bid, doubling)),
-                  bidding.getContract());
+        EXPECT_EQ(
+            std::optional(Contract(bid, doubling)),
+            bidding.getContract());
     }
 
     void expectDeclarerPositionIs(const Position position)
     {
-        EXPECT_EQ(std::make_optional(position),
-                  bidding.getDeclarerPosition());
+        EXPECT_EQ(
+            std::optional {position},
+            bidding.getDeclarerPosition());
     }
 
     BasicBidding bidding {Positions::NORTH};
@@ -77,8 +79,9 @@ TEST_F(BasicBiddingTest, testPassOut)
 {
     const std::vector<Call> calls(4, Pass{});
     makeCallsHelper(calls);
-    EXPECT_EQ(std::make_optional(std::optional<Contract>(std::nullopt)),
-              bidding.getContract());
+    EXPECT_EQ(
+        std::make_optional(std::optional<Contract> {}),
+        bidding.getContract());
 }
 
 TEST_F(BasicBiddingTest, testOnlyBidWinsContract)

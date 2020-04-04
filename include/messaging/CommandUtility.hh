@@ -87,7 +87,7 @@ OutputIterator makeCommandParameters(
  * auto parts = std::vector<Messaging::Message> {};
  * makeCommandMessage(
  *     std::back_inserter(parts), serializer,
- *     "tag"s, "command"s, std::make_pair("argument"s, 123));
+ *     "tag"s, "command"s, std::pair {"argument"s, 123});
  * \endcode
  *
  * \c parts will contain frames “tag”, “command”, “argument” and “123”.
@@ -166,7 +166,7 @@ void sendCommandMessage(
  * auto parts = std::vector<Messaging::Message> {};
  * makeEventMessage(
  *     std::back_inserter(parts), serializer,
- *     "event"s, std::make_pair("argument"s, 123));
+ *     "event"s, std::pair {"argument"s, 123});
  * \endcode
  *
  * \c parts will contain frames “event”, “argument” and “123”.

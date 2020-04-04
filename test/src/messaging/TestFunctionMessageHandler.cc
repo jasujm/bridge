@@ -145,7 +145,7 @@ TEST_P(FunctionMessageHandlerTest, testOneParam)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     EXPECT_CALL(function, call1(IDENTITY, "param"))
         .WillOnce(Return(makeReply(status)));
     testHelper(*handler, {KEY1, "param"}, status);
@@ -159,7 +159,7 @@ TEST_P(FunctionMessageHandlerTest, testTwoParams)
         [this](const auto& identity, int param1, std::string param2)
         {
             return function.call2(identity, param1, param2);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1, KEY2));
+        }, MockSerializationPolicy {}, std::tuple {KEY1, KEY2});
     EXPECT_CALL(function, call2(IDENTITY, 1, "param"))
         .WillOnce(Return(makeReply(status)));
     testHelper(*handler, {KEY1, "1", KEY2, "param"}, status);
@@ -184,7 +184,7 @@ TEST_F(FunctionMessageHandlerTest, testFailedSerialization)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, FailingPolicy {}, std::make_tuple(KEY1));
+        }, FailingPolicy {}, std::tuple {KEY1});
     testHelper(*handler, {KEY1, "param"}, REPLY_FAILURE);
 }
 
@@ -194,7 +194,7 @@ TEST_F(FunctionMessageHandlerTest, testMissingParameters)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     testHelper(*handler, {}, REPLY_FAILURE);
 }
 
@@ -204,7 +204,7 @@ TEST_F(FunctionMessageHandlerTest, testExtraParameters)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     EXPECT_CALL(function, call1(IDENTITY, "param"))
         .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {KEY1, "param", KEY2, "1"}, REPLY_SUCCESS);
@@ -216,7 +216,7 @@ TEST_F(FunctionMessageHandlerTest, testNoKey)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     testHelper(*handler, {"invalid"}, REPLY_FAILURE);
 }
 
@@ -226,7 +226,7 @@ TEST_F(FunctionMessageHandlerTest, testInvalidKey)
         [this](const auto& identity, std::string param)
         {
             return function.call1(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     testHelper(*handler, {KEY2, "invalid"}, REPLY_FAILURE);
 }
 
@@ -237,8 +237,8 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamPresent)
         [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
-    EXPECT_CALL(function, call_opt(IDENTITY, std::make_optional(123)))
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
+    EXPECT_CALL(function, call_opt(IDENTITY, std::optional {123}))
         .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {KEY1, "123"}, REPLY_SUCCESS);
 }
@@ -250,7 +250,7 @@ TEST_F(FunctionMessageHandlerTest, testOptionalParamNotPresent)
         [this](const auto& identity, std::optional<int> param)
         {
             return function.call_opt(identity, param);
-        }, MockSerializationPolicy {}, std::make_tuple(KEY1));
+        }, MockSerializationPolicy {}, std::tuple {KEY1});
     EXPECT_CALL(function, call_opt(IDENTITY, std::optional<int> {}))
         .WillOnce(Return(makeReply(REPLY_SUCCESS)));
     testHelper(*handler, {}, REPLY_SUCCESS);
@@ -260,7 +260,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReply1)
 {
     auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &reply1, MockSerializationPolicy {},
-        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+        std::tuple {}, std::tuple {REPLY_KEY1});
     testHelper(*handler, {}, REPLY_SUCCESS, {REPLY_KEY1, REPLY1});
 }
 
@@ -268,7 +268,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReply2)
 {
     auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &reply2, MockSerializationPolicy {},
-        std::make_tuple(), std::make_tuple(REPLY_KEY1, REPLY_KEY2));
+        std::tuple {}, std::tuple {REPLY_KEY1, REPLY_KEY2});
     testHelper(
         *handler, {}, REPLY_SUCCESS,
         {REPLY_KEY1, REPLY1, REPLY_KEY2, boost::lexical_cast<std::string>(REPLY2)});
@@ -278,7 +278,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReplyOptional)
 {
     auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &replyOptional, MockSerializationPolicy {},
-        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+        std::tuple {}, std::tuple {REPLY_KEY1});
     testHelper(*handler, {}, REPLY_SUCCESS, {REPLY_KEY1, REPLY1});
 }
 
@@ -286,7 +286,7 @@ TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
 {
     auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
         &replyNone, MockSerializationPolicy {},
-        std::make_tuple(), std::make_tuple(REPLY_KEY1));
+        std::tuple {}, std::tuple {REPLY_KEY1});
     testHelper(*handler, {}, REPLY_SUCCESS, {});
 }
 

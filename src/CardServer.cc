@@ -128,8 +128,9 @@ CardServerApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[
     }
 
     auto keys = curveSecretKey.empty() ? std::nullopt :
-        std::make_optional(
-            Messaging::CurveKeys { curveSecretKey, curvePublicKey });
+        std::optional{
+            Messaging::CurveKeys {
+                std::move(curveSecretKey), std::move(curvePublicKey)}};
     return CardServerApp {
         zmqctx, std::move(keys), argv[optind], argv[optind+1]};
 }

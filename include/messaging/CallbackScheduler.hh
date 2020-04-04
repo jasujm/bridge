@@ -87,7 +87,7 @@ CallbackScheduler::Callback CallbackScheduler::internalCreateCallback(
     Callable&& callable, Args&&... args)
 {
     return [callable = std::forward<Callable>(callable),
-            args_ = std::make_tuple(std::forward<Args>(args)...)]() mutable
+            args_ = std::tuple {std::forward<Args>(args)...}]() mutable
     {
         std::apply(std::move(callable), std::move(args_));
     };

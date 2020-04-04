@@ -45,7 +45,7 @@ int overtrickPoints(
         { { Doublings::DOUBLED,   true },  200 },
         { { Doublings::REDOUBLED, true },  400 },
     };
-    const auto factor_iter = FACTOR.find(std::make_pair(doubling, vulnerable));
+    const auto factor_iter = FACTOR.find(std::pair {doubling, vulnerable});
     const auto factor =
         (factor_iter == FACTOR.end()) ?
         SCORE_PER_TRICK.at(strain) : factor_iter->second;
@@ -107,7 +107,7 @@ int penaltyForFirstUndertrick(const Doubling doubling, const bool vulnerable)
         { { Doublings::DOUBLED,   true  }, 200 },
         { { Doublings::REDOUBLED, true  }, 400 },
     };
-    return FACTOR.at(std::make_pair(doubling, vulnerable));
+    return FACTOR.at(std::pair {doubling, vulnerable});
 }
 
 int penaltyForSecondAndThirdUndertricks(
@@ -121,7 +121,7 @@ int penaltyForSecondAndThirdUndertricks(
         { { Doublings::DOUBLED,   true  }, 300 },
         { { Doublings::REDOUBLED, true  }, 600 },
     };
-    return FACTOR.at(std::make_pair(doubling, vulnerable)) * undertricks;
+    return FACTOR.at(std::pair {doubling, vulnerable}) * undertricks;
 }
 
 int penaltyForSubsequentUndertricks(

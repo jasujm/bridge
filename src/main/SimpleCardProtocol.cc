@@ -138,7 +138,7 @@ SimpleCardProtocol::handleGetDealMessageHandler()
 {
     return Messaging::makeMessageHandler(
         *impl, &Impl::deal, JsonSerializer {},
-        std::make_tuple(CARDS_COMMAND));
+        std::tuple {CARDS_COMMAND});
 }
 
 SimpleCardProtocol::SocketVector SimpleCardProtocol::handleGetSockets()

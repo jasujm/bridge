@@ -241,7 +241,7 @@ inline auto biddingCallIterator(const Bidding& bidding, int n)
         [&bidding](const auto i)
         {
             const auto position = clockwise(bidding.getOpeningPosition(), i);
-            return std::make_pair(position, bidding.getCall(i));
+            return std::pair {position, bidding.getCall(i)};
         });
 }
 

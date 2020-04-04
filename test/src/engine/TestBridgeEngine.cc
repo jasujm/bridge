@@ -358,7 +358,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     };
     for (const auto i : to(players.size())) {
         assertDealState(
-            i == 0 ? std::nullopt : std::make_optional(Positions::WEST));
+            i == 0 ? std::nullopt : std::optional {Positions::WEST});
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         auto observer = std::make_shared<

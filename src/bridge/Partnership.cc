@@ -9,9 +9,9 @@ std::pair<Position, Position> positionsFor(const Partnership partnership)
 {
     switch (partnership.get()) {
     case PartnershipLabel::NORTH_SOUTH:
-        return std::make_pair(Positions::NORTH, Positions::SOUTH);
+        return std::pair {Positions::NORTH, Positions::SOUTH};
     case PartnershipLabel::EAST_WEST:
-        return std::make_pair(Positions::EAST, Positions::WEST);
+        return std::pair {Positions::EAST, Positions::WEST};
     default:
         throw std::invalid_argument("Invalid partnership");
     }

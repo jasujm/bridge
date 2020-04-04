@@ -90,8 +90,8 @@ BridgeGame gameFromConfig(
         peer_command_sender->sendCommand(
             Messaging::JsonSerializer {},
             GAME_COMMAND,
-            std::make_pair(std::cref(GAME_COMMAND), std::cref(config.uuid)),
-            std::make_pair(std::cref(ARGS_COMMAND), std::cref(game_args)));
+            std::pair {GAME_COMMAND, config.uuid},
+            std::pair {ARGS_COMMAND, std::move(game_args)});
         auto card_protocol = std::unique_ptr<CardProtocol> {};
         if (config.cardServer) {
             card_protocol = std::make_unique<CardServerProxy>(
