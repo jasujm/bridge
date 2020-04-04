@@ -276,14 +276,14 @@ void Impl::doRequestShuffle(const RequestShuffleEvent&)
             log(LogLevel::DEBUG, "Card server proxy: Drawing cards");
             sendCommand(
                 CardServer::DRAW_COMMAND, CardServer::DRAW_COMMAND,
-                std::tie(CardServer::CARDS_COMMAND, deckNs));
+                std::pair {CardServer::CARDS_COMMAND, std::move(deckNs)});
         } else {
             log(LogLevel::DEBUG, "Card server proxy: Revealing cards to %s",
                 order);
             sendCommand(
                 CardServer::REVEAL_COMMAND, CardServer::REVEAL_COMMAND,
-                std::tie(CardServer::ORDER_COMMAND, order),
-                std::tie(CardServer::CARDS_COMMAND, deckNs));
+                std::pair {CardServer::ORDER_COMMAND, order},
+                std::pair {CardServer::CARDS_COMMAND, std::move(deckNs)});
         }
     }
 }
@@ -530,8 +530,8 @@ void Initializing::internalInitCardServer()
     // Command is also used as tag
     impl.sendCommand(
         CardServer::INIT_COMMAND, CardServer::INIT_COMMAND,
-        std::tie(CardServer::ORDER_COMMAND, order),
-        std::tie(CardServer::PEERS_COMMAND, peers));
+        std::pair {CardServer::ORDER_COMMAND, order},
+        std::pair {CardServer::PEERS_COMMAND, std::move(peers)});
     // Record peers and positions for the future use
     for (const auto n : to(ssize(this->peers) + 1)) {
         if (n == order) {
@@ -643,7 +643,7 @@ sc::result ShuffleCompleted::react(const RequestRevealEvent& event)
     // Command is also used as tag
     outermost_context().sendCommand(
         CardServer::REVEAL_ALL_COMMAND, CardServer::REVEAL_ALL_COMMAND,
-        std::tie(CardServer::CARDS_COMMAND, event.deckNs));
+        std::make_pair(CardServer::CARDS_COMMAND, std::cref(event.deckNs)));
     assert(event.hand);
     requestQueue.emplace(RequestInfo {event.hand, event.handNs});
     return discard_event();

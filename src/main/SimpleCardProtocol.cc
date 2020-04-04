@@ -73,14 +73,14 @@ void SimpleCardProtocol::Impl::handleNotify(
         if (!leaderIdentity) {
             log(LogLevel::DEBUG,
                 "Simple card protocol: Generating deck");
-            const auto cards = generateShuffledDeck();
+            auto cards = generateShuffledDeck();
             assert(cardManager);
             cardManager->shuffle(cards.begin(), cards.end());
             dereference(peerCommandSender).sendCommand(
                 JsonSerializer {},
                 DEAL_COMMAND,
-                std::tie(GAME_COMMAND, gameUuid),
-                std::tie(CARDS_COMMAND, cards));
+                std::pair {GAME_COMMAND, gameUuid},
+                std::pair {CARDS_COMMAND, std::move(cards)});
         } else {
             log(LogLevel::DEBUG,
                 "Simple card protocol: Expecting deck");
