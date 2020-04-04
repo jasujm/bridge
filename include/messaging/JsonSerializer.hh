@@ -45,9 +45,9 @@ struct JsonSerializer {
      *
      * \return string dump of the JSON object resulting from converting \p t
      */
-    template<typename T> static std::string serialize(const T& t)
+    template<typename T> static std::string serialize(T&& t)
     {
-        return nlohmann::json(t).dump();
+        return nlohmann::json(std::forward<T>(t)).dump();
     }
 
     /** \brief Deserialize string to object
@@ -61,10 +61,11 @@ struct JsonSerializer {
      * the JSON library
      */
     template<typename T, typename String>
-    static T deserialize(const String& s)
+    static T deserialize(String&& s)
     {
         try {
-            return nlohmann::json::parse(s).template get<T>();
+            return nlohmann::json::parse(std::forward<String>(s))
+                .template get<T>();
         } catch (const nlohmann::json::exception&) {
             throw SerializationFailureException {};
         }
