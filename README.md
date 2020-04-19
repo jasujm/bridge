@@ -212,7 +212,7 @@ The first two items are for supporting using the backend to power a
 
 ## Copyright
 
-Copyright © 2015–2019 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2020 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
