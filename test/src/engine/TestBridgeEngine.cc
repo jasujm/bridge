@@ -398,7 +398,10 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 std::make_shared<MockObserver<BridgeEngine::DealEnded>>();
             EXPECT_CALL(
                 *deal_observer,
-                handleNotify(BridgeEngine::DealEnded {{13, 0}, {}}))
+                handleNotify(
+                    testing::Field(
+                        &BridgeEngine::DealEnded::tricksWon,
+                        TricksWon {13, 0})))
                 .Times(deal_notify_count);
             assertDealState(Positions::WEST);
             assertHandsVisible(engine.getPlayer(Positions::WEST));

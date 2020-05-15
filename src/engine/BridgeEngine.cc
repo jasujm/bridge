@@ -1225,12 +1225,5 @@ bool operator==(
     return lhs.position == rhs.position && &lhs.hand == &rhs.hand;
 }
 
-bool operator==(
-    const BridgeEngine::DealEnded& lhs, const BridgeEngine::DealEnded& rhs)
-{
-    // TODO: Also results should compare equal
-    return lhs.tricksWon == rhs.tricksWon;
-}
-
 }
 }

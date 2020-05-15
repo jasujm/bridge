@@ -463,11 +463,6 @@ bool operator==(
 bool operator==(
     const BridgeEngine::DummyRevealed&, const BridgeEngine::DummyRevealed&);
 
-/** \brief Equality operator for deal ended events
- */
-bool operator==(
-    const BridgeEngine::DealEnded&, const BridgeEngine::DealEnded&);
-
 }
 }
 
