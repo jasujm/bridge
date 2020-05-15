@@ -44,6 +44,17 @@
  * peers from the bridge application, and assumes they implement a
  * compatible protocol.
  *
+ * \section cardserverlibtmcg LibTMCG
+ *
+ * The card server protocol is dependent on the way that the LibTMCG
+ * library (https://www.nongnu.org/libtmcg/) exchanges messages
+ * between the peers. Each card server peer MUST initialize the
+ * library in the same way, as specified in this reference
+ * implementation.
+ *
+ * The value of the security level parameter SHOULD be 64, unless the
+ * peers have agreed otherwise (outside of this protocol).
+ *
  * \section cardserverorder Order
  *
  * A consistent order MUST be established between the card server

@@ -51,12 +51,15 @@ public:
      * from the controlling application
      * \param peerEndpoint the endpoint the card server binds for
      * connections from other card server peers
+     * \param securityParameter The security parameter for LibTMCG
+     * (see https://www.nongnu.org/libtmcg/libTMCG.html/SchindelhauerTMCG.html#SchindelhauerTMCG)
      */
     CardServerMain(
         Messaging::MessageContext& context,
         std::optional<Messaging::CurveKeys> keys,
         std::string_view controlEndpoint,
-        std::string_view peerEndpoint);
+        std::string_view peerEndpoint,
+        long unsigned int securityParameter);
 
     ~CardServerMain();
 

@@ -4,6 +4,7 @@
 #include "IoUtility.hh"
 #include "Logging.hh"
 
+#include <boost/lexical_cast.hpp>
 #include <getopt.h>
 #include <libTMCG.hh>
 
@@ -23,8 +24,11 @@ public:
         Messaging::MessageContext& zmqctx,
         std::optional<Messaging::CurveKeys> keys,
         std::string_view controlEndpoint,
-        std::string_view basePeerEndpoint) :
-        app {zmqctx, std::move(keys), controlEndpoint, basePeerEndpoint}
+        std::string_view basePeerEndpoint,
+        long unsigned int securityParameter) :
+        app {
+            zmqctx, std::move(keys), controlEndpoint, basePeerEndpoint,
+            securityParameter}
     {
         log(Bridge::LogLevel::INFO, "Setup completed");
     }
@@ -86,9 +90,11 @@ CardServerApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[
     const auto long_opt = std::array {
         option { "secret-key-file", required_argument, 0, 's' },
         option { "public-key-file", required_argument, 0, 'p' },
+        option { "security-parameter", required_argument, 0, 'c' },
         option { nullptr, 0, 0, 0 },
     };
     auto verbosity = 0;
+    auto security_parameter = 64;
     auto opt_index = 0;
     while(true) {
         auto c = getopt_long(
@@ -101,6 +107,19 @@ CardServerApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[
             curveSecretKey = getKeyFromFile(optarg, argv[0], "secret key");
         } else if (c == 'p') {
             curvePublicKey = getKeyFromFile(optarg, argv[0], "public key");
+        } else if (c == 'c') {
+            try {
+                security_parameter = boost::lexical_cast<int>(optarg);
+            } catch (const boost::bad_lexical_cast&) {
+                std::cerr << argv[0] << ": expected numeric security parameter"
+                    << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            if (security_parameter <= 0) {
+                std::cerr << argv[0] << ": expected positive security parameter"
+                    << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
         } else {
             std::exit(EXIT_FAILURE);
         }
@@ -132,7 +151,8 @@ CardServerApp createApp(Messaging::MessageContext& zmqctx, int argc, char* argv[
             Messaging::CurveKeys {
                 std::move(curveSecretKey), std::move(curvePublicKey)}};
     return CardServerApp {
-        zmqctx, std::move(keys), argv[optind], argv[optind+1]};
+        zmqctx, std::move(keys), argv[optind], argv[optind+1],
+        static_cast<long unsigned int>(security_parameter)};
 }
 
 int bridge_main(int argc, char* argv[])

@@ -63,6 +63,7 @@ servers = [
          '-vv',
          '--secret-key-file=-',
          '--public-key-file=-',
+         '--security-parameter=2',
          get_endpoint(peer.control),
          get_endpoint(peer.endpoint)],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE) for peer in PEERS]

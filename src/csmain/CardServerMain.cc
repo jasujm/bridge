@@ -69,9 +69,6 @@ using namespace std::string_literals;
 const auto CONTROLLER_USER_ID = "cntrl"s;
 const auto PEER_USER_ID_FORMAT = "peer%1%"s;
 
-// TODO: The security parameter is intentionally low for making testing more
-// quick. It should be larger (preferrably adjustable).
-const auto SECURITY_PARAMETER = 8;
 const auto TMCG_W = 6; // 2^6 = 64, enough to hold all playing cards
 
 struct TMCGInitFailure {};
@@ -93,7 +90,8 @@ public:
 
     TMCG(
         AsynchronousExecutionContext& eContext,
-        int order, SocketVector peerSockets);
+        int order, SocketVector peerSockets,
+        long unsigned int securityParameter);
 
     bool shuffle(AsynchronousExecutionContext& eContext);
     bool reveal(
@@ -134,9 +132,10 @@ auto createOutputStream(
 
 TMCG::TMCG(
     AsynchronousExecutionContext& eContext,
-    const int order, PeerSocketProxy::SocketVector peerSockets) :
+    const int order, PeerSocketProxy::SocketVector peerSockets,
+    long unsigned int securityParameter) :
     peerSockets(std::move(peerSockets)),
-    tmcg {SECURITY_PARAMETER, this->peerSockets.size(), TMCG_W},
+    tmcg {securityParameter, this->peerSockets.size(), TMCG_W},
     vtmf {},
     stack {},
     cards(N_CARDS)
@@ -313,7 +312,8 @@ public:
     Impl(
         Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
         std::string_view controlEndpoint,
-        std::string_view peerEndpoint);
+        std::string_view peerEndpoint,
+        long unsigned int securityParameter);
     void run();
 
 private:
@@ -338,6 +338,7 @@ private:
     Messaging::MessageContext& zContext;
     const std::optional<CurveKeys> keys;
     const std::string peerEndpoint;
+    const long unsigned int securityParameter;
     std::shared_ptr<Messaging::MessageLoop> messageLoop;
     std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     std::optional<PeerSocketProxy> peerSocketProxy;
@@ -351,10 +352,12 @@ private:
 CardServerMain::Impl::Impl(
     Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
     const std::string_view controlEndpoint,
-    const std::string_view peerEndpoint) :
+    const std::string_view peerEndpoint,
+    long unsigned int securityParameter) :
     zContext {zContext},
     keys {std::move(keys)},
     peerEndpoint {peerEndpoint},
+    securityParameter {securityParameter},
     messageLoop {
         std::make_shared<Messaging::MessageLoop>(zContext)},
     callbackScheduler {
@@ -437,7 +440,9 @@ Reply<> CardServerMain::Impl::init(
             messageLoop->addPollable(std::move(socket), std::move(callback));
         }
         try {
-            tmcg.emplace(eContext, order, peerSocketProxy->getStreamSockets());
+            tmcg.emplace(
+                eContext, order, peerSocketProxy->getStreamSockets(),
+                securityParameter);
             log(LogLevel::DEBUG, "Initialization success");
             return success();
         } catch (TMCGInitFailure) {
@@ -587,10 +592,12 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
 
 CardServerMain::CardServerMain(
     Messaging::MessageContext& zContext, std::optional<CurveKeys> keys,
-    const std::string_view controlEndpoint, const std::string_view peerEndpoint) :
+    const std::string_view controlEndpoint, const std::string_view peerEndpoint,
+    long unsigned int securityParameter) :
     impl {
         std::make_unique<Impl>(
-            zContext, std::move(keys), controlEndpoint, peerEndpoint)}
+            zContext, std::move(keys), controlEndpoint, peerEndpoint,
+            securityParameter)}
 {
 }
 
