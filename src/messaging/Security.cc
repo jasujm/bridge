@@ -1,5 +1,7 @@
 #include "messaging/Security.hh"
 
+#include <stdexcept>
+
 namespace Bridge {
 namespace Messaging {
 
@@ -34,21 +36,28 @@ Blob decodeKey(const std::string_view encodedKey)
 
 void setupCurveServer(Socket& socket, const CurveKeys* const keys)
 {
-    if (keys && checkKeys(keys->secretKey)) {
-        socket.setsockopt(ZMQ_CURVE_SERVER, 1);
-        setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+    if (keys) {
+        if (checkKeys(keys->secretKey)) {
+            socket.setsockopt(ZMQ_CURVE_SERVER, 1);
+            setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+        } else {
+            throw std::invalid_argument {"Invalid server keys"};
+        }
     }
 }
 
 void setupCurveClient(
     Socket& socket, const CurveKeys* const keys, ByteSpan serverKey)
 {
-    if (keys && checkKeys(keys->secretKey, keys->publicKey) &&
-        serverKey.size() > 0) {
-        socket.setsockopt(ZMQ_CURVE_SERVER, 0);
-        setKey(socket, ZMQ_CURVE_SERVERKEY, serverKey);
-        setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
-        setKey(socket, ZMQ_CURVE_PUBLICKEY, keys->publicKey);
+    if (keys && serverKey.size() > 0) {
+        if (checkKeys(keys->secretKey, keys->publicKey, serverKey)) {
+            socket.setsockopt(ZMQ_CURVE_SERVER, 0);
+            setKey(socket, ZMQ_CURVE_SERVERKEY, serverKey);
+            setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+            setKey(socket, ZMQ_CURVE_PUBLICKEY, keys->publicKey);
+        } else {
+            throw std::invalid_argument {"Invalid client keys"};
+        }
     }
 }
 

@@ -43,25 +43,28 @@ Blob decodeKey(std::string_view encodedKey);
 /** \brief Setup socket as curve server
  *
  * This function sets the appropriate socket options on \p socket to make it act
- * as curve server.
+ * as curve server. If \p keys is \c nullptr, does nothing.
  *
  * \param socket the socket that will act as curve server
  * \param keys the server keypair
  *
- * \todo Do not fail silently if \p keys are wrong size
+ * \throw std::invalid_argument if the secret key in \p keys has
+ * invalid length
  */
 void setupCurveServer(Socket& socket, const CurveKeys* keys);
 
 /** \brief Setup socket as curve client
  *
- * This function sets the appropriate socket options on \p socket to make it act
- * as curve client.
+ * This function sets the appropriate socket options on \p socket to
+ * make it act as curve client. If \p keys is \c nullptr or \p
+ * serverKey is empty, does nothing.
  *
  * \param socket the socket that will act as curve client
  * \param keys the client keypair
  * \param serverKey the server public key
  *
- * \todo Do not fail silently if \p keys are wrong size
+ * \throw std::invalid_argument if any of the keys in \p keys or \p
+ * serverKey has invalid length
  */
 void setupCurveClient(
     Socket& socket, const CurveKeys* keys, ByteSpan serverKey);
