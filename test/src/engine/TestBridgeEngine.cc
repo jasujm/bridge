@@ -169,6 +169,12 @@ protected:
             EXPECT_CALL(*trick_completed_observer, handleNotify(_)).Times(0);
         }
 
+        // No playing by someone not taking part in the the game
+        {
+            const MockPlayer other_player;
+            EXPECT_FALSE(engine.play(other_player, hand, card));
+        }
+
         engine.play(player, hand, card);
         engine.play(partner, hand, card);
         engine.play(player, partner_hand, card);

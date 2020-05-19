@@ -311,8 +311,6 @@ public:
      * \return true if the play is successful, false otherwise
      *
      * \throw std::out_of_range if \p player or \p hand is not in the game
-     *
-     * \todo Fail graciously if the player is not in the game.
      */
     bool play(const Player& player, const Hand& hand, int card);
 

@@ -26,7 +26,7 @@ class BridgeGameConfig;
 
 /** \brief Configuration file processing utility
  *
- * \todo documentation
+ * \todo Documentation of the available options is missing
  */
 class Config {
 public:

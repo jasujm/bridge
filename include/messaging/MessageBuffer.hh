@@ -164,8 +164,6 @@ public:
      */
     BasicMessageStream(SharedSocket socket, ExecutionContext context = {});
 
-    /** \todo Implement if needed
-     */
     BasicMessageStream(BasicMessageStream&&) = delete;
 
 private:
