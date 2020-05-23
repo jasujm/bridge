@@ -25,10 +25,17 @@ sockets.
 
 The backend needs modern‐ish C++ compiler supporting C++17. The project depends
 on
-- [ZeroMQ](http://zeromq.org/) for messaging
-- [json](https://github.com/nlohmann/json) to serialize and deserialize messages
-- [Lua](https://www.lua.org/) for configuration parsing
-- [Boost](http://www.boost.org/) for various things.
+- [ZeroMQ](https://zeromq.org/) for messaging (v4.3)
+- [CPPZMQ](https://github.com/zeromq/cppzmq) The C++ bindings for ZeroMQ (v4.6)
+- [json](https://github.com/nlohmann/json) to serialize and deserialize messages (v3.7)
+- [Lua](https://www.lua.org/) for configuration parsing (v5.3)
+- [Boost](https://www.boost.org/) for various things (v1.67)
+
+The versions in the bracket indicate the recommended minimum version
+that have been tested to work with the project.
+
+The project has been tested and compiles with GCC version 9.3. The
+project does _NOT_ currently compile with GCC 10 series.
 
 Optionally [LibTMCG](http://www.nongnu.org/libtmcg/) is used for secure card
 exchange.
@@ -38,7 +45,7 @@ tests. As recommended by the maintainers of the project, instead of relying on
 any version of googletest found on the local computer, it is downloaded when
 required.
 
-To build and run unit tests for the backend
+To build everything and run unit tests for the backend
 
     $ mkdir /the/build/directory
     $ cd /the/build/directory
