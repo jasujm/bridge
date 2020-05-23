@@ -26,9 +26,10 @@ set_property(TARGET bridge PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 install(TARGETS bridge RUNTIME DESTINATION bin)
 
-if(LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
-  set(BRIDGE_BUILD_CARD_SERVER ON CACHE BOOL "Build card server")
-  if (${BRIDGE_BUILD_CARD_SERVER})
+set(BRIDGE_BUILD_CARD_SERVER ON CACHE BOOL "Build card server")
+if (BRIDGE_BUILD_CARD_SERVER)
+  find_package(LibTMCG)
+  if(LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
     add_subdirectory(coroutines)
     add_subdirectory(csmain)
     add_executable(bridgecs CardServer.cc)

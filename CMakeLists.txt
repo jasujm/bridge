@@ -4,7 +4,6 @@ project(Bridge)
 enable_testing()
 
 include(CMakeParseArguments)
-include(FindPythonInterp)
 
 set(BRIDGE_CXX_STANDARD 17)
 
@@ -16,23 +15,24 @@ find_package(Boost REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(ZeroMQ REQUIRED)
 find_package(Json REQUIRED)
 find_package(Lua 5.3 REQUIRED)
-find_package(LibTMCG)
-find_package(PythonInterp)
 
 add_subdirectory(external/enhanced-enum)
 
 set(BRIDGE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-if (${PYTHONINTERP_FOUND} AND NOT ${PYTHON_VERSION_MAJOR} LESS 3)
-  set(BRIDGE_PYTHON_AVAILABLE ON)
+add_subdirectory(src)
+
+set(BRIDGE_BUILD_TESTS ON CACHE BOOL "Build tests")
+if (BRIDGE_BUILD_TESTS)
+  add_subdirectory(test)
 endif()
 
-add_subdirectory(src)
-add_subdirectory(test)
-
-find_package(Doxygen)
-if(DOXYGEN_FOUND)
-  set(DOXYGEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-  configure_file(Doxyfile.in ${DOXYGEN_FILE} @ONLY)
-  add_custom_target(doc COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_FILE})
+set(BRIDGE_BUILD_DOCS ON CACHE BOOL "Build documentation")
+if (BRIDGE_BUILD_DOCS)
+  find_package(Doxygen)
+  if(Doxygen_FOUND)
+    set(DOXYGEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+    configure_file(Doxyfile.in ${DOXYGEN_FILE} @ONLY)
+    add_custom_target(docs COMMAND Doxygen::doxygen ${DOXYGEN_FILE})
+  endif()
 endif()

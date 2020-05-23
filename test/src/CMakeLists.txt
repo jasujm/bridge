@@ -50,7 +50,7 @@ add_subdirectory(scoring)
 add_subdirectory(engine)
 add_subdirectory(main)
 
-if (${BRIDGE_BUILD_CARD_SERVER})
+if (BRIDGE_BUILD_CARD_SERVER AND LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
   add_subdirectory(coroutines)
   add_subdirectory(csmain)
 endif()
