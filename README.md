@@ -56,8 +56,8 @@ To build everything and run unit tests for the backend
 
 *Experimental:* You can also build the backend as Docker image:
 
-    $ docker build -t bridge .
-    $ docker run -p 5555:5555 bridge
+    $ docker build -t jasujm/bridge .
+    $ docker run -p 5555:5555 jasujm/bridge
 
 ## Bridge GUI
 
