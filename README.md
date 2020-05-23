@@ -54,6 +54,11 @@ To build everything and run unit tests for the backend
     $ make test
     $ make install
 
+*Experimental:* You can also build the backend as Docker image:
+
+    $ docker build -t bridge .
+    $ docker run -p 5555:5555 bridge
+
 ## Bridge GUI
 
 This repository only contains code for the backend. In order to play bridge,

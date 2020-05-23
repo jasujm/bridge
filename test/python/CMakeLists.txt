@@ -1,6 +1,6 @@
 include(FindPython)
 
-if (BRIDGE_BUILD_CARD_SERVER)
+if (BRIDGE_BUILD_CARD_SERVER AND LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
   find_package(Python COMPONENTS Interpreter)
   if (Python_FOUND AND NOT ${Python_VERSION_MAJOR} LESS 3)
     add_custom_target(
