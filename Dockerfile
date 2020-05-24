@@ -10,7 +10,15 @@ RUN set -ex;                                                                    
     apt-get update;                                                                \
     apt-get -y install -t buster cmake libboost-dev libzmq3-dev liblua5.3-dev;     \
     apt-get -y install -t bullseye nlohmann-json3-dev;                             \
-    wget https://raw.githubusercontent.com/zeromq/cppzmq/v4.6.0/zmq.hpp --output-document=/usr/local/include/zmq.hpp;
+    mkdir -p /usr/src;                                                             \
+    cd /usr/src;                                                                   \
+    curl -L https://github.com/zeromq/cppzmq/archive/v4.6.0.tar.gz | tar -zxf -;   \
+    mkdir -p /usr/src/cppzmq-4.6.0/build;                                          \
+    cd /usr/src/cppzmq-4.6.0/build;                                                \
+    cmake -D CPPZMQ_BUILD_TESTS:BOOL=OFF ..;                                       \
+    make;                                                                          \
+    make install;                                                                  \
+    make clean
 
 COPY . /usr/src/bridge
 
@@ -21,9 +29,9 @@ RUN set -ex;                                    \
           -D BRIDGE_BUILD_CARD_SERVER:BOOL=OFF  \
           -D BRIDGE_BUILD_TESTS:BOOL=OFF        \
           -D BRIDGE_BUILD_DOCS:BOOL=OFF         \
-          ..;      \
-    make;          \
-    make install;  \
+          ..;                                   \
+    make;                                       \
+    make install;                               \
     make clean
 
 ENTRYPOINT ["bridge"]
