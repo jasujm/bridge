@@ -24,7 +24,7 @@
 
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <gtest/gtest.h>
 
 #include <string_view>

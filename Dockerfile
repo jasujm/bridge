@@ -5,16 +5,17 @@ FROM gcc:9
 
 EXPOSE 5555
 
-RUN set -ex;                                                          \
-    mkdir -p /usr/src/bridge/build;                                   \
-    apt-get update;                                                   \
-    apt-get -y install cmake libboost-dev libzmq3-dev liblua5.3-dev;  \
-    wget https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp --output-document=/usr/local/include/json.hpp; \
-    wget https://raw.githubusercontent.com/zeromq/cppzmq/v4.6.0/zmq.hpp --output-document=/usr/local/include/zmq.hpp
+RUN set -ex;                                                                       \
+    echo deb http://deb.debian.org/debian bullseye main >> /etc/apt/sources.list;  \
+    apt-get update;                                                                \
+    apt-get -y install -t buster cmake libboost-dev libzmq3-dev liblua5.3-dev;     \
+    apt-get -y install -t bullseye nlohmann-json3-dev;                             \
+    wget https://raw.githubusercontent.com/zeromq/cppzmq/v4.6.0/zmq.hpp --output-document=/usr/local/include/zmq.hpp;
 
 COPY . /usr/src/bridge
 
-RUN set -ex;       \
+RUN set -ex;                                    \
+    mkdir -p /usr/src/bridge/build;             \
     cd /usr/src/bridge/build;                   \
     cmake -D CMAKE_BUILD_TYPE=Release           \
           -D BRIDGE_BUILD_CARD_SERVER:BOOL=OFF  \

@@ -15,7 +15,7 @@
 #include "messaging/SerializationFailureException.hh"
 #include "Blob.hh"
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

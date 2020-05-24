@@ -11,7 +11,7 @@
 #include "Logging.hh"
 
 #include <boost/uuid/uuid_io.hpp>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 #include <tuple>

@@ -33,7 +33,7 @@
 
 #include "bridge/Call.hh"
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

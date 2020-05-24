@@ -22,7 +22,7 @@
 #ifndef MESSAGING_DUPLICATESCOREJSONSERIALIZER_HH_
 #define MESSAGING_DUPLICATESCOREJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

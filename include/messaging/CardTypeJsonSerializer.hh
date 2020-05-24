@@ -24,7 +24,7 @@
 #ifndef MESSAGING_CARDJSONSERIALIZER_HH_
 #define MESSAGING_CARDJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

@@ -21,7 +21,7 @@
 #ifndef MESSAGING_BIDJSONSERIALIZER_HH_
 #define MESSAGING_BIDJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

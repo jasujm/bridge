@@ -13,7 +13,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Boost REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(ZeroMQ REQUIRED)
-find_package(Json REQUIRED)
+find_package(nlohmann_json REQUIRED)
 find_package(Lua 5.3 REQUIRED)
 
 add_subdirectory(external/enhanced-enum)

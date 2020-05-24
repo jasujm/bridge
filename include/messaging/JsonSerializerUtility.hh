@@ -9,7 +9,7 @@
 
 #include "enhanced_enum/enhanced_enum.hh"
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <functional>
 #include <optional>

@@ -25,7 +25,7 @@
 #ifndef MESSAGING_PEERENTRYJSONSERIALIZER_HH_
 #define MESSAGING_PEERENTRYJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 namespace Bridge {
 namespace CardServer {

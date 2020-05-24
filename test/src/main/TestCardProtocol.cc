@@ -7,7 +7,7 @@
 #include "MockMessageLoopCallback.hh"
 
 #include <gtest/gtest.h>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <optional>

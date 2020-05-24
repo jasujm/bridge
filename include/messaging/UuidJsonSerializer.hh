@@ -6,7 +6,7 @@
 #ifndef MESSAGING_UUIDJSONSERIALIZER_HH_
 #define MESSAGING_UUIDJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include "bridge/Uuid.hh"
 

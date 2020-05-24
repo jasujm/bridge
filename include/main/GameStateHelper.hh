@@ -6,7 +6,7 @@
 #ifndef MAIN_GAMESTATEHELPER_HH_
 #define MAIN_GAMESTATEHELPER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <optional>
 

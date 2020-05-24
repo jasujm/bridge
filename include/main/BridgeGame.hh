@@ -11,7 +11,7 @@
 #include "messaging/Identity.hh"
 #include "messaging/Sockets.hh"
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <memory>
 #include <optional>

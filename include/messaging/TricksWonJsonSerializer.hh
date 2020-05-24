@@ -23,7 +23,7 @@
 #ifndef MESSAGING_TRICKSWONJSONSERIALIZER_HH_
 #define MESSAGING_TRICKSWONJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 namespace Bridge {
 

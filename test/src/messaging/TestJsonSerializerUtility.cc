@@ -1,7 +1,7 @@
 #include "messaging/JsonSerializerUtility.hh"
 
 #include <gtest/gtest.h>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 

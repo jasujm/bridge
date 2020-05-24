@@ -23,7 +23,7 @@
 #ifndef MESSAGING_CONTRACTJSONSERIALIZER_HH_
 #define MESSAGING_CONTRACTJSONSERIALIZER_HH_
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 #include <string>
 
