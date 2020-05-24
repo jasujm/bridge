@@ -33,7 +33,7 @@ if (BRIDGE_BUILD_CARD_SERVER AND LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
   add_executable(bridgecs CardServer.cc)
   target_link_libraries(bridgecs bridge-csmain bridge-coroutines
     bridge-messaging bridge-cardserver bridge-bridge bridge-common
-    ${TMCG_LIBRARIES} Threads::Threads)
+    Threads::Threads)
   set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
   install(TARGETS bridgecs RUNTIME DESTINATION bin)
 endif()
