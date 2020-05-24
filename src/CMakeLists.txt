@@ -27,16 +27,13 @@ set_property(TARGET bridge PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 install(TARGETS bridge RUNTIME DESTINATION bin)
 
 set(BRIDGE_BUILD_CARD_SERVER ON CACHE BOOL "Build card server")
-if (BRIDGE_BUILD_CARD_SERVER)
-  find_package(LibTMCG)
-  if(LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
-    add_subdirectory(coroutines)
-    add_subdirectory(csmain)
-    add_executable(bridgecs CardServer.cc)
-    target_link_libraries(bridgecs bridge-csmain bridge-coroutines
-      bridge-messaging bridge-cardserver bridge-bridge bridge-common
-      ${TMCG_LIBRARIES} Threads::Threads)
-    set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
-    install(TARGETS bridgecs RUNTIME DESTINATION bin)
-  endif()
+if (BRIDGE_BUILD_CARD_SERVER AND LibTMCG_FOUND AND Boost_COROUTINE_FOUND)
+  add_subdirectory(coroutines)
+  add_subdirectory(csmain)
+  add_executable(bridgecs CardServer.cc)
+  target_link_libraries(bridgecs bridge-csmain bridge-coroutines
+    bridge-messaging bridge-cardserver bridge-bridge bridge-common
+    ${TMCG_LIBRARIES} Threads::Threads)
+  set_property(TARGET bridgecs PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
+  install(TARGETS bridgecs RUNTIME DESTINATION bin)
 endif()

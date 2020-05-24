@@ -15,6 +15,7 @@ find_package(Boost REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(ZeroMQ REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Lua 5.3 REQUIRED)
+find_package(LibTMCG)
 
 add_subdirectory(external/enhanced-enum)
 
