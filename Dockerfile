@@ -1,9 +1,13 @@
 # FIXME: Currently includes way too much to the container image
-# Also maybe vendorize the external requirements not in the apt repository?
 
 FROM gcc:9
 
 EXPOSE 5555
+
+# - nlohmann-json3-dev package for buster is broken (doesn't include
+#   CMake configs), so import a newer version from the bullseye
+#   release.
+# - build cppzmq from sources, because there is no package for it
 
 RUN set -ex;                                                                       \
     echo deb http://deb.debian.org/debian bullseye main >> /etc/apt/sources.list;  \
