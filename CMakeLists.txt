@@ -23,12 +23,12 @@ set(BRIDGE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(src)
 
-set(BRIDGE_BUILD_TESTS ON CACHE BOOL "Build tests")
+option(BRIDGE_BUILD_TESTS "Build tests" ON)
 if (BRIDGE_BUILD_TESTS)
   add_subdirectory(test)
 endif()
 
-set(BRIDGE_BUILD_DOCS ON CACHE BOOL "Build documentation")
+option(BRIDGE_BUILD_DOCS "Build documentation" ON)
 if (BRIDGE_BUILD_DOCS)
   find_package(Doxygen)
   if(Doxygen_FOUND)
