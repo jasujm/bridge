@@ -1,6 +1,8 @@
 include(FetchContent)
 include(GoogleTest)
 
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+
 # The following snippets for including googletest is adapted from Henry
 # Schreiner et al.: Modern CMake (https://cliutils.gitlab.io/modern-cmake/)
 # released under CC BY-NC-SA 4.0
@@ -8,12 +10,13 @@ include(GoogleTest)
 FetchContent_Declare(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG release-1.10.0)
+  GIT_TAG release-1.10.0
+  INSTALL_DIR "${CMAKE_BINARY_DIR}"
+  CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}")
 FetchContent_GetProperties(googletest)
 if(NOT googletest_POPULATED)
   FetchContent_Populate(googletest)
   add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
-  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 endif()
 mark_as_advanced(
   BUILD_GMOCK BUILD_GTEST BUILD_SHARED_LIBS INSTALL_GTEST
