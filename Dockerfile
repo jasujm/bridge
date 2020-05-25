@@ -1,8 +1,4 @@
-# FIXME: Currently includes way too much to the container image
-
-FROM gcc:9
-
-EXPOSE 5555
+FROM buildpack-deps:buster AS builder
 
 # - nlohmann-json3-dev package for buster is broken (doesn't include
 #   CMake configs), so import a newer version from the bullseye
@@ -21,8 +17,7 @@ RUN set -ex;                                                                    
     cd /usr/src/cppzmq-4.6.0/build;                                                \
     cmake -D CPPZMQ_BUILD_TESTS:BOOL=OFF ..;                                       \
     make;                                                                          \
-    make install;                                                                  \
-    make clean
+    make install
 
 COPY . /usr/src/bridge
 
@@ -35,7 +30,16 @@ RUN set -ex;                                    \
           -D BRIDGE_BUILD_DOCS:BOOL=OFF         \
           ..;                                   \
     make;                                       \
-    make install;                               \
-    make clean
+    make install
+
+FROM debian:buster
+
+EXPOSE 5555
+
+RUN set -ex;         \
+    apt-get update;  \
+    apt-get -y install libzmq5 liblua5.3
+
+COPY --from=builder /usr/local/bin/bridge /usr/local/bin
 
 ENTRYPOINT ["bridge"]
