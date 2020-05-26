@@ -1,15 +1,19 @@
-FROM buildpack-deps:buster AS builder
+FROM debian:buster AS base
+
+RUN set -ex;         \
+    echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list;  \
+    apt-get update;  \
+    apt-get -y install libzmq5 liblua5.3
+
+FROM base AS builder
 
 # - nlohmann-json3-dev package for buster is broken (doesn't include
-#   CMake configs), so import a newer version from the bullseye
-#   release.
+#   CMake configs), so import a newer version from the backports
 # - build cppzmq from sources, because there is no package for it
 
 RUN set -ex;                                                                       \
-    echo deb http://deb.debian.org/debian bullseye main >> /etc/apt/sources.list;  \
-    apt-get update;                                                                \
-    apt-get -y install -t buster cmake libboost-dev libzmq3-dev liblua5.3-dev;     \
-    apt-get -y install -t bullseye nlohmann-json3-dev;                             \
+    apt-get -y install g++ curl cmake libboost-dev libzmq3-dev liblua5.3-dev;      \
+    apt-get -y install -t buster-backports nlohmann-json3-dev;                     \
     mkdir -p /usr/src;                                                             \
     cd /usr/src;                                                                   \
     curl -L https://github.com/zeromq/cppzmq/archive/v4.6.0.tar.gz | tar -zxf -;   \
@@ -32,13 +36,9 @@ RUN set -ex;                                    \
     make;                                       \
     make install
 
-FROM debian:buster
+FROM base
 
 EXPOSE 5555
-
-RUN set -ex;         \
-    apt-get update;  \
-    apt-get -y install libzmq5 liblua5.3
 
 COPY --from=builder /usr/local/bin/bridge /usr/local/bin
 
