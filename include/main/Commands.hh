@@ -376,7 +376,7 @@
  *         "tricksWon": <tricks won by each partnership>,
  *         "vulnerability": <vulnerability>
  *     },
- *     "prvstate": {
+ *     "privstate": {
  *         "cards": <cards that are visible to the player>,
  *     },
  *     "self": {
@@ -398,7 +398,7 @@
  *   requesting player. In order to determine the full state of the
  *   game from the point of view of the requesting player, the client
  *   MAY consider this object a merge patch following the semantics of
- *   RFC 7386, that is applied on top of pubstate.
+ *   RFC 7396, that is applied on top of pubstate.
  *
  * - \b self contains information about the player itself within the
  *   game.

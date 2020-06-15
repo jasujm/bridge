@@ -9,8 +9,8 @@
  *
  * \code{.json}
  * {
- *     { "northSouth": <northSouthTricksWon> },
- *     { "eastWest": <eastWestTricksWon> }
+ *     "northSouth": <northSouthTricksWon>,
+ *     "eastWest": <eastWestTricksWon>
  * }
  * \endcode
  *
