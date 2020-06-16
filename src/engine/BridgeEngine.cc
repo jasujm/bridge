@@ -15,6 +15,7 @@
 #include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
+#include <boost/statechart/in_state_reaction.hpp>
 #include <boost/statechart/simple_state.hpp>
 #include <boost/statechart/state.hpp>
 #include <boost/statechart/state_machine.hpp>
@@ -64,7 +65,7 @@ public:
     bool& ret;
 };
 class DealEndedEvent : public sc::event<DealEndedEvent> {};
-class NewTrickEvent : public sc::event<NewTrickEvent> {};
+class NewPlayEvent : public sc::event<NewPlayEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
     PlayCardEvent(
@@ -546,8 +547,8 @@ public:
 
     void notifyTurnStarted();
     void commitPlay(const PlayCardEvent& event);
-    bool play();
-    void requestRevealDummy();
+    void play(const CardRevealedEvent&);
+    void requestRevealDummy(const NewPlayEvent&);
     void notifyDummyRevealed(const DummyHandRevealedEvent&);
 
 private:
@@ -630,12 +631,8 @@ void Playing::commitPlay(const PlayCardEvent& event)
     hand.requestReveal(&event.card, &event.card+1);
 }
 
-bool Playing::play()
+void Playing::play(const CardRevealedEvent&)
 {
-    // This method is tightly coupled with WaitingRevealCard state and it
-    // returns true if that state's reaction to CardRevealedEvent is supposed to
-    // transit to a new state, false otherwise. Kind of artificial but didn't
-    // come up with better design yet...
     auto& indeal = context<InDeal>();
     assert(commitedPlay);
     auto& trick = dereference(indeal.getCurrentTrick());
@@ -653,17 +650,16 @@ bool Playing::play()
                 BridgeEngine::TrickCompleted {trick, winner_hand});
             if (indeal.isLastTrick()) {
                 post_event(DealEndedEvent {});
-                return false;
+                return;
             } else {
                 indeal.addTrick(dereference(indeal.getPosition(winner_hand)));
             }
         }
-        return true;
+        post_event(NewPlayEvent {});
     }
-    return false;
 }
 
-void Playing::requestRevealDummy()
+void Playing::requestRevealDummy(const NewPlayEvent&)
 {
     cardRevealStateObserver = outermost_context().makeCardRevealStateObserver(
         [](const auto& ns) -> std::optional<DummyHandRevealedEvent>
@@ -740,23 +736,20 @@ class WaitingRevealDummy;
 
 class WaitingRevealCard : public sc::simple_state<WaitingRevealCard, Playing> {
 public:
-    using reactions = sc::custom_reaction<CardRevealedEvent>;
+    using reactions = boost::mpl::list<
+      sc::in_state_reaction<CardRevealedEvent, Playing, &Playing::play>,
+      sc::custom_reaction<NewPlayEvent>>;
     sc::result react(const CardRevealedEvent&);
+    sc::result react(const NewPlayEvent&);
 };
 
-sc::result WaitingRevealCard::react(const CardRevealedEvent&)
+sc::result WaitingRevealCard::react(const NewPlayEvent& event)
 {
-    auto& playing = context<Playing>();
-    const auto should_transit = playing.play();
-    if (should_transit) {
-        if (state_cast<const DummyVisible*>()) {
-            return transit<SelectingCard>();
-        } else {
-            playing.requestRevealDummy();
-            return transit<WaitingRevealDummy>();
-        }
+    if (state_cast<const DummyVisible*>()) {
+        return transit<SelectingCard>();
+    } else {
+        return transit<WaitingRevealDummy>(&Playing::requestRevealDummy, event);
     }
-    return discard_event();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
