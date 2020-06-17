@@ -1,0 +1,16 @@
+@startuml
+title Server–client model
+rectangle "Frontend\n\nnorth" as FEn
+rectangle "Frontend\n\neast" as FEe
+rectangle "Frontend\n\nsouth" as FEs
+rectangle "Frontend\n\nwest" as FEw
+rectangle "Backend\n\nnorth\neast\nsouth\nwest" as BE
+FEn <-down-> BE: commands
+FEn <-down- BE: events
+FEe <-left-> BE: commands
+FEe <-left- BE: events
+FEs <-up-> BE: commands
+FEs <-up- BE: events
+FEw <-right-> BE: commands
+FEw <-right- BE: events
+@enduml

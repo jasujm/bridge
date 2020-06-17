@@ -1,0 +1,24 @@
+@startuml
+title Peer–to–peer model
+rectangle "Frontend\n\nnorth" as FEn
+rectangle "Frontend\n\neast" as FEe
+rectangle "Frontend\n\nsouth" as FEs
+rectangle "Frontend\n\nwest" as FEw
+rectangle "Backend\n\nnorth" as BEn
+rectangle "Backend\n\neast" as BEe
+rectangle "Backend\n\nsouth" as BEs
+rectangle "Backend\n\nwest" as BEw
+FEn <-down-> BEn: commands
+FEn <-down- BEn: events
+FEe <-left-> BEe: commands
+FEe <-left- BEe: events
+FEs <-up-> BEs: commands
+FEs <-up- BEs: events
+FEw <-right-> BEw: commands
+FEw <-right- BEw: events
+() "N-to-N" as IF
+BEn <-down-> IF: commands
+BEe <-left-> IF: commands
+BEs <-up-> IF: commands
+BEw <-right-> IF: commands
+@enduml
