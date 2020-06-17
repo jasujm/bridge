@@ -8,15 +8,15 @@ rectangle "Backend\n\nnorth" as BEn
 rectangle "Backend\n\neast" as BEe
 rectangle "Backend\n\nsouth" as BEs
 rectangle "Backend\n\nwest" as BEw
-FEn <-down-> BEn: commands
+FEn -down-> BEn: commands
 FEn <-down- BEn: events
-FEe <-left-> BEe: commands
+FEe -left-> BEe: commands
 FEe <-left- BEe: events
-FEs <-up-> BEs: commands
+FEs -up-> BEs: commands
 FEs <-up- BEs: events
-FEw <-right-> BEw: commands
+FEw -right-> BEw: commands
 FEw <-right- BEw: events
-() "N-to-N" as IF
+() "Fully connected mesh" as IF
 BEn <-down-> IF: commands
 BEe <-left-> IF: commands
 BEs <-up-> IF: commands

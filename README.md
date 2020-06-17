@@ -139,6 +139,10 @@ Run the frontend like this:
 where `endpoint` is the control endpoint of the backend. Run
 `bridgegui --help` to see the remaining options.
 
+Unless the backend was configured to create a game at startup, the
+first frontend to join needs to create a game using the
+`--create-game` option.
+
 #### Frontend display
 
 The score sheet is displayed on the right. More rows are added to the
@@ -238,11 +242,11 @@ networking stuff comes first and the (in comparison) boring UX stuff
 comes later. In approximate order of importance the next goals for
 this project are:
 
-- Sane way to deploy and configure the application
+- Sane way to deploy and configure the application / orchestrate games
 - Persistent state (persistent sessions, keep records etc.)
 - Nicer user interface and other usability oriented features (claiming
   tricks, canceling moves etc.)
-- Peer discovery / orchestration of bridge games
+- Peer discovery
 
 The first two items are for supporting using the backend to power a
 [Bridge webapp](https://github.com/jasujm/bridgeapp).
