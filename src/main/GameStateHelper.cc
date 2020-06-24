@@ -11,7 +11,6 @@
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
-#include "main/NodePlayerControl.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"

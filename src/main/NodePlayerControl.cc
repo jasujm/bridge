@@ -4,9 +4,8 @@
 #include "bridge/UuidGenerator.hh"
 #include "Utility.hh"
 
-#include <algorithm>
 #include <cassert>
-#include <vector>
+#include <map>
 
 namespace Bridge {
 namespace Main {
@@ -15,22 +14,13 @@ using Messaging::Identity;
 
 class NodePlayerControl::Impl {
 public:
-    std::shared_ptr<Player> createPlayer(
+    std::shared_ptr<Player> getOrCreatePlayer(
         const Identity& node, const std::optional<Uuid>& uuid);
-
-    std::shared_ptr<const Player> getPlayer(
-        const Identity& node, const std::optional<Uuid>& uuid) const;
 
 private:
 
-    struct Element {
-        Identity node;
-        std::shared_ptr<Player> player;
-    };
-
-    // Assumption: access control happens per game and thus the vector contains
-    // small number of elements. Searching the vector is fast.
-    std::vector<Element> players;
+    std::multimap<Identity, std::shared_ptr<Player>> nodes;
+    std::map<Uuid, std::pair<Identity, std::shared_ptr<Player>>> players;
     UuidGenerator uuidGenerator {createUuidGenerator()};
 };
 
@@ -39,62 +29,44 @@ NodePlayerControl::NodePlayerControl() :
 {
 }
 
-std::shared_ptr<Player> NodePlayerControl::Impl::createPlayer(
+std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
     const Identity& node, const std::optional<Uuid>& uuid)
 {
-    const auto uuid_for_player = uuid ? *uuid : uuidGenerator();
-    const auto iter = std::find_if(
-        players.begin(), players.end(),
-        [&uuid_for_player](const auto& e)
-        {
-            return dereference(e.player).getUuid() == uuid_for_player;
-        });
-    if (iter == players.end()) {
-        const auto ret = std::make_shared<BasicPlayer>(uuid_for_player);
-        players.emplace_back(Element {node, ret});
-        return ret;
-    }
-    return nullptr;
-}
-
-std::shared_ptr<const Player> NodePlayerControl::Impl::getPlayer(
-    const Identity& node, const std::optional<Uuid>& uuid) const
-{
-    const auto last = players.end();
-    if (uuid) {
-        const auto iter = std::find_if(
-            players.begin(), last,
-            [&uuid](const auto& e)
-            {
-                return dereference(e.player).getUuid() == uuid;
-            });
-        if (iter != last && iter->node == node) {
-            return iter->player;
+    Uuid uuid_for_player;
+    if (!uuid) {
+        const auto iter = nodes.lower_bound(node);
+        if (iter == nodes.end()) {
+            uuid_for_player = uuidGenerator();
+        } else {
+            const auto next_iter = std::next(iter);
+            if (next_iter == nodes.end() || next_iter->first != node) {
+                return iter->second;
+            } else {
+                return nullptr;
+            }
         }
     } else {
-        const auto func = [&node](const auto& e) { return e.node == node; };
-        const auto iter = std::find_if(players.begin(), last, func);
-        if (iter != last && std::find_if(iter + 1, last, func) == last) {
-            return iter->player;
-        }
+        uuid_for_player = *uuid;
+    }
+    const auto iter = players.find(uuid_for_player);
+    if (iter == players.end()) {
+        const auto ret = std::make_shared<BasicPlayer>(uuid_for_player);
+        players.emplace(uuid_for_player, std::pair {node, ret});
+        nodes.emplace(node, ret);
+        return ret;
+    } else if (iter->second.first == node) {
+        return iter->second.second;
     }
     return nullptr;
 }
 
 NodePlayerControl::~NodePlayerControl() = default;
 
-std::shared_ptr<Player> NodePlayerControl::createPlayer(
+std::shared_ptr<Player> NodePlayerControl::getOrCreatePlayer(
     const Identity& node, const std::optional<Uuid>& uuid)
 {
     assert(impl);
-    return impl->createPlayer(node, uuid);
-}
-
-std::shared_ptr<const Player> NodePlayerControl::getPlayer(
-    const Identity& node, const std::optional<Uuid>& uuid) const
-{
-    assert(impl);
-    return impl->getPlayer(node, uuid);
+    return impl->getOrCreatePlayer(node, uuid);
 }
 
 }

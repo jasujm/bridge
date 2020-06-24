@@ -104,7 +104,7 @@ private:
         const std::optional<int>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
-    const Player* internalGetPlayerFor(
+    std::shared_ptr<Player> internalGetOrCreatePlayer(
         const Identity& identity, const std::optional<Uuid>& playerUuid);
 
     const Config config;
@@ -324,7 +324,7 @@ Reply<Uuid> BridgeMain::Impl::join(
         }
         if (game && position) {
             assert(nodePlayerControl);
-            if (auto player = nodePlayerControl->createPlayer(identity, playerUuid)) {
+            if (auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
                 game->join(identity, *position, std::move(player));
                 return success(uuid_for_game);
             }
@@ -340,7 +340,7 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
 {
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
-    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
             return success(game->getState(*player, keys), game->getCounter());
         }
@@ -354,7 +354,7 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
-    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
             return success();
@@ -371,7 +371,7 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
-    if (const auto player = internalGetPlayerFor(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
             return success();
@@ -389,11 +389,11 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
     return nullptr;
 }
 
-const Player* BridgeMain::Impl::internalGetPlayerFor(
+std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
     const Identity& identity, const std::optional<Uuid>& playerUuid)
 {
     assert(nodePlayerControl);
-    return nodePlayerControl->getPlayer(identity, playerUuid).get();
+    return nodePlayerControl->getOrCreatePlayer(identity, playerUuid);
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :

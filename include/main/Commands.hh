@@ -74,9 +74,13 @@
  * single bridge application.
  *
  * There isn’t necessarily an one‐to‐one correspondence between nodes
- * and players. In fact, even a client MAY request multiple players
- * with different identities to join a game. It is up to the peer to
- * accept or reject such requests.
+ * and players. In fact, even a client MAY have multiple players with
+ * different identities joining a game. It is up to the peer to accept
+ * or reject such requests.
+ *
+ * There isn’t necessarily a central authoritative source of player
+ * identities. A peer MAY simply allow any node to claim a player that
+ * starts using its UUID in a command.
  *
  * \section bridgeprotocolbasics Basics
  *
