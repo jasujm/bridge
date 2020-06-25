@@ -34,16 +34,16 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
 {
     Uuid uuid_for_player;
     if (!uuid) {
-        const auto iter = nodes.lower_bound(node);
-        if (iter == nodes.end()) {
+        const auto [first_node_iter, last_node_iter] = nodes.equal_range(node);
+        if (first_node_iter == last_node_iter) {
+            // Node has no players, generate one
             uuid_for_player = uuidGenerator();
+        } else if (std::next(first_node_iter) == last_node_iter) {
+            // Node has exactly one player, return that
+            return first_node_iter->second;
         } else {
-            const auto next_iter = std::next(iter);
-            if (next_iter == nodes.end() || next_iter->first != node) {
-                return iter->second;
-            } else {
-                return nullptr;
-            }
+            // Node has multiple player, would need UUID to disambiguate
+            return nullptr;
         }
     } else {
         uuid_for_player = *uuid;
