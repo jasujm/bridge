@@ -48,14 +48,14 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
     } else {
         uuid_for_player = *uuid;
     }
-    const auto iter = players.find(uuid_for_player);
-    if (iter == players.end()) {
+    const auto player_iter = players.find(uuid_for_player);
+    if (player_iter == players.end()) {
         const auto ret = std::make_shared<BasicPlayer>(uuid_for_player);
         players.emplace(uuid_for_player, std::pair {node, ret});
         nodes.emplace(node, ret);
         return ret;
-    } else if (iter->second.first == node) {
-        return iter->second.second;
+    } else if (player_iter->second.first == node) {
+        return player_iter->second.second;
     }
     return nullptr;
 }
