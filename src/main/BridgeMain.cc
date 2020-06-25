@@ -106,6 +106,8 @@ private:
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     std::shared_ptr<Player> internalGetOrCreatePlayer(
         const Identity& identity, const std::optional<Uuid>& playerUuid);
+    bool internalBasicRequestCheck(
+        const Identity& identity, const std::optional<Uuid>& playerUuid) const;
 
     const Config config;
     UuidGenerator uuidGenerator {createUuidGenerator()};
@@ -340,6 +342,13 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
 {
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
+
+    // This command is supposed to be for clients only. Do not pass
+    // playerUuid to the check. That way peer is automatically failed.
+    if (!internalBasicRequestCheck(identity, std::nullopt)) {
+        return failure();
+    }
+
     if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
             return success(game->getState(*player, keys), game->getCounter());
@@ -354,6 +363,10 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
+    if (!internalBasicRequestCheck(identity, playerUuid)) {
+        return failure();
+    }
+
     if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
@@ -371,6 +384,10 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
+    if (!internalBasicRequestCheck(identity, playerUuid)) {
+        return failure();
+    }
+
     if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
@@ -394,6 +411,13 @@ std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
 {
     assert(nodePlayerControl);
     return nodePlayerControl->getOrCreatePlayer(identity, playerUuid);
+}
+
+bool BridgeMain::Impl::internalBasicRequestCheck(
+    const Identity& identity, const std::optional<Uuid>& playerUuid) const
+{
+    const auto iter = nodes.find(identity);
+    return (iter != nodes.end() && (iter->second == Role::CLIENT || playerUuid));
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :
