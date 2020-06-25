@@ -323,7 +323,6 @@ Reply<Uuid> BridgeMain::Impl::join(
             }
         }
         if (game && position) {
-            assert(nodePlayerControl);
             if (auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
                 if (game->join(identity, *position, std::move(player))) {
                     return success(uuid_for_game);
