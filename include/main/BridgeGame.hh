@@ -184,11 +184,16 @@ public:
      *   getPositionForPlayerToJoin()
      * - \p player must not be nullptr
      *
+     * The method will fail if \p player is already in the game.
+     *
      * \param identity the identity of the node controlling the player
      * \param position the position the player is seated in
      * \param player the player to join the game
+     *
+     * \return true if it the player was successfully added to the
+     * game, false otherwise
      */
-    void join(
+    bool join(
         const Messaging::Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
