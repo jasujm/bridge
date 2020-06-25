@@ -295,18 +295,15 @@ bool BridgeGame::Impl::join(
     const Identity& identity, const Position position,
     std::shared_ptr<Player> player)
 {
-    for (const auto p : Position::all()) {
-        if (p != position && engine.getPlayer(p) == player.get()) {
-            return false;
-        }
+    if (engine.setPlayer(position, player)) {
+        sendToPeersIfClient(
+            identity, JOIN_COMMAND,
+            std::pair {GAME_COMMAND, uuid},
+            std::pair {PLAYER_COMMAND, dereference(player).getUuid()},
+            std::pair {POSITION_COMMAND, position});
+        return true;
     }
-    sendToPeersIfClient(
-        identity, JOIN_COMMAND,
-        std::pair {GAME_COMMAND, uuid},
-        std::pair {PLAYER_COMMAND, dereference(player).getUuid()},
-        std::pair {POSITION_COMMAND, position});
-    engine.setPlayer(position, std::move(player));
-    return true;
+    return false;
 }
 
 GameState BridgeGame::Impl::getState(

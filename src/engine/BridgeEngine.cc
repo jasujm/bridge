@@ -105,7 +105,7 @@ public:
     auto makeCardRevealStateObserver(EventGenerator&& generator);
     void requestShuffle();
 
-    void setPlayer(Position position, std::shared_ptr<Player> player);
+    bool setPlayer(Position position, std::shared_ptr<Player> player);
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
     Observable<DealStarted>& getDealStartedNotifier()
@@ -827,11 +827,22 @@ auto BridgeEngine::Impl::internalCallIfInState(
     return typename Helper::ReturnType {};
 }
 
-void BridgeEngine::Impl::setPlayer(
+bool BridgeEngine::Impl::setPlayer(
     const Position position, std::shared_ptr<Player> player)
 {
-    const auto n = static_cast<std::size_t>(position.get());
-    players[n] = std::move(player);
+    if (!player ||
+        std::all_of(
+            Position::begin(), Position::end(),
+            [this, position, &player](const auto p)
+            {
+                return p == position || getPlayer(p) != player.get();
+            }
+            )) {
+        const auto n = static_cast<std::size_t>(position.get());
+        players[n] = std::move(player);
+        return true;
+    }
+    return false;
 }
 
 std::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
@@ -1010,11 +1021,11 @@ void BridgeEngine::startDeal()
         });
 }
 
-void BridgeEngine::setPlayer(
+bool BridgeEngine::setPlayer(
     const Position position, std::shared_ptr<Player> player)
 {
     assert(impl);
-    impl->setPlayer(position, std::move(player));
+    return impl->setPlayer(position, std::move(player));
 }
 
 bool BridgeEngine::call(const Player& player, const Call& call)

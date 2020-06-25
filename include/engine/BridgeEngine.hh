@@ -272,10 +272,15 @@ public:
      * Make \p player seated in given \p position. If a player already exists in
      * the position, he is replaced with the new player.
      *
+     * The method will have no effect if \p player is already in the game.
+     *
      * \param position the position to seat the \p player in
      * \param player the player
+     *
+     * \return true if \p player was successfully added to \p
+     * position, false otherwise
      */
-    void setPlayer(Position position, std::shared_ptr<Player> player);
+    bool setPlayer(Position position, std::shared_ptr<Player> player);
 
     /** \brief Make call
      *

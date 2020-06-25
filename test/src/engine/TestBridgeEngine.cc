@@ -511,3 +511,17 @@ TEST_F(BridgeEngineTest, testFailedPlay)
     ASSERT_FALSE(
         engine.play(*players[2], dereference(engine.getHandInTurn()), 0));
 }
+
+TEST_F(BridgeEngineTest, testReplacePlayer)
+{
+    EXPECT_TRUE(engine.setPlayer(Positions::NORTH, nullptr));
+    EXPECT_EQ(nullptr, engine.getPlayer(Positions::NORTH));
+    EXPECT_TRUE(engine.setPlayer(Positions::NORTH, players[0]));
+    EXPECT_EQ(players[0].get(), engine.getPlayer(Positions::NORTH));
+}
+
+TEST_F(BridgeEngineTest, testPlayerCannotHaveTwoSeats)
+{
+    EXPECT_FALSE(engine.setPlayer(Positions::NORTH, players[1]));
+    EXPECT_EQ(players[0].get(), engine.getPlayer(Positions::NORTH));
+}
