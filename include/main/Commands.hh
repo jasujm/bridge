@@ -308,7 +308,7 @@
  *
  * The game argument is the UUID of the game being joined. Clients MAY
  * omit it in which case the peer SHOULD select an available game for
- * the client.
+ * the client if possible.
  *
  * A client MAY omit the player argument. If omitted, the peer SHOULD
  * generate UUID for the player controlled by a newly joining node. A

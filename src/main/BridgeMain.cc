@@ -300,8 +300,8 @@ Reply<Uuid> BridgeMain::Impl::join(
         }
         auto uuid_for_game = Uuid {};
         auto game = static_cast<BridgeGame*>(nullptr);
-        if (gameUuid || position || availableGames.empty()) {
-            uuid_for_game = gameUuid.value_or(Uuid {});
+        if (gameUuid) {
+            uuid_for_game = *gameUuid;
             game = internalGetGame(uuid_for_game);
             if (game) {
                 position = game->getPositionForPlayerToJoin(identity, position);
