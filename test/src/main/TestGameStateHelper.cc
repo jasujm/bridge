@@ -328,7 +328,7 @@ TEST_F(GameStateHelperTest, testPrivateCardsIfNotEmpty)
 TEST_F(GameStateHelperTest, testCurrentTrickIfEmpty)
 {
     shuffle();
-    assertEmptyStateValue(PUBSTATE_COMMAND, TRICK_COMMAND);
+    assertEmptyStateValue(PUBSTATE_COMMAND, TRICKS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
@@ -339,21 +339,19 @@ TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
     const auto expected_card_type =
         dereference(dereference(hand.getCard(0)).getType());
     engine->play(*players[1], hand, 0);
-    const auto trick = getStateValue(PUBSTATE_COMMAND, TRICK_COMMAND);
-    ASSERT_EQ(1u, trick.size());
-    const auto position_iter = trick[0].find(POSITION_COMMAND);
-    ASSERT_NE(trick[0].end(), position_iter);
+    const auto tricks = getStateValue(PUBSTATE_COMMAND, TRICKS_COMMAND);
+    ASSERT_EQ(1u, tricks.size());
+    const auto trick = tricks.front();
+    const auto cards_iter = trick.find(CARDS_COMMAND);
+    ASSERT_NE(trick.end(), cards_iter);
+    ASSERT_EQ(1u, cards_iter->size());
+    const auto& card_position = cards_iter->front();
+    const auto position_iter = card_position.find(POSITION_COMMAND);
+    ASSERT_NE(card_position.end(), position_iter);
     EXPECT_EQ(Positions::EAST, position_iter->get<Position>());
-    const auto card_iter = trick[0].find(CARD_COMMAND);
-    ASSERT_NE(trick[0].end(), card_iter);
+    const auto card_iter = card_position.find(CARD_COMMAND);
+    ASSERT_NE(card_position.end(), card_iter);
     EXPECT_EQ(expected_card_type, card_iter->get<CardType>());
-}
-
-TEST_F(GameStateHelperTest, testTricksWon)
-{
-    const auto tricks_won = getStateValue(PUBSTATE_COMMAND, TRICKS_WON_COMMAND)
-    .get<Bridge::TricksWon>();
-    EXPECT_EQ(Bridge::TricksWon(0, 0), tricks_won);
 }
 
 TEST_F(GameStateHelperTest, testVulnerability)

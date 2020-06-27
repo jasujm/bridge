@@ -459,12 +459,11 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed& event)
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
-    log(LogLevel::DEBUG, "Deal ended. Tricks won: %s", event.tricksWon);
+    log(LogLevel::DEBUG, "Deal ended");
     using ScoreEntry = Engine::DuplicateGameManager::ScoreEntry;
     const auto& result = std::experimental::any_cast<const ScoreEntry&>(event.result);
     publish(
         DEAL_END_COMMAND,
-        std::pair {TRICKS_WON_COMMAND, event.tricksWon},
         std::pair {SCORE_COMMAND, result});
     dereference(callbackScheduler).callSoon(
         &BridgeEngine::startDeal, std::ref(engine));

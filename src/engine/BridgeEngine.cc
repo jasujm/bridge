@@ -11,6 +11,7 @@
 #include "FunctionQueue.hh"
 #include "Utility.hh"
 
+#include <boost/range/adaptor/transformed.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
@@ -151,6 +152,10 @@ public:
     std::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
+    std::vector<
+        std::pair<
+            std::reference_wrapper<const Trick>,
+            std::optional<Position>>> getTricks() const;
     std::optional<TricksWon> getTricksWon() const;
     const Hand* getDummyHandIfVisible() const;
 
@@ -283,6 +288,7 @@ public:
     Trick* getCurrentTrick();
     const Trick* getCurrentTrick() const;
     std::optional<std::optional<Suit>> getTrump() const;
+    auto getTricks() const;
     TricksWon getTricksWon() const;
 
 private:
@@ -347,7 +353,7 @@ void InDeal::exit()
             getNumberOfTricksWon(tricks_won, declarer_partnership));
     }
     context.getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {tricks_won, deal_result});
+        BridgeEngine::DealEnded {deal_result});
 }
 
 Bidding& InDeal::getBidding()
@@ -448,17 +454,26 @@ std::optional<std::optional<Suit>> InDeal::getTrump() const
     }
 }
 
+auto InDeal::getTricks() const
+{
+    return boost::adaptors::transform(
+        tricks,
+        [this, trump = getTrump()](const auto& trick_ptr)
+        {
+            const auto winner = getWinner(*trick_ptr, dereference(trump));
+            const auto winner_position = winner ?
+                std::optional {getPosition(*winner)} : std::nullopt;
+            return std::pair {std::cref(*trick_ptr), winner_position};
+        });
+}
+
 TricksWon InDeal::getTricksWon() const
 {
     auto north_south = 0;
     auto east_west = 0;
-    const auto trump = getTrump();
-
-    for (const auto& trick : tricks) {
-        assert(trick);
-        if (const auto winner = getWinner(*trick, dereference(trump))) {
-            const auto winner_position = dereference(getPosition(*winner));
-            const auto winner_partnership = partnershipFor(winner_position);
+    for (const auto trick_winner_pair : getTricks()) {
+        if (const auto winner_position = trick_winner_pair.second) {
+            const auto winner_partnership = partnershipFor(*winner_position);
             switch (winner_partnership.get()) {
             case PartnershipLabel::NORTH_SOUTH:
                 ++north_south;
@@ -917,6 +932,18 @@ const Trick* BridgeEngine::Impl::getCurrentTrick() const
     return nullptr;
 }
 
+std::vector<
+    std::pair<
+        std::reference_wrapper<const Trick>,
+        std::optional<Position>>> BridgeEngine::Impl::getTricks() const
+{
+    if (const auto* state = state_cast<const InDeal*>()) {
+        const auto tricks = state->getTricks();
+        return std::vector(tricks.begin(), tricks.end());
+    }
+    return {};
+}
+
 std::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
 {
     return internalCallIfInState(&InDeal::getTricksWon);
@@ -1124,6 +1151,15 @@ const Trick* BridgeEngine::getCurrentTrick() const
     return impl->getCurrentTrick();
 }
 
+std::vector<
+    std::pair<
+        std::reference_wrapper<const Trick>,
+        std::optional<Position>>> BridgeEngine::getTricks() const
+{
+    assert(impl);
+    return impl->getTricks();
+}
+
 std::optional<TricksWon> BridgeEngine::getTricksWon() const
 {
     assert(impl);
@@ -1176,9 +1212,7 @@ BridgeEngine::DummyRevealed::DummyRevealed(
 {
 }
 
-BridgeEngine::DealEnded::DealEnded(
-    const TricksWon& tricksWon, const GameManager::ResultType& result) :
-    tricksWon {tricksWon},
+BridgeEngine::DealEnded::DealEnded(const GameManager::ResultType& result) :
     result {result}
 {
 }

@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace Bridge {
 
@@ -153,16 +154,9 @@ public:
     struct DealEnded : private boost::equality_comparable<DealEnded> {
         /** \brief Create new deal ended event
          *
-         * \param tricksWon see \ref tricksWon
          * \param result see \ref result
          */
-        DealEnded(const TricksWon& tricksWon, const GameManager::ResultType& result);
-
-        /** \brief Tricks won in the deal
-         *
-         * \note Tricks won by each partnership is zero if the deal passed out.
-         */
-        TricksWon tricksWon;
+        DealEnded(const GameManager::ResultType& result);
 
         /** \brief Result of the deal
          *
@@ -408,6 +402,16 @@ public:
      * game is not in the deal phase
      */
     const Bidding* getBidding() const;
+
+    /** \brief Retrieve the tricks in the current deal
+     *
+     * \return vector containing pairs with tricks and winner
+     * positions, respectively
+     */
+    std::vector<
+        std::pair<
+            std::reference_wrapper<const Trick>,
+            std::optional<Position>>> getTricks() const;
 
     /** \brief Retrieve the current trick
      *

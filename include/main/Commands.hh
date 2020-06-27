@@ -376,8 +376,7 @@
  *         "declarer": <the position of the declarer, or null>,
  *         "contract": <the contract reached, or null>,
  *         "cards": <cards that are visible to all players>,
- *         "trick": [<cards in the current trick>],
- *         "tricksWon": <tricks won by each partnership>,
+ *         "tricks": [<tricks in the current deal>],
  *         "vulnerability": <vulnerability>
  *     },
  *     "privstate": {
@@ -440,24 +439,37 @@
  * contract are null values.
  *
  * The \e cards member contains mapping from positions to list of
- * cards held by the player in that position.  Cards not visible to
- * all players are represented as nulls in the pubstate object. The
- * cards visible to the requesting player are only included in the
- * privstate object, unless the requesting player is dummy. The object
- * is empty if cards have not been dealt yet.
+ * cards held by the player in that position. Cards not visible to all
+ * players are represented as nulls in the pubstate object. The cards
+ * visible to the requesting player are only included in the privstate
+ * object, unless the requesting player is dummy. The object is empty
+ * if cards have not been dealt yet.
  *
- * The \e trick member is an array of position–card pairs, each
- * containing a position (field “position”) and a card (field “card”)
- * played by the position to the trick. The array is ordered in the
- * order that the cards were played to the trick. The array is empty
- * if no cards have been played to the current trick (possibly because
- * the last trick was just completed or the playing phase has not
- * started).
+ * The \e tricks member is an array of tricks played in the current
+ * deal, including the latest trick where cards are being played. Each
+ * trick is an object with the following schema:
  *
- * The \e tricksWon member contains mapping from partnerships to the
- * number of tricks won by each side. If no tricks have been completed
- * (perhaps because bidding is not yet completed), both fields are
- * zero.
+ * \code{.json}
+ * {
+ *     "cards": [<array of position–card pairs>],
+ *     "winner": <winner of the trick, or null if incomplete>
+ * }
+ * \endcode
+ *
+ * The tricks are in the order played. The latest entry in the array
+ * is the current trick.
+ *
+ * Only the current and the latest completed trick have the \e cards
+ * member. If present, it is an array of position–card pairs. An
+ * example of an object corresponding the the player at north playing
+ * the ace of spades would be:
+ *
+ * \code{.json}
+ * {
+ *     "position": "north",
+ *     "call": { "rank": "ace", "suit": "spades" }
+ * }
+ * \endcode
  *
  * The \e vulnerability member contains the current vulnerabilities of
  * the partnerships. If they are not known (perhaps because there is
@@ -625,12 +637,11 @@
  *
  * - \b Command: dealend
  * - \b Parameters:
- *   - \e tricksWon: the number of tricks won by each partnership
  *   - \e score: the score awarded to the winner, see \ref jsonduplicatescore
  *   - \e counter: the running counter
  *
  * This event is published whenever a deal ends. If the deal passes
- * out, tricksWon are 0 for each partnership and score is null.
+ * out, the score is null.
  */
 
 #ifndef MAIN_COMMANDS_HH_
@@ -732,11 +743,11 @@ inline constexpr auto ALLOWED_CARDS_COMMAND = std::string_view {"allowedCards"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-inline constexpr auto TRICKS_WON_COMMAND = std::string_view {"tricksWon"};
+inline constexpr auto TRICK_COMMAND = std::string_view {"trick"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
-inline constexpr auto TRICK_COMMAND = std::string_view {"trick"};
+inline constexpr auto TRICKS_COMMAND = std::string_view {"tricks"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

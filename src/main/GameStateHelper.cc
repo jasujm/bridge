@@ -6,7 +6,6 @@
 #include "bridge/Contract.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
@@ -18,7 +17,6 @@
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/Replies.hh"
 #include "messaging/SerializationUtility.hh"
-#include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
@@ -131,26 +129,32 @@ auto getPrivateCards(const BridgeEngine& engine, const Player& player)
     return nlohmann::json::object();
 }
 
-auto getTrick(const BridgeEngine& engine)
+auto getTricks(const BridgeEngine& engine)
 {
-    auto cards = nlohmann::json::array();
-    if (const auto trick = engine.getCurrentTrick()) {
-        for (const auto pair : *trick) {
-            const auto position = engine.getPosition(pair.first);
-            const auto card = pair.second.getType();
-            cards.push_back(
-                nlohmann::json {
-                    { POSITION_COMMAND, position },
-                    { CARD_COMMAND, card },
-                });
+    auto tricks_object = nlohmann::json::array();
+    const auto tricks = engine.getTricks();
+    const auto n_tricks = tricks.size();
+    auto n = 0;
+    for (const auto [trick, winner_position] : tricks) {
+        auto trick_object = nlohmann::json::object();
+        // Last and second-to-last trick are visible
+        if (n_tricks - n <= 2) {
+            auto cards = nlohmann::json::array();
+            for (const auto& [hand, card] : trick.get()) {
+                cards.emplace_back(
+                    nlohmann::json {
+                        { POSITION_COMMAND, engine.getPosition(hand) },
+                        { CARD_COMMAND, card.getType() },
+                    }
+                );
+            }
+            trick_object.emplace(CARDS_COMMAND, std::move(cards));
         }
+        trick_object.emplace(WINNER_COMMAND, winner_position);
+        tricks_object.emplace_back(std::move(trick_object));
+        ++n;
     }
-    return cards;
-}
-
-auto getTricksWon(const BridgeEngine& engine)
-{
-    return engine.getTricksWon().value_or(TricksWon {0, 0});
+    return tricks_object;
 }
 
 auto getVulnerability(const DuplicateGameManager& gameManager)
@@ -168,8 +172,7 @@ auto getPubstateSubobject(
         { CONTRACT_COMMAND, getBiddingResult(engine, &Bidding::getContract) },
         { CALLS_COMMAND, getCalls(engine) },
         { CARDS_COMMAND, getPublicCards(engine) },
-        { TRICK_COMMAND, getTrick(engine) },
-        { TRICKS_WON_COMMAND, getTricksWon(engine) },
+        { TRICKS_COMMAND, getTricks(engine) },
         { VULNERABILITY_COMMAND, getVulnerability(gameManager) },
     };
 }
