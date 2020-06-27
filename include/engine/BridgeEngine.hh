@@ -8,7 +8,6 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Position.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/GameManager.hh"
 #include "Observer.hh"
@@ -419,13 +418,6 @@ public:
      * ongoing
      */
     const Trick* getCurrentTrick() const;
-
-    /** \brief Determine the number of tricks won by each partnership
-     *
-     * \return TricksWon object containing tricks won by each partnership, or
-     * none if the game is not in deal phase
-     */
-    std::optional<TricksWon> getTricksWon() const;
 
     class Impl;
 

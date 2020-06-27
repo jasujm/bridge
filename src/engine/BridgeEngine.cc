@@ -6,6 +6,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
+#include "bridge/TricksWon.hh"
 #include "engine/CardManager.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
@@ -156,7 +157,6 @@ public:
         std::pair<
             std::reference_wrapper<const Trick>,
             std::optional<Position>>> getTricks() const;
-    std::optional<TricksWon> getTricksWon() const;
     const Hand* getDummyHandIfVisible() const;
 
     FunctionQueue functionQueue;
@@ -944,11 +944,6 @@ std::vector<
     return {};
 }
 
-std::optional<TricksWon> BridgeEngine::Impl::getTricksWon() const
-{
-    return internalCallIfInState(&InDeal::getTricksWon);
-}
-
 const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
 {
     return internalCallIfInState(&DummyVisible::getDummyHand);
@@ -1158,12 +1153,6 @@ std::vector<
 {
     assert(impl);
     return impl->getTricks();
-}
-
-std::optional<TricksWon> BridgeEngine::getTricksWon() const
-{
-    assert(impl);
-    return impl->getTricksWon();
 }
 
 BridgeEngine::DealStarted::DealStarted(

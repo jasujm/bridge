@@ -301,7 +301,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.positionInTurn = Positions::NORTH;
     expectedState.cards.emplace();
     expectedState.calls.emplace();
-    expectedState.tricksWon.emplace(0, 0);
     for (const auto position : Position::all()) {
         // TODO: Make this prettier
         const auto hand = engine.getHand(position);
@@ -359,6 +358,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.declarer = Positions::EAST;
     expectedState.contract.emplace(BID, Doublings::REDOUBLED);
     expectedState.currentTrick.emplace();
+    expectedState.tricksWon.emplace(0, 0);
     std::array<Position, N_PLAYERS> next_positions_first_turn {
         Positions::EAST, Positions::NORTH, Positions::EAST, Positions::NORTH
     };

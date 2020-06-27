@@ -22,7 +22,6 @@
 #include "messaging/DuplicateScoreJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
-#include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "scoring/DuplicateScore.hh"

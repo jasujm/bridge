@@ -3,7 +3,6 @@
 #include "bridge/Call.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Partnership.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "cardserver/PeerEntry.hh"
 #include "messaging/JsonSerializer.hh"
@@ -16,7 +15,6 @@
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationFailureException.hh"
-#include "messaging/TricksWonJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "scoring/DuplicateScore.hh"
@@ -43,7 +41,6 @@ namespace {
 constexpr auto BID = Bid {4, Strains::HEARTS};
 constexpr auto CONTRACT = Contract {BID, Doublings::DOUBLED};
 constexpr auto VULNERABILITY = Vulnerability {true, false};
-constexpr auto TRICKS_WON = TricksWon {5, 6};
 const auto PEER_ENDPOINT = "inproc://test"s;
 const auto PEER_SERVER_KEY = decodeKey(
     "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"sv);
@@ -298,49 +295,6 @@ TEST_F(JsonSerializerTest, testContractInvalidDoubling)
         {CONTRACT_DOUBLING_KEY, nullptr}
     };
     testFailedDeserializationHelper<Contract>(j);
-}
-
-TEST_F(JsonSerializerTest, testTricksWon)
-{
-    const auto j = json {
-        {Partnerships::NORTH_SOUTH_VALUE, 5},
-        {Partnerships::EAST_WEST_VALUE, 6}
-    };
-    testHelper(TRICKS_WON, j);
-}
-
-TEST_F(JsonSerializerTest, testTricksWonNorthSouthMissing)
-{
-    const auto j = json {
-        {Partnerships::NORTH_SOUTH_VALUE, 5}
-    };
-    testFailedDeserializationHelper<TricksWon>(j);
-}
-
-TEST_F(JsonSerializerTest, testTricksWonNorthSouthInvalid)
-{
-    const auto j = json {
-        {Partnerships::NORTH_SOUTH_VALUE, nullptr},
-        {Partnerships::EAST_WEST_VALUE, 6}
-    };
-    testFailedDeserializationHelper<TricksWon>(j);
-}
-
-TEST_F(JsonSerializerTest, testTricksWonEastWestMissing)
-{
-    const auto j = json {
-        {Partnerships::EAST_WEST_VALUE, 6}
-    };
-    testFailedDeserializationHelper<TricksWon>(j);
-}
-
-TEST_F(JsonSerializerTest, testTricksWonEastWestInvalid)
-{
-    const auto j = json {
-        {Partnerships::NORTH_SOUTH_VALUE, 5},
-        {Partnerships::EAST_WEST_VALUE, nullptr}
-    };
-    testFailedDeserializationHelper<TricksWon>(j);
 }
 
 TEST_F(JsonSerializerTest, testPeerEntry)
