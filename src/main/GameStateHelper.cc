@@ -163,10 +163,12 @@ auto getVulnerability(const DuplicateGameManager& gameManager)
 }
 
 auto getPubstateSubobject(
+    const Uuid& dealUuid,
     const Engine::BridgeEngine& engine,
     const Engine::DuplicateGameManager& gameManager)
 {
     return nlohmann::json {
+        { DEAL_COMMAND, dealUuid },
         { POSITION_IN_TURN_COMMAND, getPositionInTurn(engine) },
         { DECLARER_COMMAND, getBiddingResult(engine, &Bidding::getDeclarerPosition) },
         { CONTRACT_COMMAND, getBiddingResult(engine, &Bidding::getContract) },
@@ -205,16 +207,17 @@ CardTypeVector getCardsFromHand(const Hand& hand)
 }
 
 nlohmann::json getGameState(
-    const Bridge::Player& player,
+    const Player& player,
     const Engine::BridgeEngine& engine,
     const Engine::DuplicateGameManager& gameManager,
+    const Uuid& dealUuid,
     std::optional<std::vector<std::string>> keys)
 {
     if (keys) {
         auto state = nlohmann::json::object();
         for (const auto& key : *keys) {
             if (key == PUBSTATE_COMMAND) {
-                state.emplace(key, getPubstateSubobject(engine, gameManager));
+                state.emplace(key, getPubstateSubobject(dealUuid, engine, gameManager));
             } else if (key == PRIVSTATE_COMMAND) {
                 state.emplace(key, getPrivstateSubobject(engine, player));
             } else if (key == SELF_COMMAND) {
@@ -224,7 +227,7 @@ nlohmann::json getGameState(
         return state;
     } else {
         return {
-            { PUBSTATE_COMMAND, getPubstateSubobject(engine, gameManager) },
+            { PUBSTATE_COMMAND, getPubstateSubobject(dealUuid, engine, gameManager) },
             { PRIVSTATE_COMMAND, getPrivstateSubobject(engine, player) },
             { SELF_COMMAND, getSelfSubobject(engine, player) },
         };

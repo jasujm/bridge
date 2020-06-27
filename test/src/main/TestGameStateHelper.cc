@@ -67,6 +67,8 @@ const auto PLAYER2_UUID = UUIDGEN("141c9665-04cb-4dea-bbcf-dee749d1e355");
 const auto PLAYER3_UUID = UUIDGEN("fd83118a-17e5-41b8-9708-da93fcfb3b2b");
 const auto PLAYER4_UUID = UUIDGEN("71e847bc-e677-4ed0-b92a-ad9e72ecad4d");
 
+const auto DEAL_UUID = UUIDGEN("3050b2cd-785d-4620-b775-88af56026175");
+
 constexpr auto CALLS = std::array<Call, 4> {
     Bridge::Bid {1, Bridge::Strains::CLUBS},
     Bridge::Pass {},
@@ -115,7 +117,8 @@ protected:
         if (key) {
             keys = std::vector {std::string {*key}};
         }
-        return Bridge::Main::getGameState(player, *engine, *gameManager, keys);
+        return Bridge::Main::getGameState(
+            player, *engine, *gameManager, DEAL_UUID, keys);
     }
 
     auto getStateValue(
@@ -159,6 +162,13 @@ TEST_F(GameStateHelperTest, testRequestWithoutKeysIncludesAllKeys)
     for (const auto key : ALL_KEYS) {
         EXPECT_TRUE(state.contains(key)) << key;
     }
+}
+
+TEST_F(GameStateHelperTest, testDealUuid)
+{
+    EXPECT_EQ(
+        DEAL_UUID,
+        getStateValue(PUBSTATE_COMMAND, DEAL_COMMAND).get<Bridge::Uuid>());
 }
 
 TEST_F(GameStateHelperTest, testPosition)

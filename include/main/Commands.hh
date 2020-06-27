@@ -371,6 +371,7 @@
  * \code{.json}
  * {
  *     "pubstate": {
+ *         "deal": <UUID of the current deal>
  *         "positionInTurn": <the position of the player who is in turn to act>,
  *         "calls": [<calls that have been made in the current deal>],
  *         "declarer": <the position of the declarer, or null>,
@@ -407,6 +408,16 @@
  *   game.
  *
  * \subsubsection bridgeprotocolcontrolgetstate Game state member
+ *
+ * The \e deal member contains the UUID of the current deal. The
+ * clients MAY use this UUID to correlate responses and events
+ * belonging to the same deal.
+ *
+ * \note In the current protocol version there are no commands that
+ * would operate on deal objects identified by this UUID. It is,
+ * however, possible that the following versions make clearer
+ * distinction between games (sequences of deals), and the deals
+ * within the game.
  *
  * The \e positionInTurn member contains the position of the player
  * that has the turn to act next. If no player has turn (e.g. because
@@ -570,6 +581,7 @@
  *
  * - \b Command: deal
  * - \b Parameters:
+ *  - \e deal: the UUID of the deal
  *  - \e opener: the position of the opener of the bidding
  *  - \e vulnerability: the vulnerabilities in the deal
  *
@@ -579,6 +591,7 @@
  *
  * - \b Command: turn
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e position: the position of the player that has turn
  *
  * This event is published whenever a new player gets turn. The
@@ -588,6 +601,7 @@
  *
  * - \b Command: call
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e position: the position of the player who made the call
  *   - \e call: see \ref jsoncall
  *   - \e counter: the running counter
@@ -598,6 +612,7 @@
  *
  * - \b Command: bidding
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e declarer: the declarer determined by the bidding
  *   - \e contract: the contract reached
  *   - \e counter: the running counter
@@ -608,6 +623,7 @@
  *
  * - \b Command: play
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e position: the position of the hand the card was played from
  *   - \e card: see \ref jsoncardtype
  *   - \e counter: the running counter
@@ -618,6 +634,7 @@
  *
  * - \b Command: dummy
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e position: the position of the dummy
  *   - \e cards: the cards of the dummy (an array of card objects)
  *   - \e counter: the running counter
@@ -628,6 +645,7 @@
  *
  * - \b Command: trick
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e winner: the position of the player that wins the trick
  *   - \e counter: the running counter
  *
@@ -637,6 +655,7 @@
  *
  * - \b Command: dealend
  * - \b Parameters:
+ *   - \e deal: the UUID of the deal
  *   - \e score: the score awarded to the winner, see \ref jsonduplicatescore
  *   - \e counter: the running counter
  *

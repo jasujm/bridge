@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "bridge/CardType.hh"
+#include "bridge/Uuid.hh"
 
 namespace Bridge {
 
@@ -38,14 +39,16 @@ std::vector<std::optional<CardType>> getCardsFromHand(const Hand& hand);
  * \param player The player requesting the state
  * \param engine The bridge engine
  * \param gameManager The game manager
+ * \param dealUuid The UUID of the current deal
  * \param keys The keys to retrieve
  *
  * \return Current state of the game
  */
 nlohmann::json getGameState(
-    const Bridge::Player& player,
+    const Player& player,
     const Engine::BridgeEngine& engine,
     const Engine::DuplicateGameManager& gameManager,
+    const Uuid& dealUuid,
     std::optional<std::vector<std::string>> keys);
 
 }

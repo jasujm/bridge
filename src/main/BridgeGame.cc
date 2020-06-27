@@ -7,6 +7,7 @@
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
+#include "bridge/UuidGenerator.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
@@ -162,6 +163,8 @@ private:
     const IdentitySet participants;
     BridgeEngine engine;
     std::unique_ptr<CardProtocol> cardProtocol;
+    UuidGenerator uuidGenerator;
+    Uuid dealUuid;
     std::uint64_t counter;
 };
 
@@ -187,6 +190,8 @@ BridgeGame::Impl::Impl(
             cardProtocol->getCardManager() : shuffler->getCardManager(),
         gameManager},
     cardProtocol {std::move(cardProtocol)},
+    uuidGenerator {createUuidGenerator()},
+    dealUuid {},
     counter {}
 {
     if (shuffler) {
@@ -222,6 +227,7 @@ void BridgeGame::Impl::publish(const std::string_view command, Args&&... args)
     log(LogLevel::DEBUG, "Publishing event: %s", command);
     sendEventMessage(
         dereference(eventSocket), JsonSerializer {}, os.str(),
+        std::pair {DEAL_COMMAND, dealUuid},
         std::forward<Args>(args)...,
         std::pair {COUNTER_COMMAND, counter});
     ++counter;
@@ -310,7 +316,7 @@ GameState BridgeGame::Impl::getState(
     const std::optional<std::vector<std::string>>& keys) const
 {
     assert(gameManager);
-    return getGameState(player, engine, *gameManager, keys);
+    return getGameState(player, engine, *gameManager, dealUuid, keys);
 }
 
 BridgeGame::Counter BridgeGame::Impl::getCounter() const
@@ -391,6 +397,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
 {
     log(LogLevel::DEBUG, "Deal started. Opener: %s. Vulnerability: %s",
         event.opener, event.vulnerability);
+    dealUuid = uuidGenerator();
     publish(
         DEAL_COMMAND,
         std::pair {OPENER_COMMAND, event.opener},
