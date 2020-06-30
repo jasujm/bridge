@@ -11,6 +11,7 @@
 #include <array>
 #include <csignal>
 #include <string>
+#include <stdexcept>
 
 using namespace Bridge::BlobLiterals;
 using namespace Bridge::Messaging;
@@ -125,4 +126,9 @@ TEST_F(MessageLoopTest, testRemove)
     EXPECT_CALL(callbacks[0], call(_)).Times(0);
     EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
     loop.run();
+}
+
+TEST_F(MessageLoopTest, testAddPollableTwice)
+{
+    EXPECT_THROW(loop.addPollable(backSockets[0], [](auto&) {}), std::runtime_error);
 }

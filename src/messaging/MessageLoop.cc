@@ -135,6 +135,14 @@ void MessageLoop::Impl::addPollable(
     PollableSocket socket, SocketCallback callback)
 {
     assert(socket);
+    if (std::find_if(
+            pollitems.begin(), pollitems.end(),
+            [handle = socket->handle()](const auto& pollitem) {
+                return handle == pollitem.socket;
+            }) != pollitems.end()) {
+        throw std::runtime_error {
+            "Trying to register socket to poller that is already registered"};
+    }
     pollitems.push_back({ socket->handle(), 0, ZMQ_POLLIN, 0 });
     try {
         callbacks.emplace_back(

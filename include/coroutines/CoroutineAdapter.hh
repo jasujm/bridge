@@ -67,9 +67,12 @@ public:
      * coroutine to await events, represented by one of the alternatives of \ref
      * Awaitable variant.
      *
-     * If the pushed object is a ZeroMQ socket, the coroutine is suspended until
-     * the socket becomes readable. The behavior is undefined if a coroutine
-     * function pushes a \c nullptr to the sink.
+     * If the pushed object is a ZeroMQ socket, the coroutine is
+     * suspended until the socket becomes readable. The behavior is
+     * undefined if a coroutine function pushes a \c nullptr to the
+     * sink, or if the socket is already registered to the underlying
+     * poller (including the case that any other coroutine is awaiting
+     * \p socket).
      *
      * If the object is a \ref Future, the coroutine is suspended until the
      * future is completed. When pushing a future to the sink, it should \e not

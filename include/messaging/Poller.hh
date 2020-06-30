@@ -47,6 +47,7 @@ public:
      * \param callback the callback to invoke when \p socket becomes readable
      *
      * \throw std::invalid_argument if either \p socket or \p callback is empty
+     * \throw std::runtime_error if \p socket is already registered with the poller
      */
     void addPollable(PollableSocket socket, SocketCallback callback);
 
