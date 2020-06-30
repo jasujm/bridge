@@ -248,13 +248,10 @@ bool BridgeGame::Impl::addPeer(
     if (!positions) {
         return false;
     }
-    if (std::any_of(
-            positions->begin(), positions->end(),
-            [this](const auto p)
-            {
-                return positionsInUse.find(p) != positionsInUse.end();
-            })) {
-        return false;
+    for (const auto position : *positions) {
+        if (positionsInUse.find(position) != positionsInUse.end()) {
+            return false;
+        }
     }
     peers[identity] = *positions;
     for (const auto position : *positions) {

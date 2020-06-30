@@ -845,19 +845,18 @@ auto BridgeEngine::Impl::internalCallIfInState(
 bool BridgeEngine::Impl::setPlayer(
     const Position position, std::shared_ptr<Player> player)
 {
-    if (!player ||
-        std::all_of(
-            Position::begin(), Position::end(),
-            [this, position, &player](const auto p)
-            {
-                return p == position || getPlayer(p) != player.get();
+    // Ensure player is not already in the game (unless trying the
+    // no-op of adding the player back to its own seat)
+    if (player) {
+        for (const auto p : Position::all()) {
+            if (p != position && getPlayer(p) == player.get()) {
+                return false;
             }
-            )) {
-        const auto n = static_cast<std::size_t>(position.get());
-        players[n] = std::move(player);
-        return true;
+        }
     }
-    return false;
+    const auto n = static_cast<std::size_t>(position.get());
+    players[n] = std::move(player);
+    return true;
 }
 
 std::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const

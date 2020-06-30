@@ -72,8 +72,7 @@ void PeerCommandSender::operator()(Messaging::Socket& socket)
     if (message.size() >= 2 && message[0] == current_message.front() &&
         isSuccessful(messageView(message[1]))) {
         iter->success = true;
-        if (
-            std::all_of(
+        if (std::all_of(
                 peers.begin(), peers.end(),
                 [](const auto& peer) { return peer.success; })) {
             messages.pop();
