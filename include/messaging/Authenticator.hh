@@ -20,17 +20,19 @@ namespace Messaging {
 
 /** \brief ZAP implementation
  *
- * This class implements the ZAP protocol (https://rfc.zeromq.org/spec:27/ZAP/)
- * for authenticating incoming connections. It’s checked that the incoming
- * connections use CURVE mechanism. If they are, the connection is accepted. The
- * handler generates unique User-Id for the connection and publishes it along
- * with the CURVE public key for the application use.
+ * This class implements the ZAP protocol
+ * (https://rfc.zeromq.org/spec:27/ZAP/) for authenticating incoming
+ * connections. It’s checked that the incoming connections use CURVE
+ * mechanism. If they are, the connection is accepted. Each connection
+ * is assigned an User-Id. The user id is either the ID associated
+ * with one of the known nodes, or otherwise a unique name derived
+ * from their public key.
  *
- * A worker thread is created for the ZAP handler. The thread is joined when the
- * Authenticator instance is destructed.
+ * A worker thread is created for the ZAP handler. The thread is
+ * joined when the Authenticator instance is destructed.
  *
- * Because a process may only contain one ZAP handler, only one instance of this
- * class should exist at time.
+ * Because a process may only contain one ZAP handler, only one
+ * instance of this class should exist at time.
  */
 class Authenticator : private boost::noncopyable {
 public:

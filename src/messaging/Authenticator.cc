@@ -1,6 +1,7 @@
 #include "messaging/Authenticator.hh"
 
 #include "messaging/MessageUtility.hh"
+#include "messaging/Security.hh"
 
 #include <array>
 #include <cassert>
@@ -24,7 +25,6 @@ constexpr auto ZAP_STATUS = "OK"sv;
 constexpr auto ZAP_STATUS_ERROR = "Error"sv;
 constexpr auto ZAP_EXPECTED_MESSAGE_SIZE = 7;
 constexpr auto CURVE_MECHANISM = "CURVE"sv;
-constexpr auto ANONYMOUS_USER_ID = "anonymous"sv;
 
 enum class AuthenticatorCommand {
     SYNC,
@@ -35,6 +35,7 @@ void zapServer(
     MessageContext& context, Socket terminationSubscriber,
     Authenticator::NodeMap knownNodes)
 {
+    auto encoded_key = std::array<char, 41> {};
     auto control_socket = Socket {context, SocketType::rep};
     bindSocket(control_socket, CONTROL_ENDPOINT);
     auto zap_socket = Socket {context, SocketType::rep};
@@ -94,7 +95,13 @@ void zapServer(
                 if (user_id_iter != knownNodes.end()) {
                     user_id_view = user_id_iter->second;
                 } else {
-                    user_id_view = ANONYMOUS_USER_ID;
+                    assert(public_key_message.size() == EXPECTED_CURVE_KEY_SIZE);
+                    zmq_z85_encode(
+                        encoded_key.data(),
+                        public_key_message.data<std::uint8_t>(),
+                        EXPECTED_CURVE_KEY_SIZE);
+                    user_id_view = UserIdView {
+                        encoded_key.data(), encoded_key.size() - 1};
                 }
             }
 

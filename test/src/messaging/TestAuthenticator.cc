@@ -113,7 +113,7 @@ TEST_F(AuthenticatorTest, testAuthenticationUnknownPeer)
 {
     setupClient({CLIENT2_SECRET_KEY, CLIENT2_PUBLIC_KEY});
     const auto user_id = recvClientUserId();
-    EXPECT_NE(CLIENT2_USER_ID, user_id);
+    EXPECT_EQ(CLIENT2_PUBLIC_KEY, decodeKey(user_id));
 }
 
 TEST_F(AuthenticatorTest, testAuthenticationNewPeer)
