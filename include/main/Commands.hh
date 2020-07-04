@@ -47,7 +47,6 @@
  *   clients
  * - MUST agree with all peers taking part in a game about the positions each
  *   one controls
- * - SHOULD hand over connections based on the identity of a node
  * - MUST keep a running counter for synchronization purposes
  *
  * \subsection bridgeprotocolclients Clients
@@ -55,8 +54,6 @@
  * - MUST communicate with a peer using \ref bridgeprotocolcontrolmessage
  * - SHOULD subscribe to the event socket the peer provides
  * - MAY rely on the peer to track the full state of the game
- * - SHOULD set its identity to a value that is unique with high
- *   probability (such as binary presentation of an UUID it generates)
  *
  * \subsection bridgeprotocolplayers Players
  *
@@ -81,6 +78,11 @@
  * There isn’t necessarily a central authoritative source of player
  * identities. A peer MAY simply allow any node to claim a player that
  * starts using its UUID in a command.
+ *
+ * When the nodes are making commands on behalf of a player, the peer
+ * handling that command SHOULD verify that the node is allowed to act
+ * for that player. If CURVE mechanism is used, identity derived from
+ * the public key SHOULD be used for authorization.
  *
  * \section bridgeprotocolbasics Basics
  *

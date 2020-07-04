@@ -41,7 +41,7 @@ protected:
         messageQueue.trySetHandler(COMMAND, handler);
         bindSocket(backSocket, ENDPOINT);
         frontSocket.setsockopt(
-            ZMQ_IDENTITY, IDENTITY.routingId.data(), IDENTITY.routingId.size());
+            ZMQ_ROUTING_ID, IDENTITY.routingId.data(), IDENTITY.routingId.size());
         connectSocket(frontSocket, ENDPOINT);
     }
 

@@ -74,7 +74,7 @@ protected:
     {
         auto socket = Socket {context, SocketType::dealer};
         socket.setsockopt(
-            ZMQ_IDENTITY, PEER_IDENTITY.data(), PEER_IDENTITY.size());
+            ZMQ_ROUTING_ID, PEER_IDENTITY.data(), PEER_IDENTITY.size());
         connectSocket(socket, SELF_ENDPOINT);
         const auto order_parameter = boost::endian::native_to_big(order);
         if (!skipEmptyFrame) {

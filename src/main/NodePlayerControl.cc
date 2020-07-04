@@ -12,6 +12,15 @@ namespace Main {
 
 using Messaging::Identity;
 
+struct IdentityCompare {
+    bool operator()(const Identity& lhs, const Identity& rhs) const {
+        if (!lhs.userId.empty() && !rhs.userId.empty()) {
+            return lhs.userId < rhs.userId;
+        }
+        return lhs < rhs;
+    }
+};
+
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> getOrCreatePlayer(
@@ -19,7 +28,7 @@ public:
 
 private:
 
-    std::multimap<Identity, std::shared_ptr<Player>> nodes;
+    std::multimap<Identity, std::shared_ptr<Player>, IdentityCompare> nodes;
     std::map<Uuid, std::pair<Identity, std::shared_ptr<Player>>> players;
     UuidGenerator uuidGenerator {createUuidGenerator()};
 };
