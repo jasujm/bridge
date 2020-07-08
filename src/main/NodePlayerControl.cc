@@ -21,6 +21,12 @@ struct IdentityCompare {
     }
 };
 
+bool equalIdentity(const Identity& lhs, const Identity& rhs)
+{
+    const auto compare = IdentityCompare {};
+    return !compare(lhs, rhs) && !compare(rhs, lhs);
+}
+
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> getOrCreatePlayer(
@@ -63,7 +69,7 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
         players.emplace(uuid_for_player, std::pair {node, ret});
         nodes.emplace(node, ret);
         return ret;
-    } else if (player_iter->second.first == node) {
+    } else if (equalIdentity(player_iter->second.first, node)) {
         return player_iter->second.second;
     }
     return nullptr;
