@@ -8,6 +8,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Position.hh"
+#include "bridge/Uuid.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/GameManager.hh"
 #include "Observer.hh"
@@ -26,6 +27,7 @@ namespace Bridge {
 class Card;
 class Bidding;
 struct Contract;
+class Deal;
 class Hand;
 class Player;
 class Trick;
@@ -57,11 +59,14 @@ public:
     struct DealStarted : private boost::equality_comparable<DealStarted> {
         /** \brief Create new deal started event
          *
+         * \param uuid see \ref uuid
          * \param opener see \ref opener
          * \param vulnerability see \ref vulnerability
          */
-        DealStarted(Position opener, Vulnerability vulnerability);
+        DealStarted(
+            const Uuid& uuid, Position opener, Vulnerability vulnerability);
 
+        const Uuid& uuid;            ///< UUID of the deal
         Position opener;             ///< The position of the opened
         Vulnerability vulnerability; ///< Vulnerabilities of the deal
     };
@@ -73,8 +78,9 @@ public:
          *
          * \param position see \ref position
          */
-        TurnStarted(Position position);
+        TurnStarted(const Uuid& uuid, Position position);
 
+        const Uuid& uuid;            ///< UUID of the deal
         Position position;  ///< The position of the player having turn
     };
 
@@ -83,13 +89,14 @@ public:
     struct CallMade : private boost::equality_comparable<CallMade> {
         /** \brief Create new card played event
          *
-         * \param player see \ref player
+         * \param position see \ref position
          * \param call see \ref call
          */
-        CallMade(const Player& player, const Call& call);
+        CallMade(const Uuid& uuid, Position position, const Call& call);
 
-        const Player& player; ///< \brief The player that made the call
-        const Call call;      ///< \brief The call that was made
+        const Uuid& uuid;   ///< UUID of the deal
+        Position position;  ///< \brief The position that made the call
+        Call call;          ///< \brief The call that was made
     };
 
     /** \brief Event for announcing that contract was reached
@@ -100,8 +107,9 @@ public:
          * \param declarer see \ref declarer
          * \param contract see \ref contract
          */
-        BiddingCompleted(Position declarer, const Contract& contract);
+        BiddingCompleted(const Uuid& uuid, Position declarer, const Contract& contract);
 
+        const Uuid& uuid;         ///< UUID of the deal
         Position declarer;        ///< \brief The declarer determined by the bidding
         const Contract& contract; ///< \brief The contract reached during bidding
     };
@@ -111,13 +119,14 @@ public:
     struct CardPlayed : private boost::equality_comparable<CardPlayed> {
         /** \brief Create new card played event
          *
-         * \param hand see \ref hand
+         * \param position see \ref position
          * \param card see \ref card
          */
-        CardPlayed(const Hand& hand, const Card& card);
+        CardPlayed(const Uuid& uuid, Position position, const Card& card);
 
-        const Hand& hand;     ///< \brief The hand the card was played from
-        const Card& card;     ///< \brief The card played
+        const Uuid& uuid;   ///< UUID of the deal
+        Position position;  ///< \brief The position the card was played from
+        const Card& card;   ///< \brief The card played
     };
 
     /** \brief Event for announcing that a trick was completed
@@ -128,10 +137,11 @@ public:
          * \param trick see \ref trick
          * \param winner see \ref winner
          */
-        TrickCompleted(const Trick& trick, const Hand& winner);
+        TrickCompleted(const Uuid& uuid, const Trick& trick, Position winner);
 
-        const Trick& trick;     ///< \brief The trick that was completed
-        const Hand& winner;     ///< \brief The winning hand
+        const Uuid& uuid;    ///< UUID of the deal
+        const Trick& trick;  ///< \brief The trick that was completed
+        Position winner;     ///< \brief The winner position
     };
 
     /** \brief Event for announcing that dummy has been revealed
@@ -142,8 +152,9 @@ public:
          * \param position see \ref position
          * \param hand see \ref hand
          */
-        DummyRevealed(Position position, const Hand& hand);
+        DummyRevealed(const Uuid& uuid, Position position, const Hand& hand);
 
+        const Uuid& uuid;        ///< UUID of the deal
         Position position;       ///< \brief The position of the dummy
         const Hand& hand;        ///< \brief The hand of the dummy
     };
@@ -155,8 +166,9 @@ public:
          *
          * \param result see \ref result
          */
-        DealEnded(const GameManager::ResultType& result);
+        DealEnded(const Uuid& uuid, const GameManager::ResultType& result);
 
+        const Uuid& uuid;  ///< UUID of the deal
         /** \brief Result of the deal
          *
          * \note This is the object returned by the game manager. The client
@@ -318,21 +330,12 @@ public:
      */
     bool hasEnded() const;
 
-    /** \brief Retrieve the vulnerability of the current deal
+    /** \brief Get the record of the current deal
      *
-     * \return vulnerability for the current deal, or none if the game has
-     * ended
+     * \return Deal object representing the current deal, or nullptr
+     * if no deal is ongoing.
      */
-    std::optional<Vulnerability> getVulnerability() const;
-
-    /** \brief Retrieve the position currently in turn
-     *
-     * \return Position of the player who is next to act, regardless if there is
-     * a player seated in the position. During the playing phase declarer takes
-     * turns instead of dummy. If the game is in state where no position has
-     * turn (e.g. before cards have been dealt), return none.
-     */
-    std::optional<Position> getPositionInTurn() const;
+    const Deal* getCurrentDeal() const;
 
     /** \brief Retrieve the player currently in turn
      *
@@ -367,57 +370,6 @@ public:
      * game
      */
     std::optional<Position> getPosition(const Player& player) const;
-
-    /** \brief Retrieve the hand of the player seated at the given position
-     *
-     * \param position the position
-     *
-     * \return pointer the hand of the player at the given position, or nullptr
-     * if the game is not in the deal phase
-     */
-    const Hand* getHand(Position position) const;
-
-    /** \brief Determine whether the hand is publicly visible
-     *
-     * \param hand the hand
-     *
-     * \return true if \p hand belongs to the dummy and the opening
-     * lead has been played, false otherwise
-     */
-    bool isVisibleToAll(const Hand& hand) const;
-
-    /** \brief Determine the position of given hand
-     *
-     * \param hand the hand
-     *
-     * \return the position corresponding to the hand, or none if the game in
-     * not in the deal phase, or the hand does not participate in the deal
-     */
-    std::optional<Position> getPosition(const Hand& hand) const;
-
-    /** \brief Retrieve the bidding of the current deal
-     *
-     * \return pointer to the bidding for the current deal, or nullptr if the
-     * game is not in the deal phase
-     */
-    const Bidding* getBidding() const;
-
-    /** \brief Retrieve the tricks in the current deal
-     *
-     * \return vector containing pairs with tricks and winner
-     * positions, respectively
-     */
-    std::vector<
-        std::pair<
-            std::reference_wrapper<const Trick>,
-            std::optional<Position>>> getTricks() const;
-
-    /** \brief Retrieve the current trick
-     *
-     * \return pointer to the current trick, or nullptr if the play is not
-     * ongoing
-     */
-    const Trick* getCurrentTrick() const;
 
     class Impl;
 

@@ -1,8 +1,13 @@
+// FIXME: These unit tests should be rewritten in terms of the new
+// Deal interface instead of tediously building the deal state using
+// bridge engine
+
 #include "bridge/Bid.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Deal.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
@@ -20,6 +25,7 @@
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "MockMessageHandler.hh"
 #include "MockPlayer.hh"
+#include "Utility.hh"
 
 #include <boost/range/combine.hpp>
 #include <boost/uuid/string_generator.hpp>
@@ -67,8 +73,6 @@ const auto PLAYER2_UUID = UUIDGEN("141c9665-04cb-4dea-bbcf-dee749d1e355");
 const auto PLAYER3_UUID = UUIDGEN("fd83118a-17e5-41b8-9708-da93fcfb3b2b");
 const auto PLAYER4_UUID = UUIDGEN("71e847bc-e677-4ed0-b92a-ad9e72ecad4d");
 
-const auto DEAL_UUID = UUIDGEN("3050b2cd-785d-4620-b775-88af56026175");
-
 constexpr auto CALLS = std::array<Call, 4> {
     Bridge::Bid {1, Bridge::Strains::CLUBS},
     Bridge::Pass {},
@@ -95,10 +99,6 @@ protected:
             engine->setPlayer(t.get<0>(), t.get<1>());
         }
         engine->startDeal();
-    }
-
-    void shuffle()
-    {
         cardManager->shuffle(
             cardTypeIterator(0), cardTypeIterator(Bridge::N_CARDS));
     }
@@ -118,7 +118,8 @@ protected:
             keys = std::vector {std::string {*key}};
         }
         return Bridge::Main::getGameState(
-            player, *engine, *gameManager, DEAL_UUID, keys);
+            engine->getCurrentDeal(), engine->getPosition(player),
+            engine->getPlayerInTurn() == &player, keys);
     }
 
     auto getStateValue(
@@ -167,7 +168,7 @@ TEST_F(GameStateHelperTest, testRequestWithoutKeysIncludesAllKeys)
 TEST_F(GameStateHelperTest, testDealUuid)
 {
     EXPECT_EQ(
-        DEAL_UUID,
+        dereference(engine->getCurrentDeal()).getUuid(),
         getStateValue(PUBSTATE_COMMAND, DEAL_COMMAND).get<Bridge::Uuid>());
 }
 
@@ -184,21 +185,14 @@ TEST_F(GameStateHelperTest, testPosition)
 
 TEST_F(GameStateHelperTest, testPositionInTurn)
 {
-    shuffle();
     const auto position = getStateValue(
         PUBSTATE_COMMAND, POSITION_IN_TURN_COMMAND)
         .get<Position>();
     EXPECT_EQ(Positions::NORTH, position);
 }
 
-TEST_F(GameStateHelperTest, testPositionInTurnBeforeDealStarted)
-{
-    assertEmptyStateValue(PUBSTATE_COMMAND, POSITION_IN_TURN_COMMAND);
-}
-
 TEST_F(GameStateHelperTest, testAllowedCallsForPlayerInTurn)
 {
-    shuffle();
     const auto calls = getStateValue(SELF_COMMAND, ALLOWED_CALLS_COMMAND)
         .get<CallVector>();
     EXPECT_FALSE(calls.empty());
@@ -206,27 +200,23 @@ TEST_F(GameStateHelperTest, testAllowedCallsForPlayerInTurn)
 
 TEST_F(GameStateHelperTest, testAllowedCallsForPlayerNotInTurn)
 {
-    shuffle();
     assertEmptyStateValue(
         SELF_COMMAND, ALLOWED_CALLS_COMMAND, players[1].get());
 }
 
 TEST_F(GameStateHelperTest, testAllowedCallsAfterBidding)
 {
-    shuffle();
     makeBidding();
     assertEmptyStateValue(SELF_COMMAND, ALLOWED_CALLS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCallsIfEmpty)
 {
-    shuffle();
     assertEmptyStateValue(PUBSTATE_COMMAND, CALLS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCallsIfNotEmpty)
 {
-    shuffle();
     makeBidding();
     const auto j = getStateValue(PUBSTATE_COMMAND, CALLS_COMMAND);
     for (auto&& t : boost::combine(j, Position::all(), CALLS)) {
@@ -248,7 +238,6 @@ TEST_F(GameStateHelperTest, testDeclarerIfBiddingNotCompleted)
 
 TEST_F(GameStateHelperTest, testDeclarerIfBiddingCompleted)
 {
-    shuffle();
     makeBidding();
     const auto position = getStateValue(PUBSTATE_COMMAND, DECLARER_COMMAND)
         .get<Position>();
@@ -257,13 +246,11 @@ TEST_F(GameStateHelperTest, testDeclarerIfBiddingCompleted)
 
 TEST_F(GameStateHelperTest, testContractIfBiddingNotCompleted)
 {
-    shuffle();
     assertEmptyStateValue(PUBSTATE_COMMAND, CONTRACT_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testContractIfBiddingCompleted)
 {
-    shuffle();
     makeBidding();
     const auto contract = getStateValue(PUBSTATE_COMMAND, CONTRACT_COMMAND)
         .get<Bridge::Contract>();
@@ -272,7 +259,6 @@ TEST_F(GameStateHelperTest, testContractIfBiddingCompleted)
 
 TEST_F(GameStateHelperTest, testAllowedCardsForPlayerInTurn)
 {
-    shuffle();
     makeBidding();
     const auto cards = getStateValue(
         SELF_COMMAND, ALLOWED_CARDS_COMMAND, players[1].get())
@@ -286,30 +272,17 @@ TEST_F(GameStateHelperTest, testAllowedCardsForPlayerInTurn)
 
 TEST_F(GameStateHelperTest, testAllowedCardsForPlayerNotInTurn)
 {
-    shuffle();
     makeBidding();
     assertEmptyStateValue(SELF_COMMAND, ALLOWED_CARDS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testAllowedCardsBeforeBiddingIsCompleted)
 {
-    shuffle();
     assertEmptyStateValue(SELF_COMMAND, ALLOWED_CARDS_COMMAND);
-}
-
-TEST_F(GameStateHelperTest, testPublicCardsIfEmpty)
-{
-    assertEmptyStateValue(PUBSTATE_COMMAND, CARDS_COMMAND);
-}
-
-TEST_F(GameStateHelperTest, testPrivateCardsIfEmpty)
-{
-    assertEmptyStateValue(PRIVSTATE_COMMAND, CARDS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testPublicCardsIfNotEmpty)
 {
-    shuffle();
     const auto j = getStateValue(PUBSTATE_COMMAND, CARDS_COMMAND);
     for (const auto position : Position::all()) {
         const auto actual = j.at(std::string {position.value()})
@@ -322,7 +295,6 @@ TEST_F(GameStateHelperTest, testPublicCardsIfNotEmpty)
 
 TEST_F(GameStateHelperTest, testPrivateCardsIfNotEmpty)
 {
-    shuffle();
     const auto j = getStateValue(PRIVSTATE_COMMAND, CARDS_COMMAND);
     const auto actual = j.at(std::string {Positions::NORTH.value()})
         .get<OptionalCardVector>();
@@ -335,15 +307,13 @@ TEST_F(GameStateHelperTest, testPrivateCardsIfNotEmpty)
 
 TEST_F(GameStateHelperTest, testCurrentTrickIfEmpty)
 {
-    shuffle();
     assertEmptyStateValue(PUBSTATE_COMMAND, TRICKS_COMMAND);
 }
 
 TEST_F(GameStateHelperTest, testCurrentTrickIfNotEmpty)
 {
-    shuffle();
     makeBidding();
-    const auto& hand = dereference(engine->getHand(Positions::EAST));
+    const auto& hand = dereference(engine->getCurrentDeal()).getHand(Positions::EAST);
     const auto expected_card_type =
         dereference(dereference(hand.getCard(0)).getType());
     engine->play(*players[1], hand, 0);

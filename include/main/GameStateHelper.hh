@@ -11,17 +11,12 @@
 #include <optional>
 
 #include "bridge/CardType.hh"
-#include "bridge/Uuid.hh"
+#include "bridge/Position.hh"
 
 namespace Bridge {
 
+class Deal;
 class Hand;
-class Player;
-
-namespace Engine {
-class BridgeEngine;
-class DuplicateGameManager;
-}
 
 namespace Main {
 
@@ -36,19 +31,17 @@ std::vector<std::optional<CardType>> getCardsFromHand(const Hand& hand);
 
 /** \brief Helper for composing the current state of a game
  *
- * \param player The player requesting the state
- * \param engine The bridge engine
- * \param gameManager The game manager
- * \param dealUuid The UUID of the current deal
+ * \param deal The current deal
+ * \param playerPosition The position of the player in the game
+ * \param playerHasTurn Flag indicating if the player has turn
  * \param keys The keys to retrieve
  *
  * \return Current state of the game
  */
 nlohmann::json getGameState(
-    const Player& player,
-    const Engine::BridgeEngine& engine,
-    const Engine::DuplicateGameManager& gameManager,
-    const Uuid& dealUuid,
+    const Deal* deal,
+    std::optional<Position> playerPosition,
+    bool playerHasTurn,
     std::optional<std::vector<std::string>> keys);
 
 }

@@ -1,3 +1,7 @@
+// FIXME: The interface of BridgeEngine has evolved quite a lot, this
+// unit test hasn't. Maybe this needs a complete rewrite to properly
+// use the Deal interface etc. instead of this unholy mess
+
 #include "bridge/BasicHand.hh"
 #include "bridge/Bid.hh"
 #include "bridge/BidIterator.hh"
@@ -7,6 +11,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Deal.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
@@ -45,6 +50,7 @@ using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::Mock;
 using testing::NiceMock;
+using testing::Field;
 using testing::Return;
 using testing::ReturnRef;
 
@@ -121,14 +127,14 @@ protected:
     }
 
     void playCard(
-        const Player& player, int card, bool revealDummy = false,
-        bool completeTrick = false)
+        const Deal& deal, const Player& player, int card,
+        bool revealDummy = false, bool completeTrick = false)
     {
         const auto position = dereference(engine.getPosition(player));
         const auto partner_position = partnerFor(position);
         const auto& partner = dereference(engine.getPlayer(partner_position));
-        const auto& hand = dereference(engine.getHand(position));
-        const auto& partner_hand = dereference(engine.getHand(partner_position));
+        const auto& hand = deal.getHand(position);
+        const auto& partner_hand = deal.getHand(partner_position);
 
         EXPECT_CALL(
             *cardRevealStateObserver,
@@ -160,11 +166,12 @@ protected:
             std::make_shared<MockObserver<BridgeEngine::TrickCompleted>>();
         engine.subscribeToTrickCompleted(trick_completed_observer);
         if (completeTrick) {
-            const auto& trick = dereference(engine.getCurrentTrick());
+            const auto& trick = dereference(deal.getCurrentTrick());
             EXPECT_CALL(
                 *trick_completed_observer,
                 handleNotify(
-                    BridgeEngine::TrickCompleted {trick, hands.at(0).get()}));
+                    BridgeEngine::TrickCompleted {
+                        dealUuid, trick, Positions::NORTH}));
         } else {
             EXPECT_CALL(*trick_completed_observer, handleNotify(_)).Times(0);
         }
@@ -208,19 +215,11 @@ protected:
         }
     }
 
-    void assertNoHands()
-    {
-        for (const auto position : Position::all()) {
-            EXPECT_FALSE(engine.getHand(position));
-        }
-    }
-
-    void assertHandsVisible(const Player* dummy = nullptr)
+    void assertHandsVisible(const Deal& deal, const Player* dummy = nullptr)
     {
         for (const auto position : Position::all()) {
             const auto* player = engine.getPlayer(position);
-            const auto& hand = dereference(engine.getHand(position));
-            EXPECT_EQ(dummy == player, engine.isVisibleToAll(hand));
+            EXPECT_EQ(dummy == player, deal.isVisibleToAll(position));
         }
     }
 
@@ -259,6 +258,7 @@ protected:
     cardRevealStateObserver {
         std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
     DealState expectedState;
+    Uuid dealUuid;
 };
 
 TEST_F(BridgeEngineTest, testBridgeEngine)
@@ -273,9 +273,8 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
     // Startup
     expectedState.stage = Stage::SHUFFLING;
-    expectedState.vulnerability.emplace(true, true);
     assertDealState();
-    assertNoHands();
+    ASSERT_FALSE(engine.getCurrentDeal());
 
     // Shuffling
     {
@@ -284,29 +283,31 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         EXPECT_CALL(
             *deal_observer,
             handleNotify(
-                BridgeEngine::DealStarted {
-                    Positions::NORTH, Vulnerability {true, true}}));
+                Field(&BridgeEngine::DealStarted::opener, Positions::NORTH)));
         engine.subscribeToDealStarted(deal_observer);
         auto turn_observer = std::make_shared<
             MockObserver<BridgeEngine::TurnStarted>>();
         EXPECT_CALL(
             *turn_observer,
             handleNotify(
-                BridgeEngine::TurnStarted {Positions::NORTH}));
+                Field(
+                    &BridgeEngine::TurnStarted::position, Positions::NORTH)));
         engine.subscribeToTurnStarted(turn_observer);
         shuffledNotifier.notifyAll(
             Engine::CardManager::ShufflingState::COMPLETED);
     }
+    const auto* deal = engine.getCurrentDeal();
+    ASSERT_TRUE(deal);
+    dealUuid = deal->getUuid();
+    expectedState.vulnerability.emplace(true, true);
     expectedState.stage = Stage::BIDDING;
     expectedState.positionInTurn = Positions::NORTH;
     expectedState.cards.emplace();
     expectedState.calls.emplace();
     for (const auto position : Position::all()) {
-        // TODO: Make this prettier
-        const auto hand = engine.getHand(position);
-        ASSERT_TRUE(hand);
+        const auto& hand = deal->getHand(position);
         auto card_types = std::vector<CardType> {};
-        for (const auto& card : *hand) {
+        for (const auto& card : hand) {
             card_types.emplace_back(*card.getType());
         }
         expectedState.cards->emplace(position, std::move(card_types));
@@ -325,7 +326,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     for (const auto e : enumerate(calls)) {
         const auto& call = e.second;
         assertDealState();
-        assertHandsVisible();
+        assertHandsVisible(*deal);
         const auto& player = *players[e.first % players.size()];
         const auto position = dereference(engine.getPosition(player));
         const auto is_last_call = (e.first + 1 == ssize(calls));
@@ -336,6 +337,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             handleNotify(
                 BridgeEngine::TurnStarted {
                     // After last call south leads the first card
+                    dealUuid,
                     is_last_call ? Positions::SOUTH : clockwise(position) }));
         auto bidding_observer = std::make_shared<
             MockObserver<BridgeEngine::BiddingCompleted>>();
@@ -343,7 +345,8 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             *bidding_observer,
             handleNotify(
                 BridgeEngine::BiddingCompleted {
-                    Positions::EAST, Contract {BID, Doublings::REDOUBLED}}))
+                    dealUuid, Positions::EAST,
+                        Contract {BID, Doublings::REDOUBLED}}))
             .Times(is_last_call ? 1 : 0);
         engine.subscribeToTurnStarted(turn_observer);
         engine.subscribeToBiddingCompleted(bidding_observer);
@@ -372,11 +375,12 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         EXPECT_CALL(
             *observer,
             handleNotify(
-                BridgeEngine::TurnStarted {next_positions_first_turn[i]}));
+                BridgeEngine::TurnStarted {
+                    dealUuid, next_positions_first_turn[i]}));
         engine.subscribeToTurnStarted(observer);
-        playCard(player, 0, i == 0, i == players.size() - 1);
+        playCard(*deal, player, 0, i == 0, i == players.size() - 1);
         updateExpectedStateAfterPlay(player);
-        assertHandsVisible(engine.getPlayer(Positions::WEST));
+        assertHandsVisible(*deal, engine.getPlayer(Positions::WEST));
     }
 
     expectedState.positionInTurn = Positions::NORTH;
@@ -398,18 +402,18 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
             EXPECT_CALL(
                 *turn_observer,
                 handleNotify(
-                    BridgeEngine::TurnStarted {next_position}))
+                    BridgeEngine::TurnStarted {dealUuid, next_position}))
                 .Times(turn_notify_count);
             auto deal_observer =
                 std::make_shared<MockObserver<BridgeEngine::DealEnded>>();
             EXPECT_CALL(*deal_observer, handleNotify(_))
                 .Times(deal_notify_count);
             assertDealState(Positions::WEST);
-            assertHandsVisible(engine.getPlayer(Positions::WEST));
+            assertHandsVisible(*deal, engine.getPlayer(Positions::WEST));
 
             engine.subscribeToTurnStarted(turn_observer);
             engine.subscribeToDealEnded(deal_observer);
-            playCard(*player, i, false, last_card_in_trick);
+            playCard(*deal, *player, i, false, last_card_in_trick);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();
@@ -457,8 +461,11 @@ TEST_F(BridgeEngineTest, testSuccessfulCall)
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
     const auto& player = *players.front();
+    const auto uuid = dereference(engine.getCurrentDeal()).getUuid();
     const auto call = Bid {1, Strains::CLUBS};
-    EXPECT_CALL(*observer, handleNotify(BridgeEngine::CallMade {player, call}));
+    EXPECT_CALL(
+        *observer,
+        handleNotify(BridgeEngine::CallMade {uuid, Positions::NORTH, call}));
     engine.subscribeToCallMade(observer);
     EXPECT_TRUE(engine.call(player, call));
 }
@@ -483,11 +490,13 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
     engine.call(*players[3], Pass {});
 
     auto observer = std::make_shared<MockObserver<BridgeEngine::CardPlayed>>();
+    const auto uuid = dereference(engine.getCurrentDeal()).getUuid();
     const auto& hand = dereference(engine.getHandInTurn());
     EXPECT_CALL(
         *observer,
         handleNotify(
-            BridgeEngine::CardPlayed { hand, dereference(hand.getCard(0))}));
+            BridgeEngine::CardPlayed {
+                uuid, Positions::EAST, dereference(hand.getCard(0))}));
     engine.subscribeToCardPlayed(observer);
     ASSERT_TRUE(
         engine.play(*players[1], hand, 0));

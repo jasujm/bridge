@@ -4,11 +4,10 @@
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
 #include "bridge/Contract.hh"
+#include "bridge/Deal.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
 #include "bridge/Vulnerability.hh"
-#include "engine/BridgeEngine.hh"
-#include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
@@ -37,105 +36,79 @@ using CardTypeVector = std::vector<std::optional<CardType>>;
 
 namespace {
 
-using Engine::BridgeEngine;
-using Engine::DuplicateGameManager;
 using Messaging::JsonSerializer;
 
-auto getPosition(const BridgeEngine& engine, const Player& player)
-{
-    return engine.getPosition(player);
-}
-
-auto getPositionInTurn(const BridgeEngine& engine)
-{
-    return engine.getPositionInTurn();
-}
-
-auto getAllowedCalls(const BridgeEngine& engine, const Player& player)
+auto getAllowedCalls(const Deal& deal)
 {
     auto allowed_calls = std::vector<Call> {};
-    if (engine.getPlayerInTurn() == &player) {
-        if (const auto bidding = engine.getBidding()) {
-            getAllowedCalls(*bidding, std::back_inserter(allowed_calls));
-        }
-    }
+    getAllowedCalls(deal.getBidding(), std::back_inserter(allowed_calls));
     return allowed_calls;
 }
 
-auto getCalls(const BridgeEngine& engine)
+auto getCalls(const Deal& deal)
 {
     auto calls = nlohmann::json::array();
-    if (const auto& bidding = engine.getBidding()) {
-        for (const auto& [ position, call ] : *bidding) {
-            calls.push_back(
-                nlohmann::json {
-                    { POSITION_COMMAND, position },
-                    { CALL_COMMAND, call }
-                });
-        }
+    const auto& bidding = deal.getBidding();
+    for (const auto& [ position, call ] : bidding) {
+        calls.push_back(
+            nlohmann::json {
+                { POSITION_COMMAND, position },
+                { CALL_COMMAND, call }
+            });
     }
     return calls;
 }
 
 template<typename Result>
 auto getBiddingResult(
-    const BridgeEngine& engine,
+    const Deal& deal,
     std::optional<std::optional<Result>> (Bidding::*getResult)() const)
 {
     auto result = std::optional<Result> {};
-    if (const auto bidding = engine.getBidding()) {
-        if (bidding->hasContract()) {
-            result = dereference((bidding->*getResult)());
-        }
+    const auto& bidding = deal.getBidding();
+    if (bidding.hasContract()) {
+        result = dereference((bidding.*getResult)());
     }
     return result;
 }
 
-auto getAllowedCards(const BridgeEngine& engine, const Player& player)
+auto getAllowedCards(const Deal& deal)
 {
     auto allowed_cards = std::vector<CardType> {};
-    if (engine.getPlayerInTurn() == &player) {
-        if (const auto trick = engine.getCurrentTrick()) {
-            getAllowedCards(*trick, std::back_inserter(allowed_cards));
-        }
+    if (const auto trick = deal.getCurrentTrick()) {
+        getAllowedCards(*trick, std::back_inserter(allowed_cards));
     }
     return allowed_cards;
 }
 
-auto getPublicCards(const BridgeEngine& engine)
+auto getPublicCards(const Deal& deal)
 {
     auto cards = nlohmann::json::object();
     for (const auto position : Position::all()) {
-        if (const auto hand = engine.getHand(position)) {
-            const auto cards_in_hand = engine.isVisibleToAll(*hand) ?
-                getCardsFromHand(*hand) :
-                CardTypeVector(
-                    std::distance(hand->begin(), hand->end()), std::nullopt);
-            cards.emplace(position.value(), cards_in_hand);
-        }
+        const auto& hand = deal.getHand(position);
+        const auto cards_in_hand = deal.isVisibleToAll(position) ?
+            getCardsFromHand(hand) :
+            CardTypeVector(
+                std::distance(hand.begin(), hand.end()), std::nullopt);
+        cards.emplace(position.value(), cards_in_hand);
     }
     return cards;
 }
 
-auto getPrivateCards(const BridgeEngine& engine, const Player& player)
+auto getPrivateCards(const Deal& deal, const Position position)
 {
-    if (const auto position = engine.getPosition(player)) {
-        if (const auto hand = engine.getHand(*position)) {
-            return nlohmann::json {
-                { *position, getCardsFromHand(*hand) },
-            };
-        }
-    }
-    return nlohmann::json::object();
+    const auto& hand = deal.getHand(position);
+    return nlohmann::json {
+        { position, getCardsFromHand(hand) },
+    };
 }
 
-auto getTricks(const BridgeEngine& engine)
+auto getTricks(const Deal& deal)
 {
-    auto tricks_object = nlohmann::json::array();
-    const auto tricks = engine.getTricks();
-    const auto n_tricks = tricks.size();
-    auto n = 0;
-    for (const auto [trick, winner_position] : tricks) {
+    auto tricks = nlohmann::json::array();
+    const auto n_tricks = deal.getNumberOfTricks();
+    for (const auto n : to(n_tricks)) {
+        const auto [trick, winner_position] = deal.getTrick(n);
         auto trick_object = nlohmann::json::object();
         // Last and second-to-last trick are visible
         if (n_tricks - n <= 2) {
@@ -143,7 +116,7 @@ auto getTricks(const BridgeEngine& engine)
             for (const auto& [hand, card] : trick.get()) {
                 cards.emplace_back(
                     nlohmann::json {
-                        { POSITION_COMMAND, engine.getPosition(hand) },
+                        { POSITION_COMMAND, deal.getPosition(hand) },
                         { CARD_COMMAND, card.getType() },
                     }
                 );
@@ -151,48 +124,56 @@ auto getTricks(const BridgeEngine& engine)
             trick_object.emplace(CARDS_COMMAND, std::move(cards));
         }
         trick_object.emplace(WINNER_COMMAND, winner_position);
-        tricks_object.emplace_back(std::move(trick_object));
-        ++n;
+        tricks.emplace_back(std::move(trick_object));
     }
-    return tricks_object;
+    return tricks;
 }
 
-auto getVulnerability(const DuplicateGameManager& gameManager)
+auto getPubstateSubobject(const Deal* deal)
 {
-    return gameManager.getVulnerability();
-}
+    if (!deal) {
+        return nlohmann::json {};
+    }
 
-auto getPubstateSubobject(
-    const Uuid& dealUuid,
-    const Engine::BridgeEngine& engine,
-    const Engine::DuplicateGameManager& gameManager)
-{
     return nlohmann::json {
-        { DEAL_COMMAND, dealUuid },
-        { POSITION_IN_TURN_COMMAND, getPositionInTurn(engine) },
-        { DECLARER_COMMAND, getBiddingResult(engine, &Bidding::getDeclarerPosition) },
-        { CONTRACT_COMMAND, getBiddingResult(engine, &Bidding::getContract) },
-        { CALLS_COMMAND, getCalls(engine) },
-        { CARDS_COMMAND, getPublicCards(engine) },
-        { TRICKS_COMMAND, getTricks(engine) },
-        { VULNERABILITY_COMMAND, getVulnerability(gameManager) },
+        { DEAL_COMMAND, deal->getUuid() },
+        { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
+        { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
+        { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },
+        { CALLS_COMMAND, getCalls(*deal) },
+        { CARDS_COMMAND, getPublicCards(*deal) },
+        { TRICKS_COMMAND, getTricks(*deal) },
+        { VULNERABILITY_COMMAND, deal->getVulnerability() },
     };
 }
 
 auto getPrivstateSubobject(
-    const Engine::BridgeEngine& engine, const Player& player)
+    const Deal* deal, const std::optional<Position>& playerPosition)
 {
+    if (!deal || !playerPosition) {
+        return nlohmann::json {};
+    }
+
     return nlohmann::json {
-        { CARDS_COMMAND, getPrivateCards(engine, player) },
+        { CARDS_COMMAND, getPrivateCards(*deal, *playerPosition) },
     };
 }
 
-auto getSelfSubobject(const Engine::BridgeEngine& engine, const Player& player)
+auto getSelfSubobject(
+    const Deal* deal, const std::optional<Position> playerPosition,
+    const bool playerHasTurn)
 {
-    return nlohmann::json {
-        { POSITION_COMMAND, getPosition(engine, player) },
-        { ALLOWED_CALLS_COMMAND, getAllowedCalls(engine, player) },
-        { ALLOWED_CARDS_COMMAND, getAllowedCards(engine, player) },
+    using j = nlohmann::json;
+    return j {
+        { POSITION_COMMAND, playerPosition },
+        {
+            ALLOWED_CALLS_COMMAND,
+            (deal && playerHasTurn) ? j(getAllowedCalls(*deal)) : j::array(),
+        },
+        {
+            ALLOWED_CARDS_COMMAND,
+            (deal && playerHasTurn) ? j(getAllowedCards(*deal)) : j::array(),
+        },
     };
 }
 
@@ -207,29 +188,33 @@ CardTypeVector getCardsFromHand(const Hand& hand)
 }
 
 nlohmann::json getGameState(
-    const Player& player,
-    const Engine::BridgeEngine& engine,
-    const Engine::DuplicateGameManager& gameManager,
-    const Uuid& dealUuid,
+    const Deal* deal,
+    std::optional<Position> playerPosition,
+    bool playerHasTurn,
     std::optional<std::vector<std::string>> keys)
 {
     if (keys) {
         auto state = nlohmann::json::object();
         for (const auto& key : *keys) {
             if (key == PUBSTATE_COMMAND) {
-                state.emplace(key, getPubstateSubobject(dealUuid, engine, gameManager));
+                state.emplace(key, getPubstateSubobject(deal));
             } else if (key == PRIVSTATE_COMMAND) {
-                state.emplace(key, getPrivstateSubobject(engine, player));
+                state.emplace(key, getPrivstateSubobject(deal, playerPosition));
             } else if (key == SELF_COMMAND) {
-                state.emplace(key, getSelfSubobject(engine, player));
+                state.emplace(
+                    key,
+                    getSelfSubobject(deal, playerPosition, playerHasTurn));
             }
         }
         return state;
     } else {
         return {
-            { PUBSTATE_COMMAND, getPubstateSubobject(dealUuid, engine, gameManager) },
-            { PRIVSTATE_COMMAND, getPrivstateSubobject(engine, player) },
-            { SELF_COMMAND, getSelfSubobject(engine, player) },
+            { PUBSTATE_COMMAND, getPubstateSubobject(deal) },
+            { PRIVSTATE_COMMAND, getPrivstateSubobject(deal, playerPosition) },
+            {
+                SELF_COMMAND,
+                getSelfSubobject(deal, playerPosition, playerHasTurn)
+            },
         };
     }
 }

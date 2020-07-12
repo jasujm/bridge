@@ -3,6 +3,7 @@
 #include "bridge/Bidding.hh"
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Deal.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
@@ -44,14 +45,13 @@ void fillContract(DealState& state, const Bidding& bidding) {
     state.contract.emplace(dereference(dereference(bidding.getContract())));
 }
 
-void fillTricks(
-    DealState& state, const Trick& currentTrick, const BridgeEngine& engine)
+void fillTricks(DealState& state, const Trick& currentTrick, const Deal& deal)
 {
     state.currentTrick.emplace();
     for (const auto pair : currentTrick) {
         if (const auto type = pair.second.getType()) {
             // We assume it is safe to dereference as we are in the deal phase
-            const auto position = dereference(engine.getPosition(pair.first));
+            const auto position = dereference(deal.getPosition(pair.first));
             state.currentTrick->emplace_back(position, *type);
         }
     }
@@ -68,45 +68,45 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
         return state;
     }
 
-    state.vulnerability = engine.getVulnerability();
-    state.positionInTurn = engine.getPositionInTurn();
-
-    // If no one has turn, assume shuffling
-    if (!state.positionInTurn) {
+    const auto* deal = engine.getCurrentDeal();
+    if (!deal) {
         state.stage = Stage::SHUFFLING;
         return state;
     }
+
+    state.vulnerability = deal->getVulnerability();
+    state.positionInTurn = deal->getPositionInTurn();
 
     // Fill cards
     {
         const auto player_position = engine.getPosition(player);
         state.cards.emplace();
         for (const auto position : Position::all()) {
-            const auto& hand = dereference(engine.getHand(position));
-            if (player_position == position || engine.isVisibleToAll(hand)) {
+            const auto& hand = deal->getHand(position);
+            if (player_position == position || deal->isVisibleToAll(position)) {
                 fillCards(state, position, hand);
             }
         }
     }
 
     // Fill bidding
-    if (const auto bidding = engine.getBidding()) {
-        state.stage = Stage::BIDDING;
-        fillBidding(state, *bidding);
-        if (bidding->hasContract()) {
-            fillContract(state, *bidding);
-        }
+    state.stage = Stage::BIDDING;
+    const auto& bidding = deal->getBidding();
+    fillBidding(state, bidding);
+    if (bidding.hasContract()) {
+        fillContract(state, bidding);
     }
 
     // Fill current trick
-    if (const auto current_trick = engine.getCurrentTrick()) {
+    if (const auto current_trick = deal->getCurrentTrick()) {
         state.stage = Stage::PLAYING;
-        fillTricks(state, *current_trick, engine);
+        fillTricks(state, *current_trick, *deal);
 
         // Fill tricks won by each partnership
         state.tricksWon.emplace(0, 0);
-        for (const auto trick_winner_pair : engine.getTricks()) {
-            if (const auto winner_position = trick_winner_pair.second) {
+        for (const auto n : to(deal->getNumberOfTricks())) {
+            const auto& [trick, winner_position] = deal->getTrick(n);
+            if (winner_position) {
                 switch (partnershipFor(*winner_position).get()) {
                 case PartnershipLabel::NORTH_SOUTH:
                     ++state.tricksWon->tricksWonByNorthSouth;

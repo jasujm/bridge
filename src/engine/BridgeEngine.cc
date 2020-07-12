@@ -3,10 +3,12 @@
 #include "bridge/BasicBidding.hh"
 #include "bridge/BasicTrick.hh"
 #include "bridge/CardsForPosition.hh"
+#include "bridge/Deal.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
 #include "bridge/TricksWon.hh"
+#include "bridge/UuidGenerator.hh"
 #include "engine/CardManager.hh"
 #include "FunctionObserver.hh"
 #include "FunctionQueue.hh"
@@ -14,7 +16,6 @@
 
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/range/combine.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
 #include <boost/statechart/in_state_reaction.hpp>
@@ -33,6 +34,8 @@ namespace Bridge {
 namespace Engine {
 
 namespace {
+
+UuidGenerator uuidGenerator;
 
 template<typename T>
 std::optional<Position> getPositionHelper(
@@ -110,6 +113,7 @@ public:
     bool setPlayer(Position position, std::shared_ptr<Player> player);
     CardManager& getCardManager() { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
+    const GameManager& getGameManager() const { return dereference(gameManager); }
     Observable<DealStarted>& getDealStartedNotifier()
     {
         return dealStartedNotifier;
@@ -143,21 +147,18 @@ public:
         return dealEndedNotifier;
     }
 
-    std::optional<Vulnerability> getVulnerability() const;
-    std::optional<Position> getPositionInTurn() const;
+    const Deal* getCurrentDeal() const;
     const Player* getPlayerInTurn() const;
     const Hand* getHandInTurn() const;
     const Player* getPlayer(Position position) const;
     std::optional<Position> getPosition(const Player& player) const;
     const Hand* getHand(Position position) const;
-    std::optional<Position> getPosition(const Hand& hand) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
     std::vector<
         std::pair<
             std::reference_wrapper<const Trick>,
             std::optional<Position>>> getTricks() const;
-    const Hand* getDummyHandIfVisible() const;
 
     FunctionQueue functionQueue;
 
@@ -266,27 +267,29 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 
 class InBidding;
+class Playing;
 
-class InDeal : public sc::state<InDeal, BridgeEngine::Impl, InBidding> {
+class InDeal :
+    public sc::state<InDeal, BridgeEngine::Impl, InBidding>,
+    public Deal {
 public:
     using reactions = sc::transition<DealEndedEvent, Idle>;
 
     InDeal(my_context ctx);
     void exit();
 
-    Bidding& getBidding();
-    const Bidding& getBidding() const;
+    void notifyTurnStarted();
 
-    Hand& getHand(Position position);
-    const Hand& getHand(Position position) const;
+    Bidding& getBiddingNonConst();
+
+    Hand& getHandNonConst(Position position);
     auto getHands(Position first = Positions::NORTH) const;
     std::optional<Position> getPosition(const Hand& player) const;
     Hand& getHandConstCastSafe(const Hand& hand);
 
     void addTrick(Position leader);
     bool isLastTrick() const;
-    Trick* getCurrentTrick();
-    const Trick* getCurrentTrick() const;
+    Trick* getCurrentTrickNonConst();
     std::optional<std::optional<Suit>> getTrump() const;
     auto getTricks() const;
     TricksWon getTricksWon() const;
@@ -296,6 +299,15 @@ private:
     auto internalMakeBidding();
     auto internalMakeHands();
 
+    const Uuid& handleGetUuid() const override;
+    DealPhase handleGetPhase() const override;
+    Vulnerability handleGetVulnerability() const override;
+    const Hand& handleGetHand(Position position) const override;
+    const Bidding& handleGetBidding() const override;
+    int handleGetNumberOfTricks() const override;
+    TrickPositionPair handleGetTrick(int n) const override;
+
+    const Uuid uuid;
     const std::unique_ptr<Bidding> bidding;
     const std::vector<std::shared_ptr<Hand>> hands;
     std::vector<std::unique_ptr<Trick>> tricks;
@@ -323,6 +335,7 @@ auto InDeal::internalMakeHands()
 
 InDeal::InDeal(my_context ctx) :
     my_base {ctx},
+    uuid {uuidGenerator()},
     bidding {internalMakeBidding()},
     hands {internalMakeHands()}
 {
@@ -331,6 +344,7 @@ InDeal::InDeal(my_context ctx) :
     const auto opener_position = dereference(game_manager.getOpenerPosition());
     context.getDealStartedNotifier().notifyAll(
         BridgeEngine::DealStarted {
+            uuid,
             opener_position,
             dereference(game_manager.getVulnerability())});
 }
@@ -353,33 +367,24 @@ void InDeal::exit()
             getNumberOfTricksWon(tricks_won, declarer_partnership));
     }
     context.getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {deal_result});
+        BridgeEngine::DealEnded {uuid, deal_result});
 }
 
-Bidding& InDeal::getBidding()
+void InDeal::notifyTurnStarted()
+{
+    outermost_context().getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {uuid, dereference(getPositionInTurn())});
+}
+
+Bidding& InDeal::getBiddingNonConst()
 {
     assert(bidding);
     return *bidding;
 }
 
-const Bidding& InDeal::getBidding() const
+Hand& InDeal::getHandNonConst(const Position position)
 {
-    // This const_cast is safe as we are not actually writing to any member
-    // variable in non-const version
-    return const_cast<InDeal&>(*this).getBidding();
-}
-
-Hand& InDeal::getHand(const Position position)
-{
-    const auto n = static_cast<std::size_t>(position.get());
-    return dereference(hands.at(n));
-}
-
-const Hand& InDeal::getHand(const Position position) const
-{
-    // This const_cast is safe as we are not actually writing to any member
-    // variable in non-const version
-    return const_cast<InDeal&>(*this).getHand(position);
+    return const_cast<Hand&>(getHand(position));
 }
 
 auto InDeal::getHands(const Position first) const
@@ -407,7 +412,7 @@ Hand& InDeal::getHandConstCastSafe(const Hand& hand)
 {
     // The purpose of this method if to strip the constness of the hand pointer,
     // but only if the hand is legitimately taking part of the deal
-    return getHand(dereference(getPosition(hand)));
+    return getHandNonConst(dereference(getPosition(hand)));
 }
 
 void InDeal::addTrick(const Position leader)
@@ -422,16 +427,9 @@ bool InDeal::isLastTrick() const
     return tricks.size() == N_CARDS_PER_PLAYER;
 }
 
-Trick* InDeal::getCurrentTrick()
+Trick* InDeal::getCurrentTrickNonConst()
 {
     return tricks.empty() ? nullptr : tricks.back().get();
-}
-
-const Trick* InDeal::getCurrentTrick() const
-{
-    // This const_cast is safe as we are not actually writing to any member
-    // variable in non-const version
-    return const_cast<InDeal&>(*this).getCurrentTrick();
 }
 
 std::optional<std::optional<Suit>> InDeal::getTrump() const
@@ -486,6 +484,54 @@ TricksWon InDeal::getTricksWon() const
     return {north_south, east_west};
 }
 
+const Uuid& InDeal::handleGetUuid() const
+{
+    return uuid;
+}
+
+DealPhase InDeal::handleGetPhase() const
+{
+    if (state_cast<const InBidding*>()) {
+        return DealPhase::BIDDING;
+    }
+    return DealPhase::PLAYING;
+}
+
+Vulnerability InDeal::handleGetVulnerability() const
+{
+    const auto& game_manager = outermost_context().getGameManager();
+    return dereference(game_manager.getVulnerability());
+}
+
+const Hand& InDeal::handleGetHand(const Position position) const
+{
+    const auto n = static_cast<std::size_t>(position.get());
+    return dereference(hands.at(n));
+}
+
+const Bidding& InDeal::handleGetBidding() const
+{
+    assert(bidding);
+    return *bidding;
+}
+
+int InDeal::handleGetNumberOfTricks() const
+{
+    return static_cast<int>(tricks.size());
+}
+
+Deal::TrickPositionPair InDeal::handleGetTrick(const int n) const
+{
+    const auto trump = dereference(getTrump());
+    assert(0 <= n && n < ssize(tricks));
+    assert(tricks[n]);
+    const auto& trick = *tricks[n];
+    const auto winner = getWinner(trick, trump);
+    const auto winner_position = winner ?
+        std::optional {getPosition(*winner)} : std::nullopt;
+    return {std::cref(trick), winner_position};
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // InBidding
 ////////////////////////////////////////////////////////////////////////////////
@@ -504,23 +550,27 @@ public:
 InBidding::InBidding(my_context ctx) :
     my_base {ctx}
 {
+    const auto& in_deal = context<InDeal>();
     outermost_context().getTurnStartedNotifier().notifyAll(
         BridgeEngine::TurnStarted {
-            context<InDeal>().getBidding().getOpeningPosition()});
+            in_deal.getUuid(), in_deal.getBidding().getOpeningPosition()});
 }
 
 sc::result InBidding::react(const CallEvent& event)
 {
-    auto& bidding = context<InDeal>().getBidding();
+    auto& in_deal = context<InDeal>();
+    auto& bidding = in_deal.getBiddingNonConst();
     const auto position = outermost_context().getPosition(event.player);
     if (position && bidding.call(*position, event.call)) {
         event.ret = true;
         auto& context = outermost_context();
+        const auto& deal_uuid = in_deal.getUuid();
         context.getCallMadeNotifier().notifyAll(
-            BridgeEngine::CallMade { event.player, event.call });
+            BridgeEngine::CallMade {
+                deal_uuid, *position, event.call });
         if (const auto next_position_in_turn = bidding.getPositionInTurn()) {
             context.getTurnStartedNotifier().notifyAll(
-                BridgeEngine::TurnStarted(*next_position_in_turn));
+                BridgeEngine::TurnStarted(deal_uuid, *next_position_in_turn));
         }
         const auto outer_contract = bidding.getContract();
         const auto outer_declarer_position = bidding.getDeclarerPosition();
@@ -530,7 +580,7 @@ sc::result InBidding::react(const CallEvent& event)
             if (inner_contract && inner_declarer_position) {
                 context.getBiddingCompletedNotifier().notifyAll(
                     BridgeEngine::BiddingCompleted {
-                        *inner_declarer_position, *inner_contract});
+                        deal_uuid, *inner_declarer_position, *inner_contract});
                 return transit<Playing>();
             } else {
                 post_event(DealEndedEvent {});
@@ -556,11 +606,7 @@ public:
 
     Hand& getDummyHand();
     const Hand& getDummyHand() const;
-    std::optional<Position> getPositionInTurn() const;
-    const Hand* getHandInTurn() const;
-    Hand* getHandIfHasTurn(const Player& player, const Hand& hand);
 
-    void notifyTurnStarted();
     void commitPlay(const PlayCardEvent& event);
     void play(const CardRevealedEvent&);
     void requestRevealDummy(const NewPlayEvent&);
@@ -583,7 +629,7 @@ Playing::Playing(my_context ctx)  :
 
 Hand& Playing::getDummyHand()
 {
-    return context<InDeal>().getHand(getDummyPosition());
+    return context<InDeal>().getHandNonConst(getDummyPosition());
 }
 
 const Hand& Playing::getDummyHand() const
@@ -591,42 +637,6 @@ const Hand& Playing::getDummyHand() const
     // This const_cast is safe as we are not actually writing to any member
     // variable in non-const version
     return const_cast<Playing&>(*this).getDummyHand();
-}
-
-std::optional<Position> Playing::getPositionInTurn() const
-{
-    if (const auto* hand = getHandInTurn()) {
-        auto position = dereference(context<InDeal>().getPosition(*hand));
-        // Declarer plays for dummy
-        if (position == getDummyPosition()) {
-            position = partnerFor(position);
-        }
-        return position;
-    }
-    return std::nullopt;
-}
-
-const Hand* Playing::getHandInTurn() const
-{
-    if (const auto* trick = context<InDeal>().getCurrentTrick()) {
-        return trick->getHandInTurn();
-    }
-    return nullptr;
-}
-
-Hand* Playing::getHandIfHasTurn(const Player& player, const Hand& hand)
-{
-    if (outermost_context().getPosition(player) == getPositionInTurn() &&
-        &hand == getHandInTurn()) {
-        return &context<InDeal>().getHandConstCastSafe(hand);
-    }
-    return nullptr;
-}
-
-void Playing::notifyTurnStarted()
-{
-    outermost_context().getTurnStartedNotifier().notifyAll(
-        BridgeEngine::TurnStarted {dereference(getPositionInTurn())});
 }
 
 void Playing::commitPlay(const PlayCardEvent& event)
@@ -650,19 +660,23 @@ void Playing::play(const CardRevealedEvent&)
 {
     auto& indeal = context<InDeal>();
     assert(commitedPlay);
-    auto& trick = dereference(indeal.getCurrentTrick());
+    auto& trick = dereference(indeal.getCurrentTrickNonConst());
     auto& [hand, n_card] = *commitedPlay;
     const auto& card = dereference(hand.getCard(n_card));
     if (trick.play(hand, card)) {
         auto& context_ = outermost_context();
+        const auto& deal_uuid = indeal.getUuid();
         hand.markPlayed(n_card);
         context_.getCardPlayedNotifier().notifyAll(
-            BridgeEngine::CardPlayed { hand, card });
+            BridgeEngine::CardPlayed {
+                deal_uuid, dereference(indeal.getPosition(hand)), card });
         if (trick.isCompleted()) {
             const auto& winner_hand = dereference(
                 getWinner(trick, dereference(indeal.getTrump())));
             outermost_context().getTrickCompletedNotifier().notifyAll(
-                BridgeEngine::TrickCompleted {trick, winner_hand});
+                BridgeEngine::TrickCompleted {
+                    deal_uuid, trick,
+                    dereference(indeal.getPosition(winner_hand))});
             if (indeal.isLastTrick()) {
                 post_event(DealEndedEvent {});
                 return;
@@ -697,7 +711,8 @@ void Playing::notifyDummyRevealed(const DummyHandRevealedEvent&)
 {
     post_event(DummyRevealedEvent {});
     outermost_context().getDummyRevealedNotifier().notifyAll(
-        BridgeEngine::DummyRevealed {getDummyPosition(), getDummyHand()});
+        BridgeEngine::DummyRevealed {
+            context<InDeal>().getUuid(), getDummyPosition(), getDummyHand()});
 }
 
 Position Playing::getDeclarerPosition() const
@@ -729,16 +744,20 @@ public:
 SelectingCard::SelectingCard(my_context ctx) :
     my_base {ctx}
 {
-    context<Playing>().notifyTurnStarted();
+    context<InDeal>().notifyTurnStarted();
 }
 
 sc::result SelectingCard::react(const PlayCardEvent& event)
 {
-    auto& playing = context<Playing>();
-    const auto hand = playing.getHandIfHasTurn(event.player, event.hand);
-    if (hand && canBePlayedFromHand(*hand, event.card)) {
-        event.ret = true;
-        return transit<WaitingRevealCard>(&Playing::commitPlay, event);
+    const auto& in_deal = context<InDeal>();
+    const auto player_position = outermost_context().getPosition(event.player);
+    const auto position_in_turn = in_deal.getPositionInTurn();
+    if (player_position == position_in_turn) {
+        const auto hand_in_turn = in_deal.getHandInTurn();
+        if (&event.hand == hand_in_turn && canBePlayedFromHand(event.hand, event.card)) {
+            event.ret = true;
+            return transit<WaitingRevealCard>(&Playing::commitPlay, event);
+        }
     }
     return discard_event();
 }
@@ -859,34 +878,24 @@ bool BridgeEngine::Impl::setPlayer(
     return true;
 }
 
-std::optional<Vulnerability> BridgeEngine::Impl::getVulnerability() const
+const Deal* BridgeEngine::Impl::getCurrentDeal() const
 {
-    return dereference(gameManager).getVulnerability();
-}
-
-std::optional<Position> BridgeEngine::Impl::getPositionInTurn() const
-{
-    if (state_cast<const InBidding*>()) {
-        const auto& bidding = state_cast<const InDeal&>().getBidding();
-        return bidding.getPositionInTurn();
-    } else if (const auto* state = state_cast<const Playing*>()) {
-        return state->getPositionInTurn();
-    }
-    return std::nullopt;
+    return state_cast<const InDeal*>();
 }
 
 const Player* BridgeEngine::Impl::getPlayerInTurn() const
 {
-    const auto position = getPositionInTurn();
-    if (position) {
-        return getPlayer(*position);
+    if (const auto* deal = getCurrentDeal()) {
+        if (const auto position = deal->getPositionInTurn()) {
+            return getPlayer(*position);
+        }
     }
     return nullptr;
 }
 
 const Hand* BridgeEngine::Impl::getHandInTurn() const
 {
-    if (const auto* state = state_cast<const Playing*>()) {
+    if (const auto* state = state_cast<const InDeal*>()) {
         return state->getHandInTurn();
     }
     return nullptr;
@@ -907,15 +916,6 @@ std::optional<Position> BridgeEngine::Impl::getPosition(
 const Hand* BridgeEngine::Impl::getHand(const Position position) const
 {
     return internalCallIfInState(&InDeal::getHand, position);
-}
-
-std::optional<Position> BridgeEngine::Impl::getPosition(
-    const Hand& hand) const
-{
-    if (const auto* state = state_cast<const InDeal*>()) {
-        return state->getPosition(hand);
-    }
-    return std::nullopt;
 }
 
 const Bidding* BridgeEngine::Impl::getBidding() const
@@ -941,11 +941,6 @@ std::vector<
         return std::vector(tricks.begin(), tricks.end());
     }
     return {};
-}
-
-const Hand* BridgeEngine::Impl::getDummyHandIfVisible() const
-{
-    return internalCallIfInState(&DummyVisible::getDummyHand);
 }
 
 void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
@@ -1079,22 +1074,16 @@ bool BridgeEngine::hasEnded() const
     return impl->terminated();
 }
 
-std::optional<Vulnerability> BridgeEngine::getVulnerability() const
+const Deal* BridgeEngine::getCurrentDeal() const
 {
     assert(impl);
-    return impl->getVulnerability();
+    return impl->getCurrentDeal();
 }
 
 const Player* BridgeEngine::getPlayerInTurn() const
 {
     assert(impl);
     return impl->getPlayerInTurn();
-}
-
-std::optional<Position> BridgeEngine::getPositionInTurn() const
-{
-    assert(impl);
-    return impl->getPositionInTurn();
 }
 
 const Hand* BridgeEngine::getHandInTurn() const
@@ -1109,98 +1098,68 @@ const Player* BridgeEngine::getPlayer(const Position position) const
     return impl->getPlayer(position);
 }
 
-bool BridgeEngine::isVisibleToAll(const Hand& hand) const
-{
-    assert(impl);
-    return &hand == impl->getDummyHandIfVisible();
-}
-
 std::optional<Position> BridgeEngine::getPosition(const Player& player) const
 {
     assert(impl);
     return impl->getPosition(player);
 }
 
-const Hand* BridgeEngine::getHand(const Position position) const
-{
-    assert(impl);
-    return impl->getHand(position);
-}
-
-std::optional<Position> BridgeEngine::getPosition(const Hand& hand) const
-{
-    assert(impl);
-    return impl->getPosition(hand);
-}
-
-const Bidding* BridgeEngine::getBidding() const
-{
-    assert(impl);
-    return impl->getBidding();
-}
-
-const Trick* BridgeEngine::getCurrentTrick() const
-{
-    assert(impl);
-    return impl->getCurrentTrick();
-}
-
-std::vector<
-    std::pair<
-        std::reference_wrapper<const Trick>,
-        std::optional<Position>>> BridgeEngine::getTricks() const
-{
-    assert(impl);
-    return impl->getTricks();
-}
-
 BridgeEngine::DealStarted::DealStarted(
-    const Position opener, const Vulnerability vulnerability) :
+    const Uuid& uuid, const Position opener, const Vulnerability vulnerability) :
+    uuid {uuid},
     opener {opener},
     vulnerability {vulnerability}
 {
 }
 
-BridgeEngine::TurnStarted::TurnStarted(const Position position) :
+BridgeEngine::TurnStarted::TurnStarted(const Uuid& uuid, const Position position) :
+    uuid {uuid},
     position {position}
 {
 }
 
-BridgeEngine::CallMade::CallMade(
-    const Player& player, const Call& call) :
-    player {player},
+BridgeEngine::CallMade::CallMade(const Uuid& uuid, const Position position, const Call& call) :
+    uuid {uuid},
+    position {position},
     call {call}
 {
 }
 
 BridgeEngine::BiddingCompleted::BiddingCompleted(
-    const Position declarer, const Contract& contract) :
+    const Uuid& uuid, const Position declarer, const Contract& contract) :
+    uuid {uuid},
     declarer {declarer},
     contract {contract}
 {
 }
 
-BridgeEngine::CardPlayed::CardPlayed(const Hand& hand, const Card& card) :
-    hand {hand},
+BridgeEngine::CardPlayed::CardPlayed(
+    const Uuid& uuid, const Position position, const Card& card) :
+    uuid {uuid},
+    position {position},
     card {card}
 {
 }
 
 BridgeEngine::TrickCompleted::TrickCompleted(
-    const Trick& trick, const Hand& winner) :
+    const Uuid& uuid, const Trick& trick, const Position winner) :
+    uuid {uuid},
     trick {trick},
     winner {winner}
 {
 }
 
 BridgeEngine::DummyRevealed::DummyRevealed(
-    const Position position, const Hand& hand) :
+    const Uuid& uuid, const Position position, const Hand& hand) :
+    uuid {uuid},
     position {position},
     hand {hand}
 {
 }
 
-BridgeEngine::DealEnded::DealEnded(const GameManager::ResultType& result) :
+BridgeEngine::DealEnded::DealEnded(
+    const Uuid& uuid, const GameManager::ResultType& result) :
+    uuid {uuid},
     result {result}
 {
 }
@@ -1208,32 +1167,34 @@ BridgeEngine::DealEnded::DealEnded(const GameManager::ResultType& result) :
 bool operator==(
     const BridgeEngine::DealStarted& lhs, const BridgeEngine::DealStarted& rhs)
 {
-    return lhs.opener == rhs.opener && lhs.vulnerability == rhs.vulnerability;
+    return lhs.uuid == rhs.uuid && lhs.opener == rhs.opener &&
+        lhs.vulnerability == rhs.vulnerability;
 }
 
 bool operator==(
     const BridgeEngine::TurnStarted& lhs, const BridgeEngine::TurnStarted& rhs)
 {
-    return lhs.position == rhs.position;
+    return lhs.uuid == rhs.uuid && lhs.position == rhs.position;
 }
 
 bool operator==(
     const BridgeEngine::CallMade& lhs, const BridgeEngine::CallMade& rhs)
 {
-    return &lhs.player == &rhs.player &&
-        lhs.call == rhs.call;
+    return lhs.uuid == rhs.uuid &&
+        lhs.position == rhs.position && lhs.call == rhs.call;
 }
 bool operator==(
     const BridgeEngine::BiddingCompleted& lhs,
     const BridgeEngine::BiddingCompleted& rhs)
 {
-    return lhs.declarer == rhs.declarer && lhs.contract == rhs.contract;
+    return lhs.uuid == rhs.uuid && lhs.declarer == rhs.declarer &&
+        lhs.contract == rhs.contract;
 }
 
 bool operator==(
     const BridgeEngine::CardPlayed& lhs, const BridgeEngine::CardPlayed& rhs)
 {
-    return &lhs.hand == &rhs.hand &&
+    return lhs.uuid == rhs.uuid && lhs.position == rhs.position &&
         &lhs.card == &rhs.card;
 }
 
@@ -1241,14 +1202,16 @@ bool operator==(
     const BridgeEngine::TrickCompleted& lhs,
     const BridgeEngine::TrickCompleted& rhs)
 {
-    return &lhs.trick == &rhs.trick && &lhs.winner == &rhs.winner;
+    return lhs.uuid == rhs.uuid && &lhs.trick == &rhs.trick &&
+        lhs.winner == rhs.winner;
 }
 
 bool operator==(
     const BridgeEngine::DummyRevealed& lhs,
     const BridgeEngine::DummyRevealed& rhs)
 {
-    return lhs.position == rhs.position && &lhs.hand == &rhs.hand;
+    return lhs.uuid == rhs.uuid && lhs.position == rhs.position &&
+        &lhs.hand == &rhs.hand;
 }
 
 }

@@ -409,6 +409,9 @@
  * - \b self contains information about the player itself within the
  *   game.
  *
+ * If there is no deal ongoing in the game, the \e pubstate and \e
+ * privstate subobjects are null.
+ *
  * \subsubsection bridgeprotocolcontrolgetstate Game state member
  *
  * The \e deal member contains the UUID of the current deal. The
@@ -422,18 +425,15 @@
  * within the game.
  *
  * The \e positionInTurn member contains the position of the player
- * that has the turn to act next. If no player has turn (e.g. because
- * deal has ended and the cards are not dealt yet for the next deal),
- * the position is null. The declarer plays for dummy, so if the next
- * card will be played from the hand of the dummy, the declarer has
- * turn.
+ * that has the turn to act next. The declarer plays for dummy, so if
+ * the next card will be played from the hand of the dummy, the
+ * declarer has turn.
  *
  * The \e calls member is an array of positon–call pairs, each
  * containing a position (field “position”) and a call (field “call”)
  * made by the player at the position. The array is ordered in the
  * order the calls were made. The array is empty if no calls have been
- * made (possibly because cards have not been dealt and bidding not
- * started).
+ * made.
  *
  * An example of an object corresponding to the player at north
  * bidding one clubs would be:
@@ -455,8 +455,7 @@
  * cards held by the player in that position. Cards not visible to all
  * players are represented as nulls in the pubstate object. The cards
  * visible to the requesting player are only included in the privstate
- * object, unless the requesting player is dummy. The object is empty
- * if cards have not been dealt yet.
+ * object, unless the requesting player is dummy.
  *
  * The \e tricks member is an array of tricks played in the current
  * deal, including the latest trick where cards are being played. Each
@@ -485,8 +484,7 @@
  * \endcode
  *
  * The \e vulnerability member contains the current vulnerabilities of
- * the partnerships. If they are not known (perhaps because there is
- * no ongoing deal), the value is empty.
+ * the partnerships.
  *
  * \subsubsection bridgeprotocolcontrolgetself Self member
  *
