@@ -76,6 +76,7 @@ public:
     struct TurnStarted : private boost::equality_comparable<TurnStarted> {
         /** \brief Create new turn started event
          *
+         * \param uuid see \ref uuid
          * \param position see \ref position
          */
         TurnStarted(const Uuid& uuid, Position position);
@@ -89,6 +90,7 @@ public:
     struct CallMade : private boost::equality_comparable<CallMade> {
         /** \brief Create new card played event
          *
+         * \param uuid see \ref uuid
          * \param position see \ref position
          * \param call see \ref call
          */
@@ -104,6 +106,7 @@ public:
     struct BiddingCompleted : private boost::equality_comparable<BiddingCompleted> {
         /** \brief Generate new bidding completed event
          *
+         * \param uuid see \ref uuid
          * \param declarer see \ref declarer
          * \param contract see \ref contract
          */
@@ -119,6 +122,7 @@ public:
     struct CardPlayed : private boost::equality_comparable<CardPlayed> {
         /** \brief Create new card played event
          *
+         * \param uuid see \ref uuid
          * \param position see \ref position
          * \param card see \ref card
          */
@@ -134,6 +138,7 @@ public:
     struct TrickCompleted : private boost::equality_comparable<TrickCompleted> {
         /** \brief Create new trick completed event
          *
+         * \param uuid see \ref uuid
          * \param trick see \ref trick
          * \param winner see \ref winner
          */
@@ -149,6 +154,7 @@ public:
     struct DummyRevealed : private boost::equality_comparable<DummyRevealed> {
         /** ]brief Create new dummy revealed event
          *
+         * \param uuid see \ref uuid
          * \param position see \ref position
          * \param hand see \ref hand
          */
@@ -164,6 +170,7 @@ public:
     struct DealEnded : private boost::equality_comparable<DealEnded> {
         /** \brief Create new deal ended event
          *
+         * \param uuid see \ref uuid
          * \param result see \ref result
          */
         DealEnded(const Uuid& uuid, const GameManager::ResultType& result);
