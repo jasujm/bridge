@@ -8,7 +8,6 @@
 
 #include "bridge/Uuid.hh"
 
-#include <functional>
 #include <optional>
 #include <utility>
 
@@ -19,7 +18,9 @@ namespace Bridge {
 class Bidding;
 class Hand;
 struct Position;
+struct Suit;
 class Trick;
+struct TricksWon;
 struct Vulnerability;
 
 /** \brief Phase of a bridge deal
@@ -36,14 +37,6 @@ enum class DealPhase {
  */
 class Deal : boost::noncopyable {
 public:
-
-    /** \brief Pair of trick and position of the winner
-     *
-     * \sa getTrick()
-     */
-    using TrickPositionPair = std::pair<
-        std::reference_wrapper<const Trick>,
-        std::optional<Position>>;
 
     virtual ~Deal();
 
@@ -111,12 +104,20 @@ public:
 
     /** \brief Get a tricks in the deal
      *
-     * \return A pair containing a trick and the winner of that trick
-     * (in case the trick is completed), respectively
+     * \throw std::out_of_range if n >= getNumberOfTricks()
+     */
+    const Trick& getTrick(int n) const;
+
+    /** \brief Get the winner of a trick
+     *
+     * \param n index of the trick
+     *
+     * \return The position of the winner of the trick, or nullopt if
+     * the trick is not completed
      *
      * \throw std::out_of_range if n >= getNumberOfTricks()
      */
-    TrickPositionPair getTrick(int n) const;
+    std::optional<Position> getWinnerOfTrick(int n) const;
 
     /** \brief Retrieve the current trick
      *
@@ -125,10 +126,19 @@ public:
      */
     const Trick* getCurrentTrick() const;
 
+    /** \brief Get the number of tricks won by each partnership
+     *
+     * \return The number of tricks won by each partnership. If the
+     * deal is not in the dealing phase, this is zero for both
+     * partnerships.
+     */
+    TricksWon getTricksWon() const;
+
 private:
 
     const Hand& internalGetHandInTurn() const;
-    const Position internalGetDeclarerPosition() const;
+    std::optional<Suit> internalGetTrump() const;
+    Position internalGetDeclarerPosition() const;
 
     /** \brief Handle getting the deal phase
      *
@@ -179,7 +189,7 @@ private:
      *
      * \sa getTrick()
      */
-    virtual TrickPositionPair handleGetTrick(int n) const = 0;
+    virtual const Trick& handleGetTrick(int n) const = 0;
 };
 
 }

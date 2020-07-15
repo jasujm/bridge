@@ -105,7 +105,7 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
         // Fill tricks won by each partnership
         state.tricksWon.emplace(0, 0);
         for (const auto n : to(deal->getNumberOfTricks())) {
-            const auto& [trick, winner_position] = deal->getTrick(n);
+            const auto winner_position = deal->getWinnerOfTrick(n);
             if (winner_position) {
                 switch (partnershipFor(*winner_position).get()) {
                 case PartnershipLabel::NORTH_SOUTH:

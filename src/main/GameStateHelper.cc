@@ -108,12 +108,11 @@ auto getTricks(const Deal& deal)
     auto tricks = nlohmann::json::array();
     const auto n_tricks = deal.getNumberOfTricks();
     for (const auto n : to(n_tricks)) {
-        const auto [trick, winner_position] = deal.getTrick(n);
         auto trick_object = nlohmann::json::object();
         // Last and second-to-last trick are visible
         if (n_tricks - n <= 2) {
             auto cards = nlohmann::json::array();
-            for (const auto& [hand, card] : trick.get()) {
+            for (const auto& [hand, card] : deal.getTrick(n)) {
                 cards.emplace_back(
                     nlohmann::json {
                         { POSITION_COMMAND, deal.getPosition(hand) },
@@ -123,7 +122,7 @@ auto getTricks(const Deal& deal)
             }
             trick_object.emplace(CARDS_COMMAND, std::move(cards));
         }
-        trick_object.emplace(WINNER_COMMAND, winner_position);
+        trick_object.emplace(WINNER_COMMAND, deal.getWinnerOfTrick(n));
         tricks.emplace_back(std::move(trick_object));
     }
     return tricks;

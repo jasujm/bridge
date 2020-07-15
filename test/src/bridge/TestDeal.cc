@@ -1,10 +1,16 @@
+#include "bridge/Bid.hh"
+#include "bridge/CardType.hh"
+#include "bridge/Contract.hh"
 #include "bridge/Deal.hh"
 #include "bridge/Position.hh"
+#include "bridge/SimpleCard.hh"
+#include "bridge/TricksWon.hh"
 #include "Enumerate.hh"
 #include "MockBidding.hh"
 #include "MockDeal.hh"
 #include "MockHand.hh"
 #include "MockTrick.hh"
+#include "Utility.hh"
 
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -15,15 +21,31 @@
 #include <stdexcept>
 
 namespace Positions = Bridge::Positions;
+namespace Ranks = Bridge::Ranks;
+namespace Suits = Bridge::Suits;
+using Bridge::CardType;
 using Bridge::DealPhase;
 using Bridge::MockHand;
 using Bridge::MockTrick;
 using Bridge::Position;
+using Bridge::SimpleCard;
 using testing::_;
 using testing::AtLeast;
+using testing::NiceMock;
 using testing::Return;
 using testing::ReturnRef;
 using testing::ReturnPointee;
+
+namespace {
+
+const auto CARDS_IN_EXAMPLE_TRICK = std::array {
+    SimpleCard {CardType {Ranks::QUEEN, Suits::SPADES}},
+    SimpleCard {CardType {Ranks::ACE, Suits::SPADES}},
+    SimpleCard {CardType {Ranks::TWO, Suits::CLUBS}},
+    SimpleCard {CardType {Ranks::SEVEN, Suits::DIAMONDS}},
+};
+
+}
 
 class DealTest : public testing::Test {
 protected:
@@ -33,8 +55,12 @@ protected:
             ON_CALL(deal, handleGetHand(position))
                 .WillByDefault(ReturnPointee(hands.at(position)));
         }
-        for (const auto [n, trick_ptr] : Bridge::enumerate(trick_ptrs)) {
-            ON_CALL(deal, handleGetTrick(n)).WillByDefault(Return(tricks.at(n)));
+        for (const auto n : Bridge::to(ssize(tricks))) {
+            ON_CALL(deal, handleGetTrick(n)).WillByDefault(ReturnPointee(tricks.at(n)));
+            for (const auto [m, position] : enumerate(Position::all())) {
+                ON_CALL(*tricks.at(0), handleGetHand(m))
+                    .WillByDefault(ReturnPointee(hands.at(position)));
+            }
         }
         ON_CALL(deal, handleGetNumberOfTricks()).WillByDefault(Return(tricks.size()));
         ON_CALL(deal, handleGetBidding()).WillByDefault(ReturnRef(bidding));
@@ -57,27 +83,40 @@ protected:
             .WillByDefault(Return(declarerPosition));
     }
 
+    void configureExampleTrick()
+    {
+        configurePlayingPhase(Positions::NORTH);
+        ON_CALL(bidding, handleGetContract())
+            .WillByDefault(
+                Return(
+                    Bridge::Contract {
+                        Bridge::Bid {1, Bridge::Strains::CLUBS},
+                        Bridge::Doublings::UNDOUBLED}));
+        ON_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
+            .WillByDefault(Return(ssize(CARDS_IN_EXAMPLE_TRICK)));
+        for (const auto n : Bridge::to(ssize(CARDS_IN_EXAMPLE_TRICK))) {
+            ON_CALL(*tricks.front(), handleGetCard(n))
+                .WillByDefault(ReturnRef(CARDS_IN_EXAMPLE_TRICK.at(n)));
+        }
+    }
+
     void configureEndedPhase()
     {
         ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::ENDED));
     }
 
     std::map<Position, std::shared_ptr<Bridge::MockHand>> hands {
-        { Positions::NORTH, std::make_shared<Bridge::MockHand>() },
-        { Positions::EAST,  std::make_shared<Bridge::MockHand>() },
-        { Positions::SOUTH, std::make_shared<Bridge::MockHand>() },
-        { Positions::WEST,  std::make_shared<Bridge::MockHand>() },
+        { Positions::NORTH, std::make_shared<NiceMock<Bridge::MockHand>>() },
+        { Positions::EAST,  std::make_shared<NiceMock<Bridge::MockHand>>() },
+        { Positions::SOUTH, std::make_shared<NiceMock<Bridge::MockHand>>() },
+        { Positions::WEST,  std::make_shared<NiceMock<Bridge::MockHand>>() },
     };
-    Bridge::MockBidding bidding;
-    std::vector<std::shared_ptr<MockTrick>> trick_ptrs {
-        std::make_shared<Bridge::MockTrick>(),
-        std::make_shared<Bridge::MockTrick>(),
+    NiceMock<Bridge::MockBidding> bidding;
+    std::vector<std::shared_ptr<MockTrick>> tricks {
+        std::make_shared<NiceMock<Bridge::MockTrick>>(),
+        std::make_shared<NiceMock<Bridge::MockTrick>>(),
     };
-    std::vector<Bridge::Deal::TrickPositionPair> tricks {
-        { std::cref(*trick_ptrs.front()), Positions::WEST },
-        { std::cref(*trick_ptrs.back()),  std::nullopt },
-    };
-    testing::NiceMock<Bridge::MockDeal> deal;
+    NiceMock<Bridge::MockDeal> deal;
 };
 
 TEST_F(DealTest, testUuid)
@@ -105,9 +144,9 @@ TEST_F(DealTest, testPositionInTurnDuringBidding)
 TEST_F(DealTest, testPositionInTurnDuringPlaying)
 {
     configurePlayingPhase(Positions::NORTH);
-    EXPECT_CALL(*trick_ptrs.back(), handleGetNumberOfCardsPlayed())
+    EXPECT_CALL(*tricks.back(), handleGetNumberOfCardsPlayed())
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*trick_ptrs.back(), handleGetHand(0))
+    EXPECT_CALL(*tricks.back(), handleGetHand(0))
         .WillOnce(ReturnRef(*hands.at(Positions::NORTH)))
         .WillOnce(ReturnRef(*hands.at(Positions::EAST)))
         .WillOnce(ReturnRef(*hands.at(Positions::SOUTH)))
@@ -129,9 +168,9 @@ TEST_F(DealTest, testPositionInTurnDealEnded)
 TEST_F(DealTest, testHandInTurn)
 {
     configurePlayingPhase(Positions::NORTH);
-    EXPECT_CALL(*trick_ptrs.back(), handleGetNumberOfCardsPlayed())
+    EXPECT_CALL(*tricks.back(), handleGetNumberOfCardsPlayed())
         .WillOnce(Return(0));
-    EXPECT_CALL(*trick_ptrs.back(), handleGetHand(0))
+    EXPECT_CALL(*tricks.back(), handleGetHand(0))
         .WillOnce(ReturnRef(*hands.at(Positions::NORTH)));
     EXPECT_EQ(hands.at(Positions::NORTH).get(), deal.getHandInTurn());
 }
@@ -174,7 +213,7 @@ TEST_F(DealTest, testVisibleToAllDuringBidding)
 TEST_F(DealTest, testDummyIsNotVisibleToAllBeforeOpeningLead)
 {
     configurePlayingPhase(Positions::NORTH);
-    EXPECT_CALL(*trick_ptrs.front(), handleGetNumberOfCardsPlayed())
+    EXPECT_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
         .WillOnce(Return(0));
     EXPECT_FALSE(deal.isVisibleToAll(Positions::SOUTH));
 }
@@ -182,7 +221,7 @@ TEST_F(DealTest, testDummyIsNotVisibleToAllBeforeOpeningLead)
 TEST_F(DealTest, testDummyIsVisibleToAllAfterOpeningLead)
 {
     configurePlayingPhase(Positions::NORTH);
-    EXPECT_CALL(*trick_ptrs.front(), handleGetNumberOfCardsPlayed())
+    EXPECT_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
         .WillRepeatedly(Return(1));
     for (const auto position : Position::all()) {
         EXPECT_EQ(position == Positions::SOUTH, deal.isVisibleToAll(position));
@@ -213,10 +252,13 @@ TEST_F(DealTest, testGetTrick)
 {
     EXPECT_CALL(deal, handleGetNumberOfTricks());
     EXPECT_CALL(deal, handleGetTrick(0));
-    const auto& [expected_trick, expected_winner] = tricks.front();
-    const auto& [trick, winner] = deal.getTrick(0);
-    EXPECT_EQ(&expected_trick.get(), &trick.get());
-    EXPECT_EQ(expected_winner, winner);
+    EXPECT_EQ(tricks.front().get(), &deal.getTrick(0));
+}
+
+TEST_F(DealTest, testGetWinnerOfTrick)
+{
+    configureExampleTrick();
+    EXPECT_EQ(Positions::SOUTH, deal.getWinnerOfTrick(0));
 }
 
 TEST_F(DealTest, testGetTrickOutOfRange)
@@ -229,11 +271,17 @@ TEST_F(DealTest, testGetCurrentTrick)
 {
     EXPECT_CALL(deal, handleGetNumberOfTricks());
     EXPECT_CALL(deal, handleGetTrick(tricks.size() - 1));
-    EXPECT_EQ(trick_ptrs.back().get(), deal.getCurrentTrick());
+    EXPECT_EQ(tricks.back().get(), deal.getCurrentTrick());
 }
 
 TEST_F(DealTest, testGetCurrentTrickOutsidePlayingPhase)
 {
     EXPECT_CALL(deal, handleGetNumberOfTricks()).WillOnce(Return(0));
     EXPECT_EQ(nullptr, deal.getCurrentTrick());
+}
+
+TEST_F(DealTest, testTricksWon)
+{
+    configureExampleTrick();
+    EXPECT_EQ(Bridge::TricksWon(1, 0), deal.getTricksWon());
 }

@@ -155,10 +155,6 @@ public:
     const Hand* getHand(Position position) const;
     const Bidding* getBidding() const;
     const Trick* getCurrentTrick() const;
-    std::vector<
-        std::pair<
-            std::reference_wrapper<const Trick>,
-            std::optional<Position>>> getTricks() const;
 
     FunctionQueue functionQueue;
 
@@ -290,9 +286,6 @@ public:
     void addTrick(Position leader);
     bool isLastTrick() const;
     Trick* getCurrentTrickNonConst();
-    std::optional<std::optional<Suit>> getTrump() const;
-    auto getTricks() const;
-    TricksWon getTricksWon() const;
 
 private:
 
@@ -305,7 +298,7 @@ private:
     const Hand& handleGetHand(Position position) const override;
     const Bidding& handleGetBidding() const override;
     int handleGetNumberOfTricks() const override;
-    TrickPositionPair handleGetTrick(int n) const override;
+    const Trick& handleGetTrick(int n) const override;
 
     const Uuid uuid;
     const std::unique_ptr<Bidding> bidding;
@@ -432,58 +425,6 @@ Trick* InDeal::getCurrentTrickNonConst()
     return tricks.empty() ? nullptr : tricks.back().get();
 }
 
-std::optional<std::optional<Suit>> InDeal::getTrump() const
-{
-    const auto contract = getBidding().getContract();
-    if (!contract || !*contract) {
-        return std::nullopt;
-    }
-    switch ((*contract)->bid.strain.get()) {
-    case StrainLabel::CLUBS:
-        return Suits::CLUBS;
-    case StrainLabel::DIAMONDS:
-        return Suits::DIAMONDS;
-    case StrainLabel::HEARTS:
-        return Suits::HEARTS;
-    case StrainLabel::SPADES:
-        return Suits::SPADES;
-    default:
-        return std::optional<Suit> {};
-    }
-}
-
-auto InDeal::getTricks() const
-{
-    return boost::adaptors::transform(
-        tricks,
-        [this, trump = getTrump()](const auto& trick_ptr)
-        {
-            const auto winner = getWinner(*trick_ptr, dereference(trump));
-            const auto winner_position = winner ?
-                std::optional {getPosition(*winner)} : std::nullopt;
-            return std::pair {std::cref(*trick_ptr), winner_position};
-        });
-}
-
-TricksWon InDeal::getTricksWon() const
-{
-    auto north_south = 0;
-    auto east_west = 0;
-    for (const auto trick_winner_pair : getTricks()) {
-        if (const auto winner_position = trick_winner_pair.second) {
-            const auto winner_partnership = partnershipFor(*winner_position);
-            switch (winner_partnership.get()) {
-            case PartnershipLabel::NORTH_SOUTH:
-                ++north_south;
-                break;
-            case PartnershipLabel::EAST_WEST:
-                ++east_west;
-            }
-        }
-    }
-    return {north_south, east_west};
-}
-
 const Uuid& InDeal::handleGetUuid() const
 {
     return uuid;
@@ -520,16 +461,9 @@ int InDeal::handleGetNumberOfTricks() const
     return static_cast<int>(tricks.size());
 }
 
-Deal::TrickPositionPair InDeal::handleGetTrick(const int n) const
+const Trick& InDeal::handleGetTrick(const int n) const
 {
-    const auto trump = dereference(getTrump());
-    assert(0 <= n && n < ssize(tricks));
-    assert(tricks[n]);
-    const auto& trick = *tricks[n];
-    const auto winner = getWinner(trick, trump);
-    const auto winner_position = winner ?
-        std::optional {getPosition(*winner)} : std::nullopt;
-    return {std::cref(trick), winner_position};
+    return dereference(tricks.at(n));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -671,17 +605,18 @@ void Playing::play(const CardRevealedEvent&)
             BridgeEngine::CardPlayed {
                 deal_uuid, dereference(indeal.getPosition(hand)), card });
         if (trick.isCompleted()) {
-            const auto& winner_hand = dereference(
-                getWinner(trick, dereference(indeal.getTrump())));
+            const auto n_tricks = indeal.getNumberOfTricks();
+            assert(n_tricks > 0);
+            const auto winner_position = dereference(
+                indeal.getWinnerOfTrick(n_tricks - 1));
             outermost_context().getTrickCompletedNotifier().notifyAll(
                 BridgeEngine::TrickCompleted {
-                    deal_uuid, trick,
-                    dereference(indeal.getPosition(winner_hand))});
+                    deal_uuid, trick, winner_position});
             if (indeal.isLastTrick()) {
                 post_event(DealEndedEvent {});
                 return;
             } else {
-                indeal.addTrick(dereference(indeal.getPosition(winner_hand)));
+                indeal.addTrick(winner_position);
             }
         }
         post_event(NewPlayEvent {});
@@ -929,18 +864,6 @@ const Trick* BridgeEngine::Impl::getCurrentTrick() const
         return state->getCurrentTrick();
     }
     return nullptr;
-}
-
-std::vector<
-    std::pair<
-        std::reference_wrapper<const Trick>,
-        std::optional<Position>>> BridgeEngine::Impl::getTricks() const
-{
-    if (const auto* state = state_cast<const InDeal*>()) {
-        const auto tricks = state->getTricks();
-        return std::vector(tricks.begin(), tricks.end());
-    }
-    return {};
 }
 
 void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)

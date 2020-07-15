@@ -20,7 +20,7 @@ public:
     MOCK_CONST_METHOD1(handleGetHand, const Hand&(Position));
     MOCK_CONST_METHOD0(handleGetBidding, const Bidding&());
     MOCK_CONST_METHOD0(handleGetNumberOfTricks, int());
-    MOCK_CONST_METHOD1(handleGetTrick, TrickPositionPair(int));
+    MOCK_CONST_METHOD1(handleGetTrick, const Trick&(int));
     MOCK_CONST_METHOD0(handleGetCurrentTrick, const Trick&());
 };
 
