@@ -6,7 +6,6 @@
 #include "bridge/Deal.hh"
 #include "bridge/DealState.hh"
 #include "bridge/Hand.hh"
-#include "bridge/Partnership.hh"
 #include "bridge/Trick.hh"
 #include "engine/BridgeEngine.hh"
 #include "Utility.hh"
@@ -101,21 +100,7 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     if (const auto current_trick = deal->getCurrentTrick()) {
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, *deal);
-
-        // Fill tricks won by each partnership
-        state.tricksWon.emplace(0, 0);
-        for (const auto n : to(deal->getNumberOfTricks())) {
-            const auto winner_position = deal->getWinnerOfTrick(n);
-            if (winner_position) {
-                switch (partnershipFor(*winner_position).get()) {
-                case PartnershipLabel::NORTH_SOUTH:
-                    ++state.tricksWon->tricksWonByNorthSouth;
-                    break;
-                case PartnershipLabel::EAST_WEST:
-                    ++state.tricksWon->tricksWonByEastWest;
-                }
-            }
-        }
+        state.tricksWon = deal->getTricksWon();
     }
 
     return state;
