@@ -28,7 +28,6 @@ struct Position;
 namespace Engine {
 
 class BridgeEngine;
-class DuplicateGameManager;
 
 }
 
