@@ -473,7 +473,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         std::pair {DEAL_COMMAND, event.uuid},
         std::pair {SCORE_COMMAND, result});
     dereference(callbackScheduler).callSoon(
-        &BridgeEngine::startDeal, std::ref(engine));
+        &BridgeEngine::startDeal, std::ref(engine), nullptr);
 }
 
 BridgeGame::BridgeGame(

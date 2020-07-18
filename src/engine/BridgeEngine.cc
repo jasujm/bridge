@@ -20,7 +20,6 @@
 #include <boost/statechart/event.hpp>
 #include <boost/statechart/in_state_reaction.hpp>
 #include <boost/statechart/simple_state.hpp>
-#include <boost/statechart/state.hpp>
 #include <boost/statechart/state_machine.hpp>
 #include <boost/statechart/termination.hpp>
 #include <boost/statechart/transition.hpp>
@@ -55,7 +54,25 @@ std::optional<Position> getPositionHelper(
 // Events
 ////////////////////////////////////////////////////////////////////////////////
 
-class StartDealEvent : public sc::event<StartDealEvent> {};
+class StartDealEvent : public sc::event<StartDealEvent> {
+public:
+    StartDealEvent(const Deal* deal) :
+        deal {deal}
+    {
+    }
+
+    const Deal* deal;
+};
+class CreateNewDealEvent : public sc::event<CreateNewDealEvent> {};
+class RecallDealEvent : public sc::event<RecallDealEvent> {
+public:
+    RecallDealEvent(const Deal& deal) :
+        deal {deal}
+        {
+        }
+
+    const Deal& deal;
+};
 class CallEvent : public sc::event<CallEvent> {
 public:
     CallEvent(const Player& player, const Call& call, bool& ret) :
@@ -68,6 +85,24 @@ public:
     const Player& player;
     Call call;
     bool& ret;
+};
+class StartPlayingEvent : public sc::event<StartPlayingEvent> {
+public:
+    StartPlayingEvent(const Position declarer) :
+        declarer {declarer}
+    {
+    }
+
+    Position declarer;
+};
+class RecallPlayingEvent : public sc::event<RecallPlayingEvent> {
+public:
+    RecallPlayingEvent(const Deal& deal) :
+        deal {deal}
+    {
+    }
+
+    const Deal& deal;
 };
 class DealEndedEvent : public sc::event<DealEndedEvent> {};
 class NewPlayEvent : public sc::event<NewPlayEvent> {};
@@ -229,21 +264,25 @@ void BridgeEngine::Impl::requestShuffle()
 ////////////////////////////////////////////////////////////////////////////////
 
 class Shuffling;
+class InDeal;
 
 class Idle : public sc::simple_state<Idle, BridgeEngine::Impl> {
 public:
     using reactions = sc::custom_reaction<StartDealEvent>;
-    sc::result react(const StartDealEvent&);
+    sc::result react(const StartDealEvent& event);
 };
 
-sc::result Idle::react(const StartDealEvent&)
+sc::result Idle::react(const StartDealEvent& event)
 {
     auto& context = outermost_context();
     if (context.getGameManager().hasEnded()) {
         return terminate();
-    } else {
+    } else if (!event.deal) {
         context.requestShuffle();
         return transit<Shuffling>();
+    } else {
+        post_event(RecallDealEvent {*event.deal});
+        return transit<InDeal>();
     }
 }
 
@@ -255,31 +294,40 @@ class InDeal;
 
 class Shuffling : public sc::simple_state<Shuffling, BridgeEngine::Impl> {
 public:
-    using reactions = sc::transition<ShufflingCompletedEvent, InDeal>;
+    using reactions = sc::custom_reaction<ShufflingCompletedEvent>;
+    sc::result react(const ShufflingCompletedEvent&);
 };
+
+sc::result Shuffling::react(const ShufflingCompletedEvent&)
+{
+    post_event(CreateNewDealEvent {});
+    return transit<InDeal>();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // InDeal
 ////////////////////////////////////////////////////////////////////////////////
 
 class InBidding;
-class Playing;
+class InitializingDeal;
 
 class InDeal :
-    public sc::state<InDeal, BridgeEngine::Impl, InBidding>,
+    public sc::simple_state<InDeal, BridgeEngine::Impl, InitializingDeal>,
     public Deal {
 public:
     using reactions = sc::transition<DealEndedEvent, Idle>;
 
-    InDeal(my_context ctx);
     void exit();
 
+    void createNewDeal(const CreateNewDealEvent&);
+    void recallDeal(const RecallDealEvent& event);
+    void startPlaying(const StartPlayingEvent& event);
+    void recallPlaying(const RecallPlayingEvent&);
     void notifyTurnStarted();
 
     Bidding& getBiddingNonConst();
 
     Hand& getHandNonConst(Position position);
-    auto getHands(Position first = Positions::NORTH) const;
     std::optional<Position> getPosition(const Hand& player) const;
     Hand& getHandConstCastSafe(const Hand& hand);
 
@@ -289,8 +337,12 @@ public:
 
 private:
 
+    auto internalCreateHands(Position first) const;
+    auto internalCreateTrick(Position leader);
     auto internalMakeBidding();
+    auto internalRecallBidding(const Bidding& bidding);
     auto internalMakeHands();
+    auto internalRecallTrick(const Trick& trick, const Deal& deal);
 
     const Uuid& handleGetUuid() const override;
     DealPhase handleGetPhase() const override;
@@ -300,17 +352,50 @@ private:
     int handleGetNumberOfTricks() const override;
     const Trick& handleGetTrick(int n) const override;
 
-    const Uuid uuid;
-    const std::unique_ptr<Bidding> bidding;
-    const std::vector<std::shared_ptr<Hand>> hands;
+    Uuid uuid;
+    std::unique_ptr<Bidding> bidding;
+    std::vector<std::shared_ptr<Hand>> hands;
     std::vector<std::unique_ptr<Trick>> tricks;
 };
+
+auto InDeal::internalCreateHands(const Position first) const
+{
+    auto positions = std::array<Position, Position::size()> {};
+    std::copy(Position::begin(), Position::end(), positions.begin());
+    const auto position_iter = std::find(
+        positions.begin(), positions.end(), first);
+    std::rotate(positions.begin(), position_iter, positions.end());
+    auto func = [this](const Position position) -> decltype(auto)
+    {
+        return getHand(position);
+    };
+    return std::vector<std::reference_wrapper<const Hand>>(
+        boost::make_transform_iterator(positions.begin(), func),
+        boost::make_transform_iterator(positions.end(), func));
+}
+
+auto InDeal::internalCreateTrick(const Position leader)
+{
+    const auto& hands = internalCreateHands(leader);
+    return std::make_unique<BasicTrick>(hands.begin(), hands.end());
+}
 
 auto InDeal::internalMakeBidding()
 {
     const auto& game_manager = outermost_context().getGameManager();
     return std::make_unique<BasicBidding>(
         dereference(game_manager.getOpenerPosition()));
+}
+
+auto InDeal::internalRecallBidding(const Bidding& bidding)
+{
+    auto ret = std::make_unique<BasicBidding>(bidding.getOpeningPosition());
+    for (const auto& [position, call] : bidding) {
+        if (!ret->call(position, call)) {
+            throw BridgeEngineFailure {"Invalid call when recalling a deal"};
+        }
+    }
+    return ret;
 }
 
 auto InDeal::internalMakeHands()
@@ -326,12 +411,39 @@ auto InDeal::internalMakeHands()
         boost::make_transform_iterator(Position::end(),   func));
 }
 
-InDeal::InDeal(my_context ctx) :
-    my_base {ctx},
-    uuid {uuidGenerator()},
-    bidding {internalMakeBidding()},
-    hands {internalMakeHands()}
+auto InDeal::internalRecallTrick(const Trick& trick, const Deal& deal)
 {
+    // Here we must be careful whether referring to hands and cards in
+    // the recalled deal or in the bridge engine
+    const auto dealer_position = deal.getPosition(trick.getLeader());
+    if (!dealer_position) {
+        throw BridgeEngineFailure {"Invalid trick when recalling a deal"};
+    }
+    auto ret = internalCreateTrick(*dealer_position);
+    for (const auto& [hand_in_deal, card_in_deal] : trick) {
+        if (const auto hand_position = deal.getPosition(hand_in_deal)) {
+            auto& hand_in_engine = getHandNonConst(*hand_position);
+            if (const auto card_type = card_in_deal.getType()) {
+                if (const auto n = findFromHand(hand_in_engine, *card_type)) {
+                    if (const auto card_in_engine = hand_in_engine.getCard(*n)) {
+                        if (ret->play(hand_in_engine, *card_in_engine)) {
+                            hand_in_engine.markPlayed(*n);
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        throw BridgeEngineFailure {"Invalid trick when recalling a deal"};
+    }
+    return ret;
+}
+
+void InDeal::createNewDeal(const CreateNewDealEvent&)
+{
+    uuid = uuidGenerator();
+    bidding = internalMakeBidding();
+    hands = internalMakeHands();
     auto& context = outermost_context();
     const auto& game_manager = context.getGameManager();
     const auto opener_position = dereference(game_manager.getOpenerPosition());
@@ -340,6 +452,34 @@ InDeal::InDeal(my_context ctx) :
             uuid,
             opener_position,
             dereference(game_manager.getVulnerability())});
+    context.getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {uuid, bidding->getOpeningPosition()});
+}
+
+void InDeal::recallDeal(const RecallDealEvent& event)
+{
+    uuid = event.deal.getUuid();
+    hands = internalMakeHands();
+    bidding = internalRecallBidding(event.deal.getBidding());
+    if (bidding->hasEnded()) {
+        post_event(RecallPlayingEvent {event.deal});
+    }
+}
+
+void InDeal::startPlaying(const StartPlayingEvent& event)
+{
+    const auto leader_position = clockwise(event.declarer);
+    addTrick(leader_position);
+    outermost_context().getTurnStartedNotifier().notifyAll(
+        BridgeEngine::TurnStarted {uuid, leader_position});
+}
+
+void InDeal::recallPlaying(const RecallPlayingEvent& event)
+{
+    for (const auto n : to(event.deal.getNumberOfTricks())) {
+        tricks.emplace_back(
+            internalRecallTrick(event.deal.getTrick(n), event.deal));
+    }
 }
 
 void InDeal::exit()
@@ -380,22 +520,6 @@ Hand& InDeal::getHandNonConst(const Position position)
     return const_cast<Hand&>(getHand(position));
 }
 
-auto InDeal::getHands(const Position first) const
-{
-    auto positions = std::array<Position, Position::size()> {};
-    std::copy(Position::begin(), Position::end(), positions.begin());
-    const auto position_iter = std::find(
-        positions.begin(), positions.end(), first);
-    std::rotate(positions.begin(), position_iter, positions.end());
-    auto func = [this](const Position position) -> decltype(auto)
-    {
-        return getHand(position);
-    };
-    return std::vector<std::reference_wrapper<const Hand>>(
-        boost::make_transform_iterator(positions.begin(), func),
-        boost::make_transform_iterator(positions.end(), func));
-}
-
 std::optional<Position> InDeal::getPosition(const Hand& hand) const
 {
     return getPositionHelper(hands, hand);
@@ -410,9 +534,7 @@ Hand& InDeal::getHandConstCastSafe(const Hand& hand)
 
 void InDeal::addTrick(const Position leader)
 {
-    const auto& hands = getHands(leader);
-    tricks.emplace_back(
-        std::make_unique<BasicTrick>(hands.begin(), hands.end()));
+    tricks.emplace_back(internalCreateTrick(leader));
 }
 
 bool InDeal::isLastTrick() const
@@ -467,28 +589,34 @@ const Trick& InDeal::handleGetTrick(const int n) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// InitializingDeal
+////////////////////////////////////////////////////////////////////////////////
+
+class InitializingDeal : public sc::simple_state<InitializingDeal, InDeal> {
+public:
+    using reactions = boost::mpl::list<
+        sc::transition<
+            CreateNewDealEvent, InBidding, InDeal, &InDeal::createNewDeal>,
+        sc::transition<
+            RecallDealEvent, InBidding, InDeal, &InDeal::recallDeal>>;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // InBidding
 ////////////////////////////////////////////////////////////////////////////////
 
 class Playing;
 
-class InBidding : public sc::state<InBidding, InDeal> {
+class InBidding : public sc::simple_state<InBidding, InDeal> {
 public:
-    using reactions = sc::custom_reaction<CallEvent>;
-
-    InBidding(my_context ctx);
-
-    sc::result react(const CallEvent&);
+    using reactions = boost::mpl::list<
+        sc::custom_reaction<CallEvent>,
+        sc::transition<
+            StartPlayingEvent, Playing, InDeal, &InDeal::startPlaying>,
+        sc::transition<
+            RecallPlayingEvent, Playing, InDeal, &InDeal::recallPlaying>>;
+    sc::result react(const CallEvent& event);
 };
-
-InBidding::InBidding(my_context ctx) :
-    my_base {ctx}
-{
-    const auto& in_deal = context<InDeal>();
-    outermost_context().getTurnStartedNotifier().notifyAll(
-        BridgeEngine::TurnStarted {
-            in_deal.getUuid(), in_deal.getBidding().getOpeningPosition()});
-}
 
 sc::result InBidding::react(const CallEvent& event)
 {
@@ -502,10 +630,6 @@ sc::result InBidding::react(const CallEvent& event)
         context.getCallMadeNotifier().notifyAll(
             BridgeEngine::CallMade {
                 deal_uuid, *position, event.call });
-        if (const auto next_position_in_turn = bidding.getPositionInTurn()) {
-            context.getTurnStartedNotifier().notifyAll(
-                BridgeEngine::TurnStarted(deal_uuid, *next_position_in_turn));
-        }
         const auto outer_contract = bidding.getContract();
         const auto outer_declarer_position = bidding.getDeclarerPosition();
         if (outer_contract && outer_declarer_position) {
@@ -515,10 +639,12 @@ sc::result InBidding::react(const CallEvent& event)
                 context.getBiddingCompletedNotifier().notifyAll(
                     BridgeEngine::BiddingCompleted {
                         deal_uuid, *inner_declarer_position, *inner_contract});
-                return transit<Playing>();
+                post_event(StartPlayingEvent {*inner_declarer_position});
             } else {
                 post_event(DealEndedEvent {});
             }
+        } else {
+            in_deal.notifyTurnStarted();
         }
     }
     return discard_event();
@@ -532,11 +658,9 @@ class SelectingCard;
 class DummyNotVisible;
 class DummyVisible;
 
-class Playing : public sc::state<
+class Playing : public sc::simple_state<
     Playing, InDeal, boost::mpl::list<SelectingCard, DummyNotVisible>> {
 public:
-
-    Playing(my_context ctx);
 
     Hand& getDummyHand();
     const Hand& getDummyHand() const;
@@ -554,12 +678,6 @@ private:
     std::optional<std::pair<Hand&, int>> commitedPlay;
     std::shared_ptr<Hand::CardRevealStateObserver> cardRevealStateObserver;
 };
-
-Playing::Playing(my_context ctx)  :
-    my_base {ctx}
-{
-    context<InDeal>().addTrick(clockwise(getDeclarerPosition()));
-}
 
 Hand& Playing::getDummyHand()
 {
@@ -592,31 +710,31 @@ void Playing::commitPlay(const PlayCardEvent& event)
 
 void Playing::play(const CardRevealedEvent&)
 {
-    auto& indeal = context<InDeal>();
+    auto& in_deal = context<InDeal>();
     assert(commitedPlay);
-    auto& trick = dereference(indeal.getCurrentTrickNonConst());
+    auto& trick = dereference(in_deal.getCurrentTrickNonConst());
     auto& [hand, n_card] = *commitedPlay;
     const auto& card = dereference(hand.getCard(n_card));
     if (trick.play(hand, card)) {
         auto& context_ = outermost_context();
-        const auto& deal_uuid = indeal.getUuid();
+        const auto& deal_uuid = in_deal.getUuid();
         hand.markPlayed(n_card);
         context_.getCardPlayedNotifier().notifyAll(
             BridgeEngine::CardPlayed {
-                deal_uuid, dereference(indeal.getPosition(hand)), card });
+                deal_uuid, dereference(in_deal.getPosition(hand)), card });
         if (trick.isCompleted()) {
-            const auto n_tricks = indeal.getNumberOfTricks();
+            const auto n_tricks = in_deal.getNumberOfTricks();
             assert(n_tricks > 0);
             const auto winner_position = dereference(
-                indeal.getWinnerOfTrick(n_tricks - 1));
+                in_deal.getWinnerOfTrick(n_tricks - 1));
             outermost_context().getTrickCompletedNotifier().notifyAll(
                 BridgeEngine::TrickCompleted {
                     deal_uuid, trick, winner_position});
-            if (indeal.isLastTrick()) {
+            if (in_deal.isLastTrick()) {
                 post_event(DealEndedEvent {});
                 return;
             } else {
-                indeal.addTrick(winner_position);
+                in_deal.addTrick(winner_position);
             }
         }
         post_event(NewPlayEvent {});
@@ -645,9 +763,11 @@ void Playing::requestRevealDummy(const NewPlayEvent&)
 void Playing::notifyDummyRevealed(const DummyHandRevealedEvent&)
 {
     post_event(DummyRevealedEvent {});
+    auto& in_deal = context<InDeal>();
     outermost_context().getDummyRevealedNotifier().notifyAll(
         BridgeEngine::DummyRevealed {
-            context<InDeal>().getUuid(), getDummyPosition(), getDummyHand()});
+            in_deal.getUuid(), getDummyPosition(), getDummyHand()});
+    in_deal.notifyTurnStarted();
 }
 
 Position Playing::getDeclarerPosition() const
@@ -667,20 +787,11 @@ Position Playing::getDummyPosition() const
 
 class WaitingRevealCard;
 
-class SelectingCard : public sc::state<SelectingCard, Playing> {
+class SelectingCard : public sc::simple_state<SelectingCard, Playing> {
 public:
     using reactions = sc::custom_reaction<PlayCardEvent>;
-
-    SelectingCard(my_context ctx);
-
     sc::result react(const PlayCardEvent&);
 };
-
-SelectingCard::SelectingCard(my_context ctx) :
-    my_base {ctx}
-{
-    context<InDeal>().notifyTurnStarted();
-}
 
 sc::result SelectingCard::react(const PlayCardEvent& event)
 {
@@ -715,6 +826,7 @@ public:
 sc::result WaitingRevealCard::react(const NewPlayEvent& event)
 {
     if (state_cast<const DummyVisible*>()) {
+        context<InDeal>().notifyTurnStarted();
         return transit<SelectingCard>();
     } else {
         return transit<WaitingRevealDummy>(&Playing::requestRevealDummy, event);
@@ -950,13 +1062,13 @@ void BridgeEngine::subscribeToDealEnded(
     impl->getDealEndedNotifier().subscribe(std::move(observer));
 }
 
-void BridgeEngine::startDeal()
+void BridgeEngine::startDeal(const Deal* deal)
 {
     assert(impl);
     impl->functionQueue(
-        [&impl = *impl]()
+        [&impl = *impl, deal]()
         {
-            impl.process_event(StartDealEvent {});
+            impl.process_event(StartDealEvent {deal});
         });
 }
 

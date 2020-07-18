@@ -38,6 +38,11 @@ bool Trick::canPlay(const Hand& hand, const Card& card) const
     return false;
 }
 
+const Hand& Trick::getLeader() const
+{
+    return handleGetHand(0);
+}
+
 const Hand* Trick::getHandInTurn() const
 {
     const auto n = handleGetNumberOfCardsPlayed();

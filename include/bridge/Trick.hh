@@ -70,6 +70,10 @@ public:
      */
     bool canPlay(const Hand& hand, const Card& card) const;
 
+    /** \brief Get the hand leading to the trick
+     */
+    const Hand& getLeader() const;
+
     /** \brief Determine which hand has the turn
      *
      * \return pointer the hand whose turn it is to play the card, or nullptr

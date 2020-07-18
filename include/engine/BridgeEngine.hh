@@ -17,6 +17,7 @@
 #include <boost/operators.hpp>
 
 #include <any>
+#include <stdexcept>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -40,6 +41,13 @@ class Trick;
 namespace Engine {
 
 class CardManager;
+
+/** \brief Exception to indicate unexpected events in a bridge game
+ */
+struct BridgeEngineFailure : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
 
 /** \brief The main state machine for handling a single instance of bridge game
  *
@@ -268,16 +276,28 @@ public:
 
     /** \brief Start a new deal
      *
-     * This method starts a deal if no deal is ongoing. It needs to be called
-     * before the game and after the completion of each deal when the client is
-     * ready to start a deal.
+     * This method starts a deal if no deal is ongoing. It needs to be
+     * called before the game and after the completion of each deal
+     * when the client is ready to start a deal.
      *
-     * \note In order to not lose any notifications, notifications should be
-     * subscribed to before calling this method for the first time. Especially
-     * note that after starting the game, the first shuffling is immediately
-     * requested from the card manager.
+     * If the \p deal parameter is given, the bidding and playing
+     * phases of the deal are replayed. No notifications about the
+     * recalled deal are published. If the deal state doesn’t
+     * represent a valid bridge deal, an expection is thrown and the
+     * engine is left in an unspecified state.
+     *
+     * \note In order to not lose any otifications, notifications
+     * should be subscribed to before calling this method for the
+     * first time. Especially note that after starting the game, the
+     * first shuffling is immediately requested from the card manager.
+     *
+     * \param deal The deal to recall, or nullptr if a new deal should
+     * be started
+     *
+     * \throw BridgeEngineFailure if an error occurs when recalling \p
+     * deal
      */
-    void startDeal();
+    void startDeal(const Deal* deal = nullptr);
 
     /** \brief Add player to the game
      *

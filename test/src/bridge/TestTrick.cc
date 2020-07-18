@@ -221,6 +221,11 @@ TEST_F(TrickTest, testCanPlayWhenHandHasTurnAndDoesNotFollowSuit)
     EXPECT_FALSE(trick.canPlay(hands[1], cards[1]));
 }
 
+TEST_F(TrickTest, testGetLeader)
+{
+    EXPECT_EQ(&hands[0], &trick.getLeader());
+}
+
 TEST_F(TrickTest, testGetHandWhenTrickIsNotCompleted)
 {
     EXPECT_EQ(&hands[0], trick.getHandInTurn());

@@ -16,20 +16,25 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
+#include "bridge/SimpleCard.hh"
 #include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/MakeDealState.hh"
+#include "MockBidding.hh"
 #include "MockCard.hh"
 #include "MockCardManager.hh"
+#include "MockDeal.hh"
 #include "MockGameManager.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
 #include "MockPlayer.hh"
+#include "MockTrick.hh"
 #include "Enumerate.hh"
 #include "Utility.hh"
 
 #include <boost/range/combine.hpp>
+#include <boost/uuid/string_generator.hpp>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -57,6 +62,12 @@ using testing::ReturnRef;
 using namespace Bridge;
 using Engine::BridgeEngine;
 
+namespace {
+boost::uuids::string_generator gen;
+const auto UUID = gen("97431d93-cd58-482f-8d97-b22c7f2bc73f");
+constexpr auto BID = Bid {7, Strains::CLUBS};
+}
+
 class BridgeEngineTest : public testing::Test {
 private:
     auto cardsForFunctor(const Position position)
@@ -73,7 +84,7 @@ private:
     }
 
 protected:
-    virtual void SetUp()
+    void setupDependencies()
     {
         for (const auto t : boost::combine(Position::all(), players)) {
             engine.setPlayer(t.get<0>(), t.get<1>());
@@ -93,27 +104,31 @@ protected:
             .WillByDefault(Return(true));
         ON_CALL(*cardManager, handleGetNumberOfCards())
             .WillByDefault(Return(N_CARDS));
-        EXPECT_CALL(*cardManager, handleRequestShuffle());
         ON_CALL(*gameManager, handleGetOpenerPosition())
             .WillByDefault(Return(Positions::NORTH));
         ON_CALL(*gameManager, handleGetVulnerability())
             .WillByDefault(Return(Vulnerability {true, true}));
-        engine.startDeal();
-        Mock::VerifyAndClearExpectations(cardManager.get());
-        shuffledNotifier.notifyAll(
-            Engine::CardManager::ShufflingState::REQUESTED);
         ON_CALL(
             *cardRevealStateObserver,
             handleNotify(Hand::CardRevealState::REQUESTED, _))
             .WillByDefault(
                 Invoke(
                     [this](const auto, const auto range)
-                    {
-                        for (auto& hand : hands) {
-                            hand.second.get().reveal(
-                                range.begin(), range.end());
-                        }
-                    }));
+                        {
+                            for (auto& hand : hands) {
+                                hand.second.get().reveal(
+                                    range.begin(), range.end());
+                            }
+                        }));
+    }
+
+    void startDeal()
+    {
+        EXPECT_CALL(*cardManager, handleRequestShuffle());
+        engine.startDeal();
+        Mock::VerifyAndClearExpectations(cardManager.get());
+        shuffledNotifier.notifyAll(
+            Engine::CardManager::ShufflingState::REQUESTED);
     }
 
     void updateExpectedStateAfterPlay(const Player& player)
@@ -229,6 +244,65 @@ protected:
         ++expectedState.tricksWon->tricksWonByNorthSouth;
     }
 
+    void setupRecalledDeal()
+    {
+        // Cards are already shuffled when a deal is recalled
+        EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
+        for (const auto position : Position::all()) {
+            EXPECT_CALL(
+                *cardManager,
+                handleGetHand(ElementsAreArray(cardsFor(position))));
+        }
+
+        ON_CALL(recalled_deal, handleGetUuid()).WillByDefault(ReturnRef(UUID));
+
+        // Setup hands in the deal
+        ON_CALL(recalled_deal, handleGetHand(_))
+            .WillByDefault(
+                Invoke(
+                    [this](const auto p) -> const Hand&
+                    {
+                        return *hands_in_deal.at(p);
+                    }));
+
+        // Setup calls in the deal
+        ON_CALL(bidding_in_deal, handleGetNumberOfCalls())
+            .WillByDefault(Return(calls_in_deal.size()));
+        ON_CALL(bidding_in_deal, handleGetOpeningPosition())
+            .WillByDefault(Return(Positions::NORTH));
+        ON_CALL(bidding_in_deal, handleGetCall(_))
+            .WillByDefault(
+                Invoke([this](const auto n) { return calls_in_deal.at(n); }));
+        ON_CALL(recalled_deal, handleGetBidding())
+            .WillByDefault(ReturnRef(bidding_in_deal));
+
+        // Setup tricks in the deal
+        ON_CALL(recalled_deal, handleGetNumberOfTricks())
+            .WillByDefault(Return(tricks_in_deal.size()));
+        ON_CALL(recalled_deal, handleGetTrick(_))
+            .WillByDefault(
+                Invoke(
+                    [this](const auto n) -> decltype(auto)
+                    {
+                        return tricks_in_deal.at(n);
+                    }));
+        ON_CALL(tricks_in_deal[0], handleGetNumberOfCardsPlayed())
+            .WillByDefault(Return(cards_in_trick.size()));
+        for (const auto [n, position] : enumerate(Position::all())) {
+            ON_CALL(tricks_in_deal[0], handleGetHand(n))
+                .WillByDefault(ReturnRef(*hands_in_deal.at(position)));
+            ON_CALL(tricks_in_deal[0], handleGetCard(n))
+                .WillByDefault(ReturnRef(cards_in_trick.at(n)));
+        }
+        ON_CALL(tricks_in_deal[1], handleGetHand(0))
+            .WillByDefault(ReturnRef(*hands_in_deal.at(Positions::EAST)));
+    }
+
+    void recallDeal()
+    {
+        engine.startDeal(&recalled_deal);
+    }
+
     std::array<NiceMock<MockCard>, N_CARDS> cards;
     const std::shared_ptr<Engine::MockCardManager> cardManager {
         std::make_shared<NiceMock<Engine::MockCardManager>>()};
@@ -259,13 +333,39 @@ protected:
         std::make_shared<NiceMock<MockCardRevealStateObserver>>()};
     DealState expectedState;
     Uuid dealUuid;
+
+    // Recall tests
+    NiceMock<Bridge::MockDeal> recalled_deal;
+    std::map<Position, std::shared_ptr<MockHand>> hands_in_deal {
+        std::pair { Positions::NORTH, std::make_shared<NiceMock<MockHand>>() },
+        std::pair { Positions::EAST,  std::make_shared<NiceMock<MockHand>>() },
+        std::pair { Positions::SOUTH, std::make_shared<NiceMock<MockHand>>() },
+        std::pair { Positions::WEST,  std::make_shared<NiceMock<MockHand>>() },
+    };
+    NiceMock<Bridge::MockBidding> bidding_in_deal;
+    std::array<Call, 4> calls_in_deal {
+        BID,
+        Pass {},
+        Pass {},
+        Pass {},
+    };
+    std::array<NiceMock<MockTrick>, 2> tricks_in_deal {
+        NiceMock<MockTrick> {},
+        NiceMock<MockTrick> {},
+    };
+    std::array<SimpleCard, 4> cards_in_trick {
+        SimpleCard {CardType {Ranks::TWO, Suits::CLUBS}},
+        SimpleCard {CardType {Ranks::TWO, Suits::DIAMONDS}},
+        SimpleCard {CardType {Ranks::TWO, Suits::HEARTS}},
+        SimpleCard {CardType {Ranks::TWO, Suits::SPADES}},
+    };
+
 };
 
 TEST_F(BridgeEngineTest, testBridgeEngine)
 {
-    // TODO: Could this test be less ugly?
-    constexpr Bid BID {7, Strains::CLUBS};
-
+    setupDependencies();
+    startDeal();
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(
         *gameManager, handleAddResult(
@@ -422,6 +522,9 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
 TEST_F(BridgeEngineTest, testPassOut)
 {
+    setupDependencies();
+    startDeal();
+
     // Two deals as game does not end
     EXPECT_CALL(*cardManager, handleRequestShuffle());
     EXPECT_CALL(*gameManager, handleAddPassedOut());
@@ -440,6 +543,9 @@ TEST_F(BridgeEngineTest, testPassOut)
 
 TEST_F(BridgeEngineTest, testEndGame)
 {
+    setupDependencies();
+    startDeal();
+
     // Just one deal as game ends
     EXPECT_CALL(*cardManager, handleRequestShuffle()).Times(0);
     ON_CALL(*gameManager, handleHasEnded()).WillByDefault(Return(false));
@@ -458,6 +564,9 @@ TEST_F(BridgeEngineTest, testEndGame)
 
 TEST_F(BridgeEngineTest, testSuccessfulCall)
 {
+    setupDependencies();
+    startDeal();
+
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
     const auto& player = *players.front();
@@ -472,6 +581,9 @@ TEST_F(BridgeEngineTest, testSuccessfulCall)
 
 TEST_F(BridgeEngineTest, testFailedCall)
 {
+    setupDependencies();
+    startDeal();
+
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
     const auto& player = *players.back();
@@ -483,6 +595,9 @@ TEST_F(BridgeEngineTest, testFailedCall)
 
 TEST_F(BridgeEngineTest, testSuccessfulPlay)
 {
+    setupDependencies();
+    startDeal();
+
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     engine.call(*players[0], Bid {1, Strains::CLUBS});
     engine.call(*players[1], Pass {});
@@ -504,6 +619,9 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
 
 TEST_F(BridgeEngineTest, testFailedPlay)
 {
+    setupDependencies();
+    startDeal();
+
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     engine.call(*players[0], Bid {1, Strains::CLUBS});
     engine.call(*players[1], Pass {});
@@ -518,6 +636,7 @@ TEST_F(BridgeEngineTest, testFailedPlay)
 
 TEST_F(BridgeEngineTest, testReplacePlayer)
 {
+    setupDependencies();
     EXPECT_TRUE(engine.setPlayer(Positions::NORTH, nullptr));
     EXPECT_EQ(nullptr, engine.getPlayer(Positions::NORTH));
     EXPECT_TRUE(engine.setPlayer(Positions::NORTH, players[0]));
@@ -526,6 +645,91 @@ TEST_F(BridgeEngineTest, testReplacePlayer)
 
 TEST_F(BridgeEngineTest, testPlayerCannotHaveTwoSeats)
 {
+    setupDependencies();
     EXPECT_FALSE(engine.setPlayer(Positions::NORTH, players[1]));
     EXPECT_EQ(players[0].get(), engine.getPlayer(Positions::NORTH));
+}
+
+TEST_F(BridgeEngineTest, testRecallDealPlayingPhase)
+{
+    setupDependencies();
+    setupRecalledDeal();
+    recallDeal();
+
+    // Verify the bidding is same as in the recalled deal
+    const auto* deal = engine.getCurrentDeal();
+    ASSERT_TRUE(deal);
+    EXPECT_EQ(UUID, deal->getUuid());
+    const auto& bidding = deal->getBidding();
+    EXPECT_THAT(
+        std::vector(bidding.begin(), bidding.end()),
+        ElementsAre(
+            std::pair {Positions::NORTH, BID},
+            std::pair {Positions::EAST, Pass {}},
+            std::pair {Positions::SOUTH, Pass {}},
+            std::pair {Positions::WEST, Pass {}}
+        ));
+
+    // Verify first trick has the same cards as in the recalled deal
+    const auto& trick1 = deal->getTrick(0);
+    const auto iter = trick1.begin();
+    ASSERT_EQ(4, trick1.end() - iter);
+    EXPECT_EQ(&iter->first,     &deal->getHand(Positions::NORTH));
+    EXPECT_EQ(&(iter+1)->first, &deal->getHand(Positions::EAST));
+    EXPECT_EQ(&(iter+2)->first, &deal->getHand(Positions::SOUTH));
+    EXPECT_EQ(&(iter+3)->first, &deal->getHand(Positions::WEST));
+
+    // Verify the second card is empty as in the deal
+    const auto& trick2 = deal->getTrick(1);
+    EXPECT_EQ(
+        &deal->getHand(Positions::EAST),
+        &trick2.getLeader());
+    EXPECT_EQ(trick2.end(), trick2.begin());
+}
+
+TEST_F(BridgeEngineTest, testRecallDealBiddingPhase)
+{
+    setupDependencies();
+    setupRecalledDeal();
+
+    // Ignore west's call, so the bidding is still ongoing
+    ON_CALL(bidding_in_deal, handleGetNumberOfCalls())
+        .WillByDefault(Return(calls_in_deal.size() - 1));
+
+    recallDeal();
+
+    // Verify the bidding is same as in the recalled deal
+    const auto* deal = engine.getCurrentDeal();
+    ASSERT_TRUE(deal);
+
+    // Verify calls are recalled
+    const auto& bidding = deal->getBidding();
+    EXPECT_EQ(3, bidding.getNumberOfCalls());
+    EXPECT_EQ(Positions::WEST, bidding.getPositionInTurn());
+
+    // Verify there are no tricks recalled
+    EXPECT_EQ(0, deal->getNumberOfTricks());
+}
+
+TEST_F(BridgeEngineTest, testRecallDealBiddingPhaseFailure)
+{
+    setupDependencies();
+    setupRecalledDeal();
+
+    // Illegal bid
+    calls_in_deal[1] = BID;
+    EXPECT_THROW(recallDeal(), Engine::BridgeEngineFailure);
+}
+
+TEST_F(BridgeEngineTest, testRecallDealPlayingPhaseFailure)
+{
+    setupDependencies();
+    setupRecalledDeal();
+
+    // Illegal play out of turn
+    ON_CALL(tricks_in_deal[0], handleGetHand(0))
+        .WillByDefault(ReturnRef(*hands_in_deal.at(Positions::EAST)));
+    ON_CALL(tricks_in_deal[0], handleGetCard(0))
+        .WillByDefault(ReturnRef(cards_in_trick[1]));
+    EXPECT_THROW(recallDeal(), Engine::BridgeEngineFailure);
 }
