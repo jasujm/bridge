@@ -104,7 +104,32 @@ public:
 
     const Deal& deal;
 };
-class DealEndedEvent : public sc::event<DealEndedEvent> {};
+class DealEndedEvent : public sc::event<DealEndedEvent> {
+public:
+    DealEndedEvent(
+        const Uuid& dealUuid, const Contract& contract,
+        const Partnership declarerPartnership, const int tricksWon) :
+        dealUuid {dealUuid},
+        contract {contract},
+        declarerPartnership {declarerPartnership},
+        tricksWon {tricksWon}
+    {
+    }
+
+    Uuid dealUuid;
+    Contract contract;
+    Partnership declarerPartnership;
+    int tricksWon;
+};
+class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {
+public:
+    DealPassedOutEvent(const Uuid& dealUuid) :
+        dealUuid {dealUuid}
+    {
+    }
+
+    Uuid dealUuid;
+};
 class NewPlayEvent : public sc::event<NewPlayEvent> {};
 class PlayCardEvent : public sc::event<PlayCardEvent> {
 public:
@@ -144,6 +169,8 @@ public:
     template<typename EventGenerator>
     auto makeCardRevealStateObserver(EventGenerator&& generator);
     void requestShuffle();
+    void endDeal(const DealEndedEvent& event);
+    void passOutDeal(const DealPassedOutEvent& event);
 
     bool setPlayer(Position position, std::shared_ptr<Player> player);
     CardManager& getCardManager() { return dereference(cardManager); }
@@ -257,6 +284,21 @@ void BridgeEngine::Impl::requestShuffle()
     dereference(cardManager).requestShuffle();
 }
 
+void BridgeEngine::Impl::endDeal(const DealEndedEvent& event)
+{
+    const auto deal_result = getGameManager().addResult(
+        event.declarerPartnership, event.contract, event.tricksWon);
+    getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {event.dealUuid, deal_result});
+}
+
+void BridgeEngine::Impl::passOutDeal(const DealPassedOutEvent& event)
+{
+    const auto deal_result = getGameManager().addPassedOut();
+    getDealEndedNotifier().notifyAll(
+        BridgeEngine::DealEnded {event.dealUuid, deal_result});
+}
+
 // Find other method definitions later (they refer to states)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -315,10 +357,6 @@ class InDeal :
     public sc::simple_state<InDeal, BridgeEngine::Impl, InitializingDeal>,
     public Deal {
 public:
-    using reactions = sc::transition<DealEndedEvent, Idle>;
-
-    void exit();
-
     void createNewDeal(const CreateNewDealEvent&);
     void recallDeal(const RecallDealEvent& event);
     void startPlaying(const StartPlayingEvent& event);
@@ -482,27 +520,6 @@ void InDeal::recallPlaying(const RecallPlayingEvent& event)
     }
 }
 
-void InDeal::exit()
-{
-    auto& context = outermost_context();
-    const auto tricks_won = getTricksWon();
-    auto deal_result = GameManager::ResultType {};
-
-    assert(bidding);
-    const auto declarer = bidding->getDeclarerPosition();
-    const auto contract = bidding->getContract();
-    if (!declarer || !*declarer || !contract || !*contract) {
-        deal_result = context.getGameManager().addPassedOut();
-    } else {
-        const auto declarer_partnership = partnershipFor(**declarer);
-        deal_result = context.getGameManager().addResult(
-            declarer_partnership, **contract,
-            getNumberOfTricksWon(tricks_won, declarer_partnership));
-    }
-    context.getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {uuid, deal_result});
-}
-
 void InDeal::notifyTurnStarted()
 {
     outermost_context().getTurnStartedNotifier().notifyAll(
@@ -614,7 +631,10 @@ public:
         sc::transition<
             StartPlayingEvent, Playing, InDeal, &InDeal::startPlaying>,
         sc::transition<
-            RecallPlayingEvent, Playing, InDeal, &InDeal::recallPlaying>>;
+            RecallPlayingEvent, Playing, InDeal, &InDeal::recallPlaying>,
+        sc::transition<
+            DealPassedOutEvent, Idle, BridgeEngine::Impl,
+            &BridgeEngine::Impl::passOutDeal>>;
     sc::result react(const CallEvent& event);
 };
 
@@ -641,7 +661,7 @@ sc::result InBidding::react(const CallEvent& event)
                         deal_uuid, *inner_declarer_position, *inner_contract});
                 post_event(StartPlayingEvent {*inner_declarer_position});
             } else {
-                post_event(DealEndedEvent {});
+                post_event(DealPassedOutEvent {deal_uuid});
             }
         } else {
             in_deal.notifyTurnStarted();
@@ -661,6 +681,8 @@ class DummyVisible;
 class Playing : public sc::simple_state<
     Playing, InDeal, boost::mpl::list<SelectingCard, DummyNotVisible>> {
 public:
+    using reactions = sc::transition<
+        DealEndedEvent, Idle, BridgeEngine::Impl, &BridgeEngine::Impl::endDeal>;
 
     Hand& getDummyHand();
     const Hand& getDummyHand() const;
@@ -731,7 +753,17 @@ void Playing::play(const CardRevealedEvent&)
                 BridgeEngine::TrickCompleted {
                     deal_uuid, trick, winner_position});
             if (in_deal.isLastTrick()) {
-                post_event(DealEndedEvent {});
+                const auto& bidding = in_deal.getBidding();
+                const auto declarer = dereference(
+                    dereference(bidding.getDeclarerPosition()));
+                const auto declarer_partnership = partnershipFor(declarer);
+                const auto contract = dereference(
+                    dereference(bidding.getContract()));
+                const auto tricks_won = getNumberOfTricksWon(
+                    in_deal.getTricksWon(), declarer_partnership);
+                post_event(
+                    DealEndedEvent {
+                        deal_uuid, contract, declarer_partnership, tricks_won});
                 return;
             } else {
                 in_deal.addTrick(winner_position);
