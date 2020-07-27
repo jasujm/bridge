@@ -5,17 +5,36 @@
 #include "scoring/DuplicateScore.hh"
 #include "scoring/DuplicateScoring.hh"
 
+#include <array>
+#include <algorithm>
 
 namespace Bridge {
 namespace Engine {
 
 namespace {
 
+constexpr auto DUPLICATE_DEAL_CONFIGS = std::array {
+    std::pair { Positions::NORTH, Vulnerability {false, false} },
+    std::pair { Positions::EAST,  Vulnerability {true, false}  },
+    std::pair { Positions::SOUTH, Vulnerability {false, true}  },
+    std::pair { Positions::WEST,  Vulnerability {true, true}   },
+    std::pair { Positions::NORTH, Vulnerability {true, false}  },
+    std::pair { Positions::EAST,  Vulnerability {false, true}  },
+    std::pair { Positions::SOUTH, Vulnerability {true, true}   },
+    std::pair { Positions::WEST,  Vulnerability {false, false} },
+    std::pair { Positions::NORTH, Vulnerability {false, true}  },
+    std::pair { Positions::EAST,  Vulnerability {true, true}   },
+    std::pair { Positions::SOUTH, Vulnerability {false, false} },
+    std::pair { Positions::WEST,  Vulnerability {true, false}  },
+    std::pair { Positions::NORTH, Vulnerability {true, true}   },
+    std::pair { Positions::EAST,  Vulnerability {false, false} },
+    std::pair { Positions::SOUTH, Vulnerability {true, false}  },
+    std::pair { Positions::WEST,  Vulnerability {false, true}  },
+};
+
 Vulnerability getVulnerabilityHelper(const int round)
 {
-    // Skip one vulnerability after each four deals
-    const auto offset = (round + round / Position::size()) % Position::size();
-    return {offset == 1 || offset == 3, offset == 2 || offset == 3};
+    return DUPLICATE_DEAL_CONFIGS[round % DUPLICATE_DEAL_CONFIGS.size()].second;
 }
 
 }
@@ -23,6 +42,18 @@ Vulnerability getVulnerabilityHelper(const int round)
 DuplicateGameManager::DuplicateGameManager() :
     round {0}
 {
+}
+
+DuplicateGameManager::DuplicateGameManager(
+    const Position openerPosition, const Vulnerability vulnerability)
+{
+    const auto iter = std::find(
+        DUPLICATE_DEAL_CONFIGS.begin(), DUPLICATE_DEAL_CONFIGS.end(),
+        std::pair {openerPosition, vulnerability});
+    if (iter == DUPLICATE_DEAL_CONFIGS.end()) {
+        throw std::invalid_argument {"Invalid position or vulnerability"};
+    }
+    round = iter - DUPLICATE_DEAL_CONFIGS.begin();
 }
 
 GameManager::ResultType DuplicateGameManager::handleAddResult(
@@ -50,7 +81,7 @@ bool DuplicateGameManager::handleHasEnded() const
 
 Position DuplicateGameManager::handleGetOpenerPosition() const
 {
-    return static_cast<PositionLabel>(round % Position::size());
+    return DUPLICATE_DEAL_CONFIGS[round % DUPLICATE_DEAL_CONFIGS.size()].first;
 }
 
 Vulnerability DuplicateGameManager::handleGetVulnerability() const

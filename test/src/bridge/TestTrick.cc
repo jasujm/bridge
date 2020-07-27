@@ -305,6 +305,31 @@ TEST_P(TrickTest, testGetCardWhenTrickIsCompleted)
     EXPECT_EQ(&cards[n], trick.getCard(hands[n]));
 }
 
+TEST_P(TrickTest, testGetCardByIndexWhenTrickIsEmpty)
+{
+    EXPECT_FALSE(trick.getCard(GetParam()));
+}
+
+TEST_P(TrickTest, testGetCardByIndexWhenTrickIsCompleted)
+{
+    const auto n = GetParam();
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed())
+        .WillOnce(Return(Trick::N_CARDS_IN_TRICK));
+    EXPECT_EQ(&cards[n], trick.getCard(n));
+}
+
+TEST_P(TrickTest, testGetNumberOfCardsPlayed)
+{
+    const auto n = GetParam();
+    EXPECT_CALL(trick, handleGetNumberOfCardsPlayed()).WillOnce(Return(n));
+    EXPECT_EQ(n, trick.getNumberOfCardsPlayed());
+}
+
+TEST_P(TrickTest, testGetCardByIndexOutOfRange)
+{
+    EXPECT_THROW(trick.getCard(Trick::N_CARDS_IN_TRICK), std::out_of_range);
+}
+
 TEST_F(TrickTest, testCardIterators)
 {
     auto&& z = boost::combine(hands, cards);

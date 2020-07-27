@@ -45,6 +45,17 @@ public:
      */
     DuplicateGameManager();
 
+    /** \Brief Create new duplicate game manager with initial state
+     *
+     * \param openerPosition initial opener position
+     * \param vulnerability initial vulnerability
+     *
+     * \throw std::invalid_argument if \p openerPosition or \p vulnerability is
+     * invalid
+     */
+    DuplicateGameManager(
+        Position openerPosition, Vulnerability vulnerability);
+
 private:
 
     ResultType handleAddResult(

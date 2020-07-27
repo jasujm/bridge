@@ -14,16 +14,39 @@
 #include <optional>
 #include <tuple>
 
+using Bridge::Engine::DuplicateGameManager;
 using Bridge::Scoring::DuplicateScore;
+using Bridge::Vulnerability;
 using ScoreEntry = Bridge::Engine::DuplicateGameManager::ScoreEntry;
 namespace Positions = Bridge::Positions;
 
 namespace {
+
 constexpr auto PARTNERSHIP = Bridge::Partnership {
     Bridge::Partnerships::NORTH_SOUTH};
 constexpr auto CONTRACT = Bridge::Contract {
     Bridge::Bid {1, Bridge::Strains::CLUBS}, Bridge::Doublings::UNDOUBLED};
 constexpr auto TRICKS_WON = 7;
+
+constexpr auto DUPLICATE_DEAL_CONFIGS = std::array {
+    std::pair { Positions::NORTH, Vulnerability {false, false} },
+    std::pair { Positions::EAST,  Vulnerability {true, false}  },
+    std::pair { Positions::SOUTH, Vulnerability {false, true}  },
+    std::pair { Positions::WEST,  Vulnerability {true, true}   },
+    std::pair { Positions::NORTH, Vulnerability {true, false}  },
+    std::pair { Positions::EAST,  Vulnerability {false, true}  },
+    std::pair { Positions::SOUTH, Vulnerability {true, true}   },
+    std::pair { Positions::WEST,  Vulnerability {false, false} },
+    std::pair { Positions::NORTH, Vulnerability {false, true}  },
+    std::pair { Positions::EAST,  Vulnerability {true, true}   },
+    std::pair { Positions::SOUTH, Vulnerability {false, false} },
+    std::pair { Positions::WEST,  Vulnerability {true, false}  },
+    std::pair { Positions::NORTH, Vulnerability {true, true}   },
+    std::pair { Positions::EAST,  Vulnerability {false, false} },
+    std::pair { Positions::SOUTH, Vulnerability {true, false}  },
+    std::pair { Positions::WEST,  Vulnerability {false, true}  },
+};
+
 }
 
 class DuplicateGameManagerTest : public testing::Test
@@ -55,30 +78,19 @@ TEST_F(DuplicateGameManagerTest, testAddResult)
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)
 {
-    //                  Position          NS     EW     vulnerable
-    constexpr auto rotation = std::array {
-        std::tuple {Positions::NORTH, false, false},
-        std::tuple {Positions::EAST,  true,  false},
-        std::tuple {Positions::SOUTH, false, true },
-        std::tuple {Positions::WEST,  true,  true },
-        std::tuple {Positions::NORTH, true,  false},
-        std::tuple {Positions::EAST,  false, true },
-        std::tuple {Positions::SOUTH, true,  true },
-        std::tuple {Positions::WEST,  false, false},
-        std::tuple {Positions::NORTH, false, true },
-        std::tuple {Positions::EAST,  true,  true },
-        std::tuple {Positions::SOUTH, false, false},
-        std::tuple {Positions::WEST,  true,  false},
-        std::tuple {Positions::NORTH, true,  true },
-        std::tuple {Positions::EAST,  false, false},
-        std::tuple {Positions::SOUTH, true,  false},
-        std::tuple {Positions::WEST,  false, true },
-    };
-    for (const auto e : Bridge::enumerate(rotation)) {
-        EXPECT_EQ(std::get<0>(e.second), gameManager.getOpenerPosition());
-        EXPECT_EQ(
-            Bridge::Vulnerability(std::get<1>(e.second), std::get<2>(e.second)),
-            gameManager.getVulnerability()) << "Round " << (e.first + 1);
+    for (const auto& config : DUPLICATE_DEAL_CONFIGS) {
+        EXPECT_EQ(config.first, gameManager.getOpenerPosition());
+        EXPECT_EQ(config.second, gameManager.getVulnerability());
         gameManager.addResult(PARTNERSHIP, CONTRACT, TRICKS_WON);
+    }
+}
+
+TEST_F(DuplicateGameManagerTest, testConstructFromOpenerAndVulnerability)
+{
+    for (const auto& config : DUPLICATE_DEAL_CONFIGS) {
+        const auto game_manager = DuplicateGameManager {
+            config.first, config.second};
+        EXPECT_EQ(config.first, game_manager.getOpenerPosition());
+        EXPECT_EQ(config.second, game_manager.getVulnerability());
     }
 }

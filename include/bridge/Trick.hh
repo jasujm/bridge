@@ -81,12 +81,27 @@ public:
      */
     const Hand* getHandInTurn() const;
 
-    /** \brief Retrieve card played by the given hand
+    /** \brief Get the card played by the given hand
+     *
+     * \param hand The hand
      *
      * \return pointer to the card played, or nullptr if the hand hasn’t yet
      * played a card
      */
     const Card* getCard(const Hand& hand) const;
+
+    /** \brief Get the card at given index
+     *
+     * \param n The index
+     *
+     * \return pointer to the card played at \p n, or nullptr if nth card hasn’t
+     * yet been played
+     */
+    const Card* getCard(int n) const;
+
+    /** \brief Get the number of cards played to the trick
+     */
+    int getNumberOfCardsPlayed() const;
 
     /** \brief Determine if the trick is completed
      *

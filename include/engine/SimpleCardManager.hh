@@ -47,6 +47,21 @@ public:
      */
     SimpleCardManager();
 
+    /** \brief Create new card manager with initial cards
+     *
+     * This constructor creates a card manager directly in shuffled state, as if
+     * by first requesting a shuffle and then calling <tt>shuffle(first,
+     * last)</tt>.
+     *
+     * \tparam CardTypeIterator An input iterator that, when derefernced,
+     * returns and object convertible to CardType.
+     *
+     * \param first iterator to the first card
+     * \param last iterator one past the last card
+     */
+    template<typename CardTypeIterator>
+    SimpleCardManager(CardTypeIterator first, CardTypeIterator last);
+
     ~SimpleCardManager();
 
     /** \brief Add shuffled cards
@@ -86,6 +101,15 @@ private:
 
     const std::unique_ptr<Impl> impl;
 };
+
+template<typename CardTypeIterator>
+SimpleCardManager::SimpleCardManager(
+    CardTypeIterator first, CardTypeIterator last) :
+    SimpleCardManager {}
+{
+    handleRequestShuffle();
+    internalShuffle(CardTypeVector(first, last));
+}
 
 template<typename CardTypeIterator>
 void SimpleCardManager::shuffle(CardTypeIterator first, CardTypeIterator last)

@@ -23,7 +23,7 @@ bool Trick::play(const Hand& hand, const Card& card)
 bool Trick::canPlay(const Hand& hand, const Card& card) const
 {
     if (card.isKnown()) {
-        const auto n = handleGetNumberOfCardsPlayed();
+        const auto n = getNumberOfCardsPlayed();
         if (n == 0) {
             return true;
         }
@@ -45,7 +45,7 @@ const Hand& Trick::getLeader() const
 
 const Hand* Trick::getHandInTurn() const
 {
-    const auto n = handleGetNumberOfCardsPlayed();
+    const auto n = getNumberOfCardsPlayed();
     if (n == N_CARDS_IN_TRICK) {
         return nullptr;
     }
@@ -57,7 +57,7 @@ const Card* Trick::getCard(const Hand& hand) const
     // It is assumed that this is reasonably efficient:
     // - Only small number of iterations
     // - Calls to getters are expected to be fast
-    const auto n = handleGetNumberOfCardsPlayed();
+    const auto n = getNumberOfCardsPlayed();
     for (const auto i : to(n)) {
         if (&hand == &handleGetHand(i)) {
             return &handleGetCard(i);
@@ -66,9 +66,23 @@ const Card* Trick::getCard(const Hand& hand) const
     return nullptr;
 }
 
+const Card* Trick::getCard(const int n) const
+{
+    const auto n_ = checkIndex(n, N_CARDS_IN_TRICK);
+    if (n_ < getNumberOfCardsPlayed()) {
+        return &handleGetCard(n_);
+    }
+    return nullptr;
+}
+
+int Trick::getNumberOfCardsPlayed() const
+{
+    return handleGetNumberOfCardsPlayed();
+}
+
 bool Trick::isCompleted() const
 {
-    return (handleGetNumberOfCardsPlayed() == N_CARDS_IN_TRICK);
+    return getNumberOfCardsPlayed() == N_CARDS_IN_TRICK;
 }
 
 const Hand* getWinner(const Trick& trick, const std::optional<Suit> trump)
