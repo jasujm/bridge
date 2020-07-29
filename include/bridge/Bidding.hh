@@ -19,10 +19,9 @@
 
 namespace Bridge {
 
-/** \brief State machine for bridge bidding
+/** \brief The auction in a bridge deal
  */
-class Bidding
-{
+class Bidding {
 public:
 
     virtual ~Bidding();
@@ -143,8 +142,7 @@ private:
 
     /** \brief Handle for adding a call to the bidding
      *
-     * It may be assumed that hasEnded() == false and
-     * handleIsCallAllowed(call) == true.
+     * \sa addCall()
      */
     virtual void handleAddCall(const Call& call) = 0;
 
@@ -170,58 +168,11 @@ private:
      */
     virtual Call handleGetCall(int n) const = 0;
 
-    /** \brief Handle for determining whether call is allowed
-     *
-     * It may be assumed that hasEnded() == false.
-     *
-     * \return true if call is allowed, false otherwise
-     */
-    virtual bool handleIsCallAllowed(const Call& call) const = 0;
-
-    /** \brief Handle for determining the lowest allowed bid
-     *
-     * It may be assumed that hasEnded() == false.
-     *
-     * \return The lowest bid that the position in turn can make
-     */
-    virtual std::optional<Bid> handleGetLowestAllowedBid() const = 0;
-
-    /** \brief Handle for determining which contract was determined by the
-     * bidding
-     *
-     * It may be assumed that hasEnded() == true and handleHasContract() ==
-     * true.
-     *
-     * \sa getContract()
-     */
-    virtual Contract handleGetContract() const = 0;
-
-    /** \brief Handle for determining at which position the declarer is
-     *
-     * It may be assumed that hasEnded() == true and handleHasContract() ==
-     * true.
-     *
-     * \sa getDeclarerPosition()
-     */
-    virtual Position handleGetDeclarerPosition() const = 0;
-
-    /** \brief Handle for determining whether or not the bidding has ended
-     *
-     * \sa hasEnded()
-     */
-    virtual bool handleHasEnded() const = 0;
-
-    /** \brief  Handle for determining whether or not the bidding ended up in a
-     * contract.
-     *
-     * The bidding does not end up in a contract if the bidding starts with
-     * four consecutive passes. It may be assumed that hasEnded() == true.
-     */
-    virtual bool handleHasContract() const = 0;
-
     template<class T>
-    std::optional<std::optional<T>> internalGetIfHasContract(
+    std::optional<T> internalGetIfHasContract(
         T (Bidding::*memfn)() const) const;
+    std::optional<Contract> internalGetContract() const;
+    std::optional<Position> internalGetDeclarerPosition() const;
 };
 
 /** \brief Create iterator for iterating over calls in bidding

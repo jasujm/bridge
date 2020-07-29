@@ -1,4 +1,5 @@
 #include "bridge/AllowedCalls.hh"
+#include "bridge/BridgeConstants.hh"
 #include "bridge/Bid.hh"
 #include "bridge/Call.hh"
 #include "MockBidding.hh"
@@ -14,11 +15,11 @@ using Bridge::Bid;
 using Bridge::Call;
 
 using testing::_;
-using testing::AnyNumber;
 using testing::Return;
 
 namespace {
 
+constexpr Bid BID {2, Bridge::Strains::CLUBS};
 constexpr Bid LOWEST_ALLOWED_BID {2, Bridge::Strains::DIAMONDS};
 const Call PASS_CALL {Bridge::Pass {}};
 const Call DOUBLE_CALL {Bridge::Double {}};
@@ -35,11 +36,8 @@ class AllowedCallsTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        ON_CALL(bidding, handleHasEnded()).WillByDefault(Return(false));
-        ON_CALL(bidding, handleGetLowestAllowedBid())
-            .WillByDefault(Return(LOWEST_ALLOWED_BID));
-        ON_CALL(bidding, handleIsCallAllowed(_))
-            .WillByDefault(Return(false));
+        ON_CALL(bidding, handleGetNumberOfCalls()).WillByDefault(Return(1));
+        ON_CALL(bidding, handleGetCall(0)).WillByDefault(Return(BID));
     }
 
     testing::NiceMock<Bridge::MockBidding> bidding;
@@ -54,14 +52,13 @@ TEST_F(AllowedCallsTest, testPassIsAlwaysAllowed)
 
 TEST_F(AllowedCallsTest, testDoublingNotAllowed)
 {
+    ON_CALL(bidding, handleGetNumberOfCalls()).WillByDefault(Return(0));
     getAllowedCalls(bidding, std::back_inserter(calls));
     EXPECT_EQ(calls.end(), std::find(calls.begin(), calls.end(), DOUBLE_CALL));
 }
 
 TEST_F(AllowedCallsTest, testDoublingAllowed)
 {
-    ON_CALL(bidding, handleIsCallAllowed(DOUBLE_CALL))
-        .WillByDefault(Return(true));
     getAllowedCalls(bidding, std::back_inserter(calls));
     EXPECT_NE(calls.end(), std::find(calls.begin(), calls.end(), DOUBLE_CALL));
 }
@@ -75,8 +72,8 @@ TEST_F(AllowedCallsTest, testRedoublingNotAllowed)
 
 TEST_F(AllowedCallsTest, testRedoublingAllowed)
 {
-    ON_CALL(bidding, handleIsCallAllowed(REDOUBLE_CALL))
-        .WillByDefault(Return(true));
+    ON_CALL(bidding, handleGetNumberOfCalls()).WillByDefault(Return(2));
+    ON_CALL(bidding, handleGetCall(1)).WillByDefault(Return(DOUBLE_CALL));
     getAllowedCalls(bidding, std::back_inserter(calls));
     EXPECT_NE(
         calls.end(), std::find(calls.begin(), calls.end(), REDOUBLE_CALL));
@@ -105,9 +102,10 @@ TEST_F(AllowedCallsTest, testAllowedBids)
             compareCalls));
 }
 
-TEST_F(AllowedCallsTest, testPositionNotInTurn)
+TEST_F(AllowedCallsTest, testBiddingEnded)
 {
-    ON_CALL(bidding, handleHasEnded()).WillByDefault(Return(true));
-    getAllowedCalls(bidding, std::back_inserter(calls));
+    ON_CALL(bidding, handleGetNumberOfCalls())
+        .WillByDefault(Return(Bridge::N_PLAYERS));
+    ON_CALL(bidding, handleGetCall(1)).WillByDefault(Return(PASS_CALL));
     EXPECT_TRUE(calls.empty());
 }

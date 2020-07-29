@@ -1,5 +1,6 @@
 #include "bridge/Bidding.hh"
 
+#include "bridge/BridgeConstants.hh"
 #include "bridge/Position.hh"
 #include "Utility.hh"
 
@@ -7,33 +8,105 @@
 
 namespace Bridge {
 
+namespace {
+
+class CallAllowedVisitor {
+public:
+    CallAllowedVisitor(const Bidding& bidding) :
+        bidding {bidding}
+    {
+    }
+
+    bool operator()(Pass) const
+    {
+        return true;
+    }
+
+    bool operator()(const Bid& bid) const
+    {
+        return bid >= dereference(bidding.getLowestAllowedBid());
+    }
+
+    bool operator()(Double) const
+    {
+        return bidding.isDoublingAllowed();
+    }
+
+    bool operator()(Redouble) const
+    {
+        return bidding.isRedoublingAllowed();
+    }
+
+private:
+    const Bidding& bidding;
+};
+
+}
+
 Bidding::~Bidding() = default;
 
 bool Bidding::call(const Position position, const Call& call)
 {
-    if (position == getPositionInTurn() && handleIsCallAllowed(call)) {
-        handleAddCall(call);
-        return true;
+    if (position == getPositionInTurn()) {
+        if (std::visit(CallAllowedVisitor {*this}, call)) {
+            handleAddCall(call);
+            return true;
+        }
     }
     return false;
 }
 
 std::optional<Bid> Bidding::getLowestAllowedBid() const
 {
-    if (!hasEnded()) {
-        return handleGetLowestAllowedBid();
+    if (hasEnded()) {
+        return std::nullopt;
     }
-    return std::nullopt;
+    const auto n_calls = handleGetNumberOfCalls();
+    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+        const auto call = handleGetCall(n);
+        if (const auto bid = std::get_if<Bid>(&call)) {
+            return nextHigherBid(*bid);
+        }
+    }
+    return Bid::LOWEST_BID;
 }
 
 bool Bidding::isDoublingAllowed() const
 {
-    return !hasEnded() && handleIsCallAllowed(Call {Double {}});
+    if (hasEnded()) {
+        return false;
+    }
+    const auto n_calls = handleGetNumberOfCalls();
+    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+        const auto call = handleGetCall(n);
+        if (std::holds_alternative<Pass>(call)) {
+            continue;
+        }
+        // Opponent bid last
+        else if (std::holds_alternative<Bid>(call)) {
+            return (n_calls - n) % 2 == 1;
+        }
+    }
+    return false;
 }
 
 bool Bidding::isRedoublingAllowed() const
 {
-    return !hasEnded() && handleIsCallAllowed(Call {Redouble {}});
+    if (hasEnded()) {
+        return false;
+    }
+    const auto n_calls = handleGetNumberOfCalls();
+    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+        const auto call = handleGetCall(n);
+        if (std::holds_alternative<Pass>(call)) {
+            continue;
+        }
+        // Opponent doubled last
+        else if (std::holds_alternative<Double>(call)) {
+            return (n_calls - n) % 2 == 1;
+        }
+    }
+    return false;
 }
 
 std::optional<Position> Bidding::getPositionInTurn() const
@@ -65,35 +138,92 @@ Call Bidding::getCall(const int n) const
 boost::logic::tribool Bidding::hasContract() const
 {
     if (hasEnded()) {
-        return handleHasContract();
+        for (const auto n : to(handleGetNumberOfCalls())) {
+            const auto call = handleGetCall(n);
+            if (std::holds_alternative<Bid>(call)) {
+                return true;
+            }
+        }
+        return false;
     }
     return boost::logic::indeterminate;
 }
 
 std::optional<std::optional<Contract>> Bidding::getContract() const
 {
-    return internalGetIfHasContract(&Bidding::handleGetContract);
+    return internalGetIfHasContract(&Bidding::internalGetContract);
 }
 
 std::optional<std::optional<Position>> Bidding::getDeclarerPosition() const
 {
-    return internalGetIfHasContract(&Bidding::handleGetDeclarerPosition);
+    return internalGetIfHasContract(&Bidding::internalGetDeclarerPosition);
 }
 
 bool Bidding::hasEnded() const
 {
-    return handleHasEnded();
+    const auto n_calls = handleGetNumberOfCalls();
+    if (n_calls < N_PLAYERS) {
+        return false;
+    }
+    constexpr auto n_passes_required = N_PLAYERS - 1;
+    for (const auto n : from_to(n_calls - n_passes_required, n_calls)) {
+        const auto call = handleGetCall(n);
+        if (!std::holds_alternative<Pass>(call)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 template<class T>
-std::optional<std::optional<T>> Bidding::internalGetIfHasContract(
+std::optional<T> Bidding::internalGetIfHasContract(
     T (Bidding::*const memfn)() const) const
 {
     if (hasEnded()) {
-        if (handleHasContract()) {
-            return std::optional<T> {(this->*memfn)()};
+        return (this->*memfn)();
+    }
+    return std::nullopt;
+}
+
+std::optional<Contract> Bidding::internalGetContract() const
+{
+    auto doubling = Doublings::UNDOUBLED;
+    const auto n_calls = handleGetNumberOfCalls();
+    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+        const auto call = handleGetCall(n);
+        if (std::holds_alternative<Double>(call)) {
+            // Examining the calls from the last to the first, so
+            // ignore the double if we already saw a redouble
+            if (doubling == Doublings::UNDOUBLED) {
+                doubling = Doublings::DOUBLED;
+            }
+        } else if (std::holds_alternative<Redouble>(call)) {
+            doubling = Doublings::REDOUBLED;
+        } else if (const auto bid = std::get_if<Bid>(&call)) {
+            return Contract {*bid, doubling};
         }
-        return std::optional<T> {std::nullopt};
+    }
+    return std::nullopt;
+}
+
+std::optional<Position> Bidding::internalGetDeclarerPosition() const
+{
+    const auto n_calls = handleGetNumberOfCalls();
+    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+        const auto call = handleGetCall(n);
+        if (const auto bid = std::get_if<Bid>(&call)) {
+            // Find the first bid by the contract partnership that has
+            // the same strain as the contract bid. The player who
+            // made it is the declarer.
+            for (const auto n2 : from_to(n % 2, n_calls, 2)) {
+                const auto call2 = handleGetCall(n2);
+                if (const auto bid2 = std::get_if<Bid>(&call2)) {
+                    if (bid->strain == bid2->strain) {
+                        return clockwise(handleGetOpeningPosition(), n2);
+                    }
+                }
+            }
+        }
     }
     return std::nullopt;
 }

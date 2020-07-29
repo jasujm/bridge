@@ -3,7 +3,6 @@
 
 #include "bridge/Bidding.hh"
 #include "bridge/Call.hh"
-#include "bridge/Player.hh"
 #include "bridge/Position.hh"
 
 #include <gmock/gmock.h>
@@ -17,12 +16,6 @@ public:
     MOCK_CONST_METHOD0(handleGetNumberOfCalls, int());
     MOCK_CONST_METHOD0(handleGetOpeningPosition, Position());
     MOCK_CONST_METHOD1(handleGetCall, Call(int));
-    MOCK_CONST_METHOD1(handleIsCallAllowed, bool(const Call&));
-    MOCK_CONST_METHOD0(handleGetLowestAllowedBid, std::optional<Bid>());
-    MOCK_CONST_METHOD0(handleGetContract, Contract());
-    MOCK_CONST_METHOD0(handleGetDeclarerPosition, Position());
-    MOCK_CONST_METHOD0(handleHasEnded, bool());
-    MOCK_CONST_METHOD0(handleHasContract, bool());
 };
 
 }

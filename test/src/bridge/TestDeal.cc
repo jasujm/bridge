@@ -69,29 +69,26 @@ protected:
     void configureBiddingPhase(const Position openerPosition)
     {
         ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::BIDDING));
-        ON_CALL(bidding, handleHasEnded()).WillByDefault(Return(false));
         ON_CALL(bidding, handleGetOpeningPosition())
             .WillByDefault(Return(openerPosition));
     }
 
-    void configurePlayingPhase(const Position declarerPosition)
+    void configurePlayingPhase()
     {
         ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::PLAYING));
-        ON_CALL(bidding, handleHasEnded()).WillByDefault(Return(true));
-        ON_CALL(bidding, handleHasContract()).WillByDefault(Return(true));
-        ON_CALL(bidding, handleGetDeclarerPosition())
-            .WillByDefault(Return(declarerPosition));
+        ON_CALL(bidding, handleGetNumberOfCalls())
+            .WillByDefault(Return(Bridge::N_PLAYERS));
+        ON_CALL(bidding, handleGetOpeningPosition())
+            .WillByDefault(Return(Positions::NORTH));
+        ON_CALL(bidding, handleGetCall(0))
+            .WillByDefault(Return(Bridge::Bid(1, Bridge::Strains::CLUBS)));
+        ON_CALL(bidding, handleGetCall(testing::Ge(1)))
+            .WillByDefault(Return(Bridge::Pass {}));
     }
 
     void configureExampleTrick()
     {
-        configurePlayingPhase(Positions::NORTH);
-        ON_CALL(bidding, handleGetContract())
-            .WillByDefault(
-                Return(
-                    Bridge::Contract {
-                        Bridge::Bid {1, Bridge::Strains::CLUBS},
-                        Bridge::Doublings::UNDOUBLED}));
+        configurePlayingPhase();
         ON_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
             .WillByDefault(Return(ssize(CARDS_IN_EXAMPLE_TRICK)));
         for (const auto n : Bridge::to(ssize(CARDS_IN_EXAMPLE_TRICK))) {
@@ -137,13 +134,13 @@ TEST_F(DealTest, testVulnerability)
 TEST_F(DealTest, testPositionInTurnDuringBidding)
 {
     configureBiddingPhase(Positions::EAST);
-    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(0));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(0));
     EXPECT_EQ(Positions::EAST, deal.getPositionInTurn());
 }
 
 TEST_F(DealTest, testPositionInTurnDuringPlaying)
 {
-    configurePlayingPhase(Positions::NORTH);
+    configurePlayingPhase();
     EXPECT_CALL(*tricks.back(), handleGetNumberOfCardsPlayed())
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*tricks.back(), handleGetHand(0))
@@ -167,7 +164,7 @@ TEST_F(DealTest, testPositionInTurnDealEnded)
 
 TEST_F(DealTest, testHandInTurn)
 {
-    configurePlayingPhase(Positions::NORTH);
+    configurePlayingPhase();
     EXPECT_CALL(*tricks.back(), handleGetNumberOfCardsPlayed())
         .WillOnce(Return(0));
     EXPECT_CALL(*tricks.back(), handleGetHand(0))
@@ -212,7 +209,7 @@ TEST_F(DealTest, testVisibleToAllDuringBidding)
 
 TEST_F(DealTest, testDummyIsNotVisibleToAllBeforeOpeningLead)
 {
-    configurePlayingPhase(Positions::NORTH);
+    configurePlayingPhase();
     EXPECT_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
         .WillOnce(Return(0));
     EXPECT_FALSE(deal.isVisibleToAll(Positions::SOUTH));
@@ -220,7 +217,7 @@ TEST_F(DealTest, testDummyIsNotVisibleToAllBeforeOpeningLead)
 
 TEST_F(DealTest, testDummyIsVisibleToAllAfterOpeningLead)
 {
-    configurePlayingPhase(Positions::NORTH);
+    configurePlayingPhase();
     EXPECT_CALL(*tricks.front(), handleGetNumberOfCardsPlayed())
         .WillRepeatedly(Return(1));
     for (const auto position : Position::all()) {

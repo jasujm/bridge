@@ -9,292 +9,309 @@
 #include <boost/logic/tribool.hpp>
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <iterator>
 #include <optional>
+#include <vector>
 #include <utility>
 
+using Bridge::Bid;
 using Bridge::Bidding;
 using Bridge::Call;
 using Bridge::Contract;
-using Bridge::to;
+using Bridge::N_PLAYERS;
 
 using testing::_;
-using testing::NiceMock;
+using testing::Ge;
 using testing::Return;
-using testing::Ref;
-using testing::ValuesIn;
 
+namespace Doublings = Bridge::Doublings;
 namespace Positions = Bridge::Positions;
+namespace Strains = Bridge::Strains;
 
 namespace {
-constexpr auto CONTRACT = Contract {
-    Bridge::Bid {2, Bridge::Strains::CLUBS},
-    Bridge::Doublings::UNDOUBLED,
-};
-constexpr auto LOWEST_ALLOWED_BID = Bridge::Bid {2, Bridge::Strains::DIAMONDS};
-const auto VALID_CALL = Call {Bridge::Pass {}};
-const auto INVALID_CALL = Call {Bridge::Double {}};
-const auto DOUBLE_CALL = Call {Bridge::Double {}};
-const auto REDOUBLE_CALL = Call {Bridge::Redouble {}};
+constexpr auto BID = Bid {2, Strains::CLUBS};
+constexpr auto OVERBID = Bid {3, Strains::CLUBS};
+constexpr auto HIGHER_BID = Bid {7, Strains::NO_TRUMP};
+const auto PASS = Bridge::Pass {};
+const auto DOUBLE = Bridge::Double {};
+const auto REDOUBLE = Bridge::Redouble {};
 }
 
-class BiddingTest : public testing::TestWithParam<int> {
+class BiddingTest : public testing::Test {
 protected:
     virtual void SetUp()
     {
-        ON_CALL(bidding, handleIsCallAllowed(VALID_CALL))
-            .WillByDefault(Return(true));
-        ON_CALL(bidding, handleIsCallAllowed(VALID_CALL))
-            .WillByDefault(Return(true));
         ON_CALL(bidding, handleGetOpeningPosition())
-            .WillByDefault(Return(Positions::NORTH));
-        ON_CALL(bidding, handleGetCall(_))
-            .WillByDefault(Return(VALID_CALL));
-        ON_CALL(bidding, handleIsCallAllowed(INVALID_CALL))
-            .WillByDefault(Return(false));
-        ON_CALL(bidding, handleGetLowestAllowedBid())
-            .WillByDefault(Return(LOWEST_ALLOWED_BID));
-        ON_CALL(bidding, handleHasContract())
-            .WillByDefault(Return(true));
-        ON_CALL(bidding, handleGetContract())
-            .WillByDefault(Return(CONTRACT));
-        ON_CALL(bidding, handleGetDeclarerPosition())
             .WillByDefault(Return(Positions::NORTH));
     }
 
-    NiceMock<Bridge::MockBidding> bidding;
+    testing::NiceMock<Bridge::MockBidding> bidding;
 };
 
 TEST_F(BiddingTest, testNumberOfCalls)
 {
-    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(1));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
     EXPECT_EQ(1, bidding.getNumberOfCalls());
 }
 
 TEST_F(BiddingTest, testOpeningPosition)
 {
-    EXPECT_CALL(bidding, handleGetOpeningPosition());
     EXPECT_EQ(Positions::NORTH, bidding.getOpeningPosition());
 }
 
 TEST_F(BiddingTest, testGetCallInRange)
 {
-    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(1));
-    EXPECT_CALL(bidding, handleGetCall(0));
-    EXPECT_EQ(VALID_CALL, bidding.getCall(0));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_EQ(Call(BID), bidding.getCall(0));
 }
 
 TEST_F(BiddingTest, testGetCallOutOfRange)
 {
-    EXPECT_CALL(bidding, handleGetNumberOfCalls());
-    EXPECT_CALL(bidding, handleGetCall(_)).Times(0);
     EXPECT_THROW(bidding.getCall(0), std::out_of_range);
 }
 
-TEST_P(BiddingTest, testAllowedCallWhenPlayerHasTurn)
+TEST_F(BiddingTest, testInitialPositionInTurn)
 {
-    auto n = GetParam();
-    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(n));
-    EXPECT_CALL(bidding, handleAddCall(VALID_CALL));
-    EXPECT_CALL(bidding, handleIsCallAllowed(VALID_CALL));
-    EXPECT_TRUE(bidding.call(clockwise(Positions::NORTH, n), VALID_CALL));
+    EXPECT_EQ(Positions::NORTH, bidding.getPositionInTurn());
 }
 
-TEST_F(BiddingTest, testAllowedCallWhenPlayerDoesNotHaveTurn)
+TEST_F(BiddingTest, testInitialPositionInTurnAfterOpening)
 {
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
-    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
-    EXPECT_FALSE(bidding.call(Positions::EAST, VALID_CALL));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_EQ(Positions::EAST, bidding.getPositionInTurn());
 }
 
-TEST_F(BiddingTest, testNotAllowedCallWhenPlayerHasTurn)
+TEST_F(BiddingTest, testInitialPositionInAfterEnd)
 {
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(bidding, handleIsCallAllowed(INVALID_CALL));
-    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
-    EXPECT_FALSE(bidding.call(Positions::NORTH, INVALID_CALL));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(_)).WillRepeatedly(Return(PASS));
+    EXPECT_EQ(std::nullopt, bidding.getPositionInTurn());
 }
 
-TEST_F(BiddingTest, testCallWhenBiddingHasEnded)
+TEST_F(BiddingTest, testInitialState)
 {
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
-    EXPECT_CALL(bidding, handleAddCall(INVALID_CALL)).Times(0);
-    EXPECT_FALSE(bidding.call(Positions::NORTH, VALID_CALL));
+    EXPECT_FALSE(bidding.hasEnded());
+    EXPECT_TRUE(boost::logic::indeterminate(bidding.hasContract()));
+    EXPECT_EQ(std::nullopt, bidding.getContract());
+    EXPECT_EQ(std::nullopt, bidding.getDeclarerPosition());
 }
 
-TEST_F(BiddingTest, testLowestAllowedBidWhenBiddingIsOngoing)
+TEST_F(BiddingTest, testThreePassesRequiredForCompletion)
 {
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(bidding, handleGetLowestAllowedBid());
-    EXPECT_EQ(LOWEST_ALLOWED_BID, bidding.getLowestAllowedBid());
-}
-
-TEST_F(BiddingTest, testLowestAllowedBidWhenBiddingHasEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleGetLowestAllowedBid()).Times(0);
-    EXPECT_FALSE(bidding.getLowestAllowedBid());
-}
-
-TEST_F(BiddingTest, testDoublingAllowed)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(
-        bidding, handleIsCallAllowed(DOUBLE_CALL)).WillOnce(Return(true));
-    EXPECT_TRUE(bidding.isDoublingAllowed());
-}
-
-TEST_F(BiddingTest, testDoublingNotAllowed)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(
-        bidding, handleIsCallAllowed(DOUBLE_CALL)).WillOnce(Return(false));
-    EXPECT_FALSE(bidding.isDoublingAllowed());
-}
-
-TEST_F(BiddingTest, testDoublingNotAllowedWhenBiddingHasEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
-    EXPECT_FALSE(bidding.isDoublingAllowed());
-}
-
-TEST_F(BiddingTest, testRedoublingAllowed)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(
-        bidding, handleIsCallAllowed(REDOUBLE_CALL)).WillOnce(Return(true));
-    EXPECT_TRUE(bidding.isRedoublingAllowed());
-}
-
-TEST_F(BiddingTest, testRedoublingNotAllowed)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(
-        bidding, handleIsCallAllowed(REDOUBLE_CALL)).WillOnce(Return(false));
-    EXPECT_FALSE(bidding.isRedoublingAllowed());
-}
-
-TEST_F(BiddingTest, testRedoublingNotAllowedWhenBiddingHasEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleIsCallAllowed(_)).Times(0);
-    EXPECT_FALSE(bidding.isRedoublingAllowed());
-}
-
-TEST_P(BiddingTest, testPlayerInTurnWhenBiddingIsOngoing)
-{
-    const auto n = GetParam();
-    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillOnce(Return(n));
-    EXPECT_EQ(clockwise(Positions::NORTH, n), bidding.getPositionInTurn());
-}
-
-TEST_F(BiddingTest, testPlayerInTurnWhenBiddingHasEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_FALSE(bidding.getPositionInTurn());
-}
-
-TEST_F(BiddingTest, testHasEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_TRUE(bidding.hasEnded());
-}
-
-TEST_F(BiddingTest, testHasNotEnded)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(2))).WillRepeatedly(Return(PASS));
     EXPECT_FALSE(bidding.hasEnded());
 }
 
-TEST_F(BiddingTest, testHasContractWhenBiddingIsOngoing)
+TEST_F(BiddingTest, testPassOut)
 {
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_TRUE(indeterminate(bidding.hasContract()));
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(_)).WillRepeatedly(Return(PASS));
+    EXPECT_TRUE(bidding.hasEnded());
+    EXPECT_EQ(false, bidding.hasContract());
+    EXPECT_EQ(std::nullopt, dereference(bidding.getContract()));
+    EXPECT_EQ(std::nullopt, dereference(bidding.getDeclarerPosition()));
 }
 
-TEST_F(BiddingTest, testGetContractWhenBiddingIsOngoing)
+TEST_F(BiddingTest, testSoleBidWinsContract)
 {
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(bidding, handleGetContract()).Times(0);
-    EXPECT_FALSE(bidding.getContract());
-}
-
-TEST_F(BiddingTest, testGetDeclarerWhenBiddingIsOngoing)
-{
-    EXPECT_CALL(bidding, handleHasEnded());
-    EXPECT_CALL(bidding, handleGetDeclarerPosition()).Times(0);
-    EXPECT_FALSE(bidding.getDeclarerPosition());
-}
-
-TEST_F(BiddingTest, testHasContractWhenBiddingHasEndedAndThereIsContract)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract());
-    EXPECT_TRUE(bidding.hasContract());
-}
-
-TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsContract)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract());
-    EXPECT_CALL(bidding, handleGetContract());
-    EXPECT_EQ(std::optional(CONTRACT), bidding.getContract());
-}
-
-TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsContract)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract());
-    EXPECT_CALL(bidding, handleGetDeclarerPosition());
-    const auto declarer = bidding.getDeclarerPosition();
-    ASSERT_TRUE(declarer);
-    EXPECT_EQ(Positions::NORTH, *declarer);
-}
-
-TEST_F(BiddingTest, testHasContractWhenBiddingHasEndedAndThereIsNoContract)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract()).WillOnce(Return(false));
-    EXPECT_FALSE(bidding.hasContract());
-}
-
-TEST_F(BiddingTest, testGetContractWhenBiddingHasEndedAndThereIsNoContract)
-{
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract()).WillOnce(Return(false));
-    EXPECT_CALL(bidding, handleGetContract()).Times(0);
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(1))).WillRepeatedly(Return(PASS));
+    EXPECT_TRUE(bidding.hasEnded());
+    EXPECT_EQ(true, bidding.hasContract());
     EXPECT_EQ(
-        std::make_optional(std::optional<Contract> {}),
-        bidding.getContract());
+        Contract(BID, Doublings::UNDOUBLED),
+        dereference(bidding.getContract()));
+    EXPECT_EQ(Positions::NORTH, dereference(bidding.getDeclarerPosition()));
 }
 
-TEST_F(BiddingTest, testGetDeclarerWhenBiddingHasEndedAndThereIsNoContract)
+TEST_F(BiddingTest, testHighestBidWinsContract)
 {
-    EXPECT_CALL(bidding, handleHasEnded()).WillOnce(Return(true));
-    EXPECT_CALL(bidding, handleHasContract()).WillOnce(Return(false));
-    EXPECT_CALL(bidding, handleGetDeclarerPosition()).Times(0);
-    const auto declarer = bidding.getDeclarerPosition();
-    ASSERT_TRUE(declarer);
-    EXPECT_FALSE(*declarer);
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS + 1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(HIGHER_BID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(2))).WillRepeatedly(Return(PASS));
+    EXPECT_TRUE(bidding.hasEnded());
+    EXPECT_EQ(true, bidding.hasContract());
+    EXPECT_EQ(
+        Contract(HIGHER_BID, Doublings::UNDOUBLED),
+        dereference(bidding.getContract()));
+    EXPECT_EQ(Positions::EAST, dereference(bidding.getDeclarerPosition()));
+}
+
+TEST_F(BiddingTest, testDoubledContract)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS + 1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(Ge(2))).WillRepeatedly(Return(PASS));
+    EXPECT_EQ(
+        Contract(BID, Doublings::DOUBLED), dereference(bidding.getContract()));
+}
+
+TEST_F(BiddingTest, testRedoubledContract)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS + 2));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(REDOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(Ge(3))).WillRepeatedly(Return(PASS));
+    EXPECT_EQ(
+        Contract(BID, Doublings::REDOUBLED), dereference(bidding.getContract()));
+}
+
+TEST_F(BiddingTest, testNewBidResetsDouble)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS + 2));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(HIGHER_BID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(3))).WillRepeatedly(Return(PASS));
+    EXPECT_TRUE(bidding.hasEnded());
+    EXPECT_EQ(true, bidding.hasContract());
+    EXPECT_EQ(
+        Contract(HIGHER_BID, Doublings::UNDOUBLED),
+        dereference(bidding.getContract()));
+    EXPECT_EQ(Positions::SOUTH, dereference(bidding.getDeclarerPosition()));
+}
+
+TEST_F(BiddingTest, testFirstToBidStrainIsDeclarer)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(N_PLAYERS + 3));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleGetCall(3)).WillRepeatedly(Return(OVERBID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(4))).WillRepeatedly(Return(PASS));
+    EXPECT_EQ(Positions::EAST, dereference(bidding.getDeclarerPosition()));
+}
+
+TEST_F(BiddingTest, testPassAllowedDuringBidding)
+{
+    EXPECT_CALL(bidding, handleAddCall(Call {PASS}));
+    EXPECT_TRUE(bidding.call(Positions::NORTH, PASS));
+}
+
+TEST_F(BiddingTest, testInitialLowestAllowedBid)
+{
+    EXPECT_EQ(Bid::LOWEST_BID, bidding.getLowestAllowedBid());
+}
+
+TEST_F(BiddingTest, testInitialDoublingNotAllowed)
+{
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+}
+
+TEST_F(BiddingTest, testInitialRedoublingNotAllowed)
+{
+    EXPECT_FALSE(bidding.isRedoublingAllowed());
+}
+
+TEST_F(BiddingTest, testOpeningBid)
+{
+    EXPECT_CALL(bidding, handleAddCall(Call {BID}));
+    EXPECT_TRUE(bidding.call(Positions::NORTH, BID));
+}
+
+TEST_F(BiddingTest, testSameBidNotAllowed)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_EQ(nextHigherBid(BID), bidding.getLowestAllowedBid());
+    EXPECT_FALSE(bidding.call(Positions::EAST, BID));
+}
+
+TEST_F(BiddingTest, testHigherBidAllowed)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleAddCall(Call {HIGHER_BID}));
+    EXPECT_TRUE(bidding.call(Positions::EAST, HIGHER_BID));
+}
+
+TEST_F(BiddingTest, testDoubling)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(1));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleAddCall(Call {DOUBLE}));
+    EXPECT_TRUE(bidding.isDoublingAllowed());
+    EXPECT_TRUE(bidding.call(Positions::EAST, DOUBLE));
+}
+
+TEST_F(BiddingTest, testDoublingPartnerNotAllowed)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(2));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+    EXPECT_FALSE(bidding.call(Positions::SOUTH, DOUBLE));
+}
+
+TEST_F(BiddingTest, testRedoubling)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(2));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleAddCall(Call {REDOUBLE}));
+    EXPECT_TRUE(bidding.isRedoublingAllowed());
+    EXPECT_TRUE(bidding.call(Positions::SOUTH, REDOUBLE));
+}
+
+TEST_F(BiddingTest, testRedoublingOpponentNotAllowed)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(3));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_FALSE(bidding.isRedoublingAllowed());
+    EXPECT_FALSE(bidding.call(Positions::WEST, REDOUBLE));
+}
+
+TEST_F(BiddingTest, testCallOutOfTurn)
+{
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_FALSE(bidding.call(Positions::EAST, PASS));
+}
+
+TEST_F(BiddingTest, testCallNotAllowedAfterBidding)
+{
+    EXPECT_CALL(
+        bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(_)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_EQ(std::nullopt, bidding.getLowestAllowedBid());
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+    EXPECT_FALSE(bidding.isRedoublingAllowed());
+    EXPECT_FALSE(bidding.call(Positions::NORTH, PASS));
 }
 
 TEST_F(BiddingTest, testCallIterators)
 {
-    const auto calls = {
-        std::pair {Positions::NORTH, VALID_CALL},
-        std::pair {Positions::EAST,  VALID_CALL},
-        std::pair {Positions::SOUTH, VALID_CALL},
-        std::pair {Positions::WEST,  VALID_CALL},
-    };
     EXPECT_CALL(bidding, handleGetNumberOfCalls())
-        .WillRepeatedly(Return(Bridge::N_PLAYERS));
-    EXPECT_TRUE(
-        std::equal(calls.begin(), calls.end(), bidding.begin(), bidding.end()));
+        .WillRepeatedly(Return(N_PLAYERS));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(Ge(1))).WillRepeatedly(Return(PASS));
+    EXPECT_THAT(
+        std::vector(bidding.begin(), bidding.end()),
+        testing::ElementsAre(
+            std::pair {Positions::NORTH, BID},
+            std::pair {Positions::EAST,  PASS},
+            std::pair {Positions::SOUTH, PASS},
+            std::pair {Positions::WEST,  PASS}));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    SamplingRounds, BiddingTest, ValuesIn(to(2 * Bridge::N_PLAYERS)));

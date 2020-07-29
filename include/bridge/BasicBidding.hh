@@ -19,9 +19,8 @@ namespace Bridge {
 
 /** \brief Concrete implementation of the Bidding interface
  *
- * BasicBidding maintains turns based on predetermined list of players. The
- * first player in the list is the opener, after which the bidding proceeds
- * clockwise.
+ * BasicBidding stores the calls of the players. The first player in
+ * the list is the opener, after which the bidding proceeds clockwise.
  */
 class BasicBidding : public Bidding, private boost::noncopyable {
 public:
@@ -42,22 +41,8 @@ private:
 
     Call handleGetCall(int n) const override;
 
-    bool handleIsCallAllowed(const Call& call) const override;
-
-    std::optional<Bid> handleGetLowestAllowedBid() const override;
-
-    Contract handleGetContract() const override;
-
-    Position handleGetDeclarerPosition() const override;
-
-    bool handleHasEnded() const override;
-
-    bool handleHasContract() const override;
-
     const Position openingPosition;
     std::vector<Call> calls;
-    boost::logic::tribool lastBidderHasTurn;
-    std::optional<Contract> contract;
 };
 
 }
