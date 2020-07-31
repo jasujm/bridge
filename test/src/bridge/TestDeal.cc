@@ -7,6 +7,7 @@
 #include "bridge/TricksWon.hh"
 #include "Enumerate.hh"
 #include "MockBidding.hh"
+#include "MockCard.hh"
 #include "MockDeal.hh"
 #include "MockHand.hh"
 #include "MockTrick.hh"
@@ -62,6 +63,7 @@ protected:
                     .WillByDefault(ReturnPointee(hands.at(position)));
             }
         }
+        ON_CALL(deal, handleGetCard(_)).WillByDefault(ReturnRef(card));
         ON_CALL(deal, handleGetNumberOfTricks()).WillByDefault(Return(tricks.size()));
         ON_CALL(deal, handleGetBidding()).WillByDefault(ReturnRef(bidding));
     }
@@ -102,6 +104,7 @@ protected:
         ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::ENDED));
     }
 
+    Bridge::MockCard card;
     std::map<Position, std::shared_ptr<Bridge::MockHand>> hands {
         { Positions::NORTH, std::make_shared<NiceMock<Bridge::MockHand>>() },
         { Positions::EAST,  std::make_shared<NiceMock<Bridge::MockHand>>() },
@@ -183,6 +186,18 @@ TEST_F(DealTest, testGetHand)
     constexpr auto position = Positions::EAST;
     EXPECT_CALL(deal, handleGetHand(position));
     EXPECT_EQ(hands.at(position).get(), &deal.getHand(position));
+}
+
+TEST_F(DealTest, testGetCard)
+{
+    EXPECT_CALL(deal, handleGetCard(0));
+    EXPECT_EQ(&card, &deal.getCard(0));
+}
+
+TEST_F(DealTest, testGetCardOutOfRange)
+{
+    EXPECT_CALL(deal, handleGetCard(_)).Times(0);
+    EXPECT_THROW(deal.getCard(Bridge::N_CARDS), std::out_of_range);
 }
 
 TEST_F(DealTest, testGetPosition)

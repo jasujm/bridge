@@ -30,5 +30,13 @@ std::optional<int> CardManager::getNumberOfCards() const
     return std::nullopt;
 }
 
+const Card* CardManager::getCard(const int n) const
+{
+    if (const auto n_cards = getNumberOfCards()) {
+        return &handleGetCard(checkIndex(n, *n_cards));
+    }
+    return nullptr;
+}
+
 }
 }

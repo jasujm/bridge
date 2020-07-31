@@ -1,5 +1,6 @@
 #include "bridge/BridgeConstants.hh"
 #include "Utility.hh"
+#include "MockCard.hh"
 #include "MockCardManager.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
@@ -10,6 +11,7 @@
 #include <memory>
 
 using Bridge::Engine::CardManager;
+using Bridge::MockCard;
 using Bridge::MockHand;
 using Bridge::N_CARDS;
 using Bridge::to;
@@ -17,6 +19,7 @@ using Bridge::to;
 using testing::_;
 using testing::ElementsAreArray;
 using testing::Return;
+using testing::ReturnRef;
 
 class CardManagerTest : public testing::Test {
 protected:
@@ -30,6 +33,7 @@ protected:
             .WillByDefault(Return(N_CARDS));
     }
 
+    MockCard card;
     std::shared_ptr<MockHand> hand {std::make_shared<MockHand>()};
     testing::StrictMock<Bridge::Engine::MockCardManager> cardManager;
 };
@@ -98,4 +102,26 @@ TEST_F(CardManagerTest, testGetHandOutOfRange)
     EXPECT_CALL(cardManager, handleGetNumberOfCards());
     const auto ns = {N_CARDS};
     EXPECT_THROW(cardManager.getHand(ns.begin(), ns.end()), std::out_of_range);
+}
+
+TEST_F(CardManagerTest, testGetCardWhenShuffleIsNotCompleted)
+{
+    EXPECT_CALL(cardManager, handleIsShuffleCompleted())
+        .WillOnce(Return(false));
+    EXPECT_EQ(nullptr, cardManager.getCard(0));
+}
+
+TEST_F(CardManagerTest, testGetCardWhenShuffleIsCompleted)
+{
+    EXPECT_CALL(cardManager, handleIsShuffleCompleted());
+    EXPECT_CALL(cardManager, handleGetNumberOfCards());
+    EXPECT_CALL(cardManager, handleGetCard(0)).WillOnce(ReturnRef(card));
+    EXPECT_EQ(&card, cardManager.getCard(0));
+}
+
+TEST_F(CardManagerTest, testGetCardOutOfRange)
+{
+    EXPECT_CALL(cardManager, handleIsShuffleCompleted());
+    EXPECT_CALL(cardManager, handleGetNumberOfCards());
+    EXPECT_THROW(cardManager.getCard(N_CARDS), std::out_of_range);
 }

@@ -17,6 +17,7 @@
 
 namespace Bridge {
 
+class Card;
 class Hand;
 
 namespace Engine {
@@ -68,8 +69,8 @@ public:
 
     /** \brief Retrieve hand with the selected cards
      *
-     * The references to the card objects remain valid until requestShuffle()
-     * is called. The hand object itself returned by this method remains valid
+     * The references to the card objects remain valid until requestShuffle() is
+     * called. The hand object itself returned by this method remains valid
      * until the card manager itself is destructed. Invoking any method on the
      * hand after the card manager is destructed is undefined.
      *
@@ -102,6 +103,21 @@ public:
      * isShuffleCompleted() == false
      */
     std::optional<int> getNumberOfCards() const;
+
+    /** \brief Get pointer to a card
+     *
+     * This method will return pointer to a card object regardless of if it
+     * belongs to a hand or not, or if it has been played or not. The pointer
+     * remains valid until requestShuffle() is called.
+     *
+     * \param n the index of the card
+     *
+     * \return pointer to the card at \p n, or nullptr if isShuffleCompleted()
+     * == false
+     *
+     * \throw std::out_of_range if \p n is out of range
+     */
+    const Card* getCard(int n) const;
 
 protected:
 
@@ -150,6 +166,15 @@ private:
      * \sa getNumberOfCards()
      */
     virtual int handleGetNumberOfCards() const = 0;
+
+    /** \brief Handle for getting a card
+     *
+     * It may be assumed that isShuffleCompleted() == true and n <
+     * handleGetNumberOfCards()
+     *
+     * \sa getCard()
+     */
+    virtual const Card& handleGetCard(int n) const = 0;
 };
 
 template<typename IndexIterator>

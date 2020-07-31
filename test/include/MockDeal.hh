@@ -18,6 +18,7 @@ public:
     MOCK_CONST_METHOD0(handleGetVulnerability, Vulnerability());
     MOCK_CONST_METHOD0(handleGetPositionInTurn, Position());
     MOCK_CONST_METHOD1(handleGetHand, const Hand&(Position));
+    MOCK_CONST_METHOD1(handleGetCard, const Card&(int));
     MOCK_CONST_METHOD0(handleGetBidding, const Bidding&());
     MOCK_CONST_METHOD0(handleGetNumberOfTricks, int());
     MOCK_CONST_METHOD1(handleGetTrick, const Trick&(int));

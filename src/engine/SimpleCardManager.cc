@@ -204,6 +204,14 @@ bool SimpleCardManager::handleIsShuffleCompleted() const
     return impl->state_cast<const ShuffleCompleted*>();
 }
 
+const Card& SimpleCardManager::handleGetCard(const int n) const
+{
+    assert(impl);
+    const auto& cards = impl->getCards();
+    assert(n < ssize(cards));
+    return cards[n];
+}
+
 void SimpleCardManager::internalShuffle(const CardTypeVector& cards)
 {
     assert(impl);

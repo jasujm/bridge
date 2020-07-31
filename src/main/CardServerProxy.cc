@@ -184,6 +184,7 @@ private:
     std::shared_ptr<Hand> handleGetHand(const IndexVector& handNs) override;
     bool handleIsShuffleCompleted() const override;
     int handleGetNumberOfCards() const override;
+    const Card& handleGetCard(int n) const override;
 
     void internalHandleHandRevealRequest(
         const std::shared_ptr<BasicHand>& hand,
@@ -366,6 +367,12 @@ bool Impl::handleIsShuffleCompleted() const
 int Impl::handleGetNumberOfCards() const
 {
     return N_CARDS;
+}
+
+const Card& Impl::handleGetCard(const int n) const
+{
+    assert(n < ssize(cards));
+    return cards[n];
 }
 
 void Impl::internalHandleHandRevealRequest(

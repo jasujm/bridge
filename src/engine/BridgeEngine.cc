@@ -174,6 +174,7 @@ public:
 
     bool setPlayer(Position position, std::shared_ptr<Player> player);
     CardManager& getCardManager() { return dereference(cardManager); }
+    const CardManager& getCardManager() const { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
     const GameManager& getGameManager() const { return dereference(gameManager); }
     Observable<DealStarted>& getDealStartedNotifier()
@@ -386,6 +387,7 @@ private:
     DealPhase handleGetPhase() const override;
     Vulnerability handleGetVulnerability() const override;
     const Hand& handleGetHand(Position position) const override;
+    const Card& handleGetCard(int n) const override;
     const Bidding& handleGetBidding() const override;
     int handleGetNumberOfTricks() const override;
     const Trick& handleGetTrick(int n) const override;
@@ -587,6 +589,12 @@ const Hand& InDeal::handleGetHand(const Position position) const
 {
     const auto n = static_cast<std::size_t>(position.get());
     return dereference(hands.at(n));
+}
+
+const Card& InDeal::handleGetCard(const int n) const
+{
+    const auto& card_manager = outermost_context().getCardManager();
+    return dereference(card_manager.getCard(n));
 }
 
 const Bidding& InDeal::handleGetBidding() const

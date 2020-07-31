@@ -16,6 +16,7 @@
 namespace Bridge {
 
 class Bidding;
+class Card;
 class Hand;
 struct Position;
 struct Suit;
@@ -74,6 +75,21 @@ public:
      * \return the hand of the player at the given position
      */
     const Hand& getHand(Position position) const;
+
+    /** \brief Get the card at index \p n
+     *
+     * This method allows introspection of cards by index regardless if they are
+     * at a player’s hand or already played to a trick. The order of the cards
+     * are the same as the order they were dealt by the underlying card manager
+     * object.
+     *
+     * \param n the index of the card
+     *
+     * \return the card at \p n
+     *
+     * \throw std::out_of_range unless 0 <= n < \ref N_CARDS
+     */
+    const Card& getCard(int n) const;
 
     /** \brief Get the position of given hand
      *
@@ -163,6 +179,12 @@ private:
      * \sa getHand()
      */
     virtual const Hand& handleGetHand(Position position) const = 0;
+
+    /** \brief Handle getting the card
+     *
+     * \sa getHand()
+     */
+    virtual const Card& handleGetCard(int n) const = 0;
 
     /** \brief Handle getting the bidding of the current deal
      *

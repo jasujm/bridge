@@ -89,6 +89,11 @@ const Hand& Deal::getHand(const Position position) const
     return handleGetHand(position);
 }
 
+const Card& Deal::getCard(const int n) const
+{
+    return handleGetCard(checkIndex(n, N_CARDS));
+}
+
 std::optional<Position> Deal::getPosition(const Hand& hand) const
 {
     for (const auto position : Position::all()) {

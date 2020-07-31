@@ -80,6 +80,8 @@ private:
 
     int handleGetNumberOfCards() const override;
 
+    const Card& handleGetCard(int n) const override;
+
     void internalShuffle(const CardTypeVector& cards);
 
     const std::unique_ptr<Impl> impl;
