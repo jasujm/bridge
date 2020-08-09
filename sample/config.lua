@@ -16,6 +16,17 @@ if os.getenv("BRIDGE_USE_CURVE") then
    curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
 end
 
+-- Data directory will be used to record games so that they can be continued
+-- when the application is restarted. If omitted, games will be lost on exit.
+
+data_dir = os.getenv("BRIDGE_DATA_DIR")
+if not data_dir then
+   home = os.getenv("HOME")
+   if home then
+      data_dir = home .. "/.bridge"
+   end
+end
+
 -- Set up game(s) using the game function. The simple setup if for
 -- peerless games, in which case it's enough to provide uuid to
 -- identify the game. To setup a game with peers, you additionally

@@ -85,6 +85,21 @@ curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
     EXPECT_EQ(expectedPublicKey, curve->publicKey);
 }
 
+TEST_F(ConfigTest, testParseDataDirMissingKey)
+{
+    const auto config = Config {in};
+    EXPECT_FALSE(config.getDataDir());
+}
+
+TEST_F(ConfigTest, testParseDataDir)
+{
+    in.str(R"EOF(
+data_dir = "/tmp/bridge"
+)EOF"s);
+    const auto config = Config {in};
+    EXPECT_EQ("/tmp/bridge", config.getDataDir());
+}
+
 TEST_F(ConfigTest, testParseGameConfig)
 {
     in.str(R"EOF(

@@ -76,6 +76,13 @@ public:
      */
     const Messaging::CurveKeys* getCurveConfig() const;
 
+    /** \brief Get data directory
+     *
+     * \return Path to the data directory, or nullopt if there is no data
+     * directory
+     */
+    std::optional<std::string_view> getDataDir() const;
+
     /** \brief Get bridge game configurations
      *
      * \return reference to bridge game configs

@@ -8,6 +8,7 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
+#include "engine/BridgeEngine.hh"
 #include "messaging/Identity.hh"
 #include "messaging/Sockets.hh"
 
@@ -25,12 +26,6 @@ class CardType;
 class Player;
 struct Position;
 
-namespace Engine {
-
-class BridgeEngine;
-
-}
-
 namespace Messaging {
 
 class CallbackScheduler;
@@ -39,6 +34,7 @@ class CallbackScheduler;
 
 namespace Main {
 
+class BridgeGameRecorder;
 class CardProtocol;
 class PeerCommandSender;
 
@@ -94,6 +90,8 @@ public:
      * commands to the peers taking part in the game
      * \param callbackScheduler a callback scheduler object
      * \param participants list of known participants
+     * \param recorder A bridge game recorder, if applicable
+     * \param engine A pre-constructed bridge engine, if applicable
      */
     BridgeGame(
         const Uuid& uuid,
@@ -102,7 +100,9 @@ public:
         std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
-        IdentitySet participants);
+        IdentitySet participants,
+        std::shared_ptr<BridgeGameRecorder> recorder = nullptr,
+        std::optional<Engine::BridgeEngine> engine = std::nullopt);
 
     /** \brief Create new bridge game without peers
      *
@@ -112,10 +112,14 @@ public:
      * \param uuid the UUID of the game
      * \param eventSocket ZeroMQ socket used to publish events about the game
      * \param callbackScheduler a callback scheduler object
+     * \param recorder A bridge game recorder, if applicable
+     * \param engine A pre-constructed bridge engine, if applicable
      */
     BridgeGame(
         const Uuid& uuid, Messaging::SharedSocket eventSocket,
-        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler);
+        std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
+        std::shared_ptr<BridgeGameRecorder> recorder = nullptr,
+        std::optional<Engine::BridgeEngine> engine = std::nullopt);
 
     /** \brief Move constructor
      */
@@ -171,7 +175,7 @@ public:
     std::optional<Position> getPositionForPlayerToJoin(
         const Messaging::Identity& identity,
         const std::optional<Position>& position,
-        std::shared_ptr<Player> player) const;
+        const Player& player) const;
 
     /** \brief Join a player in the game
      *

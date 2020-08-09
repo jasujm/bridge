@@ -55,6 +55,8 @@ constexpr auto BIND_BASE_PORT = "bind_base_port"sv;
 const auto DEFAULT_BIND_ADDRESS = "*"s;
 constexpr auto DEFAULT_BIND_BASE_ENDPOINT = 5555;
 
+constexpr auto DATA_DIR = "data_dir"sv;
+
 class LuaPopGuard {
 public:
     LuaPopGuard(lua_State* lua);
@@ -299,6 +301,7 @@ public:
 
     Messaging::EndpointIterator getEndpointIterator() const;
     const Messaging::CurveKeys* getCurveConfig() const;
+    std::optional<std::string_view> getDataDir() const;
     const GameConfigVector& getGameConfigs() const;
     const Messaging::Authenticator::NodeMap& getKnownPeers() const;
 
@@ -310,6 +313,7 @@ private:
     Messaging::EndpointIterator endpointIterator {
         DEFAULT_BIND_ADDRESS, DEFAULT_BIND_BASE_ENDPOINT};
     std::optional<Messaging::CurveKeys> curveConfig {};
+    std::optional<std::string> dataDir {};
     GameConfigVector gameConfigs {};
     Messaging::Authenticator::NodeMap knownPeers {};
 };
@@ -336,6 +340,7 @@ Config::Impl::Impl(std::istream& in)
 
     createBaseEndpointConfig(lua.get());
     createCurveConfig(lua.get());
+    dataDir = getString(lua.get(), DATA_DIR);
 
     for (const auto& game_config : gameConfigs) {
         for (const auto& peer : game_config.peers) {
@@ -384,6 +389,11 @@ const Messaging::CurveKeys* Config::Impl::getCurveConfig() const
     return getPtr(curveConfig);
 }
 
+std::optional<std::string_view> Config::Impl::getDataDir() const
+{
+    return dataDir;
+}
+
 const Config::GameConfigVector& Config::Impl::getGameConfigs() const
 {
     return gameConfigs;
@@ -420,6 +430,12 @@ const Messaging::CurveKeys* Config::getCurveConfig() const
 {
     assert(impl);
     return impl->getCurveConfig();
+}
+
+std::optional<std::string_view> Config::getDataDir() const
+{
+    assert(impl);
+    return impl->getDataDir();
 }
 
 const Config::GameConfigVector& Config::getGameConfigs() const

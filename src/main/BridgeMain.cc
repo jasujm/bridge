@@ -2,11 +2,14 @@
 
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
+#include "bridge/Deal.hh"
 #include "bridge/Position.hh"
 #include "bridge/UuidGenerator.hh"
+#include "engine/BridgeEngine.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/BridgeGame.hh"
 #include "main/BridgeGameConfig.hh"
+#include "main/BridgeGameRecorder.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/Config.hh"
@@ -26,6 +29,7 @@
 #include "messaging/PollingCallbackScheduler.hh"
 #include "messaging/Security.hh"
 #include "messaging/UuidJsonSerializer.hh"
+#include "Enumerate.hh"
 #include "Logging.hh"
 
 #include <boost/uuid/uuid_io.hpp>
@@ -57,6 +61,14 @@ auto initializeGameMessageHandler()
 {
     return Messaging::makeDispatchingMessageHandler<Uuid>(
         stringToBlob(GAME_COMMAND), JsonSerializer {});
+}
+
+auto initializeBridgeGameRecorder(std::optional<std::string_view> path)
+{
+    if (path) {
+        return std::make_shared<BridgeGameRecorder>(*path);
+    }
+    return std::shared_ptr<BridgeGameRecorder> {};
 }
 
 using namespace std::string_view_literals;
@@ -118,6 +130,7 @@ private:
     std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
+    std::shared_ptr<BridgeGameRecorder> recorder;
 };
 
 BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
@@ -179,7 +192,8 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
         this->config.getKnownPeers()},
     callbackScheduler {
         std::make_shared<Messaging::PollingCallbackScheduler>(
-            context, messageLoop.createTerminationSubscriber())}
+            context, messageLoop.createTerminationSubscriber())},
+    recorder {initializeBridgeGameRecorder(this->config.getDataDir())}
 {
     authenticator.ensureRunning();
     const auto keys = this->config.getCurveConfig();
@@ -270,14 +284,18 @@ Reply<Uuid> BridgeMain::Impl::game(
             }
         } else if (iter->second == Role::CLIENT) {
             const auto uuid_for_game = gameUuid ? *gameUuid : uuidGenerator();
-            const auto game = games.emplace(
-                std::piecewise_construct,
-                std::tuple {uuid_for_game},
-                std::tuple {uuid_for_game, eventSocket, callbackScheduler});
-            if (game.second) {
-                auto& game_ = game.first->second;
-                availableGames.emplace(uuid_for_game, &game_);
-                return success(uuid_for_game);
+            if (internalGetGame(uuid_for_game) == nullptr) {
+                const auto game = games.emplace(
+                    std::piecewise_construct,
+                    std::tuple {uuid_for_game},
+                    std::tuple {
+                        uuid_for_game, eventSocket, callbackScheduler, recorder,
+                        std::nullopt});
+                if (game.second) {
+                    auto& game_ = game.first->second;
+                    availableGames.emplace(uuid_for_game, &game_);
+                    return success(uuid_for_game);
+                }
             }
         }
     }
@@ -388,6 +406,31 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
     const auto iter = games.find(gameUuid);
     if (iter != games.end()) {
         return &iter->second;
+    } else if (recorder) {
+        const auto game_state = recorder->recallGame(gameUuid);
+        if (const auto& deal_uuid = game_state->dealUuid) {
+            if (auto deal_record = recorder->recallDeal(*deal_uuid)) {
+                auto& [deal, cardManager, gameManager] = *deal_record;
+                auto&& engine = Engine::BridgeEngine {
+                    std::move(cardManager), std::move(gameManager)};
+                for (const auto [n, position] : enumerate(Position::all())) {
+                    if (const auto& player_uuid = game_state->playerUuid[n]) {
+                        // FIXME: Solve how to carry authorization over
+                        auto player = internalGetOrCreatePlayer(
+                            Identity {}, *player_uuid);
+                        engine.setPlayer(position, std::move(player));
+                    }
+                }
+                engine.startDeal(deal.get());
+                auto&& game = games.emplace(
+                    std::piecewise_construct,
+                    std::tuple {gameUuid},
+                    std::tuple {
+                        gameUuid, eventSocket, callbackScheduler,
+                        recorder, std::move(engine)});
+                return &game.first->second;
+            }
+        }
     }
     return nullptr;
 }

@@ -13,7 +13,6 @@
 #include "engine/GameManager.hh"
 #include "Observer.hh"
 
-#include <boost/core/noncopyable.hpp>
 #include <boost/operators.hpp>
 
 #include <any>
@@ -59,7 +58,7 @@ public:
  * point. A game can proceed even if all players are not seated, although only
  * player seated to a position that has turn can make calls and play cards.
  */
-class BridgeEngine : private boost::noncopyable {
+class BridgeEngine {
 public:
 
     /** \brief Event for announcing that deal has started
@@ -205,7 +204,15 @@ public:
         std::shared_ptr<CardManager> cardManager,
         std::shared_ptr<GameManager> gameManager);
 
+    /** \brief Move constructor
+     */
+    BridgeEngine(BridgeEngine&&) = default;
+
     ~BridgeEngine();
+
+    /** \brief Move assignment
+     */
+    BridgeEngine& operator=(BridgeEngine&&) = default;
 
     /** \brief Subscribe to notifications about deal being started
      *
@@ -402,7 +409,7 @@ public:
 
 private:
 
-    const std::shared_ptr<Impl> impl;
+    std::shared_ptr<Impl> impl;
 };
 
 /** \brief Equality operator for deal started events
