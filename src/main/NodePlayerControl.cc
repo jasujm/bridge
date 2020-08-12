@@ -12,29 +12,26 @@ namespace Main {
 
 using Messaging::Identity;
 
-struct IdentityCompare {
+struct UserIdCompare {
     bool operator()(const Identity& lhs, const Identity& rhs) const {
-        if (!lhs.userId.empty() && !rhs.userId.empty()) {
-            return lhs.userId < rhs.userId;
-        }
-        return lhs < rhs;
+        return lhs.userId < rhs.userId;
     }
 };
 
 bool equalIdentity(const Identity& lhs, const Identity& rhs)
 {
-    const auto compare = IdentityCompare {};
+    const auto compare = UserIdCompare {};
     return !compare(lhs, rhs) && !compare(rhs, lhs);
 }
 
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> getOrCreatePlayer(
-        const Identity& node, const std::optional<Uuid>& uuid);
+        const Identity& node, const Uuid& uuid);
 
 private:
 
-    std::multimap<Identity, std::shared_ptr<Player>, IdentityCompare> nodes;
+    std::multimap<Identity, std::shared_ptr<Player>, UserIdCompare> nodes;
     std::map<Uuid, std::pair<Identity, std::shared_ptr<Player>>> players;
     UuidGenerator uuidGenerator {createUuidGenerator()};
 };
@@ -45,28 +42,12 @@ NodePlayerControl::NodePlayerControl() :
 }
 
 std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
-    const Identity& node, const std::optional<Uuid>& uuid)
+    const Identity& node, const Uuid& uuid)
 {
-    Uuid uuid_for_player;
-    if (!uuid) {
-        const auto [first_node_iter, last_node_iter] = nodes.equal_range(node);
-        if (first_node_iter == last_node_iter) {
-            // Node has no players, generate one
-            uuid_for_player = uuidGenerator();
-        } else if (std::next(first_node_iter) == last_node_iter) {
-            // Node has exactly one player, return that
-            return first_node_iter->second;
-        } else {
-            // Node has multiple player, would need UUID to disambiguate
-            return nullptr;
-        }
-    } else {
-        uuid_for_player = *uuid;
-    }
-    const auto player_iter = players.find(uuid_for_player);
+    const auto player_iter = players.find(uuid);
     if (player_iter == players.end()) {
-        const auto ret = std::make_shared<BasicPlayer>(uuid_for_player);
-        players.emplace(uuid_for_player, std::pair {node, ret});
+        const auto ret = std::make_shared<BasicPlayer>(uuid);
+        players.emplace(uuid, std::pair {node, ret});
         nodes.emplace(node, ret);
         return ret;
     } else if (equalIdentity(player_iter->second.first, node)) {
@@ -78,7 +59,7 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
 NodePlayerControl::~NodePlayerControl() = default;
 
 std::shared_ptr<Player> NodePlayerControl::getOrCreatePlayer(
-    const Identity& node, const std::optional<Uuid>& uuid)
+    const Identity& node, const Uuid& uuid)
 {
     assert(impl);
     return impl->getOrCreatePlayer(node, uuid);

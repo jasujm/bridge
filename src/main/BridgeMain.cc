@@ -88,26 +88,22 @@ private:
         const std::optional<nlohmann::json>& args);
     Reply<Uuid> join(
         const Identity& identity, const std::optional<Uuid>& gameUuid,
-        const std::optional<Uuid>& playerUuid,
-        std::optional<Position> positions);
+        const Uuid& playerUuid, std::optional<Position> positions);
     Reply<GameState, BridgeGame::Counter> get(
         const Identity& identity, const Uuid& gameUuid,
-        const std::optional<Uuid>& playerUuid,
+        const Uuid& playerUuid,
         const std::optional<std::vector<std::string>>& keys);
     Reply<> call(
         const Identity& identity, const Uuid& gameUuid,
-        const std::optional<Uuid>& playerUuid, const Call& call);
+        const Uuid& playerUuid, const Call& call);
     Reply<> play(
         const Identity& identity, const Uuid& gameUuid,
-        const std::optional<Uuid>& playerUuid,
-        const std::optional<CardType>& card,
+        const Uuid& playerUuid, const std::optional<CardType>& card,
         const std::optional<int>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     std::shared_ptr<Player> internalGetOrCreatePlayer(
-        const Identity& identity, const std::optional<Uuid>& playerUuid);
-    bool internalBasicRequestCheck(
-        const Identity& identity, const std::optional<Uuid>& playerUuid) const;
+        const Identity& identity, const Uuid& playerUuid);
 
     const Config config;
     UuidGenerator uuidGenerator {createUuidGenerator()};
@@ -290,15 +286,15 @@ Reply<Uuid> BridgeMain::Impl::game(
 
 Reply<Uuid> BridgeMain::Impl::join(
     const Identity& identity, const std::optional<Uuid>& gameUuid,
-    const std::optional<Uuid>& playerUuid, std::optional<Position> position)
+    const Uuid& playerUuid, std::optional<Position> position)
 {
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         identity, gameUuid, playerUuid, position);
 
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
-        if (iter->second == Role::PEER && (!playerUuid || !gameUuid)) {
-            return failure();
+        if (iter->second == Role::PEER && !gameUuid) {
+        return failure();
         }
         auto uuid_for_game = Uuid {};
         auto game = static_cast<BridgeGame*>(nullptr);
@@ -337,15 +333,13 @@ Reply<Uuid> BridgeMain::Impl::join(
 
 Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     const Identity& identity, const Uuid& gameUuid,
-    const std::optional<Uuid>& playerUuid,
-    const std::optional<std::vector<std::string>>& keys)
+    const Uuid& playerUuid, const std::optional<std::vector<std::string>>& keys)
 {
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
 
-    // This command is supposed to be for clients only. Do not pass
-    // playerUuid to the check. That way peer is automatically failed.
-    if (!internalBasicRequestCheck(identity, std::nullopt)) {
+    const auto node_iter = nodes.find(identity);
+    if (node_iter == nodes.end() || node_iter->second == Role::PEER) {
         return failure();
     }
 
@@ -358,15 +352,11 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
 }
 
 Reply<> BridgeMain::Impl::call(
-    const Identity& identity, const Uuid& gameUuid,
-    const std::optional<Uuid>& playerUuid, const Call& call)
+    const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid,
+    const Call& call)
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
-    if (!internalBasicRequestCheck(identity, playerUuid)) {
-        return failure();
-    }
-
     if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
@@ -378,16 +368,11 @@ Reply<> BridgeMain::Impl::call(
 
 Reply<> BridgeMain::Impl::play(
     const Identity& identity, const Uuid& gameUuid,
-    const std::optional<Uuid>& playerUuid,
-    const std::optional<CardType>& card,
+    const Uuid& playerUuid, const std::optional<CardType>& card,
     const std::optional<int>& index)
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
-    if (!internalBasicRequestCheck(identity, playerUuid)) {
-        return failure();
-    }
-
     if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
@@ -407,17 +392,10 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
 }
 
 std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
-    const Identity& identity, const std::optional<Uuid>& playerUuid)
+    const Identity& identity, const Uuid& playerUuid)
 {
     assert(nodePlayerControl);
     return nodePlayerControl->getOrCreatePlayer(identity, playerUuid);
-}
-
-bool BridgeMain::Impl::internalBasicRequestCheck(
-    const Identity& identity, const std::optional<Uuid>& playerUuid) const
-{
-    const auto iter = nodes.find(identity);
-    return (iter != nodes.end() && (iter->second == Role::CLIENT || playerUuid));
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :

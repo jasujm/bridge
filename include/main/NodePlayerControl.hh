@@ -12,7 +12,6 @@
 #include <boost/core/noncopyable.hpp>
 
 #include <memory>
-#include <optional>
 
 namespace Bridge {
 
@@ -36,24 +35,19 @@ public:
 
     /** \brief Create or retrieve a player controlled by a node
      *
-     * This method is used request a new player to be controlled by \p node and
-     * identified by \p uuid. The combination of \p node and \p uuid can later
-     * be used to check if the node is allowed to act for the player.
+     * This method is used to create or get a player to be controlled by \p node
+     * and identified by \p uuid. The combination of \p node and \p uuid can
+     * later be used to check if the node is allowed to act for the player.
      *
      * The method returns nullptr if \p uuid already exists and is not
      * controlled by \p node.
-     *
-     * The \p uuid parameter can be omitted, in which case an unique
-     * player belonging to \p node is created or returned. If multiple
-     * players have already been created for \p node, nullptr is
-     * returned.
      *
      * \param node the identity of the node controlling or representing the
      * player
      * \param uuid UUID of the new player
      */
     std::shared_ptr<Player> getOrCreatePlayer(
-        const Messaging::Identity& node, const std::optional<Uuid>& uuid);
+        const Messaging::Identity& node, const Uuid& uuid);
 
 private:
 

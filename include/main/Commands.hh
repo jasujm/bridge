@@ -77,9 +77,9 @@
  * using its UUID in a command.
  *
  * When the nodes are making commands on behalf of a player, the peer handling
- * that command SHOULD verify that the node is allowed to act for that
- * player. If CURVE mechanism is used, identity derived from the public key
- * SHOULD be used for authorization.
+ * that command MAY verify that the node is allowed to act for that player. If
+ * CURVE mechanism is used, identity derived from the public key SHOULD be used
+ * for authorization.
  *
  * \section bridgeprotocolbasics Basics
  *
@@ -290,7 +290,7 @@
  * - \b Command: join
  * - \b Parameters:
  *   - \e game: the UUID of the game (optional for clients)
- *   - \e player: the UUID of the player (optional for clients)
+ *   - \e player: the UUID of the player
  *   - \e position: the preferred position (optional for clients)
  * - \b Reply:
  *   - \e game: the game joined
@@ -301,14 +301,12 @@
  * in which case the peer SHOULD select an available game for the client if
  * possible.
  *
- * A client MAY omit the player argument. If omitted, the peer SHOULD generate
- * UUID for the player controlled by a newly joining node. A client MAY use
- * position argument to announce the preferred position in the game. If not
- * present, the peer MUST choose any free position for the client.
+ * A client MAY use position argument to announce the preferred position in the
+ * game. If not present, the peer MUST choose any free position for the client.
  *
- * Peers MUST provide both player and position arguments. The position MUST be
- * one of the positions the peer has reserved in the previous game command. The
- * player MUST be UUID of the represented player in the position.
+ * Peers MUST provide both position argument. The position MUST be one of the
+ * positions the peer has reserved in the previous game command. The player MUST
+ * be UUID of the represented player in the position.
  *
  * If a successful join command comes from a client, the peer MUST send the
  * command to other peers taking part in the game.
@@ -339,9 +337,8 @@
  * array. Keys that are not recognized SHOULD be ignored.
  *
  * The \e player argument is the player whose viewpoint is applied to the state
- * representation. The player argument MAY be omitted if the player the client
- * is allowed to act for is unique. The command MUST fail without output if the
- * client is not allowed to act for that player.
+ * representation. The command MUST fail without output if the client is not
+ * allowed to act for that player.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game
@@ -515,10 +512,6 @@
  * successful call command comes from a client, the peer MUST send the command
  * to other peers taking part in the game.
  *
- * The player argument MAY be omitted if the player the node is allowed to act
- * for is unique. The command SHOULD fail if a peer representing multiple
- * players omits the player argument.
- *
  * \subsection bridgeprotocolcontrolplay play
  *
  * - \b Command: play
@@ -540,10 +533,6 @@
  * act for the player, the player has turn and it is legal to play the card. The
  * declarer plays cards from the hand of the dummy. If the play command comes
  * from a client, the peer MUST send the command to other peers.
- *
- * The player argument MAY be omitted if the player the node is allowed to act
- * for is unique. The command SHOULD fail if a peer representing multiple
- * players omits the player argument.
  *
  * \section bridgeprotocoleventcommands Events
  *
