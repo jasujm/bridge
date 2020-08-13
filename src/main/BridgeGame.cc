@@ -101,7 +101,8 @@ public:
     bool addPeer(const Identity& identity, const nlohmann::json& args);
 
     std::optional<Position> getPositionForPlayerToJoin(
-        const Identity& identity, const std::optional<Position>& position);
+        const Identity& identity, const std::optional<Position>& position,
+        const Player& player) const;
 
     bool join(
         const Identity& identity, Position position,
@@ -262,7 +263,8 @@ bool BridgeGame::Impl::addPeer(
 }
 
 std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
-    const Identity& identity, const std::optional<Position>& position)
+    const Identity& identity, const std::optional<Position>& position,
+    const Player& player) const
 {
     const auto iter = peers.find(identity);
     // For peers only controlled positions apply
@@ -277,15 +279,23 @@ std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
     }
     // For clients try preferred position if given
     if (position) {
-        return engine.getPlayer(*position) ? std::nullopt : position;
+        const auto player_at_position = engine.getPlayer(*position);
+        return (!player_at_position || player_at_position == &player) ?
+            position : std::nullopt;
     }
-    // Otherwise select any position (or none if none is free)
+    // Otherwise find a position with the following preferred order: 1) a
+    // position where the player is already seated, 2) first empty position, 3)
+    // none if not found
+    auto first_empty_position = std::optional<Position> {};
     for (const auto p : positionsControlled) {
-        if (!engine.getPlayer(p)) {
+        const auto player_at_position = engine.getPlayer(p);
+        if (!first_empty_position && !player_at_position) {
+            first_empty_position = p;
+        } else if (player_at_position == &player) {
             return p;
         }
     }
-    return std::nullopt;
+    return first_empty_position;
 }
 
 bool BridgeGame::Impl::join(
@@ -519,10 +529,11 @@ bool BridgeGame::addPeer(
 }
 
 std::optional<Position> BridgeGame::getPositionForPlayerToJoin(
-    const Identity& identity, const std::optional<Position>& position)
+    const Identity& identity, const std::optional<Position>& position,
+    const Player& player) const
 {
     assert(impl);
-    return impl->getPositionForPlayerToJoin(identity, position);
+    return impl->getPositionForPlayerToJoin(identity, position, player);
 }
 
 bool BridgeGame::join(

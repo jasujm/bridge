@@ -146,7 +146,7 @@ public:
 
     /** \brief Get position that a player can join in
      *
-     * Determine the position that a node with \p identity can join a player. A
+     * Determine the position that a node with \p identity can join \p player. A
      * subsequent call to join() from the same node is guaranteed to be
      * successful.
      *
@@ -156,20 +156,22 @@ public:
      * returned.
      *
      * If the node is a client, \p position may be the preferred position of the
-     * player. If \p position is none, any unoccupied position is selected for
-     * the player. If the player cannot be seated in the preferred position, or
-     * in case of no preferred position all positions are occupied, none is
+     * player. If \p position is not given, any unoccupied position is selected
+     * for the player. If the player cannot be seated in the preferred position,
+     * or in case of no preferred position all positions are occupied, none is
      * returned.
      *
      * \param identity the identity of the node
      * \param position the preferred position, if any
+     * \param player the player wanting to join the game
      *
      * \return position that the player can join, or none in one of the
      * conditions described earlier
      */
     std::optional<Position> getPositionForPlayerToJoin(
         const Messaging::Identity& identity,
-        const std::optional<Position>& position);
+        const std::optional<Position>& position,
+        std::shared_ptr<Player> player) const;
 
     /** \brief Join a player in the game
      *

@@ -311,10 +311,11 @@
  * If a successful join command comes from a client, the peer MUST send the
  * command to other peers taking part in the game.
  *
- * The command MUST fail without an effect if the player is already in the game,
- * the position is occupied by some other player, the command is coming from a
- * peer who has not reserved the position, or the command is coming from a peer
- * requesting a position the peer itself has not reserved.
+ * The command MUST fail without an effect if the position is occupied by some
+ * other player, the command is coming from a peer who has not reserved the
+ * position, or the command is coming from a peer requesting a position the peer
+ * itself has not reserved. The command SHOULD succeed without any effect if a
+ * player tries to join a position they are already occupying.
  *
  * The peer MAY reject a client or other peer from joining the game. If
  * rejected, the command MUST fail without effect.

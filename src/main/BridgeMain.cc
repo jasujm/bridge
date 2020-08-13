@@ -291,37 +291,38 @@ Reply<Uuid> BridgeMain::Impl::join(
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         identity, gameUuid, playerUuid, position);
 
-    const auto iter = nodes.find(identity);
-    if (iter != nodes.end()) {
-        if (iter->second == Role::PEER && !gameUuid) {
-        return failure();
-        }
-        auto uuid_for_game = Uuid {};
-        auto game = static_cast<BridgeGame*>(nullptr);
-        if (gameUuid) {
-            uuid_for_game = *gameUuid;
-            game = internalGetGame(uuid_for_game);
-            if (game) {
-                position = game->getPositionForPlayerToJoin(identity, position);
+    if (auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+        const auto iter = nodes.find(identity);
+        if (iter != nodes.end()) {
+            if (iter->second == Role::PEER && !gameUuid) {
+                return failure();
             }
-        } else {
-            while (!availableGames.empty()) {
-                const auto& possible_game = availableGames.front();
-                assert(possible_game.second);
-                const auto possible_position =
-                    possible_game.second->getPositionForPlayerToJoin(
-                        identity, std::nullopt);
-                if (possible_position) {
-                    uuid_for_game = possible_game.first;
-                    game = possible_game.second;
-                    position = possible_position;
-                    break;
+            auto uuid_for_game = Uuid {};
+            auto game = static_cast<BridgeGame*>(nullptr);
+            if (gameUuid) {
+                uuid_for_game = *gameUuid;
+                game = internalGetGame(uuid_for_game);
+                if (game) {
+                    position = game->getPositionForPlayerToJoin(
+                        identity, position, *player);
                 }
-                availableGames.pop();
+            } else {
+                while (!availableGames.empty()) {
+                    const auto& possible_game = availableGames.front();
+                    assert(possible_game.second);
+                    const auto possible_position =
+                        possible_game.second->getPositionForPlayerToJoin(
+                            identity, std::nullopt, *player);
+                    if (possible_position) {
+                        uuid_for_game = possible_game.first;
+                        game = possible_game.second;
+                        position = possible_position;
+                        break;
+                    }
+                    availableGames.pop();
+                }
             }
-        }
-        if (game && position) {
-            if (auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+            if (game && position) {
                 if (game->join(identity, *position, std::move(player))) {
                     return success(uuid_for_game);
                 }
