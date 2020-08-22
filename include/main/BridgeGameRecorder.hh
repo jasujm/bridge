@@ -7,6 +7,7 @@
 #define MAIN_BRIDGEGAMERECORDER_HH_
 
 #include "bridge/Uuid.hh"
+#include "messaging/Identity.hh"
 
 #include <memory>
 #include <optional>
@@ -74,6 +75,13 @@ public:
      */
     void recordDeal(const Deal& deal);
 
+    /** \brief Record information \p player
+     *
+     * \param playerUuid The UUID of the player to record
+     * \param userId The ID of the user controlling the player
+     */
+    void recordPlayer(const Uuid& playerUuid, Messaging::UserIdView userId);
+
     /** \brief Retrieve a game from the database
      *
      * \param gameUuid The UUID of the game to recall
@@ -89,6 +97,15 @@ public:
      * \return The recalled deal, or nullptr if the deal is not known
      */
     std::optional<DealState> recallDeal(const Uuid& dealUuid);
+
+    /** \brief Retrieve a player from the database
+     *
+     * \param playerUuid The UUID of the player to recall
+     *
+     * \return The ID of the user controlling the player, or nullopt if the
+     * player is not known
+     */
+    std::optional<Messaging::UserId> recallPlayer(const Uuid& playerUuid);
 
 private:
 

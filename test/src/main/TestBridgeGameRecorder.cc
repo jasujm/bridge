@@ -3,6 +3,7 @@
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
 #include "main/BridgeGameRecorder.hh"
+#include "messaging/Identity.hh"
 #include "MockBidding.hh"
 #include "MockDeal.hh"
 #include "MockHand.hh"
@@ -33,6 +34,7 @@ namespace {
 boost::uuids::string_generator gen;
 const auto GAME_UUID = gen("177a0bec-b2e0-4569-9842-afc56157b268");
 const auto DEAL_UUID = gen("45c49107-6f1b-41be-9441-5c46a65bdbed");
+const auto PLAYER_UUID = gen("309a41ca-736f-45ce-9f5e-8e09c25d12c9");
 constexpr auto OPENING_POSITION = Bridge::Positions::EAST;
 constexpr auto VULNERABILITY = Bridge::Vulnerability {true, true};
 
@@ -143,7 +145,7 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderGameFound)
 {
     const auto game_state = Bridge::Main::BridgeGameRecorder::GameState {
         DEAL_UUID,
-        { DEAL_UUID, std::nullopt, DEAL_UUID, std::nullopt },
+        { PLAYER_UUID, std::nullopt, PLAYER_UUID, std::nullopt },
     };
     recorder.recordGame(GAME_UUID, game_state);
     const auto recalled_game_state = recorder.recallGame(GAME_UUID);
@@ -204,6 +206,18 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderDealFound)
     ASSERT_NE(nullptr, recalledGameManager);
     EXPECT_EQ(OPENING_POSITION, recalledGameManager->getOpenerPosition());
     EXPECT_EQ(VULNERABILITY, recalledGameManager->getVulnerability());
+}
+
+TEST_F(BridgeGameRecorderTest, testPlayerNotFound)
+{
+    EXPECT_EQ(std::nullopt, recorder.recallPlayer(PLAYER_UUID));
+}
+
+TEST_F(BridgeGameRecorderTest, testPlayerFound)
+{
+    const auto userId = Bridge::Messaging::UserId {"user"};
+    recorder.recordPlayer(PLAYER_UUID, userId);
+    EXPECT_EQ(userId, recorder.recallPlayer(PLAYER_UUID));
 }
 
 TEST_F(BridgeGameRecorderTest, testDatabaseFailure)

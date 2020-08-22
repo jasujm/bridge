@@ -22,30 +22,30 @@ protected:
 
 TEST_F(NodePlayerControlTest, testCreatePlayer)
 {
-    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID);
+    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
     ASSERT_TRUE(player);
     EXPECT_EQ(UUID, player->getUuid());
 }
 
 TEST_F(NodePlayerControlTest, testCreatePlayerWithSameUuidAndNode)
 {
-    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID);
-    const auto player2 = nodePlayerControl.getOrCreatePlayer(NODE, UUID);
+    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
+    const auto player2 = nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
     EXPECT_EQ(player, player2);
 }
 
 TEST_F(NodePlayerControlTest, testCreateMultiplePlayers)
 {
-    nodePlayerControl.getOrCreatePlayer(NODE, UUID);
-    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, OTHER_UUID);
+    nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
+    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, OTHER_UUID, nullptr);
     ASSERT_TRUE(player);
     EXPECT_EQ(OTHER_UUID, player->getUuid());
 }
 
 TEST_F(NodePlayerControlTest, testCreatePlayerForMultipleNodes)
 {
-    nodePlayerControl.getOrCreatePlayer(NODE, UUID);
-    const auto player = nodePlayerControl.getOrCreatePlayer(OTHER_NODE, OTHER_UUID);
+    nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
+    const auto player = nodePlayerControl.getOrCreatePlayer(OTHER_NODE, OTHER_UUID, nullptr);
     ASSERT_TRUE(player);
     EXPECT_EQ(OTHER_UUID, player->getUuid());
 }
@@ -54,6 +54,6 @@ TEST_F(NodePlayerControlTest, testCreatePlayerForMultipleNodes)
 // CURVE mechanism
 TEST_F(NodePlayerControlTest, DISABLED_testCreatePlayerForOtherNodeWithConflictingUuid)
 {
-    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID);
-    EXPECT_FALSE(nodePlayerControl.getOrCreatePlayer(OTHER_NODE, UUID));
+    const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
+    EXPECT_FALSE(nodePlayerControl.getOrCreatePlayer(OTHER_NODE, UUID, nullptr));
 }

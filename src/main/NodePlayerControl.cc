@@ -2,6 +2,7 @@
 
 #include "bridge/BasicPlayer.hh"
 #include "bridge/UuidGenerator.hh"
+#include "main/BridgeGameRecorder.hh"
 #include "Utility.hh"
 
 #include <cassert>
@@ -27,11 +28,11 @@ bool equalIdentity(const Identity& lhs, const Identity& rhs)
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> getOrCreatePlayer(
-        const Identity& node, const Uuid& uuid);
+        const Identity& node, const Uuid& uuid,
+        BridgeGameRecorder* recorder);
 
 private:
 
-    std::multimap<Identity, std::shared_ptr<Player>, UserIdCompare> nodes;
     std::map<Uuid, std::pair<Identity, std::shared_ptr<Player>>> players;
     UuidGenerator uuidGenerator {createUuidGenerator()};
 };
@@ -42,13 +43,26 @@ NodePlayerControl::NodePlayerControl() :
 }
 
 std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
-    const Identity& node, const Uuid& uuid)
+    const Identity& node, const Uuid& uuid, BridgeGameRecorder* recorder)
 {
     const auto player_iter = players.find(uuid);
     if (player_iter == players.end()) {
+        auto record_player = false;
+        if (recorder) {
+            if (const auto user_id = recorder->recallPlayer(uuid)) {
+                if (*user_id != node.userId) {
+                    return nullptr;
+                }
+            } else {
+                record_player = true;
+            }
+        }
         const auto ret = std::make_shared<BasicPlayer>(uuid);
         players.emplace(uuid, std::pair {node, ret});
-        nodes.emplace(node, ret);
+        if (record_player) {
+            assert(recorder);
+            recorder->recordPlayer(uuid, node.userId);
+        }
         return ret;
     } else if (equalIdentity(player_iter->second.first, node)) {
         return player_iter->second.second;
@@ -59,10 +73,10 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
 NodePlayerControl::~NodePlayerControl() = default;
 
 std::shared_ptr<Player> NodePlayerControl::getOrCreatePlayer(
-    const Identity& node, const Uuid& uuid)
+    const Identity& node, const Uuid& uuid, BridgeGameRecorder* recorder)
 {
     assert(impl);
-    return impl->getOrCreatePlayer(node, uuid);
+    return impl->getOrCreatePlayer(node, uuid, recorder);
 }
 
 }

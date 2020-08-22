@@ -415,10 +415,11 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
                     std::move(cardManager), std::move(gameManager)};
                 for (const auto [n, position] : enumerate(Position::all())) {
                     if (const auto& player_uuid = game_state->playerUuid[n]) {
-                        // FIXME: Solve how to carry authorization over
-                        auto player = internalGetOrCreatePlayer(
-                            Identity {}, *player_uuid);
-                        engine.setPlayer(position, std::move(player));
+                        if (const auto user_id = recorder->recallPlayer(*player_uuid)) {
+                            auto player = internalGetOrCreatePlayer(
+                                Identity {*user_id, {}}, *player_uuid);
+                            engine.setPlayer(position, std::move(player));
+                        }
                     }
                 }
                 engine.startDeal(deal.get());
@@ -439,7 +440,8 @@ std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
     const Identity& identity, const Uuid& playerUuid)
 {
     assert(nodePlayerControl);
-    return nodePlayerControl->getOrCreatePlayer(identity, playerUuid);
+    return nodePlayerControl->getOrCreatePlayer(
+        identity, playerUuid, recorder.get());
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :

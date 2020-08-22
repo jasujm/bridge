@@ -36,6 +36,7 @@ enum class RecordType : char
     DEAL = 16,
     BIDDING = 17,
     TRICKS = 18,
+    PLAYER = 32,
 };
 
 auto recordKey(const Uuid& dealUuid, RecordType type)
@@ -384,7 +385,7 @@ public:
     void put(Args&&... args);
 
     template<typename... Args>
-    void get(Args&&... args);
+    auto get(Args&&... args);
 
 private:
 
@@ -404,10 +405,10 @@ void BridgeGameRecorder::Impl::put(Args&&... args)
 }
 
 template<typename... Args>
-void BridgeGameRecorder::Impl::get(Args&&... args)
+auto BridgeGameRecorder::Impl::get(Args&&... args)
 {
     assert(db);
-    db->Get(rocksdb::ReadOptions(), std::forward<Args>(args)...);
+    return db->Get(rocksdb::ReadOptions(), std::forward<Args>(args)...);
 }
 
 BridgeGameRecorder::BridgeGameRecorder(const std::string_view path) :
@@ -473,6 +474,15 @@ void BridgeGameRecorder::recordDeal(const Deal& deal)
             sizeof(TrickRecord) * n_tricks});
 }
 
+void BridgeGameRecorder::recordPlayer(
+    const Uuid& playerUuid, const Messaging::UserIdView userId)
+{
+    assert(impl);
+    impl->put(
+        recordKey(playerUuid, RecordType::PLAYER),
+        rocksdb::Slice {userId.data(), userId.size()});
+}
+
 std::optional<BridgeGameRecorder::GameState>
 BridgeGameRecorder::recallGame(const Uuid& gameUuid)
 {
@@ -526,6 +536,16 @@ BridgeGameRecorder::recallDeal(const Uuid& dealUuid)
         std::make_shared<Engine::DuplicateGameManager>(
             deal_record.openingPosition, deal_record.vulnerability),
     };
+}
+
+std::optional<Messaging::UserId>
+BridgeGameRecorder::recallPlayer(const Uuid& playerUuid)
+{
+    assert(impl);
+    auto user_id = Messaging::UserId {};
+    const auto status = impl->get(
+        recordKey(playerUuid, RecordType::PLAYER), &user_id);
+    return status.ok() ? std::optional {std::move(user_id)} : std::nullopt;
 }
 
 }
