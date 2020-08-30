@@ -1,15 +1,15 @@
 -- Sample configuration file for the bridge application
 
--- The bind interface and port. Control socket binds to
--- bind_base_port. Event socket binds to bind_base_port + 1.
+-- The bind interface and port. Control socket binds to bind_base_port. Event
+-- socket binds to bind_base_port + 1.
 
 bind_address = os.getenv("BRIDGE_BIND_ADDRESS") or "*"
 bind_base_port = os.getenv("BRIDGE_BIND_BASE_PORT") or 5555
 
--- Set curve_secret_key and curve_public_key to enable encrypting
--- traffic with CurveZMQ. The keys here are the test keys test keys
--- (http://api.zeromq.org/4-2:zmq-curve) and should be substituted for
--- a keypair you generated.
+-- Set curve_secret_key and curve_public_key to enable encrypting traffic with
+-- CurveZMQ. The keys here are the test keys test keys
+-- (http://api.zeromq.org/4-2:zmq-curve) and should be substituted for a keypair
+-- you generated.
 
 if os.getenv("BRIDGE_USE_CURVE") then
    curve_secret_key = "JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6"
@@ -27,17 +27,17 @@ if not data_dir then
    end
 end
 
--- Set up game(s) using the game function. The simple setup if for
--- peerless games, in which case it's enough to provide uuid to
--- identify the game. To setup a game with peers, you additionally
--- need to specify positions_controlled, peers and, optionally,
+-- Set up game(s) using the game function. To setup a game with peers, you
+-- additionally need to specify positions_controlled, peers and, optionally,
 -- card_server.
 
--- Note that peerless games can also be created by the frontend
--- application after startup.
+-- Note that peerless games can also be created by the frontend application
+-- after startup.
 
-game {
-   uuid = "61b431d1-386b-4b16-a99d-d48dd35f1a4e",
+-- game {
+
+   -- UUID is a mandatory argument to the game command
+   -- uuid = "61b431d1-386b-4b16-a99d-d48dd35f1a4e",
 
    -- For a game with peers you need to configure which positions this
    -- peer controls. The positions need to be agreed in advance, and
@@ -71,4 +71,5 @@ game {
    --    control_endpoint = "tcp://127.0.0.1:5560",
    --    base_peer_endpoint = "tcp://*:5565",
    -- },
-}
+
+-- }
