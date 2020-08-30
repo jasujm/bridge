@@ -42,18 +42,26 @@ namespace Main {
 class BridgeGameRecorder {
 public:
 
-    /** \brief Objects for creating new deal state
+    /** \brief Object encapsulating deal state
+     *
+     * The members of a deal state can be used to construct a new bridge engine
+     * continuing from the state the deal was when last recorded.
      */
     struct DealState {
+        /// The current deal
         std::unique_ptr<Deal> deal;
+        /// Card manager encapsulating the cards in the current deal
         std::shared_ptr<Engine::CardManager> cardManager;
+        /// Game manager encapsulating the state of the deal
         std::shared_ptr<Engine::GameManager> gameManager;
     };
 
-    /** \brief Objects for creating new game state
+    /** \brief Object encapsulating game state
      */
     struct GameState {
+        /// The UUID of the current deal in the game
         std::optional<Uuid> dealUuid;
+        /// The UUIDs of the players in the game
         std::optional<Uuid> playerUuid[4];
     };
 
