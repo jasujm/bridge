@@ -1,3 +1,5 @@
+#if WITH_RECORDER
+
 #include "bridge/CardTypeIterator.hh"
 #include "bridge/SimpleCard.hh"
 #include "engine/CardManager.hh"
@@ -226,3 +228,5 @@ TEST_F(BridgeGameRecorderTest, testDatabaseFailure)
         Bridge::Main::BridgeGameRecorder("/dev/null"sv),
         std::runtime_error);
 }
+
+#endif // WITH_RECORDER

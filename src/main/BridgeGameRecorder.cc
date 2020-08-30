@@ -16,7 +16,10 @@
 
 #include <boost/range/adaptors.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+
+#if WITH_RECORDER
 #include <rocksdb/db.h>
+#endif // WITH_RECORDER
 
 #include <cassert>
 #include <cstring>
@@ -25,6 +28,8 @@
 
 namespace Bridge {
 namespace Main {
+
+#if WITH_RECORDER
 
 namespace {
 
@@ -411,6 +416,14 @@ auto BridgeGameRecorder::Impl::get(Args&&... args)
     return db->Get(rocksdb::ReadOptions(), std::forward<Args>(args)...);
 }
 
+#else // WITH_RECORDER
+
+struct BridgeGameRecorder::Impl {
+    Impl(std::string_view) {}
+};
+
+#endif // WITH_RECORDER
+
 BridgeGameRecorder::BridgeGameRecorder(const std::string_view path) :
     impl {std::make_unique<Impl>(path)}
 {
@@ -419,17 +432,21 @@ BridgeGameRecorder::BridgeGameRecorder(const std::string_view path) :
 BridgeGameRecorder::~BridgeGameRecorder() = default;
 
 void BridgeGameRecorder::recordGame(
-    const Uuid& gameUuid, const GameState& gameState)
+    [[maybe_unused]] const Uuid& gameUuid,
+    [[maybe_unused]] const GameState& gameState)
 {
+#if WITH_RECORDER
     assert(impl);
     impl->put(
         recordKey(gameUuid, RecordType::GAME),
         rocksdb::Slice {
             reinterpret_cast<const char*>(&gameState), sizeof(GameState)});
+#endif // WITH_RECORDER
 }
 
-void BridgeGameRecorder::recordDeal(const Deal& deal)
+void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
 {
+#if WITH_RECORDER
     assert(impl);
     const auto& deal_uuid = deal.getUuid();
     const auto& bidding = deal.getBidding();
@@ -472,20 +489,25 @@ void BridgeGameRecorder::recordDeal(const Deal& deal)
         rocksdb::Slice {
             reinterpret_cast<const char*>(tricks_record.data()),
             sizeof(TrickRecord) * n_tricks});
+#endif // WITH_RECORDER
 }
 
 void BridgeGameRecorder::recordPlayer(
-    const Uuid& playerUuid, const Messaging::UserIdView userId)
+    [[maybe_unused]] const Uuid& playerUuid,
+    [[maybe_unused]] const Messaging::UserIdView userId)
 {
+#if WITH_RECORDER
     assert(impl);
     impl->put(
         recordKey(playerUuid, RecordType::PLAYER),
         rocksdb::Slice {userId.data(), userId.size()});
+#endif // WITH_RECORDER
 }
 
 std::optional<BridgeGameRecorder::GameState>
-BridgeGameRecorder::recallGame(const Uuid& gameUuid)
+BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
 {
+#if WITH_RECORDER
     assert(impl);
     auto value = std::string {};
     impl->get(recordKey(gameUuid, RecordType::GAME), &value);
@@ -496,11 +518,15 @@ BridgeGameRecorder::recallGame(const Uuid& gameUuid)
     auto game_state = GameState {};
     std::memmove(&game_state, value.data(), sizeof(GameState));
     return game_state;
+#else // WITH_RECORDER
+    return std::nullopt;
+#endif // WITH_RECORDER
 }
 
 std::optional<BridgeGameRecorder::DealState>
-BridgeGameRecorder::recallDeal(const Uuid& dealUuid)
+BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
 {
+#if WITH_RECORDER
     assert(impl);
     auto serialized_record = std::string {};
     impl->get(recordKey(dealUuid, RecordType::DEAL), &serialized_record);
@@ -536,16 +562,23 @@ BridgeGameRecorder::recallDeal(const Uuid& dealUuid)
         std::make_shared<Engine::DuplicateGameManager>(
             deal_record.openingPosition, deal_record.vulnerability),
     };
+#else // WITH_RECORDER
+    return std::nullopt;
+#endif // WITH_RECORDER
 }
 
 std::optional<Messaging::UserId>
-BridgeGameRecorder::recallPlayer(const Uuid& playerUuid)
+BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
 {
+#if WITH_RECORDER
     assert(impl);
     auto user_id = Messaging::UserId {};
     const auto status = impl->get(
         recordKey(playerUuid, RecordType::PLAYER), &user_id);
     return status.ok() ? std::optional {std::move(user_id)} : std::nullopt;
+#else // WITH_RECORDER
+    return std::nullopt;
+#endif // WITH_RECORDER
 }
 
 }

@@ -29,6 +29,9 @@ namespace Main {
  * A BridgeGameRecorder listens to events from bridge games and records the
  * deals to a database. It allows recalling a deal from the recorded data.
  *
+ * The recorder is only compiled if WITH_RECORDER macro is defined with true
+ * value. Otherwise a stub implementing this interface is compiled.
+ *
  * \todo This class is experimental and the format it uses to save the game is
  * not well specified and may change. So it is not suitable for long term
  * storing.

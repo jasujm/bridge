@@ -15,7 +15,7 @@ find_package(Boost REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(cppzmq REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Lua 5.3 REQUIRED)
-find_package(rocksdb REQUIRED)  # TODO: This should be optional dependency
+find_package(rocksdb)
 find_package(LibTMCG)
 
 add_subdirectory(external/enhanced-enum)
