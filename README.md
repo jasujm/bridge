@@ -32,6 +32,7 @@ project depends on
   deserialize messages (v3.7)
 - [Lua](https://www.lua.org/) for configuration parsing (v5.3)
 - [Boost](https://www.boost.org/) for various things (v1.67)
+- [RocksDB](http://rocksdb.org/) for persistence (v5.17, optional)
 
 The versions in the bracket indicate the recommended minimum version
 that have been tested to work with the project.
@@ -234,6 +235,14 @@ Please see LibTMCG documentation for further information about its
 security model and assumptions, in particular the honest‐but‐curious
 security model.
 
+## Persistence
+
+The backend supports persistence of games, deals and players. This feature is on
+by default if RocksDB is found in the system and data directory is set in the
+config file (see the [sample config file](sample/config.lua)).
+
+Persistence is not supported for games with peers.
+
 ## TODO
 
 This is hobby project I do to learn about making robust network
@@ -243,7 +252,6 @@ comes later. In approximate order of importance the next goals for
 this project are:
 
 - Sane way to deploy and configure the application / orchestrate games
-- Persistent state (persistent sessions, keep records etc.)
 - Nicer user interface and other usability oriented features (claiming
   tricks, canceling moves etc.)
 - Peer discovery
