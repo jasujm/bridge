@@ -126,6 +126,8 @@ protected:
     const std::vector<Bridge::SimpleCard> cards {makeCards()};
     const std::vector<Bridge::Call> calls {
         Bridge::Bid {1, Bridge::Strains::CLUBS},
+        Bridge::Double {},
+        Bridge::Redouble {},
         Bridge::Pass {},
         Bridge::Pass {},
         Bridge::Pass {},
@@ -146,8 +148,8 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderGameNotFound)
 TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderGameFound)
 {
     const auto game_state = Bridge::Main::BridgeGameRecorder::GameState {
-        DEAL_UUID,
         { PLAYER_UUID, std::nullopt, PLAYER_UUID, std::nullopt },
+        DEAL_UUID,
     };
     recorder.recordGame(GAME_UUID, game_state);
     const auto recalled_game_state = recorder.recallGame(GAME_UUID);
@@ -155,10 +157,10 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderGameFound)
     EXPECT_EQ(DEAL_UUID, recalled_game_state->dealUuid);
     EXPECT_TRUE(
         std::equal(
-            std::begin(game_state.playerUuid),
-            std::end(game_state.playerUuid),
-            std::begin(recalled_game_state->playerUuid),
-            std::end(recalled_game_state->playerUuid)));
+            std::begin(game_state.playerUuids),
+            std::end(game_state.playerUuids),
+            std::begin(recalled_game_state->playerUuids),
+            std::end(recalled_game_state->playerUuids)));
 }
 
 TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderDealNotFound)

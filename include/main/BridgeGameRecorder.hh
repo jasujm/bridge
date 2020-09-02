@@ -32,10 +32,6 @@ namespace Main {
  * The recorder is only compiled if WITH_RECORDER macro is defined with true
  * value. Otherwise a stub implementing this interface is compiled.
  *
- * \todo This class is experimental and the format it uses to save the game is
- * not well specified and may change. So it is not suitable for long term
- * storing.
- *
  * \todo Use rocksdb merge operations to record individual calls, cards,
  * etc. smarter
  */
@@ -59,10 +55,10 @@ public:
     /** \brief Object encapsulating game state
      */
     struct GameState {
+        /// The UUIDs of the players in the game
+        std::optional<Uuid> playerUuids[4];
         /// The UUID of the current deal in the game
         std::optional<Uuid> dealUuid;
-        /// The UUIDs of the players in the game
-        std::optional<Uuid> playerUuid[4];
     };
 
     /** \brief Create new bridge game recorder

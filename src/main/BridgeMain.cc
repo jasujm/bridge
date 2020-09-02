@@ -414,7 +414,7 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
                 auto&& engine = Engine::BridgeEngine {
                     std::move(cardManager), std::move(gameManager)};
                 for (const auto [n, position] : enumerate(Position::all())) {
-                    if (const auto& player_uuid = game_state->playerUuid[n]) {
+                    if (const auto& player_uuid = game_state->playerUuids[n]) {
                         if (const auto user_id = recorder->recallPlayer(*player_uuid)) {
                             auto player = internalGetOrCreatePlayer(
                                 Identity {*user_id, {}}, *player_uuid);

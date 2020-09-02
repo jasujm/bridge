@@ -1,3 +1,13 @@
+// The structs used for writing records to the database only consist of members
+// with alignment 1, so the assumption is that the compiler won't generate any
+// padding for them. Just to be extra sure, for GCC we use packed attribute.
+
+#if __GNUC__
+#define BRIDGE_PACKED __attribute__((packed))
+#else // __GNUC__
+#define BRIDGE_PACKED
+#endif // __GNUC__
+
 #include "main/BridgeGameRecorder.hh"
 
 #include "bridge/Bidding.hh"
@@ -12,10 +22,12 @@
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "engine/SimpleCardManager.hh"
+#include "Logging.hh"
 #include "Utility.hh"
 
-#include <boost/range/adaptors.hpp>
 #include <boost/iterator/transform_iterator.hpp>
+#include <boost/range/adaptors.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 #if WITH_RECORDER
 #include <rocksdb/db.h>
@@ -35,7 +47,9 @@ namespace {
 
 const auto DB_ERROR_MSG = std::string {"Failed to open database: "};
 
-enum class RecordType : char
+constexpr auto RECORD_VERSION = 1;
+
+enum class RecordType : std::uint8_t
 {
     GAME = 0,
     DEAL = 16,
@@ -43,6 +57,35 @@ enum class RecordType : char
     TRICKS = 18,
     PLAYER = 32,
 };
+
+enum class PositionRecord : std::uint8_t {};
+enum class CardRecord : std::uint8_t {};
+enum class OptionalCardRecord : std::uint8_t {};
+enum class CallRecord : std::uint8_t {};
+enum class DealConfigRecord : std::uint8_t {};
+using Version = std::uint8_t;
+
+struct GameStateRecord {
+    std::uint8_t flags;
+    Uuid playerUuids[4];
+    Uuid dealUuid;
+} BRIDGE_PACKED;
+
+struct GameRecord {
+    Version version;
+    GameStateRecord state;
+} BRIDGE_PACKED;
+
+struct DealRecord {
+    Version version;
+    CardRecord cards[N_CARDS];
+    DealConfigRecord config;
+} BRIDGE_PACKED;
+
+struct TrickRecord {
+    PositionRecord leaderPosition;
+    OptionalCardRecord cards[Trick::N_CARDS_IN_TRICK];
+} BRIDGE_PACKED;
 
 auto recordKey(const Uuid& dealUuid, RecordType type)
 {
@@ -64,16 +107,159 @@ auto makeDb(const std::string& path)
     return std::unique_ptr<rocksdb::DB> {db};
 }
 
-struct DealRecord {
-    CardType cards[N_CARDS];
-    Position openingPosition;
-    Vulnerability vulnerability;
+GameStateRecord packGameState(const BridgeGameRecorder::GameState& state)
+{
+    auto ret = GameStateRecord {};
+    for (const auto n : to(N_PLAYERS)) {
+        if (const auto& u = state.playerUuids[n]) {
+            ret.flags |= (1 << n);
+            ret.playerUuids[n] = *u;
+        }
+    }
+    if (const auto& u = state.dealUuid) {
+        ret.flags |= 0x10;
+        ret.dealUuid = *u;
+    }
+    return ret;
+}
+
+BridgeGameRecorder::GameState unpackGameState(const GameStateRecord& state)
+{
+    auto ret = BridgeGameRecorder::GameState {};
+    for (const auto n : to(N_PLAYERS)) {
+        if (state.flags & (1 << n)) {
+            ret.playerUuids[n] = state.playerUuids[n];
+        }
+    }
+    if (state.flags & 0x10) {
+        ret.dealUuid = state.dealUuid;
+    }
+    return ret;
+}
+
+CardRecord packCard(const CardType& card)
+{
+    const auto packed_rank = static_cast<std::uint8_t>(card.rank.get());
+    const auto packed_suit = static_cast<std::uint8_t>(card.suit.get());
+    return static_cast<CardRecord>(packed_rank << 3 | packed_suit);
+}
+
+CardType unpackCard(CardRecord card)
+{
+    const auto card_ = static_cast<std::uint8_t>(card);
+    const auto packed_rank = (card_ & 0xf8) >> 3;
+    const auto packed_suit = card_ & 0x07;
+    return CardType {
+        static_cast<RankLabel>(packed_rank),
+        static_cast<SuitLabel>(packed_suit)};
+}
+
+template<typename Iterator>
+auto unpackCardIterator(Iterator iter)
+{
+    return boost::make_transform_iterator(iter, &unpackCard);
+}
+
+OptionalCardRecord packOptionalCard(const std::optional<CardType>& card)
+{
+    if (card) {
+        const auto packed_card = static_cast<std::uint8_t>(packCard(*card));
+        return static_cast<OptionalCardRecord>(0x80 | packed_card);
+    }
+    return OptionalCardRecord {0};
+}
+
+std::optional<CardType> unpackOptionalCard(const OptionalCardRecord card)
+{
+    const auto card_ = static_cast<std::uint8_t>(card);
+    if (card_ & 0x80) {
+        return unpackCard(static_cast<CardRecord>(card_ & 0x7f));
+    }
+    return std::nullopt;
+}
+
+PositionRecord packPosition(const Position position)
+{
+    return static_cast<PositionRecord>(position.get());
+}
+
+Position unpackPosition(const PositionRecord position)
+{
+    return static_cast<PositionLabel>(position);
+}
+
+struct PackCallVisitor {
+    CallRecord operator()(Pass) { return CallRecord {0x80}; }
+    CallRecord operator()(Double) { return CallRecord {0x81}; }
+    CallRecord operator()(Redouble) { return CallRecord {0x82}; }
+    CallRecord operator()(const Bid& bid)
+    {
+        const auto packed_level = static_cast<std::uint8_t>(bid.level);
+        const auto packed_strain = static_cast<std::uint8_t>(bid.strain.get());
+        return static_cast<CallRecord>(packed_level << 4 | packed_strain);
+    }
 };
 
-struct TrickRecord {
-    Position leaderPosition;
-    std::optional<CardType> cards[Trick::N_CARDS_IN_TRICK];
-};
+CallRecord packCall(const Call& call)
+{
+    return std::visit(PackCallVisitor {}, call);
+}
+
+Call unpackCall(const CallRecord call)
+{
+    const auto call_ = static_cast<std::uint8_t>(call);
+    if (call_ & 0x80) {
+        switch (call_ & 0x7f) {
+        case 0:
+            return Pass {};
+        case 1:
+            return Double {};
+        case 2:
+            return Redouble {};
+        }
+        throw std::runtime_error {"Unexpected call record"};
+    } else {
+        const auto packed_level = (call_ & 0xf0) >> 4;
+        const auto packed_strain = call_ & 0x0f;
+        return Bid {packed_level, static_cast<StrainLabel>(packed_strain)};
+    }
+}
+
+template<typename Iterator>
+auto unpackCallIterator(Iterator iter)
+{
+    return boost::make_transform_iterator(iter, &unpackCall);
+}
+
+DealConfigRecord packDealConfig(
+    const Position openingPosition, const Vulnerability& vulnerability)
+{
+    const auto packed_position = static_cast<std::uint8_t>(
+        packPosition(openingPosition));
+    const auto packed_ns_vulnerable = static_cast<std::uint8_t>(
+        vulnerability.northSouthVulnerable);
+    const auto packed_ew_vulnerable = static_cast<std::uint8_t>(
+        vulnerability.eastWestVulnerable);
+    return static_cast<DealConfigRecord>(
+        packed_position | packed_ns_vulnerable << 2 |
+        packed_ew_vulnerable << 3);
+}
+
+std::pair<Position, Vulnerability> unpackDealConfig(
+    const DealConfigRecord config)
+{
+    const auto config_ = static_cast<std::uint8_t>(config);
+    const auto packed_position = config_ & 0x03;
+    const auto packed_ns_vulnerable = config_ & 0x04;
+    const auto packed_ew_vulnerable = config_ & 0x08;
+    return {
+        unpackPosition(static_cast<PositionRecord>(packed_position)),
+        {
+            static_cast<bool>(packed_ns_vulnerable),
+            static_cast<bool>(packed_ew_vulnerable)
+        }
+    };
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // RecordedBidding
@@ -82,7 +268,8 @@ struct TrickRecord {
 class RecordedBidding : public Bidding {
 public:
 
-    RecordedBidding(const Position openingPosition, std::vector<Call> calls);
+    RecordedBidding(
+        Position openingPosition, const std::vector<CallRecord>& calls);
 
 private:
 
@@ -96,8 +283,9 @@ private:
 };
 
 RecordedBidding::RecordedBidding(
-    const Position openingPosition, std::vector<Call> calls) :
-    openingPosition {openingPosition}, calls {std::move(calls)}
+    const Position openingPosition, const std::vector<CallRecord>& calls) :
+    openingPosition {openingPosition},
+    calls(unpackCallIterator(calls.begin()), unpackCallIterator(calls.end()))
 {
 }
 
@@ -118,7 +306,8 @@ Position RecordedBidding::handleGetOpeningPosition() const
 
 Call RecordedBidding::handleGetCall(const int n) const
 {
-    return calls.at(n);
+    assert(0 <= n && n < ssize(calls));
+    return calls[n];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -213,7 +402,7 @@ auto RecordedTrick::initializeCards(
 {
     std::array<const Card*, N_CARDS_IN_TRICK> ret {};
     for (const auto n : to(ret.size())) {
-        if (const auto& ct = record.cards[n]) {
+        if (const auto& ct = unpackOptionalCard(record.cards[n])) {
             const auto iter = std::find_if(
                 cards.begin(), cards.end(),
                 [&ct](const auto& c) { return *ct == c.getType(); });
@@ -229,7 +418,7 @@ RecordedTrick::RecordedTrick(
     const std::vector<SimpleCard>& cards,
     const std::array<RecordedHand, N_PLAYERS>& hands,
     const TrickRecord& record) :
-    leaderPosition {record.leaderPosition},
+    leaderPosition {unpackPosition(record.leaderPosition)},
     cards {initializeCards(cards, record)},
     hands {hands}
 {
@@ -269,7 +458,8 @@ public:
 
     RecordedDeal(
         const Uuid& uuid, const DealRecord& dealRecord,
-        std::vector<Call> calls, std::vector<TrickRecord> tricks);
+        const std::vector<CallRecord>& calls,
+        const std::vector<TrickRecord>& tricks);
 
 private:
 
@@ -310,17 +500,20 @@ auto RecordedDeal::trickIterator(std::vector<TrickRecord>::const_iterator iter)
 
 RecordedDeal::RecordedDeal(
     const Uuid& uuid, const DealRecord& dealRecord,
-    std::vector<Call> calls, std::vector<TrickRecord> tricks) :
+    const std::vector<CallRecord>& calls,
+    const std::vector<TrickRecord>& tricks) :
     uuid {uuid},
-    cards(std::begin(dealRecord.cards), std::end(dealRecord.cards)),
+    cards(
+        unpackCardIterator(std::begin(dealRecord.cards)),
+        unpackCardIterator(std::end(dealRecord.cards))),
     hands {
         initializeHand(Positions::NORTH),
         initializeHand(Positions::EAST),
         initializeHand(Positions::SOUTH),
         initializeHand(Positions::WEST),
     },
-    vulnerability {dealRecord.vulnerability},
-    bidding {dealRecord.openingPosition, std::move(calls)},
+    vulnerability {unpackDealConfig(dealRecord.config).second},
+    bidding {unpackDealConfig(dealRecord.config).first, calls},
     tricks(trickIterator(tricks.begin()), trickIterator(tricks.end()))
 {
 }
@@ -437,10 +630,13 @@ void BridgeGameRecorder::recordGame(
 {
 #if WITH_RECORDER
     assert(impl);
+    auto game_record = GameRecord {};
+    game_record.version = RECORD_VERSION;
+    game_record.state = packGameState(gameState);
     impl->put(
         recordKey(gameUuid, RecordType::GAME),
         rocksdb::Slice {
-            reinterpret_cast<const char*>(&gameState), sizeof(GameState)});
+            reinterpret_cast<const char*>(&game_record), sizeof(GameRecord)});
 #endif // WITH_RECORDER
 }
 
@@ -452,36 +648,37 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
     const auto& bidding = deal.getBidding();
 
     auto deal_record = DealRecord {};
+    deal_record.version = RECORD_VERSION;
     for (const auto n : to(N_CARDS)) {
-        deal_record.cards[n] = dereference(deal.getCard(n).getType());
+        deal_record.cards[n] = packCard(dereference(deal.getCard(n).getType()));
     }
-    deal_record.openingPosition = bidding.getOpeningPosition();
-    deal_record.vulnerability = deal.getVulnerability();
+    deal_record.config = packDealConfig(
+        bidding.getOpeningPosition(), deal.getVulnerability());
     impl->put(
         recordKey(deal_uuid, RecordType::DEAL),
         rocksdb::Slice {
             reinterpret_cast<const char*>(&deal_record), sizeof(DealRecord)});
 
     const auto n_calls = bidding.getNumberOfCalls();
-    auto calls_record = std::vector<Call>(n_calls, Call {});
+    auto calls_record = std::vector<CallRecord>(n_calls, CallRecord {});
     for (const auto n : to(n_calls)) {
-        calls_record[n] = bidding.getCall(n);
+        calls_record[n] = packCall(bidding.getCall(n));
     }
     impl->put(
         recordKey(deal_uuid, RecordType::BIDDING),
         rocksdb::Slice {
             reinterpret_cast<const char*>(calls_record.data()),
-            sizeof(Call) * n_calls});
+            static_cast<std::size_t>(n_calls)});
 
     const auto n_tricks = deal.getNumberOfTricks();
     auto tricks_record = std::vector<TrickRecord>(n_tricks, TrickRecord {});
     for (const auto n : to(n_tricks)) {
         const auto& trick = deal.getTrick(n);
-        tricks_record[n].leaderPosition = dereference(
-            deal.getPosition(trick.getLeader()));
+        tricks_record[n].leaderPosition = packPosition(
+            dereference(deal.getPosition(trick.getLeader())));
         for (const auto m : to(trick.getNumberOfCardsPlayed())) {
             const auto& card = dereference(trick.getCard(m));
-            tricks_record[n].cards[m] = dereference(card.getType());
+            tricks_record[n].cards[m] = packOptionalCard(card.getType());
         }
     }
     impl->put(
@@ -498,9 +695,8 @@ void BridgeGameRecorder::recordPlayer(
 {
 #if WITH_RECORDER
     assert(impl);
-    impl->put(
-        recordKey(playerUuid, RecordType::PLAYER),
-        rocksdb::Slice {userId.data(), userId.size()});
+    auto serialized_record = static_cast<char>(RECORD_VERSION) + std::string {userId};
+    impl->put(recordKey(playerUuid, RecordType::PLAYER), serialized_record);
 #endif // WITH_RECORDER
 }
 
@@ -509,15 +705,23 @@ BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
 {
 #if WITH_RECORDER
     assert(impl);
-    auto value = std::string {};
-    impl->get(recordKey(gameUuid, RecordType::GAME), &value);
-    if (value.size() < sizeof(GameState)) {
+    auto serialized_record = std::string {};
+    impl->get(recordKey(gameUuid, RecordType::GAME), &serialized_record);
+    if (serialized_record.size() < sizeof(GameRecord)) {
+        log(LogLevel::WARNING,
+            "Unexpected record size while recalling game %s", gameUuid);
         return std::nullopt;
     }
-    static_assert( std::is_trivially_copyable_v<GameState> );
-    auto game_state = GameState {};
-    std::memmove(&game_state, value.data(), sizeof(GameState));
-    return game_state;
+    static_assert( std::is_trivially_copyable_v<GameRecord> );
+    auto game_record = GameRecord {};
+    std::memmove(&game_record, serialized_record.data(), sizeof(GameRecord));
+    if (game_record.version != RECORD_VERSION) {
+        log(LogLevel::WARNING,
+            "Unexpected record version %d while recalling game %s",
+            game_record.version, gameUuid);
+        return std::nullopt;
+    }
+    return unpackGameState(game_record.state);
 #else // WITH_RECORDER
     return std::nullopt;
 #endif // WITH_RECORDER
@@ -531,18 +735,26 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
     auto serialized_record = std::string {};
     impl->get(recordKey(dealUuid, RecordType::DEAL), &serialized_record);
     if (serialized_record.size() < sizeof(DealRecord)) {
+        log(LogLevel::WARNING,
+            "Unexpected record size while recalling deal %s", dealUuid);
         return std::nullopt;
     }
     auto deal_record = DealRecord {};
-    std::memmove(&deal_record, serialized_record.data(), sizeof(DealRecord));
     static_assert( std::is_trivially_copyable_v<DealRecord> );
+    std::memmove(&deal_record, serialized_record.data(), sizeof(DealRecord));
+    if (deal_record.version != RECORD_VERSION) {
+        log(LogLevel::WARNING,
+            "Unexpected record version %d while recalling deal %s",
+            deal_record.version, dealUuid);
+        return std::nullopt;
+    }
 
     impl->get(recordKey(dealUuid, RecordType::BIDDING), &serialized_record);
-    auto bidding_record = std::vector<Call>(
-        serialized_record.size() / sizeof(Call), Call {});
-    static_assert( std::is_trivially_copyable_v<Call> );
+    auto calls_record = std::vector<CallRecord>(
+        serialized_record.size() / sizeof(CallRecord), CallRecord {});
+    static_assert( std::is_trivially_copyable_v<CallRecord> );
     std::memmove(
-        bidding_record.data(), serialized_record.data(),
+        calls_record.data(), serialized_record.data(),
         serialized_record.size());
 
     impl->get(recordKey(dealUuid, RecordType::TRICKS), &serialized_record);
@@ -553,14 +765,17 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         tricks_record.data(), serialized_record.data(),
         serialized_record.size());
 
+    const auto [openingPosition, vulnerability] = unpackDealConfig(
+        deal_record.config);
     return DealState {
         std::make_unique<RecordedDeal>(
-            dealUuid, deal_record, std::move(bidding_record),
+            dealUuid, deal_record, std::move(calls_record),
             std::move(tricks_record)),
         std::make_shared<Engine::SimpleCardManager>(
-            std::begin(deal_record.cards), std::end(deal_record.cards)),
+            unpackCardIterator(std::begin(deal_record.cards)),
+            unpackCardIterator(std::end(deal_record.cards))),
         std::make_shared<Engine::DuplicateGameManager>(
-            deal_record.openingPosition, deal_record.vulnerability),
+            openingPosition, vulnerability)
     };
 #else // WITH_RECORDER
     return std::nullopt;
@@ -572,10 +787,23 @@ BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
 {
 #if WITH_RECORDER
     assert(impl);
-    auto user_id = Messaging::UserId {};
-    const auto status = impl->get(
-        recordKey(playerUuid, RecordType::PLAYER), &user_id);
-    return status.ok() ? std::optional {std::move(user_id)} : std::nullopt;
+    auto serialized_record = std::string {};
+    impl->get(recordKey(playerUuid, RecordType::PLAYER), &serialized_record);
+    if (serialized_record.size() < sizeof(Version)) {
+        log(LogLevel::WARNING,
+            "Unexpected record size while recalling player %s", playerUuid);
+        return std::nullopt;
+    }
+    const auto version = static_cast<Version>(serialized_record[0]);
+    if (version != RECORD_VERSION) {
+        log(LogLevel::WARNING,
+            "Unexpected record version %d while recalling player %s",
+            version, playerUuid);
+        return std::nullopt;
+    }
+    return Messaging::UserId(
+        serialized_record.data() + sizeof(Version),
+        serialized_record.size() - sizeof(Version));
 #else // WITH_RECORDER
     return std::nullopt;
 #endif // WITH_RECORDER

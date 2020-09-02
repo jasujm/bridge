@@ -421,7 +421,7 @@ void BridgeGame::Impl::recordGame()
         }
         for (const auto [n, position] : enumerate(Position::all())) {
             if (const auto* player = engine.getPlayer(position)) {
-                game_state.playerUuid[n] = player->getUuid();
+                game_state.playerUuids[n] = player->getUuid();
             }
         }
         recorder->recordGame(uuid, game_state);
