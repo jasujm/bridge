@@ -14,14 +14,8 @@ namespace Bridge {
 
 /** \brief Thread abstraction for bridge framework
  *
- * This thread class wraps std::thread with the following additional
- * functionality
- *
- * - The thread is automatically joined in the destructor
- * - The thread blocks SIGINT and SIGTERM signals
- *
- * This class is used for worker threads. The main thread should handle SIGINT
- * and SIGTERM.
+ * This thread class wraps std::thread and automatically joins in the
+ * destructor.
  */
 class Thread {
 public:
@@ -62,19 +56,12 @@ public:
 
 private:
 
-    static void blockSignals();
-
     std::thread thread;
 };
 
 template<typename Function, typename... Args>
 Thread::Thread(Function&& f, Args&&... args) :
-    thread {
-        [f = std::forward<Function>(f)](auto&&... args)
-        {
-            blockSignals();
-            std::invoke(std::move(f), std::move(args)...);
-        }, std::forward<Args>(args)...}
+    thread {std::forward<Function>(f), std::forward<Args>(args)...}
 {
 }
 

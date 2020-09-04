@@ -35,11 +35,22 @@ struct CallbackVisitor {
     }
 };
 
+auto createSigmask()
+{
+    auto mask = sigset_t {};
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
+    return mask;
+}
+
 }
 
 class MessageLoop::Impl {
 public:
     Impl(MessageContext& context);
+
+    ~Impl();
 
     void addPollable(PollableSocket socket, SocketCallback callback);
     void removePollable(Socket& socket);
@@ -58,7 +69,6 @@ private:
     private:
         bool signalReceived {};
         int sfd {};
-        sigset_t oldMask {};
     };
 
     std::string getTerminationPubSubEndpoint();
@@ -71,19 +81,13 @@ private:
     std::vector<CallbackPair> callbacks {
         FdCallbackPair {}
     };
+    sigset_t oldMask;
 };
 
 MessageLoop::Impl::SignalGuard::SignalGuard(Impl& impl)
 {
-    sigset_t mask {};
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGTERM);
+    const auto mask = createSigmask();
     errno = 0;
-    if (sigprocmask(SIG_BLOCK, &mask, &oldMask) != 0) {
-        log(LogLevel::FATAL, "Failed to set sigprocmask: %s", strerror(errno));
-        std::exit(EXIT_FAILURE);
-    }
     sfd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (sfd == -1) {
         log(LogLevel::FATAL, "Failed to create signalfd: %s", strerror(errno));
@@ -117,18 +121,28 @@ MessageLoop::Impl::SignalGuard::~SignalGuard()
     if (close(sfd) != 0) {
         log(LogLevel::ERROR, "Failed to close signalfd: %s", strerror(errno));
     }
-    errno = 0;
-    if (sigprocmask(SIG_SETMASK, &oldMask, nullptr) != 0) {
-        log(LogLevel::ERROR, "Failed to restore sigprocmask: %s",
-            strerror(errno));
-    }
 }
 
 MessageLoop::Impl::Impl(MessageContext& context) :
     context {context},
     terminationPublisher {context, SocketType::pub}
 {
+    const auto mask = createSigmask();
+    errno = 0;
+    if (pthread_sigmask(SIG_BLOCK, &mask, &oldMask) != 0) {
+        log(LogLevel::FATAL, "Failed to set signal mask: %s", strerror(errno));
+        std::exit(EXIT_FAILURE);
+    }
     bindSocket(terminationPublisher, getTerminationPubSubEndpoint());
+}
+
+MessageLoop::Impl::~Impl()
+{
+    errno = 0;
+    if (pthread_sigmask(SIG_SETMASK, &oldMask, nullptr) != 0) {
+        log(LogLevel::ERROR, "Failed to restore signal mask: %s",
+           strerror(errno));
+    }
 }
 
 void MessageLoop::Impl::addPollable(

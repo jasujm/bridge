@@ -32,7 +32,16 @@ public:
 
     /** \brief Create new message loop
      *
-     * The message loop is initially empty.
+     * The message loop is initially empty
+     *
+     * Upon creation the message loop blocks SIGINT and SIGTERM. The loop takes
+     * responsibility of handling those signals by doing cleanup and finally
+     * exiting run() method. Signal masks are cleaned when the loop is
+     * destructed.
+     *
+     * Any worker thread should be created after the message loop is created in
+     * the main thread in order to ensure that the signal mask is also applied
+     * to them.
      *
      * \param context The ZeroMQ context used by sockets registered to the
      * message loop
@@ -44,11 +53,6 @@ public:
     /** \brief Start polling messages
      *
      * Call to this method starts the message loop.
-     *
-     * Before entering the message loop this method blocks SIGINT and
-     * SIGTERM. MessageLoop takes responsibility of handling those signals by
-     * doing cleanup and finally exiting run() method. Signal masks are cleaned
-     * when the method is exited, whether by exception or otherwise.
      *
      * \exception The method catches SocketError indicating interruption. All
      * other exceptions are propagated as is.
