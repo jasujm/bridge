@@ -148,7 +148,7 @@ std::optional<std::string> getString(lua_State* lua, std::string_view key)
     LuaPopGuard guard {lua};
     if (const auto* str = lua_tostring(lua, -1)) {
         return str;
-    } else {
+    } else if (!lua_isnoneornil(lua, -1)) {
         log(LogLevel::WARNING, "Expected string: %s", key);
     }
     return std::nullopt;
@@ -163,7 +163,7 @@ std::optional<int> getInt(lua_State* lua, std::string_view key)
     ret = lua_tointegerx(lua, -1, &success);
     if (success) {
         return ret;
-    } else {
+    } else if (!lua_isnoneornil(lua, -1)) {
         log(LogLevel::WARNING, "Expected integer: %s", key);
     }
     return std::nullopt;
