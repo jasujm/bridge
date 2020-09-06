@@ -237,9 +237,16 @@ security model.
 
 ## Persistence
 
-The backend supports persistence of games, deals and players. This feature is on
-by default if RocksDB is found in the system and data directory is set in the
-config file (see the [sample config file](sample/config.lua)).
+**Note! This feature is experimental. The format of persisted data may change
+any time.**
+
+The backend supports the persistence of games, deals and players. This feature
+is enabled if RocksDB is found in the system and the data directory is set in
+the config file. In the [sample config file](sample/config.lua) it is enabled if
+the `BRIDGE_USE_RECORDER` environment variable is set.
+
+    $ export BRIDGE_USE_RECORDER=1
+    $ bridge --config=sample/config.lua
 
 Persistence is not supported for games with peers.
 

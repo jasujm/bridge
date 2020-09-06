@@ -19,11 +19,13 @@ end
 -- Data directory will be used to record games so that they can be continued
 -- when the application is restarted. If omitted, games will be lost on exit.
 
-data_dir = os.getenv("BRIDGE_DATA_DIR")
-if not data_dir then
-   home = os.getenv("HOME")
-   if home then
-      data_dir = home .. "/.bridge"
+if os.getenv("BRIDGE_USE_RECORDER") then
+   data_dir = os.getenv("BRIDGE_DATA_DIR")
+   if not data_dir then
+      home = os.getenv("HOME")
+      if home then
+         data_dir = home .. "/.bridge"
+      end
    end
 end
 
