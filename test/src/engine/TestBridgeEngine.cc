@@ -58,6 +58,7 @@ using testing::NiceMock;
 using testing::Field;
 using testing::Return;
 using testing::ReturnRef;
+using testing::StrictMock;
 
 using namespace Bridge;
 using Engine::BridgeEngine;
@@ -431,7 +432,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         const auto position = dereference(engine.getPosition(player));
         const auto is_last_call = (e.first + 1 == ssize(calls));
         auto turn_observer = std::make_shared<
-            MockObserver<BridgeEngine::TurnStarted>>();
+            StrictMock<MockObserver<BridgeEngine::TurnStarted>>>();
         EXPECT_CALL(
             *turn_observer,
             handleNotify(
@@ -440,16 +441,24 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                     dealUuid,
                     is_last_call ? Positions::SOUTH : clockwise(position) }));
         auto bidding_observer = std::make_shared<
-            MockObserver<BridgeEngine::BiddingCompleted>>();
-        EXPECT_CALL(
-            *bidding_observer,
-            handleNotify(
-                BridgeEngine::BiddingCompleted {
-                    dealUuid, Positions::EAST,
-                        Contract {BID, Doublings::REDOUBLED}}))
-            .Times(is_last_call ? 1 : 0);
+            StrictMock<MockObserver<BridgeEngine::BiddingCompleted>>>();
+        auto trick_observer = std::make_shared<
+            StrictMock<MockObserver<BridgeEngine::TrickStarted>>>();
+        if (is_last_call) {
+            EXPECT_CALL(
+                *bidding_observer,
+                handleNotify(
+                    BridgeEngine::BiddingCompleted {
+                        dealUuid, Positions::EAST,
+                            Contract {BID, Doublings::REDOUBLED }}));
+            EXPECT_CALL(
+                *trick_observer,
+                handleNotify(
+                    BridgeEngine::TrickStarted {dealUuid, Positions::SOUTH }));
+        }
         engine.subscribeToTurnStarted(turn_observer);
         engine.subscribeToBiddingCompleted(bidding_observer);
+        engine.subscribeToTrickStarted(trick_observer);
         engine.call(player, call);
         expectedState.calls->emplace_back(position, call);
         expectedState.positionInTurn.emplace(clockwise(position));
@@ -471,7 +480,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
         const auto turn_i = (i + 2) % players.size();
         auto& player = *players[turn_i % players.size()];
         auto observer = std::make_shared<
-            MockObserver<BridgeEngine::TurnStarted>>();
+            StrictMock<MockObserver<BridgeEngine::TurnStarted>>>();
         EXPECT_CALL(
             *observer,
             handleNotify(
@@ -498,14 +507,15 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 0 : 1;
             const auto deal_notify_count = 1 - turn_notify_count;
             auto turn_observer = std::make_shared<
-                MockObserver<BridgeEngine::TurnStarted>>();
+                StrictMock<MockObserver<BridgeEngine::TurnStarted>>>();
             EXPECT_CALL(
                 *turn_observer,
                 handleNotify(
                     BridgeEngine::TurnStarted {dealUuid, next_position}))
                 .Times(turn_notify_count);
             auto deal_observer =
-                std::make_shared<MockObserver<BridgeEngine::DealEnded>>();
+                std::make_shared<
+                    StrictMock<MockObserver<BridgeEngine::DealEnded>>>();
             EXPECT_CALL(*deal_observer, handleNotify(_))
                 .Times(deal_notify_count);
             assertDealState(Positions::WEST);
@@ -532,7 +542,7 @@ TEST_F(BridgeEngineTest, testPassOut)
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
     for (const auto& player : players) {
         auto observer = std::make_shared<
-            MockObserver<BridgeEngine::BiddingCompleted>>();
+            StrictMock<MockObserver<BridgeEngine::BiddingCompleted>>>();
         engine.subscribeToBiddingCompleted(observer);
         EXPECT_CALL(*observer, handleNotify(_)).Times(0);
         engine.call(*player, Pass {});
@@ -568,7 +578,8 @@ TEST_F(BridgeEngineTest, testSuccessfulCall)
     startDeal();
 
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
+    auto observer = std::make_shared<
+        StrictMock<MockObserver<BridgeEngine::CallMade>>>();
     const auto& player = *players.front();
     const auto uuid = dereference(engine.getCurrentDeal()).getUuid();
     const auto call = Bid {1, Strains::CLUBS};
@@ -585,7 +596,8 @@ TEST_F(BridgeEngineTest, testFailedCall)
     startDeal();
 
     shuffledNotifier.notifyAll(Engine::CardManager::ShufflingState::COMPLETED);
-    auto observer = std::make_shared<MockObserver<BridgeEngine::CallMade>>();
+    auto observer = std::make_shared<
+        StrictMock<MockObserver<BridgeEngine::CallMade>>>();
     const auto& player = *players.back();
     const auto call = Bid {1, Strains::CLUBS};
     EXPECT_CALL(*observer, handleNotify(_)).Times(0);
@@ -604,7 +616,8 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});
 
-    auto observer = std::make_shared<MockObserver<BridgeEngine::CardPlayed>>();
+    auto observer = std::make_shared<
+        StrictMock<MockObserver<BridgeEngine::CardPlayed>>>();
     const auto uuid = dereference(engine.getCurrentDeal()).getUuid();
     const auto& hand = dereference(engine.getHandInTurn());
     EXPECT_CALL(
@@ -627,7 +640,8 @@ TEST_F(BridgeEngineTest, testFailedPlay)
     engine.call(*players[1], Pass {});
     engine.call(*players[2], Pass {});
     engine.call(*players[3], Pass {});
-    auto observer = std::make_shared<MockObserver<BridgeEngine::CardPlayed>>();
+    auto observer = std::make_shared<
+        StrictMock<MockObserver<BridgeEngine::CardPlayed>>>();
     EXPECT_CALL(*observer, handleNotify(_)).Times(0);
     engine.subscribeToCardPlayed(observer);
     ASSERT_FALSE(

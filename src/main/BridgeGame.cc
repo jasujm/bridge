@@ -84,6 +84,7 @@ class BridgeGame::Impl  :
     public Observer<BridgeEngine::TurnStarted>,
     public Observer<BridgeEngine::CallMade>,
     public Observer<BridgeEngine::BiddingCompleted>,
+    public Observer<BridgeEngine::TrickStarted>,
     public Observer<BridgeEngine::CardPlayed>,
     public Observer<BridgeEngine::TrickCompleted>,
     public Observer<BridgeEngine::DummyRevealed>,
@@ -146,12 +147,18 @@ private:
     template<typename... Args>
     void publish(std::string_view command, Args&&... args);
 
+    void startDeal();
     void recordGame();
+    void recordCurrentDeal();
+    void recordCall(const Uuid& dealUuid, const Call& call);
+    void recordTrick(const Uuid& dealUuid, Position leaderPosition);
+    void recordCard(const Uuid& dealUuid, const CardType& card);
 
     void handleNotify(const BridgeEngine::DealStarted&) override;
     void handleNotify(const BridgeEngine::TurnStarted&) override;
     void handleNotify(const BridgeEngine::CallMade&) override;
     void handleNotify(const BridgeEngine::BiddingCompleted&) override;
+    void handleNotify(const BridgeEngine::TrickStarted&) override;
     void handleNotify(const BridgeEngine::CardPlayed&) override;
     void handleNotify(const BridgeEngine::TrickCompleted&) override;
     void handleNotify(const BridgeEngine::DummyRevealed&) override;
@@ -344,7 +351,6 @@ bool BridgeGame::Impl::call(
     const Identity& identity, const Player& player, const Call& call)
 {
     if (engine.call(player, call)) {
-        recordGame();
         sendToPeersIfClient(
             identity,
             CALL_COMMAND,
@@ -370,7 +376,6 @@ bool BridgeGame::Impl::play(
         const auto n_card = index ? index : findFromHand(*hand, *card);
         if (n_card) {
             if (engine.play(player, *hand, *n_card)) {
-                recordGame();
                 sendToPeersIfClient(
                     identity,
                     PLAY_COMMAND,
@@ -391,7 +396,7 @@ void BridgeGame::Impl::startIfReady()
         if (cardProtocol) {
             cardProtocol->initialize();
         }
-        engine.startDeal();
+        startDeal();
     }
 }
 
@@ -410,10 +415,18 @@ CardProtocol* BridgeGame::Impl::getCardProtocol()
     return cardProtocol.get();
 }
 
+void BridgeGame::Impl::startDeal()
+{
+    log(LogLevel::DEBUG, "Starting new deal in game %r", uuid);
+    engine.startDeal();
+    recordGame();
+    recordCurrentDeal();
+}
+
 void BridgeGame::Impl::recordGame()
 {
     if (recorder) {
-        log(LogLevel::DEBUG, "Recording %r", uuid);
+        log(LogLevel::DEBUG, "Recording game %r", uuid);
         const auto* deal = engine.getCurrentDeal();
         auto game_state = BridgeGameRecorder::GameState {};
         if (deal) {
@@ -425,9 +438,42 @@ void BridgeGame::Impl::recordGame()
             }
         }
         recorder->recordGame(uuid, game_state);
-        if (deal) {
+    }
+}
+
+void BridgeGame::Impl::recordCurrentDeal() {
+    if (recorder) {
+        if (const auto* deal = engine.getCurrentDeal()) {
+            log(LogLevel::DEBUG, "Recording deal %r", deal->getUuid());
             recorder->recordDeal(*deal);
         }
+    }
+}
+
+void BridgeGame::Impl::recordCall(const Uuid& dealUuid, const Call& call)
+{
+    if (recorder) {
+        log(LogLevel::DEBUG, "Recording call %r in deal %r", call, dealUuid);
+        recorder->recordCall(dealUuid, call);
+    }
+}
+
+void BridgeGame::Impl::recordTrick(
+    const Uuid& dealUuid, const Position leaderPosition)
+{
+    if (recorder) {
+        log(LogLevel::DEBUG,
+            "Recording trick, leader %r, in deal %r", leaderPosition, dealUuid);
+        recorder->recordTrick(dealUuid, leaderPosition);
+    }
+}
+
+void BridgeGame::Impl::recordCard(const Uuid& dealUuid, const CardType& card)
+{
+    if (recorder) {
+        log(LogLevel::DEBUG,
+            "Recording trick, card %r, in deal %r", card, dealUuid);
+        recorder->recordCard(dealUuid, card);
     }
 }
 
@@ -435,6 +481,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
 {
     log(LogLevel::DEBUG, "Deal started. Opener: %s. Vulnerability: %s",
         event.opener, event.vulnerability);
+    recordGame();
     publish(
         DEAL_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
@@ -459,6 +506,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::CallMade& event)
 {
     log(LogLevel::DEBUG, "Call made. Position: %s. Call: %s",
         event.position, event.call);
+    recordCall(event.uuid, event.call);
     publish(
         CALL_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
@@ -477,11 +525,18 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::BiddingCompleted& event)
         std::pair {CONTRACT_COMMAND, event.contract});
 }
 
+void BridgeGame::Impl::handleNotify(const BridgeEngine::TrickStarted& event)
+{
+    log(LogLevel::DEBUG, "Trick started. Leader: %s", event.leader);
+    recordTrick(event.uuid, event.leader);
+}
+
 void BridgeGame::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
 {
     const auto card_type = dereference(event.card.getType());
     log(LogLevel::DEBUG, "Card played. Position: %s. Card: %s", event.position,
         card_type);
+    recordCard(event.uuid, card_type);
     publish(
         PLAY_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
@@ -517,8 +572,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         DEAL_END_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
         std::pair {SCORE_COMMAND, result});
-    dereference(callbackScheduler).callSoon(
-        &BridgeEngine::startDeal, std::ref(engine), nullptr);
+    dereference(callbackScheduler).callSoon(&Impl::startDeal, this);
 }
 
 BridgeGame::BridgeGame(
@@ -543,6 +597,7 @@ BridgeGame::BridgeGame(
     engine_.subscribeToTurnStarted(impl);
     engine_.subscribeToCallMade(impl);
     engine_.subscribeToBiddingCompleted(impl);
+    engine_.subscribeToTrickStarted(impl);
     engine_.subscribeToCardPlayed(impl);
     engine_.subscribeToTrickCompleted(impl);
     engine_.subscribeToDummyRevealed(impl);

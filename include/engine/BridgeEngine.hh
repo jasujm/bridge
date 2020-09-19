@@ -124,6 +124,20 @@ public:
         const Contract& contract; ///< \brief The contract reached during bidding
     };
 
+    /** \brief Event for announcing that a trick has started
+     */
+    struct TrickStarted : private boost::equality_comparable<TrickStarted> {
+        /** \brief Create new trick completed event
+         *
+         * \param uuid see \ref uuid
+         * \param leader see \ref leader
+         */
+        TrickStarted(const Uuid& uuid, Position leader);
+
+        const Uuid& uuid;    ///< \brief UUID of the deal
+        Position leader;     ///< \brief The leader position
+    };
+
     /** \brief Event for announcing that a card was played
      */
     struct CardPlayed : private boost::equality_comparable<CardPlayed> {
@@ -246,6 +260,13 @@ public:
      */
     void subscribeToBiddingCompleted(
         std::weak_ptr<Observer<BiddingCompleted>> observer);
+
+    /** \brief Subscribe to notifications about trick being started
+     *
+     * This notification takes place when a trick has started.
+     */
+    void subscribeToTrickStarted(
+        std::weak_ptr<Observer<TrickStarted>> observer);
 
     /** \brief Subscribe to notifications about card being played
      *
@@ -432,6 +453,11 @@ bool operator==(
 bool operator==(
     const BridgeEngine::BiddingCompleted&,
     const BridgeEngine::BiddingCompleted&);
+
+/** \brief Equality operator for trick started events
+ */
+bool operator==(
+    const BridgeEngine::TrickStarted&, const BridgeEngine::TrickStarted&);
 
 /** \brief Equality operator for card played events
  */

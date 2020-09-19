@@ -193,6 +193,10 @@ public:
     {
         return biddingCompletedNotifier;
     }
+    Observable<TrickStarted>& getTrickStartedNotifier()
+    {
+        return trickStartedNotifier;
+    }
     Observable<CardPlayed>& getCardPlayedNotifier()
     {
         return cardPlayedNotifier;
@@ -241,6 +245,7 @@ private:
     Observable<TurnStarted> turnStartedNotifier;
     Observable<CallMade> callMadeNotifier;
     Observable<BiddingCompleted> biddingCompletedNotifier;
+    Observable<TrickStarted> trickStartedNotifier;
     Observable<CardPlayed> cardPlayedNotifier;
     Observable<TrickCompleted> trickCompletedNotifier;
     Observable<DummyRevealed> dummyRevealedNotifier;
@@ -554,6 +559,8 @@ Hand& InDeal::getHandConstCastSafe(const Hand& hand)
 void InDeal::addTrick(const Position leader)
 {
     tricks.emplace_back(internalCreateTrick(leader));
+    outermost_context().getTrickStartedNotifier().notifyAll(
+        BridgeEngine::TrickStarted {uuid, leader});
 }
 
 bool InDeal::isLastTrick() const
@@ -1074,6 +1081,13 @@ void BridgeEngine::subscribeToBiddingCompleted(
     impl->getBiddingCompletedNotifier().subscribe(std::move(observer));
 }
 
+void BridgeEngine::subscribeToTrickStarted(
+    std::weak_ptr<Observer<TrickStarted>> observer)
+{
+    assert(impl);
+    impl->getTrickStartedNotifier().subscribe(std::move(observer));
+}
+
 void BridgeEngine::subscribeToCardPlayed(
     std::weak_ptr<Observer<CardPlayed>> observer)
 {
@@ -1208,6 +1222,13 @@ BridgeEngine::BiddingCompleted::BiddingCompleted(
 {
 }
 
+BridgeEngine::TrickStarted::TrickStarted(
+    const Uuid& uuid, const Position leader) :
+    uuid {uuid},
+    leader {leader}
+{
+}
+
 BridgeEngine::CardPlayed::CardPlayed(
     const Uuid& uuid, const Position position, const Card& card) :
     uuid {uuid},
@@ -1264,6 +1285,13 @@ bool operator==(
 {
     return lhs.uuid == rhs.uuid && lhs.declarer == rhs.declarer &&
         lhs.contract == rhs.contract;
+}
+
+bool operator==(
+    const BridgeEngine::TrickStarted& lhs,
+    const BridgeEngine::TrickStarted& rhs)
+{
+    return lhs.uuid == rhs.uuid && lhs.leader == rhs.leader;
 }
 
 bool operator==(

@@ -31,6 +31,7 @@
 
 #if WITH_RECORDER
 #include <rocksdb/db.h>
+#include <rocksdb/merge_operator.h>
 #endif // WITH_RECORDER
 
 #include <cassert>
@@ -48,6 +49,34 @@ namespace {
 const auto DB_ERROR_MSG = std::string {"Failed to open database: "};
 
 constexpr auto RECORD_VERSION = 1;
+
+class BridgeRecorderMergeOperator : public rocksdb::AssociativeMergeOperator {
+public:
+    bool Merge(
+        const rocksdb::Slice& key, const rocksdb::Slice* existingValue,
+        const rocksdb::Slice& value, std::string* newValue,
+        rocksdb::Logger* logger) const override;
+    const char* Name() const override;
+};
+
+bool BridgeRecorderMergeOperator::Merge(
+    const rocksdb::Slice&, const rocksdb::Slice* existingValue,
+    const rocksdb::Slice& value, std::string* newValue, rocksdb::Logger*) const
+{
+    auto& new_value = dereference(newValue);
+    if (existingValue) {
+        new_value.assign(existingValue->data(), existingValue->size());
+        new_value.append(value.data(), value.size());
+    } else {
+        new_value.assign(value.data(), value.size());
+    }
+    return true;
+}
+
+const char* BridgeRecorderMergeOperator::Name() const
+{
+    return "BridgeRecorderOperator";
+}
 
 enum class RecordType : std::uint8_t
 {
@@ -100,6 +129,7 @@ auto makeDb(const std::string& path)
     rocksdb::DB* db;
     rocksdb::Options options;
     options.create_if_missing = true;
+    options.merge_operator = std::make_shared<BridgeRecorderMergeOperator>();
     rocksdb::Status status = rocksdb::DB::Open(options, path, &db);
     if (!status.ok()) {
         throw std::runtime_error {DB_ERROR_MSG + status.ToString()};
@@ -585,6 +615,9 @@ public:
     template<typename... Args>
     auto get(Args&&... args);
 
+    template<typename... Args>
+    void merge(Args&&... args);
+
 private:
 
     std::unique_ptr<rocksdb::DB> db;
@@ -607,6 +640,13 @@ auto BridgeGameRecorder::Impl::get(Args&&... args)
 {
     assert(db);
     return db->Get(rocksdb::ReadOptions(), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void BridgeGameRecorder::Impl::merge(Args&&... args)
+{
+    assert(db);
+    db->Merge(rocksdb::WriteOptions(), std::forward<Args>(args)...);
 }
 
 #else // WITH_RECORDER
@@ -672,20 +712,26 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
 
     const auto n_tricks = deal.getNumberOfTricks();
     auto tricks_record = std::vector<TrickRecord>(n_tricks, TrickRecord {});
+    auto n_cards_in_latest_trick = Trick::N_CARDS_IN_TRICK;
     for (const auto n : to(n_tricks)) {
         const auto& trick = deal.getTrick(n);
         tricks_record[n].leaderPosition = packPosition(
             dereference(deal.getPosition(trick.getLeader())));
-        for (const auto m : to(trick.getNumberOfCardsPlayed())) {
+        n_cards_in_latest_trick = trick.getNumberOfCardsPlayed();
+        for (const auto m : to(n_cards_in_latest_trick)) {
             const auto& card = dereference(trick.getCard(m));
             tricks_record[n].cards[m] = packOptionalCard(card.getType());
         }
     }
+    // We don't record the unplayed cards in the last trick, so for every card
+    // not yet played reduce one card record.
+    const auto n_recorded_bytes = sizeof(TrickRecord) * n_tricks -
+        sizeof(CardRecord) * (Trick::N_CARDS_IN_TRICK - n_cards_in_latest_trick);
     impl->put(
         recordKey(deal_uuid, RecordType::TRICKS),
         rocksdb::Slice {
             reinterpret_cast<const char*>(tricks_record.data()),
-            sizeof(TrickRecord) * n_tricks});
+            n_recorded_bytes});
 #endif // WITH_RECORDER
 }
 
@@ -697,6 +743,47 @@ void BridgeGameRecorder::recordPlayer(
     assert(impl);
     auto serialized_record = static_cast<char>(RECORD_VERSION) + std::string {userId};
     impl->put(recordKey(playerUuid, RecordType::PLAYER), serialized_record);
+#endif // WITH_RECORDER
+}
+
+void BridgeGameRecorder::recordCall(
+    [[maybe_unused]] const Uuid& dealUuid, [[maybe_unused]] const Call& call)
+{
+#if WITH_RECORDER
+    assert(impl);
+    const auto packed_call = packCall(call);
+    impl->merge(
+        recordKey(dealUuid, RecordType::BIDDING),
+        rocksdb::Slice {
+            reinterpret_cast<const char*>(&packed_call), sizeof(packed_call)});
+#endif // WITH_RECORDER
+}
+
+void BridgeGameRecorder::recordTrick(
+    [[maybe_unused]] const Uuid& dealUuid,
+    [[maybe_unused]] const Position leaderPosition)
+{
+#if WITH_RECORDER
+    assert(impl);
+    const auto packed_leader_position = packPosition(leaderPosition);
+    impl->merge(
+        recordKey(dealUuid, RecordType::TRICKS),
+        rocksdb::Slice {
+            reinterpret_cast<const char*>(&packed_leader_position), sizeof(packed_leader_position)});
+#endif // WITH_RECORDER
+}
+
+void BridgeGameRecorder::recordCard(
+    [[maybe_unused]] const Uuid& dealUuid,
+    [[maybe_unused]] const CardType& card)
+{
+#if WITH_RECORDER
+    assert(impl);
+    const auto packed_card = packOptionalCard(card);
+    impl->merge(
+        recordKey(dealUuid, RecordType::TRICKS),
+        rocksdb::Slice {
+            reinterpret_cast<const char*>(&packed_card), sizeof(packed_card)});
 #endif // WITH_RECORDER
 }
 
@@ -758,8 +845,13 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         serialized_record.size());
 
     impl->get(recordKey(dealUuid, RecordType::TRICKS), &serialized_record);
+    // The last trick is truncated in the database record if it contains less
+    // than four cards. That's why we're rounding up.
+    const auto n_tricks_in_record =
+        (serialized_record.size() + sizeof(TrickRecord) - 1) /
+        sizeof(TrickRecord);
     auto tricks_record = std::vector<TrickRecord>(
-        serialized_record.size() / sizeof(TrickRecord), TrickRecord {});
+        n_tricks_in_record, TrickRecord {});
     static_assert( std::is_trivially_copyable_v<TrickRecord> );
     std::memmove(
         tricks_record.data(), serialized_record.data(),

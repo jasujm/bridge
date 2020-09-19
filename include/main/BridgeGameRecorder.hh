@@ -6,6 +6,7 @@
 #ifndef MAIN_BRIDGEGAMERECORDER_HH_
 #define MAIN_BRIDGEGAMERECORDER_HH_
 
+#include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
 #include "messaging/Identity.hh"
 
@@ -20,7 +21,10 @@ class GameManager;
 class CardManager;
 }
 
+class CardType;
 class Deal;
+class Position;
+class Trick;
 
 namespace Main {
 
@@ -81,6 +85,42 @@ public:
      * \param deal the deal to record
      */
     void recordDeal(const Deal& deal);
+
+    /** \brief Record a call
+     *
+     * This method will record a single \p call in a deal specified by \p
+     * dealUuid. It relies on merge operations and is faster than recordDeal()
+     * but assumes that the deal is in a state where the given call is allowed.
+     *
+     * \param dealUuid The UUID of the deal
+     * \param call The call to record
+     */
+    void recordCall(const Uuid& dealUuid, const Call& call);
+
+    /** \brief Record a trick
+     *
+     * This method will record a new trick that will be lead by the player at \p
+     * leaderPosition. The cards played to the trick are then recorded using
+     * recordCard(). It relies on merge operations and is faster than
+     * recordDeal() but assumes that the deal is in a state where the given
+     * trick is allowed.
+     *
+     * \param dealUuid The UUID of the deal
+     * \param leaderPosition The position of the player leading to the trick
+     */
+    void recordTrick(const Uuid& dealUuid, Position leaderPosition);
+
+    /** \brief Record a card played to a trick
+     *
+     * This method will record the \p card given as parameter played to the
+     * trick previously recorded using recordTrick(). It relies on merge
+     * operations and is faster than recordDeal() but assumes that the deal is
+     * in a state where the given card can be played.
+     *
+     * \param dealUuid The UUID of the deal
+     * \param card The type of the card played to the trick
+     */
+    void recordCard(const Uuid& dealUuid, const CardType& card);
 
     /** \brief Record information \p player
      *

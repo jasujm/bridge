@@ -212,6 +212,56 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderDealFound)
     EXPECT_EQ(VULNERABILITY, recalledGameManager->getVulnerability());
 }
 
+TEST_F(BridgeGameRecorderTest, testRecordCall)
+{
+    EXPECT_CALL(bidding, handleGetNumberOfCalls())
+        .WillRepeatedly(Return(ssize(calls) - 1));
+    EXPECT_CALL(deal, handleGetNumberOfTricks()).WillRepeatedly(Return(0));
+    recorder.recordDeal(deal);
+    recorder.recordCall(DEAL_UUID, calls.back());
+    const auto record = recorder.recallDeal(DEAL_UUID);
+    const auto& recalledDeal = dereference(record).deal;
+    ASSERT_NE(nullptr, recalledDeal);
+    const auto& recalledBidding = recalledDeal->getBidding();
+    testing::Mock::VerifyAndClearExpectations(&bidding);
+
+    EXPECT_EQ(
+        std::vector(bidding.begin(), bidding.end()),
+        std::vector(recalledBidding.begin(), recalledBidding.end()));
+    EXPECT_EQ(0, recalledDeal->getNumberOfTricks());
+}
+
+TEST_F(BridgeGameRecorderTest, testRecordTrick)
+{
+    EXPECT_CALL(deal, handleGetNumberOfTricks()).WillRepeatedly(Return(0));
+    recorder.recordDeal(deal);
+    recorder.recordTrick(DEAL_UUID, Bridge::Positions::NORTH);
+    for (const auto n : to(Bridge::N_PLAYERS)) {
+        const auto n_player = (n + 0) % Bridge::N_PLAYERS;
+        recorder.recordCard(
+            DEAL_UUID,
+            dereference(
+                cards.at(n_player * Bridge::N_CARDS_PER_PLAYER).getType()));
+    }
+
+    const auto record = recorder.recallDeal(DEAL_UUID);
+    const auto& recalledDeal = dereference(record).deal;
+    ASSERT_NE(nullptr, recalledDeal);
+
+    ASSERT_EQ(1, recalledDeal->getNumberOfTricks());
+    const auto& recalledTrick = recalledDeal->getTrick(0);
+    const auto iter = recalledTrick.begin();
+    ASSERT_EQ(4, recalledTrick.end() - iter);
+    EXPECT_EQ(&iter->first,      &recalledDeal->getHand(Bridge::Positions::NORTH));
+    EXPECT_EQ(&iter->second,     &recalledDeal->getCard(0));
+    EXPECT_EQ(&(iter+1)->first,  &recalledDeal->getHand(Bridge::Positions::EAST));
+    EXPECT_EQ(&(iter+1)->second, &recalledDeal->getCard(Bridge::N_CARDS_PER_PLAYER));
+    EXPECT_EQ(&(iter+2)->first,  &recalledDeal->getHand(Bridge::Positions::SOUTH));
+    EXPECT_EQ(&(iter+2)->second, &recalledDeal->getCard(2 * Bridge::N_CARDS_PER_PLAYER));
+    EXPECT_EQ(&(iter+3)->first,  &recalledDeal->getHand(Bridge::Positions::WEST));
+    EXPECT_EQ(&(iter+3)->second, &recalledDeal->getCard(3 * Bridge::N_CARDS_PER_PLAYER));
+}
+
 TEST_F(BridgeGameRecorderTest, testPlayerNotFound)
 {
     EXPECT_EQ(std::nullopt, recorder.recallPlayer(PLAYER_UUID));
