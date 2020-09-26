@@ -613,7 +613,7 @@ public:
     void put(Args&&... args);
 
     template<typename... Args>
-    auto get(Args&&... args);
+    [[nodiscard]] auto get(Args&&... args);
 
     template<typename... Args>
     void merge(Args&&... args);
@@ -793,7 +793,15 @@ BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
 #if WITH_RECORDER
     assert(impl);
     auto serialized_record = std::string {};
-    impl->get(recordKey(gameUuid, RecordType::GAME), &serialized_record);
+    const auto status = impl->get(
+        recordKey(gameUuid, RecordType::GAME), &serialized_record);
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            log(LogLevel::WARNING, "Error while recalling game %s: %s",
+                gameUuid, status.ToString());
+        }
+        return std::nullopt;
+    }
     if (serialized_record.size() < sizeof(GameRecord)) {
         log(LogLevel::WARNING,
             "Unexpected record size while recalling game %s", gameUuid);
@@ -820,7 +828,15 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
 #if WITH_RECORDER
     assert(impl);
     auto serialized_record = std::string {};
-    impl->get(recordKey(dealUuid, RecordType::DEAL), &serialized_record);
+    auto status = impl->get(
+        recordKey(dealUuid, RecordType::DEAL), &serialized_record);
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            log(LogLevel::WARNING, "Error while recalling deal %s: %s",
+                dealUuid, status.ToString());
+        }
+        return std::nullopt;
+    }
     if (serialized_record.size() < sizeof(DealRecord)) {
         log(LogLevel::WARNING,
             "Unexpected record size while recalling deal %s", dealUuid);
@@ -836,7 +852,14 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         return std::nullopt;
     }
 
-    impl->get(recordKey(dealUuid, RecordType::BIDDING), &serialized_record);
+    status = impl->get(
+        recordKey(dealUuid, RecordType::BIDDING), &serialized_record);
+    if (!status.ok()) {
+        log(LogLevel::WARNING, "Error while recalling bidding in deal %s: %s",
+            dealUuid, status.ToString());
+        return std::nullopt;
+    }
+
     auto calls_record = std::vector<CallRecord>(
         serialized_record.size() / sizeof(CallRecord), CallRecord {});
     static_assert( std::is_trivially_copyable_v<CallRecord> );
@@ -844,7 +867,13 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         calls_record.data(), serialized_record.data(),
         serialized_record.size());
 
-    impl->get(recordKey(dealUuid, RecordType::TRICKS), &serialized_record);
+    status = impl->get(
+        recordKey(dealUuid, RecordType::TRICKS), &serialized_record);
+    if (!status.ok()) {
+        log(LogLevel::WARNING, "Error while recalling tricks in deal %s: %s",
+            dealUuid, status.ToString());
+        return std::nullopt;
+    }
     // The last trick is truncated in the database record if it contains less
     // than four cards. That's why we're rounding up.
     const auto n_tricks_in_record =
@@ -880,7 +909,15 @@ BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
 #if WITH_RECORDER
     assert(impl);
     auto serialized_record = std::string {};
-    impl->get(recordKey(playerUuid, RecordType::PLAYER), &serialized_record);
+    const auto status = impl->get(
+        recordKey(playerUuid, RecordType::PLAYER), &serialized_record);
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            log(LogLevel::WARNING, "Error while recalling player %s: %s",
+                playerUuid, status.ToString());
+        }
+        return std::nullopt;
+    }
     if (serialized_record.size() < sizeof(Version)) {
         log(LogLevel::WARNING,
             "Unexpected record size while recalling player %s", playerUuid);
