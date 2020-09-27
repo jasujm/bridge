@@ -14,7 +14,6 @@
 #include "FunctionQueue.hh"
 #include "Utility.hh"
 
-#include <boost/range/adaptor/transformed.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/statechart/custom_reaction.hpp>
 #include <boost/statechart/event.hpp>
