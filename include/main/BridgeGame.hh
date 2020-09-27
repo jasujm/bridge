@@ -111,12 +111,15 @@ public:
      *
      * \param uuid the UUID of the game
      * \param eventSocket ZeroMQ socket used to publish events about the game
+     * \param cardProtocol the card protocol used to exchange cards between
+     * peers
      * \param callbackScheduler a callback scheduler object
      * \param recorder A bridge game recorder, if applicable
      * \param engine A pre-constructed bridge engine, if applicable
      */
     BridgeGame(
         const Uuid& uuid, Messaging::SharedSocket eventSocket,
+        std::unique_ptr<CardProtocol> cardProtocol,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
         std::shared_ptr<BridgeGameRecorder> recorder = nullptr,
         std::optional<Engine::BridgeEngine> engine = std::nullopt);
@@ -263,12 +266,11 @@ public:
      */
     PeerCommandSender* getPeerCommandSender();
 
-    /** \brief Get non‐owning pointer to card protocol
+    /** \brief Get reference to the card protocol
      *
-     * \return The card protocol object the game uses, or nullptr if the game is
-     * peerless
+     * \return Reference to the card protocol object the game uses
      */
-    CardProtocol* getCardProtocol();
+    CardProtocol& getCardProtocol();
 
 private:
 

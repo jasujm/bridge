@@ -15,6 +15,7 @@
 #include "main/Config.hh"
 #include "main/NodePlayerControl.hh"
 #include "main/PeerCommandSender.hh"
+#include "main/PeerlessCardProtocol.hh"
 #include "messaging/Authenticator.hh"
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
@@ -220,13 +221,12 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                     messageLoop.addPollable(std::move(socket), std::move(cb));
                 }
             }
-            if (const auto card_protocol = game.getCardProtocol()) {
-                if (auto&& hdl = card_protocol->getDealMessageHandler()) {
-                    dealMessageHandler->trySetDelegate(uuid, std::move(hdl));
-                }
-                for (auto&& [socket, cb] : card_protocol->getSockets()) {
-                    messageLoop.addPollable(std::move(socket), std::move(cb));
-                }
+            auto& card_protocol = game.getCardProtocol();
+            if (auto&& hdl = card_protocol.getDealMessageHandler()) {
+                dealMessageHandler->trySetDelegate(uuid, std::move(hdl));
+            }
+            for (auto&& [socket, cb] : card_protocol.getSockets()) {
+                messageLoop.addPollable(std::move(socket), std::move(cb));
             }
         }
     }
@@ -289,8 +289,9 @@ Reply<Uuid> BridgeMain::Impl::game(
                     std::piecewise_construct,
                     std::tuple {uuid_for_game},
                     std::tuple {
-                        uuid_for_game, eventSocket, callbackScheduler, recorder,
-                        std::nullopt});
+                        uuid_for_game, eventSocket,
+                        std::make_unique<PeerlessCardProtocol>(),
+                        callbackScheduler, recorder, std::nullopt});
                 if (game.second) {
                     auto& game_ = game.first->second;
                     availableGames.emplace(uuid_for_game, &game_);
@@ -410,9 +411,10 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
         const auto game_state = recorder->recallGame(gameUuid);
         if (const auto& deal_uuid = game_state->dealUuid) {
             if (auto deal_record = recorder->recallDeal(*deal_uuid)) {
-                auto& [deal, cardManager, gameManager] = *deal_record;
+                auto& [deal, cardProtocol, gameManager] = *deal_record;
                 auto&& engine = Engine::BridgeEngine {
-                    std::move(cardManager), std::move(gameManager)};
+                    dereference(cardProtocol).getCardManager(),
+                    std::move(gameManager)};
                 for (const auto [n, position] : enumerate(Position::all())) {
                     if (const auto& player_uuid = game_state->playerUuids[n]) {
                         if (const auto user_id = recorder->recallPlayer(*player_uuid)) {
@@ -427,8 +429,8 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
                     std::piecewise_construct,
                     std::tuple {gameUuid},
                     std::tuple {
-                        gameUuid, eventSocket, callbackScheduler,
-                        recorder, std::move(engine)});
+                        gameUuid, eventSocket, std::move(cardProtocol),
+                        callbackScheduler, recorder, std::move(engine)});
                 return &game.first->second;
             }
         }

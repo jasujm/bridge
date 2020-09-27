@@ -1,7 +1,6 @@
 #include "main/BridgeGame.hh"
 
 #include "bridge/Card.hh"
-#include "bridge/CardShuffle.hh"
 #include "bridge/CardType.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Deal.hh"
@@ -51,33 +50,6 @@ using Engine::SimpleCardManager;
 using Engine::BridgeEngine;
 using Messaging::Identity;
 using Messaging::JsonSerializer;
-
-namespace {
-
-class Shuffler : public Observer<CardManager::ShufflingState> {
-public:
-    std::shared_ptr<CardManager> getCardManager();
-private:
-    void handleNotify(const CardManager::ShufflingState& state);
-    std::shared_ptr<SimpleCardManager> cardManager {
-        std::make_shared<SimpleCardManager>()};
-};
-
-std::shared_ptr<CardManager> Shuffler::getCardManager()
-{
-    return cardManager;
-}
-
-void Shuffler::handleNotify(const CardManager::ShufflingState& state)
-{
-    if (state == CardManager::ShufflingState::REQUESTED) {
-        const auto cards = generateShuffledDeck();
-        assert(cardManager);
-        cardManager->shuffle(cards.begin(), cards.end());
-    }
-}
-
-}
 
 class BridgeGame::Impl  :
     public Observer<BridgeEngine::DealStarted>,
@@ -132,7 +104,7 @@ public:
 
     PeerCommandSender* getPeerCommandSender();
 
-    CardProtocol* getCardProtocol();
+    CardProtocol& getCardProtocol();
 
 private:
 
@@ -170,7 +142,6 @@ private:
     PositionSet positionsInUse;
     std::shared_ptr<PeerCommandSender> peerCommandSender;
     Messaging::SharedSocket eventSocket;
-    std::shared_ptr<Shuffler> shuffler;
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler;
     const IdentitySet participants;
     BridgeEngine engine;
@@ -194,24 +165,17 @@ BridgeGame::Impl::Impl(
     positionsInUse {std::move(positionsControlled)},
     peerCommandSender {std::move(peerCommandSender)},
     eventSocket {std::move(eventSocket)},
-    shuffler {cardProtocol ? nullptr : std::make_shared<Shuffler>()},
     callbackScheduler {std::move(callbackScheduler)},
     participants {std::move(participants)},
     engine {
-        // Initialize with pre-constructed engine if given. Otherwise create a
-        // new engine with card manager either from the protocol, or a random
-        // shuffler if this is peerless game.
         engine ? std::move(*engine) :
         Engine::BridgeEngine {
-            cardProtocol ? cardProtocol->getCardManager() : shuffler->getCardManager(),
+            dereference(cardProtocol).getCardManager(),
             std::make_shared<Engine::DuplicateGameManager>()}},
     cardProtocol {std::move(cardProtocol)},
     counter {},
     recorder {std::move(recorder)}
 {
-    if (shuffler) {
-        shuffler->getCardManager()->subscribe(shuffler);
-    }
 }
 
 template<typename... Args>
@@ -271,8 +235,7 @@ bool BridgeGame::Impl::addPeer(
     for (const auto position : *positions) {
         positionsInUse.insert(position);
     }
-    if (cardProtocol &&
-        cardProtocol->acceptPeer(
+    if (dereference(cardProtocol).acceptPeer(
             identity, *positions, CardProtocol::OptionalArgs {args})) {
         startIfReady();
         return true;
@@ -393,9 +356,7 @@ void BridgeGame::Impl::startIfReady()
 {
     if (positionsInUse.size() == Position::size()) {
         log(LogLevel::DEBUG, "Starting bridge engine");
-        if (cardProtocol) {
-            cardProtocol->initialize();
-        }
+        dereference(cardProtocol).initialize();
         startDeal();
     }
 }
@@ -410,9 +371,9 @@ PeerCommandSender* BridgeGame::Impl::getPeerCommandSender()
     return peerCommandSender.get();
 }
 
-CardProtocol* BridgeGame::Impl::getCardProtocol()
+CardProtocol& BridgeGame::Impl::getCardProtocol()
 {
-    return cardProtocol.get();
+    return dereference(cardProtocol);
 }
 
 void BridgeGame::Impl::startDeal()
@@ -607,13 +568,14 @@ BridgeGame::BridgeGame(
 
 BridgeGame::BridgeGame(
     const Uuid& uuid, Messaging::SharedSocket eventSocket,
+    std::unique_ptr<CardProtocol> cardProtocol,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
     std::shared_ptr<BridgeGameRecorder> recorder,
     std::optional<Engine::BridgeEngine> engine) :
     BridgeGame {
         uuid, PositionSet(Position::begin(), Position::end()),
-        std::move(eventSocket), nullptr, nullptr, callbackScheduler, {},
-        std::move(recorder), std::move(engine)}
+        std::move(eventSocket), std::move(cardProtocol), nullptr,
+        callbackScheduler, {}, std::move(recorder), std::move(engine)}
 {
 }
 
@@ -676,7 +638,7 @@ PeerCommandSender* BridgeGame::getPeerCommandSender()
     return impl->getPeerCommandSender();
 }
 
-CardProtocol* BridgeGame::getCardProtocol()
+CardProtocol& BridgeGame::getCardProtocol()
 {
     assert(impl);
     return impl->getCardProtocol();

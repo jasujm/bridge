@@ -5,6 +5,7 @@
 #include "engine/CardManager.hh"
 #include "engine/GameManager.hh"
 #include "main/BridgeGameRecorder.hh"
+#include "main/CardProtocol.hh"
 #include "messaging/Identity.hh"
 #include "MockBidding.hh"
 #include "MockDeal.hh"
@@ -172,7 +173,7 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderDealFound)
 {
     recorder.recordDeal(deal);
     const auto record = recorder.recallDeal(DEAL_UUID);
-    const auto& [recalledDeal, recalledCardManager, recalledGameManager] =
+    const auto& [recalledDeal, recalledCardProtocol, recalledGameManager] =
         dereference(record);
     ASSERT_NE(nullptr, recalledDeal);
     EXPECT_EQ(DEAL_UUID, recalledDeal->getUuid());
@@ -200,6 +201,8 @@ TEST_F(BridgeGameRecorderTest, testBridgeGameRecorderDealFound)
     const auto& trick2 = recalledDeal->getTrick(1);
     EXPECT_EQ(trick2.end(), trick2.begin());
 
+    ASSERT_NE(nullptr, recalledCardProtocol);
+    const auto recalledCardManager = recalledCardProtocol->getCardManager();
     ASSERT_NE(nullptr, recalledCardManager);
     for (const auto n : to(Bridge::N_CARDS)) {
         EXPECT_EQ(

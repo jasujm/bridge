@@ -21,7 +21,7 @@
 #include "bridge/Trick.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "engine/SimpleCardManager.hh"
+#include "main/PeerlessCardProtocol.hh"
 #include "Logging.hh"
 #include "Utility.hh"
 
@@ -892,7 +892,7 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         std::make_unique<RecordedDeal>(
             dealUuid, deal_record, std::move(calls_record),
             std::move(tricks_record)),
-        std::make_shared<Engine::SimpleCardManager>(
+        std::make_unique<PeerlessCardProtocol>(
             unpackCardIterator(std::begin(deal_record.cards)),
             unpackCardIterator(std::end(deal_record.cards))),
         std::make_shared<Engine::DuplicateGameManager>(

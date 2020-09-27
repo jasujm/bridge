@@ -18,7 +18,6 @@ namespace Bridge {
 
 namespace Engine {
 class GameManager;
-class CardManager;
 }
 
 class CardType;
@@ -27,6 +26,8 @@ class Position;
 class Trick;
 
 namespace Main {
+
+class CardProtocol;
 
 /** \brief Persistence for bridge games
  *
@@ -50,9 +51,9 @@ public:
     struct DealState {
         /// The current deal
         std::unique_ptr<Deal> deal;
-        /// Card manager encapsulating the cards in the current deal
-        std::shared_ptr<Engine::CardManager> cardManager;
-        /// Game manager encapsulating the state of the deal
+        /// %Card protocol encapsulating the cards in the current deal
+        std::unique_ptr<CardProtocol> cardProtocol;
+        /// Game manager encapsulating the state of the game
         std::shared_ptr<Engine::GameManager> gameManager;
     };
 

@@ -4,6 +4,7 @@
 #include "main/BridgeGame.hh"
 #include "main/CardServerProxy.hh"
 #include "main/PeerCommandSender.hh"
+#include "main/PeerlessCardProtocol.hh"
 #include "main/SimpleCardProtocol.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
@@ -54,8 +55,9 @@ BridgeGame gameFromConfig(
     if (config.peers.empty()) {
         log(LogLevel::INFO, "Configuring game %s, no peers", config.uuid);
         return {
-            config.uuid, std::move(eventSocket), std::move(callbackScheduler),
-            nullptr, std::nullopt};
+            config.uuid, std::move(eventSocket),
+            std::make_unique<PeerlessCardProtocol>(),
+            std::move(callbackScheduler), nullptr, std::nullopt};
     } else {
         log(LogLevel::INFO,
             "Configuring game %s, %s protocol", config.uuid,
