@@ -45,7 +45,7 @@ public:
      */
     DuplicateGameManager();
 
-    /** \Brief Create new duplicate game manager with initial state
+    /** \brief Create new duplicate game manager with initial state
      *
      * \param openerPosition initial opener position
      * \param vulnerability initial vulnerability

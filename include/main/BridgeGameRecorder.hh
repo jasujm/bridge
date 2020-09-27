@@ -140,7 +140,7 @@ public:
 
     /** \brief Retrieve a deal from the database
      *
-     * \param gameUuid The UUID of the deal to recall
+     * \param dealUuid The UUID of the deal to recall
      *
      * \return The recalled deal, or nullptr if the deal is not known
      */
