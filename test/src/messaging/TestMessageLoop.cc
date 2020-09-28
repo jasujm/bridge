@@ -118,6 +118,15 @@ TEST_F(MessageLoopTest, testTerminate)
     EXPECT_TRUE(recvMessageNonblocking(termination_subscriber, msg));
 }
 
+TEST_F(MessageLoopTest, testSwallowException)
+{
+    EXPECT_CALL(callbacks[0], call(Ref(*backSockets[0]))).WillOnce(testing::Throw(std::exception {}));
+    EXPECT_CALL(callbacks[1], call(Ref(*backSockets[1])));
+    sendMessage(frontSockets[0], messageBuffer(DEFAULT_MSG));
+    sendMessage(frontSockets[1], messageBuffer(DEFAULT_MSG));
+    EXPECT_NO_THROW(loop.run());
+}
+
 TEST_F(MessageLoopTest, testRemove)
 {
     loop.removePollable(*backSockets[0]);

@@ -77,6 +77,19 @@ TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerSuccessful)
     assertReply(true);
 }
 
+TEST_F(MessageQueueTest, testExceptionInHandler)
+{
+    EXPECT_CALL(*handler, doHandle(_, IDENTITY, ElementsAre(PARAM1, PARAM2), _))
+        .WillOnce(testing::Throw(std::exception {}));
+    sendMessage(frontSocket, messageBuffer(TAG), true);
+    sendMessage(frontSocket, messageBuffer(COMMAND), true);
+    sendMessage(frontSocket, messageBuffer(PARAM1), true);
+    sendMessage(frontSocket, messageBuffer(PARAM2));
+
+    messageQueue(backSocket);
+    assertReply(false);
+}
+
 TEST_F(MessageQueueTest, testValidCommandInvokesCorrectHandlerFailure)
 {
     EXPECT_CALL(*handler, doHandle(_, IDENTITY, ElementsAre(PARAM1, PARAM2), _))

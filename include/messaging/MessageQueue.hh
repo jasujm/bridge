@@ -12,9 +12,11 @@
 #include "Blob.hh"
 #include "BlobMap.hh"
 #include "Utility.hh"
+#include "Logging.hh"
 
 #include <any>
 #include <cassert>
+#include <exception>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -105,12 +107,11 @@ public:
 
     /** \brief Receive and reply the next message
      *
-     * When called, the method receives a message from \p socket,
-     * dispatches it to the correct handler and sends the reply
-     * through \p socket. The reply consists of the echoed tag frame,
-     * the status frame, and optional reply argument frames, as
-     * determined by the message handler. If there is no handler for
-     * the command, REPLY_FAILURE is sent with the echoed tag and
+     * When called, the method receives a message from \p socket, dispatches it
+     * to the correct handler and sends the reply through \p socket. The reply
+     * consists of the echoed tag frame, the status frame, and optional reply
+     * argument frames, as determined by the message handler. If there is no
+     * handler for the command, REPLY_FAILURE is sent with the echoed tag and
      * command frames.
      *
      * When dispatching the command, the MessageQueue object creates a copy of
@@ -119,6 +120,9 @@ public:
      * addExecutionPolicy() or can be default constructed by the MessageQueue
      * object. It then invokes the message handler as specified by the execution
      * policy, passing it the Response object and command argument frames.
+     *
+     * If the handler throws an exception, an error is logged and REPLY_FAILURE
+     * is sent.
      *
      * \note The intention is that MessageQueue acts as a “server” receiving
      * messages and replying back to the “client” who sent the message. The
@@ -142,6 +146,7 @@ private:
     public:
         BasicResponse(MessageVector&, std::ptrdiff_t);
         void sendResponse(Socket&);
+        void abortWithFailure(Socket&);
 
     private:
         void handleSetStatus(ByteSpan) override;
@@ -218,10 +223,17 @@ auto MessageQueue::internalCreateExecutor(
                     const auto last_input_frame_iter = inputFrames.end();
                     assert(command_frame_iter != last_input_frame_iter);
                     auto response = BasicResponse(inputFrames, nPrefix);
-                    handler.handle(
-                        std::forward<decltype(context)>(context), identity,
-                        command_frame_iter+1, last_input_frame_iter, response);
-                    response.sendResponse(socket);
+                    try {
+                        handler.handle(
+                            std::forward<decltype(context)>(context), identity,
+                            command_frame_iter+1, last_input_frame_iter, response);
+                        response.sendResponse(socket);
+                    } catch (const std::exception& e) {
+                        log(LogLevel::ERROR,
+                            "Exception caught when handling a message: %s",
+                            e.what());
+                        response.abortWithFailure(socket);
+                    }
                 });
         }
     };

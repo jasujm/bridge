@@ -54,8 +54,8 @@ public:
      *
      * Call to this method starts the message loop.
      *
-     * \exception The method catches SocketError indicating interruption. All
-     * other exceptions are propagated as is.
+     * The message loop will swallow any exceptions from the callbacks, and log
+     * them as errors.
      */
     void run();
 

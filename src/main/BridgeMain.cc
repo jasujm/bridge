@@ -423,14 +423,19 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
                         }
                     }
                 }
-                auto&& game = games.emplace(
-                    std::piecewise_construct,
-                    std::tuple {gameUuid},
-                    std::tuple {
-                        gameUuid, eventSocket, std::move(card_protocol),
-                        std::move(game_manager), callbackScheduler, recorder,
-                        std::move(deal), std::move(players)});
-                return &game.first->second;
+                try {
+                    auto&& game = games.emplace(
+                        std::piecewise_construct,
+                        std::tuple {gameUuid},
+                        std::tuple {
+                            gameUuid, eventSocket, std::move(card_protocol),
+                            std::move(game_manager), callbackScheduler,
+                            recorder, std::move(deal), std::move(players)});
+                    return &game.first->second;
+                } catch (const Engine::BridgeEngineFailure& e) {
+                    log(LogLevel::WARNING,
+                        "Error encountered when recalling deal %s", *deal_uuid);
+                }
             }
         }
     }

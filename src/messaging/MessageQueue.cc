@@ -25,6 +25,13 @@ void MessageQueue::BasicResponse::sendResponse(Socket& socket)
     sendMultipart(socket, frames.begin(), frames.end());
 }
 
+void MessageQueue::BasicResponse::abortWithFailure(Socket& socket)
+{
+    const auto iter = frames.begin();
+    sendMultipart(socket, iter, iter + nStatusFrame, true);
+    sendMessage(socket, messageBuffer(REPLY_FAILURE));
+}
+
 void MessageQueue::BasicResponse::handleSetStatus(ByteSpan status)
 {
     assert(0 <= nStatusFrame && nStatusFrame < ssize(frames));

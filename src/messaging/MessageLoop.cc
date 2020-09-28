@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
+#include <exception>
 #include <sstream>
 #include <variant>
 #include <vector>
@@ -192,16 +193,21 @@ void MessageLoop::Impl::run()
         const auto n_callbacks = ssize(callbacks);
         for (auto i = 0; i < n_callbacks; ++i) {
             try {
-                if (pollitems[i].revents & ZMQ_POLLIN) {
-                    std::visit(CallbackVisitor {}, callbacks[i]);
-                    break;
+                try {
+                    if (pollitems[i].revents & ZMQ_POLLIN) {
+                        std::visit(CallbackVisitor {}, callbacks[i]);
+                        break;
+                    }
+                } catch (const SocketError& e) {
+                    // If receiving failed because of interrupt signal, continue
+                    // Otherwise rethrow
+                    if (e.num() != EINTR) {
+                        throw;
+                    }
                 }
-            } catch (const SocketError& e) {
-                // If receiving failed because of interrupt signal, continue
-                // Otherwise rethrow
-                if (e.num() != EINTR) {
-                    throw;
-                }
+            } catch (const std::exception& e) {
+                log(LogLevel::ERROR,
+                    "Exception caught in message loop: %s", e.what());
             }
         }
     }
