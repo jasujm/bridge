@@ -8,12 +8,12 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
-#include "engine/BridgeEngine.hh"
 #include "messaging/Identity.hh"
 #include "messaging/Sockets.hh"
 
 #include <nlohmann/json.hpp>
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -23,13 +23,16 @@
 namespace Bridge {
 
 class CardType;
+class Deal;
 class Player;
 struct Position;
 
+namespace Engine {
+class GameManager;
+}
+
 namespace Messaging {
-
 class CallbackScheduler;
-
 }
 
 namespace Main {
@@ -62,6 +65,10 @@ public:
      */
     using IdentitySet = std::set<Messaging::UserId>;
 
+    /** \brief Mapping of positions and players
+     */
+    using PositionPlayerMap = std::map<Position, std::shared_ptr<Player>>;
+
     /** \brief Type of the running counter
      *
      * \sa \ref bridgeprotocolcounter
@@ -86,23 +93,27 @@ public:
      * \param eventSocket ZeroMQ socket used to publish events about the game
      * \param cardProtocol the card protocol used to exchange cards between
      * peers
+     * \param gameManager The game manager
      * \param peerCommandSender the peer command sender object used to send
      * commands to the peers taking part in the game
      * \param callbackScheduler a callback scheduler object
      * \param participants list of known participants
      * \param recorder A bridge game recorder, if applicable
-     * \param engine A pre-constructed bridge engine, if applicable
+     * \param deal The initial deal in the game
+     * \param players The initial players taking part in the game
      */
     BridgeGame(
         const Uuid& uuid,
         PositionSet positionsControlled,
         Messaging::SharedSocket eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
+        std::shared_ptr<Engine::GameManager> gameManager,
         std::shared_ptr<PeerCommandSender> peerCommandSender,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
         IdentitySet participants,
         std::shared_ptr<BridgeGameRecorder> recorder = nullptr,
-        std::optional<Engine::BridgeEngine> engine = std::nullopt);
+        std::unique_ptr<const Deal> deal = nullptr,
+        const PositionPlayerMap& players = {});
 
     /** \brief Create new bridge game without peers
      *
@@ -113,16 +124,20 @@ public:
      * \param eventSocket ZeroMQ socket used to publish events about the game
      * \param cardProtocol the card protocol used to exchange cards between
      * peers
+     * \param gameManager The game manager
      * \param callbackScheduler a callback scheduler object
      * \param recorder A bridge game recorder, if applicable
-     * \param engine A pre-constructed bridge engine, if applicable
+     * \param deal The initial deal in the game
+     * \param players The initial players taking part in the game
      */
     BridgeGame(
         const Uuid& uuid, Messaging::SharedSocket eventSocket,
         std::unique_ptr<CardProtocol> cardProtocol,
+        std::shared_ptr<Engine::GameManager> gameManager,
         std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
         std::shared_ptr<BridgeGameRecorder> recorder = nullptr,
-        std::optional<Engine::BridgeEngine> engine = std::nullopt);
+        std::unique_ptr<const Deal> deal = nullptr,
+        const PositionPlayerMap& players = {});
 
     /** \brief Move constructor
      */

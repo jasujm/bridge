@@ -211,12 +211,21 @@ public:
      * initialization allows the client to subscribe to the desired
      * notifications before the game actually starts.
      *
+     * If the \p deal parameter is given, the bidding and playing phases of the
+     * deal are replayed on the first call of startDeal(). No notifications
+     * about the recalled deal are published. If the deal state doesn’t
+     * represent a valid bridge deal, an expection is thrown and the engine is
+     * left in an unspecified state.
+     *
      * \param cardManager the card manager used to manage playing cards
      * \param gameManager the game manager used to manage the rules of the game
+     * \param deal The deal to recall, or nullptr if a new deal should
+     * be started
      */
     BridgeEngine(
         std::shared_ptr<CardManager> cardManager,
-        std::shared_ptr<GameManager> gameManager);
+        std::shared_ptr<GameManager> gameManager,
+        std::unique_ptr<const Deal> deal = nullptr);
 
     /** \brief Move constructor
      */
@@ -304,28 +313,19 @@ public:
 
     /** \brief Start a new deal
      *
-     * This method starts a deal if no deal is ongoing. It needs to be
-     * called before the game and after the completion of each deal
-     * when the client is ready to start a deal.
+     * This method starts a deal if no deal is ongoing. It needs to be called
+     * before the game and after the completion of each deal when the client is
+     * ready to start a deal.
      *
-     * If the \p deal parameter is given, the bidding and playing
-     * phases of the deal are replayed. No notifications about the
-     * recalled deal are published. If the deal state doesn’t
-     * represent a valid bridge deal, an expection is thrown and the
-     * engine is left in an unspecified state.
+     * \note In order to not lose any otifications, notifications should be
+     * subscribed to before calling this method for the first time. Especially
+     * note that after starting the game, the first shuffling is immediately
+     * requested from the card manager.
      *
-     * \note In order to not lose any otifications, notifications
-     * should be subscribed to before calling this method for the
-     * first time. Especially note that after starting the game, the
-     * first shuffling is immediately requested from the card manager.
-     *
-     * \param deal The deal to recall, or nullptr if a new deal should
-     * be started
-     *
-     * \throw BridgeEngineFailure if an error occurs when recalling \p
-     * deal
+     * \throw BridgeEngineFailure if an error occurs when recalling the deal
+     * given as constructor argument
      */
-    void startDeal(const Deal* deal = nullptr);
+    void startDeal();
 
     /** \brief Add player to the game
      *

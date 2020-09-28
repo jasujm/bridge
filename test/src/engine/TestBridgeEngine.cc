@@ -255,10 +255,10 @@ protected:
                 handleGetHand(ElementsAreArray(cardsFor(position))));
         }
 
-        ON_CALL(recalled_deal, handleGetUuid()).WillByDefault(ReturnRef(UUID));
+        ON_CALL(*recalledDeal, handleGetUuid()).WillByDefault(ReturnRef(UUID));
 
         // Setup hands in the deal
-        ON_CALL(recalled_deal, handleGetHand(_))
+        ON_CALL(*recalledDeal, handleGetHand(_))
             .WillByDefault(
                 Invoke(
                     [this](const auto p) -> const Hand&
@@ -274,13 +274,13 @@ protected:
         ON_CALL(bidding_in_deal, handleGetCall(_))
             .WillByDefault(
                 Invoke([this](const auto n) { return calls_in_deal.at(n); }));
-        ON_CALL(recalled_deal, handleGetBidding())
+        ON_CALL(*recalledDeal, handleGetBidding())
             .WillByDefault(ReturnRef(bidding_in_deal));
 
         // Setup tricks in the deal
-        ON_CALL(recalled_deal, handleGetNumberOfTricks())
+        ON_CALL(*recalledDeal, handleGetNumberOfTricks())
             .WillByDefault(Return(tricks_in_deal.size()));
-        ON_CALL(recalled_deal, handleGetTrick(_))
+        ON_CALL(*recalledDeal, handleGetTrick(_))
             .WillByDefault(
                 Invoke(
                     [this](const auto n) -> decltype(auto)
@@ -297,11 +297,6 @@ protected:
         }
         ON_CALL(tricks_in_deal[1], handleGetHand(0))
             .WillByDefault(ReturnRef(*hands_in_deal.at(Positions::EAST)));
-    }
-
-    void recallDeal()
-    {
-        engine.startDeal(&recalled_deal);
     }
 
     std::array<NiceMock<MockCard>, N_CARDS> cards;
@@ -336,7 +331,8 @@ protected:
     Uuid dealUuid;
 
     // Recall tests
-    NiceMock<Bridge::MockDeal> recalled_deal;
+    std::unique_ptr<Bridge::MockDeal> recalledDeal {
+        std::make_unique<NiceMock<Bridge::MockDeal>>()};
     std::map<Position, std::shared_ptr<MockHand>> hands_in_deal {
         std::pair { Positions::NORTH, std::make_shared<NiceMock<MockHand>>() },
         std::pair { Positions::EAST,  std::make_shared<NiceMock<MockHand>>() },
@@ -668,7 +664,9 @@ TEST_F(BridgeEngineTest, testRecallDealPlayingPhase)
 {
     setupDependencies();
     setupRecalledDeal();
-    recallDeal();
+    BridgeEngine engine {
+        cardManager, gameManager, std::move(recalledDeal)};
+    engine.startDeal();
 
     // Verify the bidding is same as in the recalled deal
     const auto* deal = engine.getCurrentDeal();
@@ -705,12 +703,14 @@ TEST_F(BridgeEngineTest, testRecallDealBiddingPhase)
 {
     setupDependencies();
     setupRecalledDeal();
+    BridgeEngine engine {
+        cardManager, gameManager, std::move(recalledDeal)};
 
     // Ignore west's call, so the bidding is still ongoing
     ON_CALL(bidding_in_deal, handleGetNumberOfCalls())
         .WillByDefault(Return(calls_in_deal.size() - 1));
 
-    recallDeal();
+    engine.startDeal();
 
     // Verify the bidding is same as in the recalled deal
     const auto* deal = engine.getCurrentDeal();
@@ -729,21 +729,25 @@ TEST_F(BridgeEngineTest, testRecallDealBiddingPhaseFailure)
 {
     setupDependencies();
     setupRecalledDeal();
+    BridgeEngine engine {
+        cardManager, gameManager, std::move(recalledDeal)};
 
     // Illegal bid
     calls_in_deal[1] = BID;
-    EXPECT_THROW(recallDeal(), Engine::BridgeEngineFailure);
+    EXPECT_THROW(engine.startDeal(), Engine::BridgeEngineFailure);
 }
 
 TEST_F(BridgeEngineTest, testRecallDealPlayingPhaseFailure)
 {
     setupDependencies();
     setupRecalledDeal();
+    BridgeEngine engine {
+        cardManager, gameManager, std::move(recalledDeal)};
 
     // Illegal play out of turn
     ON_CALL(tricks_in_deal[0], handleGetHand(0))
         .WillByDefault(ReturnRef(*hands_in_deal.at(Positions::EAST)));
     ON_CALL(tricks_in_deal[0], handleGetCard(0))
         .WillByDefault(ReturnRef(cards_in_trick[1]));
-    EXPECT_THROW(recallDeal(), Engine::BridgeEngineFailure);
+    EXPECT_THROW(engine.startDeal(), Engine::BridgeEngineFailure);
 }

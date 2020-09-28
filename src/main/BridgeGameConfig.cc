@@ -1,5 +1,7 @@
 #include "main/BridgeGameConfig.hh"
 
+#include "bridge/Deal.hh"
+#include "engine/DuplicateGameManager.hh"
 #include "main/Commands.hh"
 #include "main/BridgeGame.hh"
 #include "main/CardServerProxy.hh"
@@ -57,7 +59,8 @@ BridgeGame gameFromConfig(
         return {
             config.uuid, std::move(eventSocket),
             std::make_unique<PeerlessCardProtocol>(),
-            std::move(callbackScheduler), nullptr, std::nullopt};
+            std::make_shared<Engine::DuplicateGameManager>(),
+            std::move(callbackScheduler)};
     } else {
         log(LogLevel::INFO,
             "Configuring game %s, %s protocol", config.uuid,
@@ -108,8 +111,10 @@ BridgeGame gameFromConfig(
             config.positionsControlled.end());
         return {
             config.uuid, std::move(positions), std::move(eventSocket),
-            std::move(card_protocol), std::move(peer_command_sender),
-            std::move(callbackScheduler), std::move(participants)};
+            std::move(card_protocol),
+            std::make_shared<Engine::DuplicateGameManager>(),
+            std::move(peer_command_sender),
+            std::move(callbackScheduler),std::move(participants)};
     }
 }
 

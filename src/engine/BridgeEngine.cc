@@ -53,25 +53,9 @@ std::optional<Position> getPositionHelper(
 // Events
 ////////////////////////////////////////////////////////////////////////////////
 
-class StartDealEvent : public sc::event<StartDealEvent> {
-public:
-    StartDealEvent(const Deal* deal) :
-        deal {deal}
-    {
-    }
-
-    const Deal* deal;
-};
+class StartDealEvent : public sc::event<StartDealEvent> {};
 class CreateNewDealEvent : public sc::event<CreateNewDealEvent> {};
-class RecallDealEvent : public sc::event<RecallDealEvent> {
-public:
-    RecallDealEvent(const Deal& deal) :
-        deal {deal}
-        {
-        }
-
-    const Deal& deal;
-};
+class RecallDealEvent : public sc::event<RecallDealEvent> {};
 class CallEvent : public sc::event<CallEvent> {
 public:
     CallEvent(const Player& player, const Call& call, bool& ret) :
@@ -94,15 +78,7 @@ public:
 
     Position declarer;
 };
-class RecallPlayingEvent : public sc::event<RecallPlayingEvent> {
-public:
-    RecallPlayingEvent(const Deal& deal) :
-        deal {deal}
-    {
-    }
-
-    const Deal& deal;
-};
+class RecallPlayingEvent : public sc::event<RecallPlayingEvent> {};
 class DealEndedEvent : public sc::event<DealEndedEvent> {
 public:
     DealEndedEvent(
@@ -163,7 +139,8 @@ class BridgeEngine::Impl :
 public:
     Impl(
         std::shared_ptr<CardManager> cardManager,
-        std::shared_ptr<GameManager> gameManager);
+        std::shared_ptr<GameManager> gameManager,
+        std::unique_ptr<const Deal> deal);
 
     template<typename EventGenerator>
     auto makeCardRevealStateObserver(EventGenerator&& generator);
@@ -176,6 +153,14 @@ public:
     const CardManager& getCardManager() const { return dereference(cardManager); }
     GameManager& getGameManager() { return dereference(gameManager); }
     const GameManager& getGameManager() const { return dereference(gameManager); }
+    const Deal* getRecalledDeal()
+    {
+        return recalledDeal.get();
+    }
+    void resetRecalledDeal()
+    {
+        recalledDeal.reset();
+    }
     Observable<DealStarted>& getDealStartedNotifier()
     {
         return dealStartedNotifier;
@@ -240,6 +225,7 @@ private:
     const std::shared_ptr<GameManager> gameManager;
     std::vector<std::shared_ptr<Player>> players;
     std::shared_ptr<Hand> lockedHand;
+    std::unique_ptr<const Deal> recalledDeal;
     Observable<DealStarted> dealStartedNotifier;
     Observable<TurnStarted> turnStartedNotifier;
     Observable<CallMade> callMadeNotifier;
@@ -253,9 +239,11 @@ private:
 
 BridgeEngine::Impl::Impl(
     std::shared_ptr<CardManager> cardManager,
-    std::shared_ptr<GameManager> gameManager) :
+    std::shared_ptr<GameManager> gameManager,
+    std::unique_ptr<const Deal> deal) :
     cardManager {std::move(cardManager)},
     gameManager {std::move(gameManager)},
+    recalledDeal {std::move(deal)},
     players(Position::size())
 {
 }
@@ -316,20 +304,20 @@ class InDeal;
 class Idle : public sc::simple_state<Idle, BridgeEngine::Impl> {
 public:
     using reactions = sc::custom_reaction<StartDealEvent>;
-    sc::result react(const StartDealEvent& event);
+    sc::result react(const StartDealEvent&);
 };
 
-sc::result Idle::react(const StartDealEvent& event)
+sc::result Idle::react(const StartDealEvent&)
 {
     auto& context = outermost_context();
     if (context.getGameManager().hasEnded()) {
         return terminate();
-    } else if (!event.deal) {
+    } else if (context.getRecalledDeal()) {
+        post_event(RecallDealEvent {});
+        return transit<InDeal>();
+    } else {
         context.requestShuffle();
         return transit<Shuffling>();
-    } else {
-        post_event(RecallDealEvent {*event.deal});
-        return transit<InDeal>();
     }
 }
 
@@ -363,7 +351,7 @@ class InDeal :
     public Deal {
 public:
     void createNewDeal(const CreateNewDealEvent&);
-    void recallDeal(const RecallDealEvent& event);
+    void recallDeal(const RecallDealEvent&);
     void startPlaying(const StartPlayingEvent& event);
     void recallPlaying(const RecallPlayingEvent&);
     void notifyTurnStarted();
@@ -500,13 +488,17 @@ void InDeal::createNewDeal(const CreateNewDealEvent&)
         BridgeEngine::TurnStarted {uuid, bidding->getOpeningPosition()});
 }
 
-void InDeal::recallDeal(const RecallDealEvent& event)
+void InDeal::recallDeal(const RecallDealEvent&)
 {
-    uuid = event.deal.getUuid();
+    auto& context = outermost_context();
+    const auto& deal = dereference(context.getRecalledDeal());
+    uuid = deal.getUuid();
     hands = internalMakeHands();
-    bidding = internalRecallBidding(event.deal.getBidding());
+    bidding = internalRecallBidding(deal.getBidding());
     if (bidding->hasEnded()) {
-        post_event(RecallPlayingEvent {event.deal});
+        post_event(RecallPlayingEvent {});
+    } else {
+        context.resetRecalledDeal();
     }
 }
 
@@ -518,12 +510,15 @@ void InDeal::startPlaying(const StartPlayingEvent& event)
         BridgeEngine::TurnStarted {uuid, leader_position});
 }
 
-void InDeal::recallPlaying(const RecallPlayingEvent& event)
+void InDeal::recallPlaying(const RecallPlayingEvent&)
 {
-    for (const auto n : to(event.deal.getNumberOfTricks())) {
+    auto& context = outermost_context();
+    const auto& deal = dereference(context.getRecalledDeal());
+    for (const auto n : to(deal.getNumberOfTricks())) {
         tricks.emplace_back(
-            internalRecallTrick(event.deal.getTrick(n), event.deal));
+            internalRecallTrick(deal.getTrick(n), deal));
     }
+    context.resetRecalledDeal();
 }
 
 void InDeal::notifyTurnStarted()
@@ -1042,9 +1037,11 @@ void BridgeEngine::Impl::handleNotify(const CardManager::ShufflingState& state)
 
 BridgeEngine::BridgeEngine(
     std::shared_ptr<CardManager> cardManager,
-    std::shared_ptr<GameManager> gameManager) :
+    std::shared_ptr<GameManager> gameManager,
+    std::unique_ptr<const Deal> deal) :
     impl {
-        std::make_shared<Impl>(cardManager, std::move(gameManager))}
+        std::make_shared<Impl>(
+            cardManager, std::move(gameManager), std::move(deal))}
 {
     dereference(cardManager).subscribe(impl);
     impl->initiate();
@@ -1115,13 +1112,13 @@ void BridgeEngine::subscribeToDealEnded(
     impl->getDealEndedNotifier().subscribe(std::move(observer));
 }
 
-void BridgeEngine::startDeal(const Deal* deal)
+void BridgeEngine::startDeal()
 {
     assert(impl);
     impl->functionQueue(
-        [&impl = *impl, deal]()
+        [&impl = *impl]()
         {
-            impl.process_event(StartDealEvent {deal});
+            impl.process_event(StartDealEvent {});
         });
 }
 

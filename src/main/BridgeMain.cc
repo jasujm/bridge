@@ -291,7 +291,8 @@ Reply<Uuid> BridgeMain::Impl::game(
                     std::tuple {
                         uuid_for_game, eventSocket,
                         std::make_unique<PeerlessCardProtocol>(),
-                        callbackScheduler, recorder, std::nullopt});
+                        std::make_shared<Engine::DuplicateGameManager>(),
+                        callbackScheduler, recorder});
                 if (game.second) {
                     auto& game_ = game.first->second;
                     availableGames.emplace(uuid_for_game, &game_);
@@ -411,26 +412,24 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
         const auto game_state = recorder->recallGame(gameUuid);
         if (const auto& deal_uuid = game_state->dealUuid) {
             if (auto deal_record = recorder->recallDeal(*deal_uuid)) {
-                auto& [deal, cardProtocol, gameManager] = *deal_record;
-                auto&& engine = Engine::BridgeEngine {
-                    dereference(cardProtocol).getCardManager(),
-                    std::move(gameManager)};
+                auto& [deal, card_protocol, game_manager] = *deal_record;
+                auto players = BridgeGame::PositionPlayerMap {};
                 for (const auto [n, position] : enumerate(Position::all())) {
                     if (const auto& player_uuid = game_state->playerUuids[n]) {
                         if (const auto user_id = recorder->recallPlayer(*player_uuid)) {
                             auto player = internalGetOrCreatePlayer(
                                 Identity {*user_id, {}}, *player_uuid);
-                            engine.setPlayer(position, std::move(player));
+                            players.emplace(position, std::move(player));
                         }
                     }
                 }
-                engine.startDeal(deal.get());
                 auto&& game = games.emplace(
                     std::piecewise_construct,
                     std::tuple {gameUuid},
                     std::tuple {
-                        gameUuid, eventSocket, std::move(cardProtocol),
-                        callbackScheduler, recorder, std::move(engine)});
+                        gameUuid, eventSocket, std::move(card_protocol),
+                        std::move(game_manager), callbackScheduler, recorder,
+                        std::move(deal), std::move(players)});
                 return &game.first->second;
             }
         }
