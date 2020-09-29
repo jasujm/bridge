@@ -5,10 +5,8 @@
 #include <gtest/gtest.h>
 
 namespace {
-using namespace std::string_literals;
-using namespace Bridge::BlobLiterals;
-const auto NODE = Bridge::Messaging::Identity { ""s, "node"_B };
-const auto OTHER_NODE = Bridge::Messaging::Identity { ""s, "other"_B };
+const auto NODE = Bridge::Messaging::UserId {"node"};
+const auto OTHER_NODE = Bridge::Messaging::UserId {"other"};
 boost::uuids::string_generator STRING_GENERATOR;
 const auto UUID = STRING_GENERATOR("a3cc5805-544f-415b-ba86-31f6237bf122");
 const auto OTHER_UUID = STRING_GENERATOR("5913e360-0a82-44fe-8406-e486b3a9f8bb");
@@ -50,9 +48,7 @@ TEST_F(NodePlayerControlTest, testCreatePlayerForMultipleNodes)
     EXPECT_EQ(OTHER_UUID, player->getUuid());
 }
 
-// Disabled due to NodePlayerControl not supporting authentication except in
-// CURVE mechanism
-TEST_F(NodePlayerControlTest, DISABLED_testCreatePlayerForOtherNodeWithConflictingUuid)
+TEST_F(NodePlayerControlTest, testCreatePlayerForOtherNodeWithConflictingUuid)
 {
     const auto player = nodePlayerControl.getOrCreatePlayer(NODE, UUID, nullptr);
     EXPECT_FALSE(nodePlayerControl.getOrCreatePlayer(OTHER_NODE, UUID, nullptr));

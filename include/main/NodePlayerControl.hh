@@ -25,9 +25,6 @@ class BridgeGameRecorder;
  *
  * Each node in the bridge protocol is allowed to control one or more
  * players in each game. This class is used for the access control.
- *
- * \todo Refactor to use Messaging::UserId instead of Messaging::Identity
- * everywhere
  */
 class NodePlayerControl : private boost::noncopyable {
 public:
@@ -53,7 +50,7 @@ public:
      * \param recorder An optional recorder for recording and recalling players
      */
     std::shared_ptr<Player> getOrCreatePlayer(
-        const Messaging::Identity& node, const Uuid& uuid,
+        const Messaging::UserId& node, const Uuid& uuid,
         BridgeGameRecorder* recorder);
 
 private:

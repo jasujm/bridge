@@ -11,29 +11,17 @@
 namespace Bridge {
 namespace Main {
 
-using Messaging::Identity;
-
-struct UserIdCompare {
-    bool operator()(const Identity& lhs, const Identity& rhs) const {
-        return lhs.userId < rhs.userId;
-    }
-};
-
-bool equalIdentity(const Identity& lhs, const Identity& rhs)
-{
-    const auto compare = UserIdCompare {};
-    return !compare(lhs, rhs) && !compare(rhs, lhs);
-}
+using Messaging::UserId;
 
 class NodePlayerControl::Impl {
 public:
     std::shared_ptr<Player> getOrCreatePlayer(
-        const Identity& node, const Uuid& uuid,
+        const UserId& node, const Uuid& uuid,
         BridgeGameRecorder* recorder);
 
 private:
 
-    std::map<Uuid, std::pair<Identity, std::shared_ptr<Player>>> players;
+    std::map<Uuid, std::pair<UserId, std::shared_ptr<Player>>> players;
     UuidGenerator uuidGenerator {createUuidGenerator()};
 };
 
@@ -43,14 +31,14 @@ NodePlayerControl::NodePlayerControl() :
 }
 
 std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
-    const Identity& node, const Uuid& uuid, BridgeGameRecorder* recorder)
+    const UserId& node, const Uuid& uuid, BridgeGameRecorder* recorder)
 {
     const auto player_iter = players.find(uuid);
     if (player_iter == players.end()) {
         auto record_player = false;
         if (recorder) {
             if (const auto user_id = recorder->recallPlayer(uuid)) {
-                if (*user_id != node.userId) {
+                if (*user_id != node) {
                     return nullptr;
                 }
             } else {
@@ -61,10 +49,10 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
         players.emplace(uuid, std::pair {node, ret});
         if (record_player) {
             assert(recorder);
-            recorder->recordPlayer(uuid, node.userId);
+            recorder->recordPlayer(uuid, node);
         }
         return ret;
-    } else if (equalIdentity(player_iter->second.first, node)) {
+    } else if (player_iter->second.first == node) {
         return player_iter->second.second;
     }
     return nullptr;
@@ -73,7 +61,7 @@ std::shared_ptr<Player> NodePlayerControl::Impl::getOrCreatePlayer(
 NodePlayerControl::~NodePlayerControl() = default;
 
 std::shared_ptr<Player> NodePlayerControl::getOrCreatePlayer(
-    const Identity& node, const Uuid& uuid, BridgeGameRecorder* recorder)
+    const UserId& node, const Uuid& uuid, BridgeGameRecorder* recorder)
 {
     assert(impl);
     return impl->getOrCreatePlayer(node, uuid, recorder);

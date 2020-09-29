@@ -52,6 +52,7 @@ using Messaging::makeMessageHandler;
 using Messaging::MessageQueue;
 using Messaging::Reply;
 using Messaging::success;
+using Messaging::UserId;
 
 namespace {
 
@@ -116,7 +117,7 @@ private:
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
     std::shared_ptr<Player> internalGetOrCreatePlayer(
-        const Identity& identity, const Uuid& playerUuid);
+        const UserId& userId, const Uuid& playerUuid);
 
     const Config config;
     UuidGenerator uuidGenerator {createUuidGenerator()};
@@ -132,6 +133,7 @@ private:
     std::map<Uuid, BridgeGame> games;
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
     std::shared_ptr<BridgeGameRecorder> recorder;
+    const bool recordPlayers;
 };
 
 BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
@@ -194,7 +196,9 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
     callbackScheduler {
         std::make_shared<Messaging::PollingCallbackScheduler>(
             context, messageLoop.createTerminationSubscriber())},
-    recorder {initializeBridgeGameRecorder(this->config.getDataDir())}
+    recorder {initializeBridgeGameRecorder(this->config.getDataDir())},
+    recordPlayers {
+        recorder != nullptr && this->config.getCurveConfig() != nullptr}
 {
     authenticator.ensureRunning();
     const auto keys = this->config.getCurveConfig();
@@ -311,7 +315,7 @@ Reply<Uuid> BridgeMain::Impl::join(
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         identity, gameUuid, playerUuid, position);
 
-    if (auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+    if (auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto iter = nodes.find(identity);
         if (iter != nodes.end()) {
             if (iter->second == Role::PEER && !gameUuid) {
@@ -364,7 +368,7 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
         return failure();
     }
 
-    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
             return success(game->getState(*player, keys), game->getCounter());
         }
@@ -378,7 +382,7 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
-    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
             return success();
@@ -394,7 +398,7 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
-    if (const auto player = internalGetOrCreatePlayer(identity, playerUuid)) {
+    if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
             return success();
@@ -416,11 +420,12 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
                 auto players = BridgeGame::PositionPlayerMap {};
                 for (const auto [n, position] : enumerate(Position::all())) {
                     if (const auto& player_uuid = game_state->playerUuids[n]) {
-                        if (const auto user_id = recorder->recallPlayer(*player_uuid)) {
-                            auto player = internalGetOrCreatePlayer(
-                                Identity {*user_id, {}}, *player_uuid);
-                            players.emplace(position, std::move(player));
-                        }
+                        const auto user_id = recordPlayers ?
+                            recorder->recallPlayer(*player_uuid) :
+                            std::optional<UserId> {};
+                        auto player = internalGetOrCreatePlayer(
+                            user_id ? *user_id : UserId {}, *player_uuid);
+                        players.emplace(position, std::move(player));
                     }
                 }
                 try {
@@ -443,11 +448,11 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
 }
 
 std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
-    const Identity& identity, const Uuid& playerUuid)
+    const UserId& userId, const Uuid& playerUuid)
 {
     assert(nodePlayerControl);
-    return nodePlayerControl->getOrCreatePlayer(
-        identity, playerUuid, recorder.get());
+    const auto recorder = recordPlayers ? this->recorder.get() : nullptr;
+    return nodePlayerControl->getOrCreatePlayer(userId, playerUuid, recorder);
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :
