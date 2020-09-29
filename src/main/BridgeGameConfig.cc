@@ -52,7 +52,7 @@ BridgeGame gameFromConfig(
     const Messaging::CurveKeys* keys,
     Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
-    const Messaging::Authenticator::NodeMap& knownPeers)
+    const Messaging::Authenticator::NodeMap& knownNodes)
 {
     if (config.peers.empty()) {
         log(LogLevel::INFO, "Configuring game %s, no peers", config.uuid);
@@ -72,7 +72,7 @@ BridgeGame gameFromConfig(
             peer_command_sender->addPeer(
                 context, peer.endpoint, keys, peer.serverKey);
             if (!peer.serverKey.empty()) {
-                participants.emplace(knownPeers.at(peer.serverKey));
+                participants.emplace(knownNodes.at(peer.serverKey));
             }
         }
         peer_command_sender->sendCommand(

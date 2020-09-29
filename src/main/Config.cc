@@ -48,6 +48,9 @@ constexpr auto GAME_CONFIG_SERVER_KEY = "server_key"sv;
 constexpr auto GAME_CONFIG_CARD_SERVER = "card_server"sv;
 constexpr auto GAME_CONFIG_CONTROL_ENDPOINT = "control_endpoint"sv;
 constexpr auto GAME_CONFIG_PEER_ENDPOINT = "peer_endpoint"sv;
+constexpr auto GAME_CONFIG_KNOWN_NODES = "known_nodes"sv;
+constexpr auto GAME_CONFIG_PUBLIC_KEY = "public_key"sv;
+constexpr auto GAME_CONFIG_USER_ID = "user_id"sv;
 
 constexpr auto BIND_ADDRESS = "bind_address"sv;
 constexpr auto BIND_BASE_PORT = "bind_base_port"sv;
@@ -303,19 +306,20 @@ public:
     const Messaging::CurveKeys* getCurveConfig() const;
     std::optional<std::string_view> getDataDir() const;
     const GameConfigVector& getGameConfigs() const;
-    const Messaging::Authenticator::NodeMap& getKnownPeers() const;
+    const Messaging::Authenticator::NodeMap& getKnownNodes() const;
 
 private:
 
     void createBaseEndpointConfig(lua_State* lua);
     void createCurveConfig(lua_State* lua);
+    void createKnownNodesConfig(lua_State* lua);
 
     Messaging::EndpointIterator endpointIterator {
         DEFAULT_BIND_ADDRESS, DEFAULT_BIND_BASE_ENDPOINT};
     std::optional<Messaging::CurveKeys> curveConfig {};
     std::optional<std::string> dataDir {};
     GameConfigVector gameConfigs {};
-    Messaging::Authenticator::NodeMap knownPeers {};
+    Messaging::Authenticator::NodeMap knownNodes {};
 };
 
 Config::Impl::Impl() = default;
@@ -341,15 +345,16 @@ Config::Impl::Impl(std::istream& in)
     createBaseEndpointConfig(lua.get());
     createCurveConfig(lua.get());
     dataDir = getString(lua.get(), DATA_DIR);
+    createKnownNodesConfig(lua.get());
 
     for (const auto& game_config : gameConfigs) {
         for (const auto& peer : game_config.peers) {
             if (!peer.serverKey.empty()) {
                 const auto [peer_iter, created] =
-                    knownPeers.try_emplace(peer.serverKey);
+                    knownNodes.try_emplace(peer.serverKey);
                 if (created) {
                     const auto user_id =
-                        boost::format("peer%1%") % knownPeers.size();
+                        boost::format("peer%1%") % knownNodes.size();
                     peer_iter->second = user_id.str();
                 }
             }
@@ -379,6 +384,57 @@ void Config::Impl::createCurveConfig(lua_State* lua)
     }
 }
 
+void Config::Impl::createKnownNodesConfig(lua_State* lua)
+{
+    lua_getglobal(lua, GAME_CONFIG_KNOWN_NODES.data());
+    LuaPopGuard guard {lua};
+    if (lua_istable(lua, -1)) {
+        for (auto i = 1;; ++i) {
+            LuaPopGuard guard2 {lua};
+            lua_rawgeti(lua, -1, i);
+            if (lua_isnil(lua, -1)) {
+                break;
+            }
+            if (!lua_istable(lua, -1)) {
+                log(LogLevel::WARNING,
+                    "known_nodes: expected node to be a table");
+            }
+            auto decoded_public_key = Blob {};
+            {
+                lua_pushstring(lua, GAME_CONFIG_PUBLIC_KEY.data());
+                LuaPopGuard guard3 {lua};
+                lua_rawget(lua, -2);
+                const auto* const public_key = lua_tostring(lua, -1);
+                if (!public_key) {
+                    log(LogLevel::WARNING,
+                        "known_nodes: expected node to have public_key");
+                } else {
+                    decoded_public_key = Messaging::decodeKey(public_key);
+                    if (decoded_public_key.empty()) {
+                        log(LogLevel::WARNING,
+                            "known_nodes: expected public key, got %s",
+                            public_key);
+                    }
+                }
+            }
+            const auto* user_id = static_cast<const char*>(nullptr);
+            {
+                lua_pushstring(lua, GAME_CONFIG_USER_ID.data());
+                LuaPopGuard guard4 {lua};
+                lua_rawget(lua, -2);
+                user_id = lua_tostring(lua, -1);
+                if (!user_id) {
+                    log(LogLevel::WARNING,
+                        "known_nodes: expected node to have user_id");
+                }
+            }
+            if (user_id && !decoded_public_key.empty()) {
+                knownNodes.try_emplace(std::move(decoded_public_key), user_id);
+            }
+        }
+    }
+}
+
 Messaging::EndpointIterator Config::Impl::getEndpointIterator() const
 {
     return endpointIterator;
@@ -399,9 +455,9 @@ const Config::GameConfigVector& Config::Impl::getGameConfigs() const
     return gameConfigs;
 }
 
-const Messaging::Authenticator::NodeMap& Config::Impl::getKnownPeers() const
+const Messaging::Authenticator::NodeMap& Config::Impl::getKnownNodes() const
 {
-    return knownPeers;
+    return knownNodes;
 }
 
 Config::Config() :
@@ -444,10 +500,10 @@ const Config::GameConfigVector& Config::getGameConfigs() const
     return impl->getGameConfigs();
 }
 
-const Messaging::Authenticator::NodeMap& Config::getKnownPeers() const
+const Messaging::Authenticator::NodeMap& Config::getKnownNodes() const
 {
     assert(impl);
-    return impl->getKnownPeers();
+    return impl->getKnownNodes();
 }
 
 Config configFromPath(const std::string_view path)

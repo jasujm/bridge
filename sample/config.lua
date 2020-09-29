@@ -14,6 +14,13 @@ bind_base_port = os.getenv("BRIDGE_BIND_BASE_PORT") or 5555
 if os.getenv("BRIDGE_USE_CURVE") then
    curve_secret_key = "JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6"
    curve_public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"
+
+   -- The known_nodes table can be used to assign identities to known public
+   -- keys.
+
+   known_nodes = {
+      { public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7", user_id = "the node" },
+   }
 end
 
 -- Data directory will be used to record games so that they can be continued

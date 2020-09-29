@@ -89,11 +89,11 @@ public:
      */
     const GameConfigVector& getGameConfigs() const;
 
-    /** \brief Get known peers
+    /** \brief Get the known nodes
      *
      * \return mapping from known peer public keys to their user IDs
      */
-    const Messaging::Authenticator::NodeMap& getKnownPeers() const;
+    const Messaging::Authenticator::NodeMap& getKnownNodes() const;
 
 private:
 

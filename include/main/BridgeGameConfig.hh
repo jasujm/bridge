@@ -93,7 +93,7 @@ bool operator==(
  * \param eventSocket the event socket passed to BridgeGame constructor
  * \param callbackScheduler the callback scheduler passed to BridgeGame
  *        constructor
- * \param knownPeers the mapping of known peer public keys and their identities
+ * \param knownNodes the mapping of known peer public keys and their identities
  */
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
@@ -101,7 +101,7 @@ BridgeGame gameFromConfig(
     const Messaging::CurveKeys* keys,
     Messaging::SharedSocket eventSocket,
     std::shared_ptr<Messaging::CallbackScheduler> callbackScheduler,
-    const Messaging::Authenticator::NodeMap& knownPeers);
+    const Messaging::Authenticator::NodeMap& knownNodes);
 
 }
 }

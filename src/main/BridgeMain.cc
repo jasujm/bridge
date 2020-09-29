@@ -192,7 +192,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
     messageLoop {context},
     authenticator {
         context, messageLoop.createTerminationSubscriber(),
-        this->config.getKnownPeers()},
+        this->config.getKnownNodes()},
     callbackScheduler {
         std::make_shared<Messaging::PollingCallbackScheduler>(
             context, messageLoop.createTerminationSubscriber())},
@@ -216,7 +216,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
             uuid,
             gameFromConfig(
                 gameConfig, context, keys, eventSocket, callbackScheduler,
-                this->config.getKnownPeers()));
+                this->config.getKnownNodes()));
         if (emplaced_game.second) {
             auto& game = emplaced_game.first->second;
             availableGames.emplace(uuid, &game);

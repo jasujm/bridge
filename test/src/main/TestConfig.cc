@@ -19,6 +19,7 @@ using namespace std::string_view_literals;
 using Bridge::Main::BridgeGameConfig;
 using Bridge::Main::Config;
 using Bridge::Messaging::decodeKey;
+using NodeMap = Bridge::Messaging::Authenticator::NodeMap;
 
 class ConfigTest : public testing::Test {
 protected:
@@ -98,6 +99,53 @@ data_dir = "/tmp/bridge"
 )EOF"s);
     const auto config = Config {in};
     EXPECT_EQ("/tmp/bridge", config.getDataDir());
+}
+
+TEST_F(ConfigTest, testKnownNodes)
+{
+    in.str(R"EOF(
+known_nodes = {
+  { public_key = "rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7", user_id = "node1" },
+  { public_key = "JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6", user_id = "node2" },
+}
+)EOF"s);
+    const auto config = Config {in};
+    const auto expected_known_nodes = NodeMap {
+        { decodeKey("rq:rM>}U?@Lns47E1%kR.o@n%FcmmsL/@{H8]yf7"), "node1" },
+        { decodeKey("JTKVSB%%)wK0E.X)V>+}o?pNmC{O&4W4b!Ni{Lh6"), "node2" },
+    };
+    EXPECT_EQ(expected_known_nodes, config.getKnownNodes());
+}
+
+TEST_F(ConfigTest, testKnownNodesWrongType)
+{
+    in.str(R"EOF(
+known_nodes = "invalid"
+)EOF"s);
+    const auto config = Config {in};
+    EXPECT_TRUE(config.getKnownNodes().empty());
+}
+
+TEST_F(ConfigTest, testKnownNodesMissingPublicKey)
+{
+    in.str(R"EOF(
+known_nodes = {
+  { user_id = "node1" },
+}
+)EOF"s);
+    const auto config = Config {in};
+    EXPECT_TRUE(config.getKnownNodes().empty());
+}
+
+TEST_F(ConfigTest, testKnownNodesInvalidPublicKey)
+{
+    in.str(R"EOF(
+known_nodes = {
+  { public_key = "invalid", user_id = "node1" },
+}
+)EOF"s);
+    const auto config = Config {in};
+    EXPECT_TRUE(config.getKnownNodes().empty());
 }
 
 TEST_F(ConfigTest, testParseGameConfig)
@@ -201,8 +249,8 @@ game {
         BridgeGameConfig::PeerConfig { "test-endpoint-2"s, {} },
     };
     EXPECT_EQ(expected_peers, games.front().peers);
-    const auto& known_peers = config.getKnownPeers();
-    EXPECT_TRUE(known_peers.find(decoded_key) != known_peers.end());
+    const auto& known_nodes = config.getKnownNodes();
+    EXPECT_TRUE(known_nodes.find(decoded_key) != known_nodes.end());
 }
 
 TEST_F(ConfigTest, testParseGameConfigPeersInvalidPeer)
