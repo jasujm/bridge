@@ -26,6 +26,18 @@ constexpr auto N_CARDS = 52;
  */
 constexpr auto N_CARDS_PER_PLAYER = N_CARDS / N_PLAYERS; // 13
 
+/** \brief Number of unique bids
+ *
+ * There are five strains, and seven levels, for a total of 35
+ */
+constexpr auto N_BIDS = 35;
+
+/** \brief Number of unique calls
+ *
+ * There are 35 bids, pass, double and redouble
+ */
+constexpr auto N_CALLS = N_BIDS + 3;
+
 }
 
 #endif // BRIDGECONSTANTS_HH_
