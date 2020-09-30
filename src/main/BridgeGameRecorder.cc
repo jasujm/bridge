@@ -22,6 +22,7 @@
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
 #include "main/PeerlessCardProtocol.hh"
+#include "Enumerate.hh"
 #include "Logging.hh"
 #include "Utility.hh"
 
@@ -89,7 +90,6 @@ enum class RecordType : std::uint8_t
 
 enum class PositionRecord : std::uint8_t {};
 enum class CardRecord : std::uint8_t {};
-enum class OptionalCardRecord : std::uint8_t {};
 enum class CallRecord : std::uint8_t {};
 enum class DealConfigRecord : std::uint8_t {};
 using Version = std::uint8_t;
@@ -113,7 +113,7 @@ struct DealRecord {
 
 struct TrickRecord {
     PositionRecord leaderPosition;
-    OptionalCardRecord cards[Trick::N_CARDS_IN_TRICK];
+    CardRecord cards[Trick::N_CARDS_IN_TRICK];
 } BRIDGE_PACKED;
 
 auto recordKey(const Uuid& dealUuid, RecordType type)
@@ -188,24 +188,6 @@ template<typename Iterator>
 auto unpackCardIterator(Iterator iter)
 {
     return boost::make_transform_iterator(iter, &unpackCard);
-}
-
-OptionalCardRecord packOptionalCard(const std::optional<CardType>& card)
-{
-    if (card) {
-        const auto packed_card = static_cast<std::uint8_t>(packCard(*card));
-        return static_cast<OptionalCardRecord>(0x80 | packed_card);
-    }
-    return OptionalCardRecord {0};
-}
-
-std::optional<CardType> unpackOptionalCard(const OptionalCardRecord card)
-{
-    const auto card_ = static_cast<std::uint8_t>(card);
-    if (card_ & 0x80) {
-        return unpackCard(static_cast<CardRecord>(card_ & 0x7f));
-    }
-    return std::nullopt;
 }
 
 PositionRecord packPosition(const Position position)
@@ -409,12 +391,14 @@ public:
     RecordedTrick(
         const std::vector<SimpleCard>& cards,
         const std::array<RecordedHand, N_PLAYERS>& hands,
-        const TrickRecord& record);
+        const TrickRecord& record,
+        int nCardsInTrick);
 
 private:
 
     auto initializeCards(
-        const std::vector<SimpleCard>& cards, const TrickRecord& record);
+        const std::vector<SimpleCard>& cards, const TrickRecord& record,
+        int nCardsInTrick);
 
     void handleAddCardToTrick(const Card&) override;
     int handleGetNumberOfCardsPlayed() const override;
@@ -428,18 +412,17 @@ private:
 };
 
 auto RecordedTrick::initializeCards(
-    const std::vector<SimpleCard>& cards, const TrickRecord& record)
+    const std::vector<SimpleCard>& cards, const TrickRecord& record,
+    const int nCardsInTrick)
 {
     std::array<const Card*, N_CARDS_IN_TRICK> ret {};
-    for (const auto n : to(ret.size())) {
-        if (const auto& ct = unpackOptionalCard(record.cards[n])) {
-            const auto iter = std::find_if(
-                cards.begin(), cards.end(),
-                [&ct](const auto& c) { return *ct == c.getType(); });
-            assert(iter != cards.end());
-            ret[n] = std::addressof(*iter);
-        }
-
+    for (const auto n : to(nCardsInTrick)) {
+        const auto ct = unpackCard(record.cards[n]);
+        const auto iter = std::find_if(
+            cards.begin(), cards.end(),
+            [&ct](const auto& c) { return ct == c.getType(); });
+        assert(iter != cards.end());
+        ret[n] = std::addressof(*iter);
     }
     return ret;
 }
@@ -447,9 +430,10 @@ auto RecordedTrick::initializeCards(
 RecordedTrick::RecordedTrick(
     const std::vector<SimpleCard>& cards,
     const std::array<RecordedHand, N_PLAYERS>& hands,
-    const TrickRecord& record) :
+    const TrickRecord& record,
+    const int nCardsInTrick) :
     leaderPosition {unpackPosition(record.leaderPosition)},
-    cards {initializeCards(cards, record)},
+    cards {initializeCards(cards, record, nCardsInTrick)},
     hands {hands}
 {
 }
@@ -489,12 +473,14 @@ public:
     RecordedDeal(
         const Uuid& uuid, const DealRecord& dealRecord,
         const std::vector<CallRecord>& calls,
-        const std::vector<TrickRecord>& tricks);
+        const std::vector<TrickRecord>& tricks,
+        int nCardsInLastTrick);
 
 private:
 
     auto initializeHand(Position position);
-    auto trickIterator(std::vector<TrickRecord>::const_iterator iter);
+    auto initializeTricks(
+        const std::vector<TrickRecord>& tricks, int nCardsInLastTrick);
 
     DealPhase handleGetPhase() const override;
     const Uuid& handleGetUuid() const override;
@@ -519,19 +505,25 @@ auto RecordedDeal::initializeHand(const Position position)
     return RecordedHand {&cards[n]};
 }
 
-auto RecordedDeal::trickIterator(std::vector<TrickRecord>::const_iterator iter)
+auto RecordedDeal::initializeTricks(
+    const std::vector<TrickRecord>& tricks, const int nCardsInLastTrick)
 {
-    const auto func = [this](const auto& record)
-    {
-        return RecordedTrick {this->cards, this->hands, record};
-    };
-    return boost::make_transform_iterator(iter, func);
+    auto ret = std::vector<RecordedTrick> {};
+    ret.reserve(tricks.size());
+    for (const auto& [n, record] : enumerate(tricks)) {
+        const auto n_cards_in_trick =
+            (n + 1 == tricks.size()) ?
+            nCardsInLastTrick : Trick::N_CARDS_IN_TRICK;
+        ret.emplace_back(this->cards, this->hands, record, n_cards_in_trick);
+    }
+    return ret;
 }
 
 RecordedDeal::RecordedDeal(
     const Uuid& uuid, const DealRecord& dealRecord,
     const std::vector<CallRecord>& calls,
-    const std::vector<TrickRecord>& tricks) :
+    const std::vector<TrickRecord>& tricks,
+    const int nCardsInLastTrick) :
     uuid {uuid},
     cards(
         unpackCardIterator(std::begin(dealRecord.cards)),
@@ -544,7 +536,7 @@ RecordedDeal::RecordedDeal(
     },
     vulnerability {unpackDealConfig(dealRecord.config).second},
     bidding {unpackDealConfig(dealRecord.config).first, calls},
-    tricks(trickIterator(tricks.begin()), trickIterator(tricks.end()))
+    tricks {initializeTricks(tricks, nCardsInLastTrick)}
 {
 }
 
@@ -720,7 +712,7 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
         n_cards_in_latest_trick = trick.getNumberOfCardsPlayed();
         for (const auto m : to(n_cards_in_latest_trick)) {
             const auto& card = dereference(trick.getCard(m));
-            tricks_record[n].cards[m] = packOptionalCard(card.getType());
+            tricks_record[n].cards[m] = packCard(dereference(card.getType()));
         }
     }
     // We don't record the unplayed cards in the last trick, so for every card
@@ -779,7 +771,7 @@ void BridgeGameRecorder::recordCard(
 {
 #if WITH_RECORDER
     assert(impl);
-    const auto packed_card = packOptionalCard(card);
+    const auto packed_card = packCard(card);
     impl->merge(
         recordKey(dealUuid, RecordType::TRICKS),
         rocksdb::Slice {
@@ -879,6 +871,8 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
     const auto n_tricks_in_record =
         (serialized_record.size() + sizeof(TrickRecord) - 1) /
         sizeof(TrickRecord);
+    const auto n_cards_in_last_trick =
+        (serialized_record.size() - 1) % sizeof(TrickRecord);
     auto tricks_record = std::vector<TrickRecord>(
         n_tricks_in_record, TrickRecord {});
     static_assert( std::is_trivially_copyable_v<TrickRecord> );
@@ -891,7 +885,8 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
     return DealState {
         std::make_unique<RecordedDeal>(
             dealUuid, deal_record, std::move(calls_record),
-            std::move(tricks_record)),
+            std::move(tricks_record),
+            n_cards_in_last_trick),
         std::make_unique<PeerlessCardProtocol>(
             unpackCardIterator(std::begin(deal_record.cards)),
             unpackCardIterator(std::end(deal_record.cards))),
