@@ -12,8 +12,10 @@
 
 #include "bridge/Bidding.hh"
 #include "bridge/BridgeConstants.hh"
+#include "bridge/CallIterator.hh"
 #include "bridge/Card.hh"
 #include "bridge/CardType.hh"
+#include "bridge/CardTypeIterator.hh"
 #include "bridge/Deal.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Position.hh"
@@ -169,19 +171,12 @@ BridgeGameRecorder::GameState unpackGameState(const GameStateRecord& state)
 
 CardRecord packCard(const CardType& card)
 {
-    const auto packed_rank = static_cast<std::uint8_t>(card.rank.get());
-    const auto packed_suit = static_cast<std::uint8_t>(card.suit.get());
-    return static_cast<CardRecord>(packed_rank << 3 | packed_suit);
+    return static_cast<CardRecord>(cardTypeIndex(card));
 }
 
 CardType unpackCard(CardRecord card)
 {
-    const auto card_ = static_cast<std::uint8_t>(card);
-    const auto packed_rank = (card_ & 0xf8) >> 3;
-    const auto packed_suit = card_ & 0x07;
-    return CardType {
-        static_cast<RankLabel>(packed_rank),
-        static_cast<SuitLabel>(packed_suit)};
+    return enumerateCardType(static_cast<int>(card));
 }
 
 template<typename Iterator>
@@ -200,41 +195,14 @@ Position unpackPosition(const PositionRecord position)
     return static_cast<PositionLabel>(position);
 }
 
-struct PackCallVisitor {
-    CallRecord operator()(Pass) { return CallRecord {0x80}; }
-    CallRecord operator()(Double) { return CallRecord {0x81}; }
-    CallRecord operator()(Redouble) { return CallRecord {0x82}; }
-    CallRecord operator()(const Bid& bid)
-    {
-        const auto packed_level = static_cast<std::uint8_t>(bid.level);
-        const auto packed_strain = static_cast<std::uint8_t>(bid.strain.get());
-        return static_cast<CallRecord>(packed_level << 4 | packed_strain);
-    }
-};
-
 CallRecord packCall(const Call& call)
 {
-    return std::visit(PackCallVisitor {}, call);
+    return static_cast<CallRecord>(callIndex(call));
 }
 
 Call unpackCall(const CallRecord call)
 {
-    const auto call_ = static_cast<std::uint8_t>(call);
-    if (call_ & 0x80) {
-        switch (call_ & 0x7f) {
-        case 0:
-            return Pass {};
-        case 1:
-            return Double {};
-        case 2:
-            return Redouble {};
-        }
-        throw std::runtime_error {"Unexpected call record"};
-    } else {
-        const auto packed_level = (call_ & 0xf0) >> 4;
-        const auto packed_strain = call_ & 0x0f;
-        return Bid {packed_level, static_cast<StrainLabel>(packed_strain)};
-    }
+    return enumerateCall(static_cast<int>(call));
 }
 
 template<typename Iterator>
