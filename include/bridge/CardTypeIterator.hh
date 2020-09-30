@@ -13,7 +13,17 @@
 
 namespace Bridge {
 
-/** \brief Convert integer into a card type
+/** \brief Convert a card type to an integer
+ *
+ * This function is the inverse of enumerateCardType()
+ *
+ * \param card A card type
+ *
+ * \return An integer \c n such that <tt>enumerateCardType(n) == card</tt>
+ */
+int cardTypeIndex(const CardType& card);
+
+/** \brief Convert an integer to a card type
  *
  * This function can be used to enumerate card types
  *
@@ -30,7 +40,7 @@ CardType enumerateCardType(int n);
  * Cards are iterated in the same order as returned by enumerateCardType()
  * function.
  *
- * Example for creating vector containing all cards:
+ * Example of creating a vector containing all cards:
  *
  * \code{.cc}
  * std::vector<CardType> cards(cardTypeIterator(0), cardTypeIterator(N_CARDS));
