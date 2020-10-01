@@ -29,7 +29,6 @@
 #include "Utility.hh"
 
 #include <boost/iterator/transform_iterator.hpp>
-#include <boost/range/adaptors.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
 #if WITH_RECORDER
