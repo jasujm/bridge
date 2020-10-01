@@ -97,7 +97,6 @@ enum class DealConfigRecord : std::uint8_t {};
 using Version = std::uint8_t;
 
 struct GameStateRecord {
-    std::uint8_t flags;
     Uuid playerUuids[4];
     Uuid dealUuid;
 } BRIDGE_PACKED;
@@ -144,12 +143,10 @@ GameStateRecord packGameState(const BridgeGameRecorder::GameState& state)
     auto ret = GameStateRecord {};
     for (const auto n : to(N_PLAYERS)) {
         if (const auto& u = state.playerUuids[n]) {
-            ret.flags |= (1 << n);
             ret.playerUuids[n] = *u;
         }
     }
     if (const auto& u = state.dealUuid) {
-        ret.flags |= 0x10;
         ret.dealUuid = *u;
     }
     return ret;
@@ -159,11 +156,11 @@ BridgeGameRecorder::GameState unpackGameState(const GameStateRecord& state)
 {
     auto ret = BridgeGameRecorder::GameState {};
     for (const auto n : to(N_PLAYERS)) {
-        if (state.flags & (1 << n)) {
+        if (!state.playerUuids[n].is_nil()) {
             ret.playerUuids[n] = state.playerUuids[n];
         }
     }
-    if (state.flags & 0x10) {
+    if (!state.dealUuid.is_nil()) {
         ret.dealUuid = state.dealUuid;
     }
     return ret;
