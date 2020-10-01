@@ -36,6 +36,7 @@
 #include <rocksdb/merge_operator.h>
 #endif // WITH_RECORDER
 
+#include <array>
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
@@ -48,9 +49,25 @@ namespace Main {
 
 namespace {
 
-const auto DB_ERROR_MSG = std::string {"Failed to open database: "};
+enum class RecordType {
+    DEFAULT,
+    GAME,
+    DEAL,
+    BIDDING,
+    TRICKS,
+    PLAYER,
+};
 
-constexpr auto RECORD_VERSION = 1;
+const auto COLUMN_FAMILY_NAMES = std::array {
+    // Default missing here. Otherwise must match the enumerators above.
+    std::string {"game_v1"},
+    std::string {"deal_v1"},
+    std::string {"bidding_v1"},
+    std::string {"tricks_v1"},
+    std::string {"player_v1"},
+};
+
+const auto DB_ERROR_MSG = std::string {"Failed to open database: "};
 
 class BridgeRecorderMergeOperator : public rocksdb::AssociativeMergeOperator {
 public:
@@ -80,33 +97,17 @@ const char* BridgeRecorderMergeOperator::Name() const
     return "BridgeRecorderOperator";
 }
 
-enum class RecordType : std::uint8_t
-{
-    GAME = 0,
-    DEAL = 16,
-    BIDDING = 17,
-    TRICKS = 18,
-    PLAYER = 32,
-};
-
 enum class PositionRecord : std::uint8_t {};
 enum class CardRecord : std::uint8_t {};
 enum class CallRecord : std::uint8_t {};
 enum class DealConfigRecord : std::uint8_t {};
-using Version = std::uint8_t;
 
-struct GameStateRecord {
+struct GameRecord {
     Uuid playerUuids[4];
     Uuid dealUuid;
 } BRIDGE_PACKED;
 
-struct GameRecord {
-    Version version;
-    GameStateRecord state;
-} BRIDGE_PACKED;
-
 struct DealRecord {
-    Version version;
     CardRecord cards[N_CARDS];
     DealConfigRecord config;
 } BRIDGE_PACKED;
@@ -116,53 +117,9 @@ struct TrickRecord {
     CardRecord cards[Trick::N_CARDS_IN_TRICK];
 } BRIDGE_PACKED;
 
-auto recordKey(const Uuid& dealUuid, RecordType type)
+rocksdb::Slice uuidKey(const Uuid& uuid)
 {
-    auto ret = std::string(sizeof(Uuid) + sizeof(RecordType), '\0');
-    std::memmove(ret.data(), &dealUuid, sizeof(Uuid));
-    std::memmove(ret.data() + sizeof(Uuid), &type, sizeof(RecordType));
-    return ret;
-}
-
-auto makeDb(const std::string& path)
-{
-    rocksdb::DB* db;
-    rocksdb::Options options;
-    options.create_if_missing = true;
-    options.merge_operator = std::make_shared<BridgeRecorderMergeOperator>();
-    rocksdb::Status status = rocksdb::DB::Open(options, path, &db);
-    if (!status.ok()) {
-        throw std::runtime_error {DB_ERROR_MSG + status.ToString()};
-    }
-    return std::unique_ptr<rocksdb::DB> {db};
-}
-
-GameStateRecord packGameState(const BridgeGameRecorder::GameState& state)
-{
-    auto ret = GameStateRecord {};
-    for (const auto n : to(N_PLAYERS)) {
-        if (const auto& u = state.playerUuids[n]) {
-            ret.playerUuids[n] = *u;
-        }
-    }
-    if (const auto& u = state.dealUuid) {
-        ret.dealUuid = *u;
-    }
-    return ret;
-}
-
-BridgeGameRecorder::GameState unpackGameState(const GameStateRecord& state)
-{
-    auto ret = BridgeGameRecorder::GameState {};
-    for (const auto n : to(N_PLAYERS)) {
-        if (!state.playerUuids[n].is_nil()) {
-            ret.playerUuids[n] = state.playerUuids[n];
-        }
-    }
-    if (!state.dealUuid.is_nil()) {
-        ret.dealUuid = state.dealUuid;
-    }
-    return ret;
+    return {reinterpret_cast<const char*>(&uuid), sizeof(Uuid)};
 }
 
 CardRecord packCard(const CardType& card)
@@ -563,46 +520,105 @@ const Trick& RecordedDeal::handleGetTrick(const int n) const
 
 class BridgeGameRecorder::Impl {
 public:
-    Impl(const std::string_view path);
+    Impl(const std::string& path);
+    ~Impl();
 
     template<typename... Args>
-    void put(Args&&... args);
+    void put(RecordType recordType, const Uuid& uuid, Args&&... args);
 
     template<typename... Args>
-    [[nodiscard]] auto get(Args&&... args);
+    [[nodiscard]] auto get(
+        RecordType recordType, const Uuid& uuid, Args&&... args);
 
     template<typename... Args>
-    void merge(Args&&... args);
+    void merge(RecordType recordType, const Uuid& uuid, Args&&... args);
 
 private:
 
+    rocksdb::ColumnFamilyHandle*
+    internalGetColumnFamilyHandle(RecordType recordType);
+
     std::unique_ptr<rocksdb::DB> db;
+    std::vector<rocksdb::ColumnFamilyHandle*> columnFamilyHandles;
 };
 
-BridgeGameRecorder::Impl::Impl(const std::string_view path) :
-    db {makeDb(std::string {path})}
+BridgeGameRecorder::Impl::Impl(const std::string& path)
 {
+    auto db = static_cast<rocksdb::DB*>(nullptr);
+    auto options = rocksdb::Options {};
+    options.create_if_missing = true;
+    options.create_missing_column_families = true;
+    options.merge_operator = std::make_shared<BridgeRecorderMergeOperator>();
+    auto column_families = std::vector<rocksdb::ColumnFamilyDescriptor> {};
+    column_families.emplace_back(); // this is the default column family
+    for (const auto& name : COLUMN_FAMILY_NAMES) {
+        column_families.emplace_back(name, options);
+    }
+    const auto status = rocksdb::DB::Open(
+        options, path, column_families, &columnFamilyHandles, &db);
+    if (!status.ok()) {
+        throw std::runtime_error {DB_ERROR_MSG + status.ToString()};
+    }
+    this->db.reset(db);
+}
+
+BridgeGameRecorder::Impl::~Impl()
+{
+    assert(db);
+    for (auto handle : columnFamilyHandles) {
+        const auto status = db->DestroyColumnFamilyHandle(handle);
+        assert(status.ok());
+    }
 }
 
 template<typename... Args>
-void BridgeGameRecorder::Impl::put(Args&&... args)
+void BridgeGameRecorder::Impl::put(
+    const RecordType recordType, const Uuid& uuid, Args&&... args)
 {
     assert(db);
-    db->Put(rocksdb::WriteOptions(), std::forward<Args>(args)...);
+    const auto handle = internalGetColumnFamilyHandle(recordType);
+    const auto key = uuidKey(uuid);
+    const auto status = db->Put(
+        rocksdb::WriteOptions {}, handle, key, std::forward<Args>(args)...);
+    if (!status.ok()) {
+        log(LogLevel::WARNING,
+            "Failed database put operation: %s", status.ToString());
+    }
 }
 
 template<typename... Args>
-auto BridgeGameRecorder::Impl::get(Args&&... args)
+auto BridgeGameRecorder::Impl::get(
+    RecordType recordType, const Uuid& uuid, Args&&... args)
 {
     assert(db);
-    return db->Get(rocksdb::ReadOptions(), std::forward<Args>(args)...);
+    const auto handle = internalGetColumnFamilyHandle(recordType);
+    const auto key = uuidKey(uuid);
+    return db->Get(
+        rocksdb::ReadOptions {}, handle, key, std::forward<Args>(args)...);
 }
 
 template<typename... Args>
-void BridgeGameRecorder::Impl::merge(Args&&... args)
+void BridgeGameRecorder::Impl::merge(
+    RecordType recordType, const Uuid& uuid, Args&&... args)
 {
     assert(db);
-    db->Merge(rocksdb::WriteOptions(), std::forward<Args>(args)...);
+    const auto handle = internalGetColumnFamilyHandle(recordType);
+    const auto key = uuidKey(uuid);
+    const auto status = db->Merge(
+        rocksdb::WriteOptions {}, handle, key, std::forward<Args>(args)...);
+    if (!status.ok()) {
+        log(LogLevel::WARNING,
+            "Failed database merge operation: %s", status.ToString());
+    }
+}
+
+rocksdb::ColumnFamilyHandle*
+BridgeGameRecorder::Impl::internalGetColumnFamilyHandle(
+    const RecordType recordType)
+{
+    const auto n = static_cast<int>(recordType);
+    assert(0 <= n && n < ssize(columnFamilyHandles));
+    return columnFamilyHandles[n];
 }
 
 #else // WITH_RECORDER
@@ -614,7 +630,7 @@ struct BridgeGameRecorder::Impl {
 #endif // WITH_RECORDER
 
 BridgeGameRecorder::BridgeGameRecorder(const std::string_view path) :
-    impl {std::make_unique<Impl>(path)}
+    impl {std::make_unique<Impl>(std::string {path})}
 {
 }
 
@@ -627,11 +643,16 @@ void BridgeGameRecorder::recordGame(
 #if WITH_RECORDER
     assert(impl);
     auto game_record = GameRecord {};
-    game_record.version = RECORD_VERSION;
-    game_record.state = packGameState(gameState);
+    for (const auto n : to(N_PLAYERS)) {
+        if (const auto& u = gameState.playerUuids[n]) {
+            game_record.playerUuids[n] = *u;
+        }
+    }
+    if (const auto& u = gameState.dealUuid) {
+        game_record.dealUuid = *u;
+    }
     impl->put(
-        recordKey(gameUuid, RecordType::GAME),
-        rocksdb::Slice {
+        RecordType::GAME, gameUuid, rocksdb::Slice {
             reinterpret_cast<const char*>(&game_record), sizeof(GameRecord)});
 #endif // WITH_RECORDER
 }
@@ -644,15 +665,13 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
     const auto& bidding = deal.getBidding();
 
     auto deal_record = DealRecord {};
-    deal_record.version = RECORD_VERSION;
     for (const auto n : to(N_CARDS)) {
         deal_record.cards[n] = packCard(dereference(deal.getCard(n).getType()));
     }
     deal_record.config = packDealConfig(
         bidding.getOpeningPosition(), deal.getVulnerability());
     impl->put(
-        recordKey(deal_uuid, RecordType::DEAL),
-        rocksdb::Slice {
+        RecordType::DEAL, deal_uuid, rocksdb::Slice {
             reinterpret_cast<const char*>(&deal_record), sizeof(DealRecord)});
 
     const auto n_calls = bidding.getNumberOfCalls();
@@ -661,8 +680,7 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
         calls_record[n] = packCall(bidding.getCall(n));
     }
     impl->put(
-        recordKey(deal_uuid, RecordType::BIDDING),
-        rocksdb::Slice {
+        RecordType::BIDDING, deal_uuid, rocksdb::Slice {
             reinterpret_cast<const char*>(calls_record.data()),
             static_cast<std::size_t>(n_calls)});
 
@@ -684,8 +702,7 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
     const auto n_recorded_bytes = sizeof(TrickRecord) * n_tricks -
         sizeof(CardRecord) * (Trick::N_CARDS_IN_TRICK - n_cards_in_latest_trick);
     impl->put(
-        recordKey(deal_uuid, RecordType::TRICKS),
-        rocksdb::Slice {
+        RecordType::TRICKS, deal_uuid, rocksdb::Slice {
             reinterpret_cast<const char*>(tricks_record.data()),
             n_recorded_bytes});
 #endif // WITH_RECORDER
@@ -697,8 +714,7 @@ void BridgeGameRecorder::recordPlayer(
 {
 #if WITH_RECORDER
     assert(impl);
-    auto serialized_record = static_cast<char>(RECORD_VERSION) + std::string {userId};
-    impl->put(recordKey(playerUuid, RecordType::PLAYER), serialized_record);
+    impl->put(RecordType::PLAYER, playerUuid, userId);
 #endif // WITH_RECORDER
 }
 
@@ -709,8 +725,7 @@ void BridgeGameRecorder::recordCall(
     assert(impl);
     const auto packed_call = packCall(call);
     impl->merge(
-        recordKey(dealUuid, RecordType::BIDDING),
-        rocksdb::Slice {
+        RecordType::BIDDING, dealUuid, rocksdb::Slice {
             reinterpret_cast<const char*>(&packed_call), sizeof(packed_call)});
 #endif // WITH_RECORDER
 }
@@ -723,9 +738,9 @@ void BridgeGameRecorder::recordTrick(
     assert(impl);
     const auto packed_leader_position = packPosition(leaderPosition);
     impl->merge(
-        recordKey(dealUuid, RecordType::TRICKS),
-        rocksdb::Slice {
-            reinterpret_cast<const char*>(&packed_leader_position), sizeof(packed_leader_position)});
+        RecordType::TRICKS, dealUuid, rocksdb::Slice {
+            reinterpret_cast<const char*>(&packed_leader_position),
+            sizeof(packed_leader_position)});
 #endif // WITH_RECORDER
 }
 
@@ -737,8 +752,7 @@ void BridgeGameRecorder::recordCard(
     assert(impl);
     const auto packed_card = packCard(card);
     impl->merge(
-        recordKey(dealUuid, RecordType::TRICKS),
-        rocksdb::Slice {
+        RecordType::TRICKS, dealUuid, rocksdb::Slice {
             reinterpret_cast<const char*>(&packed_card), sizeof(packed_card)});
 #endif // WITH_RECORDER
 }
@@ -750,7 +764,7 @@ BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
     assert(impl);
     auto serialized_record = std::string {};
     const auto status = impl->get(
-        recordKey(gameUuid, RecordType::GAME), &serialized_record);
+        RecordType::GAME, gameUuid, &serialized_record);
     if (!status.ok()) {
         if (!status.IsNotFound()) {
             log(LogLevel::WARNING, "Error while recalling game %s: %s",
@@ -766,13 +780,16 @@ BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
     static_assert( std::is_trivially_copyable_v<GameRecord> );
     auto game_record = GameRecord {};
     std::memmove(&game_record, serialized_record.data(), sizeof(GameRecord));
-    if (game_record.version != RECORD_VERSION) {
-        log(LogLevel::WARNING,
-            "Unexpected record version %d while recalling game %s",
-            game_record.version, gameUuid);
-        return std::nullopt;
+    auto game_state = BridgeGameRecorder::GameState {};
+    for (const auto n : to(N_PLAYERS)) {
+        if (!game_record.playerUuids[n].is_nil()) {
+            game_state.playerUuids[n] = game_record.playerUuids[n];
+        }
     }
-    return unpackGameState(game_record.state);
+    if (!game_record.dealUuid.is_nil()) {
+        game_state.dealUuid = game_record.dealUuid;
+    }
+    return game_state;
 #else // WITH_RECORDER
     return std::nullopt;
 #endif // WITH_RECORDER
@@ -785,7 +802,7 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
     assert(impl);
     auto serialized_record = std::string {};
     auto status = impl->get(
-        recordKey(dealUuid, RecordType::DEAL), &serialized_record);
+        RecordType::DEAL, dealUuid, &serialized_record);
     if (!status.ok()) {
         if (!status.IsNotFound()) {
             log(LogLevel::WARNING, "Error while recalling deal %s: %s",
@@ -801,15 +818,9 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
     auto deal_record = DealRecord {};
     static_assert( std::is_trivially_copyable_v<DealRecord> );
     std::memmove(&deal_record, serialized_record.data(), sizeof(DealRecord));
-    if (deal_record.version != RECORD_VERSION) {
-        log(LogLevel::WARNING,
-            "Unexpected record version %d while recalling deal %s",
-            deal_record.version, dealUuid);
-        return std::nullopt;
-    }
 
     status = impl->get(
-        recordKey(dealUuid, RecordType::BIDDING), &serialized_record);
+        RecordType::BIDDING, dealUuid, &serialized_record);
     if (!status.ok()) {
         log(LogLevel::WARNING, "Error while recalling bidding in deal %s: %s",
             dealUuid, status.ToString());
@@ -824,7 +835,7 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
         serialized_record.size());
 
     status = impl->get(
-        recordKey(dealUuid, RecordType::TRICKS), &serialized_record);
+        RecordType::TRICKS, dealUuid, &serialized_record);
     if (!status.ok()) {
         log(LogLevel::WARNING, "Error while recalling tricks in deal %s: %s",
             dealUuid, status.ToString());
@@ -867,9 +878,8 @@ BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
 {
 #if WITH_RECORDER
     assert(impl);
-    auto serialized_record = std::string {};
-    const auto status = impl->get(
-        recordKey(playerUuid, RecordType::PLAYER), &serialized_record);
+    auto user_id = Bridge::Messaging::UserId {};
+    const auto status = impl->get(RecordType::PLAYER, playerUuid, &user_id);
     if (!status.ok()) {
         if (!status.IsNotFound()) {
             log(LogLevel::WARNING, "Error while recalling player %s: %s",
@@ -877,21 +887,7 @@ BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
         }
         return std::nullopt;
     }
-    if (serialized_record.size() < sizeof(Version)) {
-        log(LogLevel::WARNING,
-            "Unexpected record size while recalling player %s", playerUuid);
-        return std::nullopt;
-    }
-    const auto version = static_cast<Version>(serialized_record[0]);
-    if (version != RECORD_VERSION) {
-        log(LogLevel::WARNING,
-            "Unexpected record version %d while recalling player %s",
-            version, playerUuid);
-        return std::nullopt;
-    }
-    return Messaging::UserId(
-        serialized_record.data() + sizeof(Version),
-        serialized_record.size() - sizeof(Version));
+    return user_id;
 #else // WITH_RECORDER
     return std::nullopt;
 #endif // WITH_RECORDER
