@@ -81,6 +81,15 @@
  * CURVE mechanism is used, identity derived from the public key SHOULD be used
  * for authorization.
  *
+ * \section Universally unique identifiers
+ *
+ * Games, deals and players are identified by UUIDs. Some commands allow clients
+ * and peers to generate their own UUIDs for objects they wish to create. The
+ * nil UUIDs (00000000-0000-0000-0000-000000000000) is reserved for the
+ * implementation and SHOULD NOT be used to identify valid objects. Unless
+ * specified otherwise, a peer receiving nil UUID as an argument to a command
+ * MAY reject and fail the command.
+ *
  * \section bridgeprotocolbasics Basics
  *
  * The bridge protocol framing is built on top of ZMTP frames.

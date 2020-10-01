@@ -73,6 +73,16 @@ auto initializeBridgeGameRecorder(std::optional<std::string_view> path)
     return std::shared_ptr<BridgeGameRecorder> {};
 }
 
+bool isValidUuidArg(const Uuid& uuid)
+{
+    return !uuid.is_nil();
+}
+
+bool isValidUuidArg(const std::optional<Uuid>& uuid)
+{
+    return !uuid || isValidUuidArg(*uuid);
+}
+
 using namespace std::string_view_literals;
 const auto VERSION = "0.1"sv;
 const auto PEER_ROLE = "peer"sv;
@@ -279,6 +289,10 @@ Reply<Uuid> BridgeMain::Impl::game(
     log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
         identity, gameUuid, args);
 
+    if (!isValidUuidArg(gameUuid)) {
+        return failure();
+    }
+
     const auto iter = nodes.find(identity);
     if (iter != nodes.end()) {
         if (iter->second == Role::PEER && gameUuid && args) {
@@ -314,6 +328,10 @@ Reply<Uuid> BridgeMain::Impl::join(
 {
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         identity, gameUuid, playerUuid, position);
+
+    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+        return failure();
+    }
 
     if (auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto iter = nodes.find(identity);
@@ -363,6 +381,10 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
 
+    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+        return failure();
+    }
+
     const auto node_iter = nodes.find(identity);
     if (node_iter == nodes.end() || node_iter->second == Role::PEER) {
         return failure();
@@ -382,6 +404,11 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
+
+    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+        return failure();
+    }
+
     if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->call(identity, *player, call)) {
@@ -398,6 +425,11 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
+
+    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+        return failure();
+    }
+
     if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         const auto game = internalGetGame(gameUuid);
         if (game && game->play(identity, *player, card, index)) {
