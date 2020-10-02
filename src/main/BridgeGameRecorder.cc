@@ -433,7 +433,7 @@ auto RecordedDeal::initializeTricks(
     ret.reserve(tricks.size());
     for (const auto& [n, record] : enumerate(tricks)) {
         const auto n_cards_in_trick =
-            (n + 1 == tricks.size()) ?
+            (n + 1 == ssize(tricks)) ?
             nCardsInLastTrick : Trick::N_CARDS_IN_TRICK;
         ret.emplace_back(this->cards, this->hands, record, n_cards_in_trick);
     }

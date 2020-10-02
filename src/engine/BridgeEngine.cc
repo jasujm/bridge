@@ -222,8 +222,8 @@ private:
     const std::shared_ptr<CardManager> cardManager;
     const std::shared_ptr<GameManager> gameManager;
     std::vector<std::shared_ptr<Player>> players;
-    std::shared_ptr<Hand> lockedHand;
     std::unique_ptr<const Deal> recalledDeal;
+    std::shared_ptr<Hand> lockedHand;
     Observable<DealStarted> dealStartedNotifier;
     Observable<TurnStarted> turnStartedNotifier;
     Observable<CallMade> callMadeNotifier;
@@ -241,8 +241,8 @@ BridgeEngine::Impl::Impl(
     std::unique_ptr<const Deal> deal) :
     cardManager {std::move(cardManager)},
     gameManager {std::move(gameManager)},
-    recalledDeal {std::move(deal)},
-    players(Position::size())
+    players(Position::size()),
+    recalledDeal {std::move(deal)}
 {
 }
 
