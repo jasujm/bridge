@@ -126,6 +126,10 @@ private:
         const std::optional<int>& index);
 
     BridgeGame* internalGetGame(const Uuid& gameUuid);
+    BridgeGame* internalCreateGameFromRecord(
+        const Uuid& gameUuid,
+        BridgeGameRecorder::GameState&& gameState,
+        BridgeGameRecorder::DealState&& dealState);
     std::shared_ptr<Player> internalGetOrCreatePlayer(
         const UserId& userId, const Uuid& playerUuid);
 
@@ -444,38 +448,50 @@ BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
     if (iter != games.end()) {
         return &iter->second;
     } else if (recorder) {
-        const auto game_state = recorder->recallGame(gameUuid);
-        if (const auto& deal_uuid = game_state->dealUuid) {
-            if (auto deal_record = recorder->recallDeal(*deal_uuid)) {
-                auto& [deal, card_protocol, game_manager] = *deal_record;
-                auto players = BridgeGame::PositionPlayerMap {};
-                for (const auto [n, position] : enumerate(Position::all())) {
-                    if (const auto& player_uuid = game_state->playerUuids[n]) {
-                        const auto user_id = recordPlayers ?
-                            recorder->recallPlayer(*player_uuid) :
-                            std::optional<UserId> {};
-                        auto player = internalGetOrCreatePlayer(
-                            user_id ? *user_id : UserId {}, *player_uuid);
-                        players.emplace(position, std::move(player));
+        if (auto game_state = recorder->recallGame(gameUuid)) {
+            if (const auto& deal_uuid = game_state->dealUuid) {
+                if (auto deal_state = recorder->recallDeal(*deal_uuid)) {
+                    try {
+                        return internalCreateGameFromRecord(
+                            gameUuid, std::move(*game_state),
+                            std::move(*deal_state));
+                    } catch (const Engine::BridgeEngineFailure& e) {
+                        log(LogLevel::WARNING,
+                            "Error encountered when recalling deal %s",
+                            *deal_uuid);
                     }
-                }
-                try {
-                    auto&& game = games.emplace(
-                        std::piecewise_construct,
-                        std::tuple {gameUuid},
-                        std::tuple {
-                            gameUuid, eventSocket, std::move(card_protocol),
-                            std::move(game_manager), callbackScheduler,
-                            recorder, std::move(deal), std::move(players)});
-                    return &game.first->second;
-                } catch (const Engine::BridgeEngineFailure& e) {
-                    log(LogLevel::WARNING,
-                        "Error encountered when recalling deal %s", *deal_uuid);
                 }
             }
         }
     }
     return nullptr;
+}
+
+BridgeGame* BridgeMain::Impl::internalCreateGameFromRecord(
+    const Uuid& gameUuid,
+    BridgeGameRecorder::GameState&& gameState,
+    BridgeGameRecorder::DealState&& dealState)
+{
+    auto& [deal, card_protocol, game_manager] = dealState;
+    auto players = BridgeGame::PositionPlayerMap {};
+    for (const auto [n, position] : enumerate(Position::all())) {
+        if (const auto& player_uuid = gameState.playerUuids[n]) {
+            const auto user_id = recordPlayers ?
+                recorder->recallPlayer(*player_uuid) :
+                std::optional<UserId> {};
+            auto player = internalGetOrCreatePlayer(
+                user_id ? *user_id : UserId {}, *player_uuid);
+            players.emplace(position, std::move(player));
+        }
+    }
+    auto&& game = games.emplace(
+        std::piecewise_construct,
+        std::tuple {gameUuid},
+        std::tuple {
+            gameUuid, eventSocket, std::move(card_protocol),
+            std::move(game_manager), callbackScheduler, recorder,
+            std::move(deal), std::move(players)});
+    return &game.first->second;
 }
 
 std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
