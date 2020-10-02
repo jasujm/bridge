@@ -18,9 +18,17 @@ namespace Bridge {
  */
 using UuidGenerator = boost::uuids::basic_random_generator<Rng>;
 
-/** \brief Return a newly created UUID generator
+/** \brief Get reference to the global UUID generator
+ *
+ * \return Reference to the global UUID generator
  */
-UuidGenerator createUuidGenerator();
+UuidGenerator& getUuidGenerator();
+
+/** \brief Generate new UUID using the global generator
+ *
+ * \return A newly created UUID
+ */
+Uuid generateUuid();
 
 }
 

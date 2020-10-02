@@ -130,7 +130,6 @@ private:
         const UserId& userId, const Uuid& playerUuid);
 
     const Config config;
-    UuidGenerator uuidGenerator {createUuidGenerator()};
     std::map<Identity, Role> nodes;
     std::shared_ptr<NodePlayerControl> nodePlayerControl;
     Messaging::SharedSocket eventSocket;
@@ -301,7 +300,7 @@ Reply<Uuid> BridgeMain::Impl::game(
                 return success(*gameUuid);
             }
         } else if (iter->second == Role::CLIENT) {
-            const auto uuid_for_game = gameUuid ? *gameUuid : uuidGenerator();
+            const auto uuid_for_game = gameUuid ? *gameUuid : generateUuid();
             if (internalGetGame(uuid_for_game) == nullptr) {
                 const auto game = games.emplace(
                     std::piecewise_construct,

@@ -1,7 +1,6 @@
 #include "main/NodePlayerControl.hh"
 
 #include "bridge/BasicPlayer.hh"
-#include "bridge/UuidGenerator.hh"
 #include "main/BridgeGameRecorder.hh"
 #include "Utility.hh"
 
@@ -22,7 +21,6 @@ public:
 private:
 
     std::map<Uuid, std::pair<UserId, std::shared_ptr<Player>>> players;
-    UuidGenerator uuidGenerator {createUuidGenerator()};
 };
 
 NodePlayerControl::NodePlayerControl() :

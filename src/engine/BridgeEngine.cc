@@ -33,8 +33,6 @@ namespace Engine {
 
 namespace {
 
-UuidGenerator uuidGenerator;
-
 template<typename T>
 std::optional<Position> getPositionHelper(
     const std::vector<std::shared_ptr<T>> ts, const T& t)
@@ -473,7 +471,7 @@ auto InDeal::internalRecallTrick(const Trick& trick, const Deal& deal)
 
 void InDeal::createNewDeal(const CreateNewDealEvent&)
 {
-    uuid = uuidGenerator();
+    uuid = generateUuid();
     bidding = internalMakeBidding();
     hands = internalMakeHands();
     auto& context = outermost_context();
