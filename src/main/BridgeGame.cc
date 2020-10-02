@@ -384,7 +384,7 @@ CardProtocol& BridgeGame::Impl::getCardProtocol()
 
 void BridgeGame::Impl::startDeal()
 {
-    log(LogLevel::DEBUG, "Starting new deal in game %r", uuid);
+    log(LogLevel::DEBUG, "Starting deal in game %r", uuid);
     engine.startDeal();
     recordGame();
     recordCurrentDeal();
