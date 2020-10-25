@@ -44,9 +44,8 @@ public:
      * The method returns nullptr if \p uuid already exists and is not
      * controlled by \p node.
      *
-     * \param node the identity of the node controlling or representing the
-     * player
-     * \param uuid UUID of the new player
+     * \param node The identity of the node
+     * \param uuid The UUID of the player to test
      * \param recorder An optional recorder for recording and recalling players
      */
     std::shared_ptr<Player> getOrCreatePlayer(
