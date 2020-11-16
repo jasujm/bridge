@@ -79,12 +79,13 @@ bool Bidding::isDoublingAllowed() const
     const auto n_calls = handleGetNumberOfCalls();
     for (const auto n : from_to(n_calls - 1, -1, -1)) {
         const auto call = handleGetCall(n);
-        if (std::holds_alternative<Pass>(call)) {
-            continue;
-        }
         // Opponent bid last
-        else if (std::holds_alternative<Bid>(call)) {
+        if (std::holds_alternative<Bid>(call)) {
             return (n_calls - n) % 2 == 1;
+        }
+        // Doubling not allowed if the last call was double or redouble
+        else if (!std::holds_alternative<Pass>(call)) {
+            return false;
         }
     }
     return false;
@@ -98,12 +99,13 @@ bool Bidding::isRedoublingAllowed() const
     const auto n_calls = handleGetNumberOfCalls();
     for (const auto n : from_to(n_calls - 1, -1, -1)) {
         const auto call = handleGetCall(n);
-        if (std::holds_alternative<Pass>(call)) {
-            continue;
-        }
         // Opponent doubled last
-        else if (std::holds_alternative<Double>(call)) {
+        if (std::holds_alternative<Double>(call)) {
             return (n_calls - n) % 2 == 1;
+        }
+        // Redoubling not allowed if the last call was bid or redouble
+        else if (!std::holds_alternative<Pass>(call)) {
+            return false;
         }
     }
     return false;

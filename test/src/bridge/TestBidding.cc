@@ -262,6 +262,16 @@ TEST_F(BiddingTest, testDoublingPartnerNotAllowed)
     EXPECT_FALSE(bidding.call(Positions::SOUTH, DOUBLE));
 }
 
+TEST_F(BiddingTest, testDoublingAfterRedoubleNotAllowed) {
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(3));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(REDOUBLE));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+    EXPECT_FALSE(bidding.call(Positions::WEST, DOUBLE));
+}
+
 TEST_F(BiddingTest, testRedoubling)
 {
     EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(2));
@@ -281,6 +291,17 @@ TEST_F(BiddingTest, testRedoublingOpponentNotAllowed)
     EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
     EXPECT_FALSE(bidding.isRedoublingAllowed());
     EXPECT_FALSE(bidding.call(Positions::WEST, REDOUBLE));
+}
+
+TEST_F(BiddingTest, testRedoublingAfterRedoubleNotAllowed) {
+    EXPECT_CALL(bidding, handleGetNumberOfCalls()).WillRepeatedly(Return(4));
+    EXPECT_CALL(bidding, handleGetCall(0)).WillRepeatedly(Return(BID));
+    EXPECT_CALL(bidding, handleGetCall(1)).WillRepeatedly(Return(DOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(2)).WillRepeatedly(Return(REDOUBLE));
+    EXPECT_CALL(bidding, handleGetCall(3)).WillRepeatedly(Return(PASS));
+    EXPECT_CALL(bidding, handleAddCall(_)).Times(0);
+    EXPECT_FALSE(bidding.isDoublingAllowed());
+    EXPECT_FALSE(bidding.call(Positions::NORTH, REDOUBLE));
 }
 
 TEST_F(BiddingTest, testCallOutOfTurn)
