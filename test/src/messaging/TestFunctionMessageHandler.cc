@@ -290,6 +290,20 @@ TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
     testHelper(*handler, {}, REPLY_SUCCESS, {});
 }
 
+TEST_F(FunctionMessageHandlerTest, testFailureSuffix)
+{
+    const auto full_status = "ERR:SFX"_BS;
+    const auto suffix = ":SFX"_B;
+    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
+        [this](const auto& identity)
+            {
+                return function.call0(identity);
+            }, MockSerializationPolicy {});
+    EXPECT_CALL(function, call0(IDENTITY)).WillOnce(Return(failure(suffix)));
+    testHelper(*handler, {}, full_status);
+
+}
+
 INSTANTIATE_TEST_SUITE_P(
     SuccessFailure, FunctionMessageHandlerTest,
     Values(REPLY_SUCCESS, REPLY_FAILURE));

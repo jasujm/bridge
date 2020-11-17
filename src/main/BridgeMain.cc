@@ -93,6 +93,9 @@ enum class Role {
     CLIENT
 };
 
+using namespace BlobLiterals;
+const auto UNKNOWN_SUFFIX = ":UNK"_B;
+
 }
 
 class BridgeMain::Impl {
@@ -292,33 +295,35 @@ Reply<Uuid> BridgeMain::Impl::game(
     log(LogLevel::DEBUG, "Game command from %s. Game: %s. Args: %s",
         identity, gameUuid, args);
 
+    const auto iter = nodes.find(identity);
+    if (iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
+
     if (!isValidUuidArg(gameUuid)) {
         return failure();
     }
 
-    const auto iter = nodes.find(identity);
-    if (iter != nodes.end()) {
-        if (iter->second == Role::PEER && gameUuid && args) {
-            const auto game = internalGetGame(*gameUuid);
-            if (game && game->addPeer(identity, *args)) {
-                return success(*gameUuid);
-            }
-        } else if (iter->second == Role::CLIENT) {
-            const auto uuid_for_game = gameUuid ? *gameUuid : generateUuid();
-            if (internalGetGame(uuid_for_game) == nullptr) {
-                const auto game = games.emplace(
-                    std::piecewise_construct,
-                    std::tuple {uuid_for_game},
-                    std::tuple {
-                        uuid_for_game, eventSocket,
-                        std::make_unique<PeerlessCardProtocol>(),
-                        std::make_shared<Engine::DuplicateGameManager>(),
-                        callbackScheduler, recorder});
-                if (game.second) {
-                    auto& game_ = game.first->second;
-                    availableGames.emplace(uuid_for_game, &game_);
-                    return success(uuid_for_game);
-                }
+    if (iter->second == Role::PEER && gameUuid && args) {
+        const auto game = internalGetGame(*gameUuid);
+        if (game && game->addPeer(identity, *args)) {
+            return success(*gameUuid);
+        }
+    } else if (iter->second == Role::CLIENT) {
+        const auto uuid_for_game = gameUuid ? *gameUuid : generateUuid();
+        if (internalGetGame(uuid_for_game) == nullptr) {
+            const auto game = games.emplace(
+                std::piecewise_construct,
+                std::tuple {uuid_for_game},
+                std::tuple {
+                    uuid_for_game, eventSocket,
+                    std::make_unique<PeerlessCardProtocol>(),
+                    std::make_shared<Engine::DuplicateGameManager>(),
+                    callbackScheduler, recorder});
+            if (game.second) {
+                auto& game_ = game.first->second;
+                availableGames.emplace(uuid_for_game, &game_);
+                return success(uuid_for_game);
             }
         }
     }
@@ -332,45 +337,47 @@ Reply<Uuid> BridgeMain::Impl::join(
     log(LogLevel::DEBUG, "Join command from %s. Game: %s. Player: %s. Position: %s",
         identity, gameUuid, playerUuid, position);
 
+    const auto iter = nodes.find(identity);
+    if (iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
+
     if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
         return failure();
     }
 
     if (auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
-        const auto iter = nodes.find(identity);
-        if (iter != nodes.end()) {
-            if (iter->second == Role::PEER && !gameUuid) {
-                return failure();
+        if (iter->second == Role::PEER && !gameUuid) {
+            return failure();
+        }
+        auto uuid_for_game = Uuid {};
+        auto game = static_cast<BridgeGame*>(nullptr);
+        if (gameUuid) {
+            uuid_for_game = *gameUuid;
+            game = internalGetGame(uuid_for_game);
+            if (game) {
+                position = game->getPositionForPlayerToJoin(
+                    identity, position, *player);
             }
-            auto uuid_for_game = Uuid {};
-            auto game = static_cast<BridgeGame*>(nullptr);
-            if (gameUuid) {
-                uuid_for_game = *gameUuid;
-                game = internalGetGame(uuid_for_game);
-                if (game) {
-                    position = game->getPositionForPlayerToJoin(
-                        identity, position, *player);
+        } else {
+            while (!availableGames.empty()) {
+                const auto& possible_game = availableGames.front();
+                assert(possible_game.second);
+                const auto possible_position =
+                    possible_game.second->getPositionForPlayerToJoin(
+                        identity, std::nullopt, *player);
+                if (possible_position) {
+                    uuid_for_game = possible_game.first;
+                    game = possible_game.second;
+                    position = possible_position;
+                    break;
                 }
-            } else {
-                while (!availableGames.empty()) {
-                    const auto& possible_game = availableGames.front();
-                    assert(possible_game.second);
-                    const auto possible_position =
-                        possible_game.second->getPositionForPlayerToJoin(
-                            identity, std::nullopt, *player);
-                    if (possible_position) {
-                        uuid_for_game = possible_game.first;
-                        game = possible_game.second;
-                        position = possible_position;
-                        break;
-                    }
-                    availableGames.pop();
-                }
+                availableGames.pop();
             }
-            if (game && position) {
-                if (game->join(identity, *position, std::move(player))) {
-                    return success(uuid_for_game);
-                }
+        }
+        if (game && position) {
+            if (game->join(identity, *position, std::move(player))) {
+                return success(uuid_for_game);
             }
         }
     }
@@ -384,12 +391,16 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
 
+    const auto node_iter = nodes.find(identity);
+    if (node_iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
+
     if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
         return failure();
     }
 
-    const auto node_iter = nodes.find(identity);
-    if (node_iter == nodes.end() || node_iter->second == Role::PEER) {
+    if (node_iter->second == Role::PEER) {
         return failure();
     }
 
@@ -407,6 +418,11 @@ Reply<> BridgeMain::Impl::call(
 {
     log(LogLevel::DEBUG, "Call command from %s. Game: %s. Player: %s. Call: %s",
         identity, gameUuid, playerUuid, call);
+
+    const auto iter = nodes.find(identity);
+    if (iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
 
     if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
         return failure();
@@ -428,6 +444,11 @@ Reply<> BridgeMain::Impl::play(
 {
     log(LogLevel::DEBUG, "Play command from %s. Game: %s. Player: %s. Card: %s. Index: %d",
         identity, gameUuid, playerUuid, card, index);
+
+    const auto iter = nodes.find(identity);
+    if (iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
 
     if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
         return failure();

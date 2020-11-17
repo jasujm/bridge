@@ -30,7 +30,12 @@ namespace Messaging {
  *
  * \sa Reply
  */
-struct ReplyFailure {};
+struct ReplyFailure {
+
+    /** \brief The error code delineating the failure
+     */
+    Blob suffix {};
+};
 
 /** \brief Struct that represents successful reply to message
  *
@@ -118,11 +123,13 @@ auto success(Args&&... args)
 
 /** \brief Convenience function for creating failed reply
  *
+ * \param suffix The error code delineating the failure
+ *
  * \return Failed reply
  */
-inline auto failure()
+inline auto failure(Blob suffix = {})
 {
-    return ReplyFailure {};
+    return ReplyFailure {std::move(suffix)};
 }
 
 /// \cond DOXYGEN_IGNORE
@@ -169,7 +176,7 @@ public:
         SerializationPolicy& serializer, Response& response,
         std::array<Blob, REPLY_SIZE>& replyKeys);
 
-    void operator()(ReplyFailure);
+    void operator()(ReplyFailure& reply);
 
     template<typename... Args2>
     void operator()(ReplySuccess<Args2...>& reply);
@@ -201,9 +208,17 @@ ReplyVisitor<SerializationPolicy, REPLY_SIZE>::ReplyVisitor(
 }
 
 template<typename SerializationPolicy, auto REPLY_SIZE>
-void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(ReplyFailure)
+void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
+    ReplyFailure& reply)
 {
-    response.setStatus(REPLY_FAILURE);
+    const auto reply_failure_size = REPLY_FAILURE.size();
+    const auto suffix_size = reply.suffix.size();
+    auto full_status = Blob(reply_failure_size + suffix_size);
+    const auto full_status_data = full_status.data();
+    std::memcpy(full_status_data, REPLY_FAILURE.data(), reply_failure_size);
+    std::memcpy(
+        full_status_data + reply_failure_size, reply.suffix.data(), suffix_size);
+    response.setStatus(full_status);
 }
 
 template<typename SerializationPolicy, auto REPLY_SIZE>

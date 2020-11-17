@@ -161,20 +161,34 @@
  * \b Example. A failed reply to the get command consists of the following three
  * frames:
  *
- * | N | Content  | Notes           |
- * |---|----------|-----------------|
- * | 1 |          | Empty frame     |
- * | 2 | MYTAG    | Tag echoed back |
- * | 3 | ERR      |                 |
+ * | N | Content  | Notes              |
+ * |---|----------|--------------------|
+ * | 1 |          | Empty frame        |
+ * | 2 | MYTAG    | Tag echoed back    |
+ * | 3 | ERR      | Generic error code |
  *
- * \note To determine if a reply is successful, an implementation MUST match for
- * the prefix of the string. “OK” and “OK!!!” are equally successful
- * replies. The purpose is to allow new revisions to define more specific status
- * codes by adding suffixes to the base status.
+ * The status frame MAY contain a suffix describing the status in more detail.
+ *
+ * \b Example. A failed reply to the get command consists of the following three
+ * frames:
+ *
+ * | N | Content  | Notes             |
+ * |---|----------|-------------------|
+ * | 1 |          | Empty frame       |
+ * | 2 | MYTAG    | Tag echoed back   |
+ * | 3 | ERR:UNK  | Missing handshake |
  *
  * The peer SHOULD reply to messages that are not valid commands, commands it
  * does not recognize or commands from peers and clients it has not
  * accepted. The reply to any of the previous MUST be failure.
+ *
+ * Each node MUST start the connection (including after reconnecting) by sending
+ * the bridgehlo command to a peer it connects to. If the node fails to perform
+ * the handshake, the peer SHOULD reply with failure to any other command,
+ * unless specified otherwise. The status frame to indicate that a node hasn’t
+ * introduced itself SHOULD have the suffix “:UNK”.
+ *
+ * Any node MUST start the communication with the bridgehlo command.
  *
  * \section bridgeprotocoleventmessage Event messages
  *
@@ -230,9 +244,6 @@
  *   - \e version: a string containing the version of the protocol
  *   - \e role: a string, either “peer” or “client”
  * - \b Reply: \e none
- *
- * Each node MUST send this command to a peer it connects to, before
- * sending any other command.
  *
  * The version MUST be a string containing the requested protocol
  * version. Semantic versioning 2.0.0 (https://semver.org/spec/v2.0.0.html) MUST
