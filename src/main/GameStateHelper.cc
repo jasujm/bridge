@@ -149,8 +149,10 @@ auto getPubstateSubobject(const Deal* deal)
 auto getPrivstateSubobject(
     const Deal* deal, const std::optional<Position>& playerPosition)
 {
-    if (!deal || !playerPosition) {
+    if (!deal) {
         return nlohmann::json {};
+    } else if (!playerPosition) {
+        return nlohmann::json::object();
     }
 
     return nlohmann::json {
