@@ -210,11 +210,11 @@ void BridgeGame::Impl::publish(const std::string_view command, Args&&... args)
     std::ostringstream os;
     os << uuid << ':' << command;
     log(LogLevel::DEBUG, "Publishing event: %s", command);
+    ++counter;
     sendEventMessage(
         dereference(eventSocket), JsonSerializer {}, os.str(),
         std::forward<Args>(args)...,
         std::pair {COUNTER_COMMAND, counter});
-    ++counter;
 }
 
 bool BridgeGame::Impl::addPeer(
