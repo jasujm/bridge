@@ -1,3 +1,7 @@
+Play contract bridge online: https://bridge.jmoisio.eu/
+
+---
+
 # Bridge
 
 [Contract bridge](https://en.wikipedia.org/wiki/Contract_bridge) is a
