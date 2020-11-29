@@ -186,7 +186,11 @@
  * the bridgehlo command to a peer it connects to. If the node fails to perform
  * the handshake, the peer SHOULD reply with failure to any other command,
  * unless specified otherwise. The status frame to indicate that a node hasn’t
- * introduced itself SHOULD have the suffix “:UNK”.
+ * introduced itself SHOULD have the suffix “UNK” separated by a colon.
+ *
+ * The error frame for other types of errors MAY contain other suffixes
+ * (separated by a colon) specifying the kind of failure. These suffixes are
+ * defined in the individual commands.
  *
  * Any node MUST start the communication with the bridgehlo command.
  *
@@ -268,6 +272,10 @@
  *   - \e args: additonal protocol specific arguments (peers only)
  * - \b Reply:
  *   - \e game: the game being set up
+ * - \b Failures:
+ *   - \e NF: Game not found (peer joining game that doesn’t exist)
+ *   - \e PR: Peer rejected
+ *   - \e AE: Game already exists (client creating game that already exists)
  *
  * Nodes use this command to set up a new bridge game.
  *
@@ -314,6 +322,10 @@
  *   - \e position: the preferred position (optional for clients)
  * - \b Reply:
  *   - \e game: the game joined
+ * - \b Failures:
+ *   - \e NF: Game not found
+ *   - \e NA: Not authorized (the node is not allowed to act for the player)
+ *   - \e SR: Seat(s) reserved
  *
  * Nodes use this command to join a player in a bridge game.
  *
@@ -350,6 +362,9 @@
  * - \b Reply:
  *   - \e get: object describing the current state of the game
  *   - \e counter: the running counter
+ * - \b Failures:
+ *   - \e NF: Game not found
+ *   - \e NA: Not authorized (the node is not allowed to act for the player)
  *
  * Get commands retrieves one or multiple key–value pairs describing the state
  * of a game. The \e get argument is a array of keys to be retrieved. It MAY be
@@ -499,6 +514,10 @@
  *   - game: UUID of the game
  *   - cards: an array consisting of cards, see \ref jsoncardtype
  * - \b Reply: \e none
+ * - \b Failures:
+ *   - \e NF: Game not found
+ *   - \e NA: Not authorized (the node is not allowed to act for the player)
+ *   - \e RV: Rule violation (playing out of turn or illegal call)
  *
  * If the simple card exchange protocol is used, the leader, i.e. the peer
  * representing the player at the north position, MUST send this command to all
@@ -525,6 +544,10 @@
  *   - \e player
  *   - \e call: see \ref jsoncall
  * - \b Reply: \e none
+ * - \b Failures:
+ *   - \e NF: Game not found
+ *   - \e NA: Not authorized (the node is not allowed to act for the player)
+ *   - \e RV: Rule violation (playing out of turn or illegal card)
  *
  * Nodes use this command to make calls during the bidding stage.
  *

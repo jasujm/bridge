@@ -95,6 +95,12 @@ enum class Role {
 
 using namespace BlobLiterals;
 const auto UNKNOWN_SUFFIX = ":UNK"_B;
+const auto NOT_FOUND_SUFFIX = ":NF"_B;
+const auto PEER_REJECTED_SUFFIX = ":PR"_B;
+const auto ALREADY_EXISTS_SUFFIX = ":AE"_B;
+const auto NOT_AUTHORIZED_SUFFIX = ":NA"_B;
+const auto SEAT_RESERVED_SUFFIX = ":SR"_B;
+const auto RULE_VIOLATION_SUFFIX = ":RV"_B;
 
 }
 
@@ -304,12 +310,20 @@ Reply<Uuid> BridgeMain::Impl::game(
         return failure();
     }
 
-    if (iter->second == Role::PEER && gameUuid && args) {
-        const auto game = internalGetGame(*gameUuid);
-        if (game && game->addPeer(identity, *args)) {
-            return success(*gameUuid);
+    if (iter->second == Role::PEER) {
+        if (!gameUuid || !args) {
+            return failure();
         }
-    } else if (iter->second == Role::CLIENT) {
+        if (const auto game = internalGetGame(*gameUuid)) {
+            if (game->addPeer(identity, *args)) {
+                return success(*gameUuid);
+            } else {
+                return failure(PEER_REJECTED_SUFFIX);
+            }
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
+        }
+    } else {
         const auto uuid_for_game = gameUuid ? *gameUuid : generateUuid();
         if (internalGetGame(uuid_for_game) == nullptr) {
             const auto game = games.emplace(
@@ -320,14 +334,13 @@ Reply<Uuid> BridgeMain::Impl::game(
                     std::make_unique<PeerlessCardProtocol>(),
                     std::make_shared<Engine::DuplicateGameManager>(),
                     callbackScheduler, recorder});
-            if (game.second) {
-                auto& game_ = game.first->second;
-                availableGames.emplace(uuid_for_game, &game_);
-                return success(uuid_for_game);
-            }
+            auto& game_ = game.first->second;
+            availableGames.emplace(uuid_for_game, &game_);
+            return success(uuid_for_game);
+        } else {
+            return failure(ALREADY_EXISTS_SUFFIX);
         }
     }
-    return failure();
 }
 
 Reply<Uuid> BridgeMain::Impl::join(
@@ -358,6 +371,11 @@ Reply<Uuid> BridgeMain::Impl::join(
             if (game) {
                 position = game->getPositionForPlayerToJoin(
                     identity, position, *player);
+                if (!position) {
+                    return failure(SEAT_RESERVED_SUFFIX);
+                }
+            } else {
+                return failure(NOT_FOUND_SUFFIX);
             }
         } else {
             while (!availableGames.empty()) {
@@ -370,18 +388,24 @@ Reply<Uuid> BridgeMain::Impl::join(
                     uuid_for_game = possible_game.first;
                     game = possible_game.second;
                     position = possible_position;
-                    break;
+                    goto game_found;
                 }
                 availableGames.pop();
             }
+            return failure(NOT_FOUND_SUFFIX);
+        game_found:
+            ;
         }
-        if (game && position) {
-            if (game->join(identity, *position, std::move(player))) {
-                return success(uuid_for_game);
-            }
+        assert(game);
+        assert(position);
+        if (game->join(identity, *position, std::move(player))) {
+            return success(uuid_for_game);
+        } else {
+            return failure(SEAT_RESERVED_SUFFIX);
         }
+    } else {
+        return failure(NOT_AUTHORIZED_SUFFIX);
     }
-    return failure();
 }
 
 Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
@@ -407,9 +431,12 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
             return success(game->getState(*player, keys), game->getCounter());
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
         }
+    } else {
+        return failure(NOT_AUTHORIZED_SUFFIX);
     }
-    return failure();
 }
 
 Reply<> BridgeMain::Impl::call(
@@ -429,12 +456,18 @@ Reply<> BridgeMain::Impl::call(
     }
 
     if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
-        const auto game = internalGetGame(gameUuid);
-        if (game && game->call(identity, *player, call)) {
-            return success();
+        if (const auto game = internalGetGame(gameUuid)) {
+            if (game->call(identity, *player, call)) {
+                return success();
+            } else {
+                return failure(RULE_VIOLATION_SUFFIX);
+            }
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
         }
+    } else {
+        return failure(NOT_AUTHORIZED_SUFFIX);
     }
-    return failure();
 }
 
 Reply<> BridgeMain::Impl::play(
@@ -455,12 +488,18 @@ Reply<> BridgeMain::Impl::play(
     }
 
     if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
-        const auto game = internalGetGame(gameUuid);
-        if (game && game->play(identity, *player, card, index)) {
-            return success();
+        if (const auto game = internalGetGame(gameUuid)) {
+            if (game->play(identity, *player, card, index)) {
+                return success();
+            } else {
+                return failure(RULE_VIOLATION_SUFFIX);
+            }
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
         }
+    } else {
+        return failure(NOT_AUTHORIZED_SUFFIX);
     }
-    return failure();
 }
 
 BridgeGame* BridgeMain::Impl::internalGetGame(const Uuid& gameUuid)
