@@ -192,11 +192,24 @@ public:
         /** \brief Create new deal ended event
          *
          * \param uuid see \ref uuid
+         * \param contract see \ref contract
+         * \param tricksWon see \ref tricksWon
          * \param result see \ref result
          */
-        DealEnded(const Uuid& uuid, const GameManager::ResultType& result);
+        DealEnded(
+            const Uuid& uuid,
+            const Contract* contract,
+            std::optional<int> tricksWon,
+            const GameManager::ResultType& result);
 
         const Uuid& uuid;  ///< UUID of the deal
+
+        /// \brief Contract declared, or nullptr if the deal passed out
+        const Contract* contract;
+
+        /// \brief Tricks won by the declarer, or nullopt if the deal passed out
+        std::optional<int> tricksWon;
+
         /** \brief Result of the deal
          *
          * \note This is the object returned by the game manager. The client

@@ -661,11 +661,13 @@
  * - \b Command: dealend
  * - \b Parameters:
  *   - \e deal: the UUID of the deal
+ *   - \e contract: the contract reached
+ *   - \e tricksWon: the number of tricks won by the declarer
  *   - \e score: the score awarded to the winner, see \ref jsonduplicatescore
  *   - \e counter: the running counter
  *
  * This event is published whenever a deal ends. If the deal passes out, the
- * score is null.
+ * contract, tricksWon and score are null.
  */
 
 #ifndef MAIN_COMMANDS_HH_
@@ -824,6 +826,10 @@ inline constexpr auto WINNER_COMMAND = std::string_view {"winner"};
 /** \brief See \ref bridgeprotocoleventdealend
  */
 inline constexpr auto DEAL_END_COMMAND = std::string_view {"dealend"};
+
+/** \brief See \ref bridgeprotocoleventdealend
+ */
+inline constexpr auto TRICKS_WON_COMMAND = std::string_view {"tricksWon"};
 
 /** \brief See \ref bridgeprotocoleventdealend
  */

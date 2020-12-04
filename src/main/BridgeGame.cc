@@ -539,6 +539,10 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
         publish(
             DEAL_END_COMMAND,
             std::pair {DEAL_COMMAND, event.uuid},
+            std::pair {
+                CONTRACT_COMMAND,
+                event.contract ? std::optional {*event.contract} : std::nullopt},
+            std::pair {TRICKS_WON_COMMAND, event.tricksWon},
             std::pair {SCORE_COMMAND, *result});
     }
     dereference(callbackScheduler).callSoon(&Impl::startDeal, this);

@@ -279,14 +279,16 @@ void BridgeEngine::Impl::endDeal(const DealEndedEvent& event)
     const auto deal_result = getGameManager().addResult(
         event.declarerPartnership, event.contract, event.tricksWon);
     getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {event.dealUuid, deal_result});
+        BridgeEngine::DealEnded {
+            event.dealUuid, &event.contract, event.tricksWon, deal_result});
 }
 
 void BridgeEngine::Impl::passOutDeal(const DealPassedOutEvent& event)
 {
     const auto deal_result = getGameManager().addPassedOut();
     getDealEndedNotifier().notifyAll(
-        BridgeEngine::DealEnded {event.dealUuid, deal_result});
+        BridgeEngine::DealEnded {
+            event.dealUuid, nullptr, std::nullopt, deal_result});
 }
 
 // Find other method definitions later (they refer to states)
@@ -1247,8 +1249,13 @@ BridgeEngine::DummyRevealed::DummyRevealed(
 }
 
 BridgeEngine::DealEnded::DealEnded(
-    const Uuid& uuid, const GameManager::ResultType& result) :
+    const Uuid& uuid,
+    const Contract* const contract,
+    const std::optional<int> tricksWon,
+    const GameManager::ResultType& result) :
     uuid {uuid},
+    contract {contract},
+    tricksWon {tricksWon},
     result {result}
 {
 }
