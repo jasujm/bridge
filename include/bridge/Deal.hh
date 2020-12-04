@@ -21,7 +21,6 @@ class Hand;
 struct Position;
 struct Suit;
 class Trick;
-struct TricksWon;
 struct Vulnerability;
 
 /** \brief Phase of a bridge deal
@@ -142,13 +141,12 @@ public:
      */
     const Trick* getCurrentTrick() const;
 
-    /** \brief Get the number of tricks won by each partnership
+    /** \brief Get the number of tricks won by the declarer
      *
-     * \return The number of tricks won by each partnership. If the
-     * deal is not in the dealing phase, this is zero for both
-     * partnerships.
+     * \return The number of tricks won by the declarer, or nullopt if the deal
+     * is not in the playing phase.
      */
-    TricksWon getTricksWon() const;
+    std::optional<int> getTricksWonByDeclarer() const;
 
 private:
 

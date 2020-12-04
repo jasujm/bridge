@@ -17,7 +17,6 @@
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 #include "bridge/SimpleCard.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/BridgeEngine.hh"
 #include "engine/MakeDealState.hh"
@@ -242,7 +241,6 @@ protected:
     void addTrickToNorthSouth()
     {
         expectedState.currentTrick->clear();
-        ++expectedState.tricksWon->tricksWonByNorthSouth;
     }
 
     void setupRecalledDeal()
@@ -466,7 +464,6 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
     expectedState.declarer = Positions::EAST;
     expectedState.contract.emplace(BID, Doublings::REDOUBLED);
     expectedState.currentTrick.emplace();
-    expectedState.tricksWon.emplace(0, 0);
     std::array<Position, N_PLAYERS> next_positions_first_turn {
         Positions::EAST, Positions::NORTH, Positions::EAST, Positions::NORTH
     };

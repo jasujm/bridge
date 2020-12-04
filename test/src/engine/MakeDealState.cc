@@ -100,7 +100,6 @@ DealState makeDealState(const BridgeEngine& engine, const Player& player)
     if (const auto current_trick = deal->getCurrentTrick()) {
         state.stage = Stage::PLAYING;
         fillTricks(state, *current_trick, *deal);
-        state.tricksWon = deal->getTricksWon();
     }
 
     return state;

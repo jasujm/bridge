@@ -18,8 +18,7 @@ bool operator==(const DealState& lhs, const DealState& rhs)
         lhs.calls == rhs.calls &&
         lhs.declarer == rhs.declarer &&
         lhs.contract == rhs.contract &&
-        lhs.currentTrick == rhs.currentTrick &&
-        lhs.tricksWon == rhs.tricksWon);
+        lhs.currentTrick == rhs.currentTrick);
 }
 
 std::ostream& operator<<(std::ostream& os, const Stage stage)
@@ -69,9 +68,6 @@ std::ostream& operator<<(std::ostream& os, const DealState& state)
             os << "\n  " << card_in_trick.first << ": "
                << card_in_trick.second;
         }
-    }
-    if (const auto& tricks_won = state.tricksWon) {
-        os << "\nTricks won: " << *tricks_won;
     }
     return os;
 }

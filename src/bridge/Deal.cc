@@ -5,7 +5,6 @@
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 #include "bridge/Trick.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 #include "Utility.hh"
 
@@ -167,22 +166,24 @@ const Trick* Deal::getCurrentTrick() const
     return nullptr;
 }
 
-TricksWon Deal::getTricksWon() const
+std::optional<int> Deal::getTricksWonByDeclarer() const
 {
-    auto tricks_won = TricksWon {};
-    for (const auto n : to(getNumberOfTricks())) {
+    const auto n_tricks = getNumberOfTricks();
+    if (n_tricks <= 0) {
+        return std::nullopt;
+    }
+    auto tricks_won_by_declarer = 0;
+    const auto declarer_position = internalGetDeclarerPosition();
+    const auto declarer_partnership = partnershipFor(declarer_position);
+    for (const auto n : to(n_tricks)) {
         if (const auto winner_position = getWinnerOfTrick(n)) {
             const auto winner_partnership = partnershipFor(*winner_position);
-            switch (winner_partnership.get()) {
-            case PartnershipLabel::NORTH_SOUTH:
-                ++tricks_won.tricksWonByNorthSouth;
-                break;
-            case PartnershipLabel::EAST_WEST:
-                ++tricks_won.tricksWonByEastWest;
+            if (winner_partnership == declarer_partnership) {
+                ++tricks_won_by_declarer;
             }
         }
     }
-    return tricks_won;
+    return tricks_won_by_declarer;
 }
 
 }

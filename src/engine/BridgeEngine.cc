@@ -7,7 +7,6 @@
 #include "bridge/Hand.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Player.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/UuidGenerator.hh"
 #include "engine/CardManager.hh"
 #include "FunctionObserver.hh"
@@ -766,8 +765,8 @@ void Playing::play(const CardRevealedEvent&)
                 const auto declarer_partnership = partnershipFor(declarer);
                 const auto contract = dereference(
                     dereference(bidding.getContract()));
-                const auto tricks_won = getNumberOfTricksWon(
-                    in_deal.getTricksWon(), declarer_partnership);
+                const auto tricks_won = dereference(
+                    in_deal.getTricksWonByDeclarer());
                 post_event(
                     DealEndedEvent {
                         deal_uuid, contract, declarer_partnership, tricks_won});

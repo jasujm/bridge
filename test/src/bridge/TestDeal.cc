@@ -4,7 +4,6 @@
 #include "bridge/Deal.hh"
 #include "bridge/Position.hh"
 #include "bridge/SimpleCard.hh"
-#include "bridge/TricksWon.hh"
 #include "Enumerate.hh"
 #include "MockBidding.hh"
 #include "MockCard.hh"
@@ -292,8 +291,8 @@ TEST_F(DealTest, testGetCurrentTrickOutsidePlayingPhase)
     EXPECT_EQ(nullptr, deal.getCurrentTrick());
 }
 
-TEST_F(DealTest, testTricksWon)
+TEST_F(DealTest, testTricksWonByDeclarer)
 {
     configureExampleTrick();
-    EXPECT_EQ(Bridge::TricksWon(1, 0), deal.getTricksWon());
+    EXPECT_EQ(1, deal.getTricksWonByDeclarer());
 }

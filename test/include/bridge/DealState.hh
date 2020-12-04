@@ -10,7 +10,6 @@
 #include "bridge/Call.hh"
 #include "bridge/CardType.hh"
 #include "bridge/Contract.hh"
-#include "bridge/TricksWon.hh"
 #include "bridge/Vulnerability.hh"
 
 #include <boost/operators.hpp>
@@ -116,12 +115,6 @@ struct DealState : private boost::equality_comparable<DealState> {
      * played.
      */
     std::optional<Trick> currentTrick;
-
-    /** \brief The number of tricks won in the current deal
-     *
-     * This member if none if the playing hasn’t started yet.
-     */
-    std::optional<TricksWon> tricksWon;
 };
 
 /** \brief Equality operator for deal states
