@@ -1,16 +1,14 @@
-#include "scoring/DuplicateScoring.hh"
+#include "bridge/DuplicateScoring.hh"
 
 #include "bridge/Contract.hh"
-#include "bridge/Partnership.hh"
-#include "scoring/DuplicateScore.hh"
 
 #include <boost/algorithm/clamp.hpp>
 
 #include <algorithm>
 #include <map>
+#include <ostream>
 
 namespace Bridge {
-namespace Scoring {
 
 namespace {
 
@@ -152,22 +150,40 @@ int calculateDuplicateScoreForDefeatedContract(
 
 }
 
-DuplicateScore calculateDuplicateScore(
-    const Partnership partnership, const Contract& contract,
-    const bool vulnerable, const int tricksWon)
+int calculateDuplicateScore(
+    const Contract& contract, const bool vulnerable, const int tricksWon)
 {
     if (isMade(contract, tricksWon)) {
-        return {
-            partnership,
-            calculateDuplicateScoreForMadeContract(
-                contract, vulnerable, tricksWon)};
+        return calculateDuplicateScoreForMadeContract(
+            contract, vulnerable, tricksWon);
     } else {
-        return {
-            otherPartnership(partnership),
-            calculateDuplicateScoreForDefeatedContract(
-                contract, vulnerable, tricksWon)};
+        return -calculateDuplicateScoreForDefeatedContract(
+            contract, vulnerable, tricksWon);
     }
 }
 
+DuplicateResult makeDuplicateResult(
+    const Partnership partnership, const int score)
+{
+    if (score > 0) {
+        return {partnership, score};
+    } else if (score < 0) {
+        return {otherPartnership(partnership), -score};
+    }
+    return DuplicateResult::passedOut();
 }
+
+bool operator==(const DuplicateResult& lhs, const DuplicateResult& rhs)
+{
+    return lhs.partnership == rhs.partnership && lhs.score == rhs.score;
+}
+
+std::ostream& operator<<(std::ostream& os, const DuplicateResult& result)
+{
+    if (result.partnership) {
+        return os << result.partnership.value() << " " << result.score;
+    }
+    return os << "passed out";
+}
+
 }

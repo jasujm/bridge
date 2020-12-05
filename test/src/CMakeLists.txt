@@ -49,7 +49,6 @@ endfunction()
 
 add_subdirectory(bridge)
 add_subdirectory(messaging)
-add_subdirectory(scoring)
 add_subdirectory(engine)
 add_subdirectory(main)
 

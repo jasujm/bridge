@@ -4,6 +4,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Deal.hh"
+#include "bridge/DuplicateScoring.hh"
 #include "bridge/Hand.hh"
 #include "bridge/Player.hh"
 #include "bridge/Position.hh"
@@ -20,12 +21,11 @@
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/CommandUtility.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DuplicateScoreJsonSerializer.hh"
+#include "messaging/DuplicateResultJsonSerializer.hh"
 #include "messaging/JsonSerializer.hh"
 #include "messaging/JsonSerializerUtility.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "messaging/UuidJsonSerializer.hh"
-#include "scoring/DuplicateScore.hh"
 #include "Enumerate.hh"
 #include "IoUtility.hh"
 #include "Logging.hh"
@@ -533,8 +533,8 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed& event)
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
     log(LogLevel::DEBUG, "Deal ended");
-    using ScoreEntry = Engine::DuplicateGameManager::ScoreEntry;
-    const auto* result = std::experimental::any_cast<const ScoreEntry>(&event.result);
+    const auto* result =
+        std::experimental::any_cast<const DuplicateResult>(&event.result);
     if (result) {
         publish(
             DEAL_END_COMMAND,
@@ -543,7 +543,7 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
                 CONTRACT_COMMAND,
                 event.contract ? std::optional {*event.contract} : std::nullopt},
             std::pair {TRICKS_WON_COMMAND, event.tricksWon},
-            std::pair {SCORE_COMMAND, *result});
+            std::pair {RESULT_COMMAND, *result});
     }
     dereference(callbackScheduler).callSoon(&Impl::startDeal, this);
 }

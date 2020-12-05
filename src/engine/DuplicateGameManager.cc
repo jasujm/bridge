@@ -1,9 +1,8 @@
 #include "engine/DuplicateGameManager.hh"
 
+#include "bridge/DuplicateScoring.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
-#include "scoring/DuplicateScore.hh"
-#include "scoring/DuplicateScoring.hh"
 
 #include <array>
 #include <algorithm>
@@ -62,16 +61,15 @@ GameManager::ResultType DuplicateGameManager::handleAddResult(
 {
     const auto vulnerability = getVulnerabilityHelper(round);
     ++round;
-    return ScoreEntry {
-        Scoring::calculateDuplicateScore(
-            partnership, contract, isVulnerable(vulnerability, partnership),
-            tricksWon)};
+    const auto score = calculateDuplicateScore(
+        contract, isVulnerable(vulnerability, partnership), tricksWon);
+    return makeDuplicateResult(partnership, score);
 }
 
 GameManager::ResultType DuplicateGameManager::handleAddPassedOut()
 {
     ++round;
-    return ScoreEntry {};
+    return DuplicateResult::passedOut();
 }
 
 bool DuplicateGameManager::handleHasEnded() const

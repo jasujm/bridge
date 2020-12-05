@@ -2,6 +2,7 @@
 #include "bridge/CardType.hh"
 #include "bridge/Call.hh"
 #include "bridge/Contract.hh"
+#include "bridge/DuplicateScoring.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Vulnerability.hh"
 #include "cardserver/PeerEntry.hh"
@@ -11,13 +12,12 @@
 #include "messaging/CallJsonSerializer.hh"
 #include "messaging/CardTypeJsonSerializer.hh"
 #include "messaging/ContractJsonSerializer.hh"
-#include "messaging/DuplicateScoreJsonSerializer.hh"
+#include "messaging/DuplicateResultJsonSerializer.hh"
 #include "messaging/PeerEntryJsonSerializer.hh"
 #include "messaging/Security.hh"
 #include "messaging/SerializationFailureException.hh"
 #include "messaging/UuidJsonSerializer.hh"
 #include "messaging/VulnerabilityJsonSerializer.hh"
-#include "scoring/DuplicateScore.hh"
 #include "IoUtility.hh"
 
 #include <boost/uuid/string_generator.hpp>
@@ -29,7 +29,6 @@
 
 using namespace Bridge;
 using namespace Bridge::Messaging;
-using Bridge::Scoring::DuplicateScore;
 
 using nlohmann::json;
 
@@ -379,56 +378,62 @@ TEST_F(JsonSerializerTest, testUuidInvalidFormat)
     testFailedDeserializationHelper<Uuid>(j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScore)
+TEST_F(JsonSerializerTest, testDuplicateResult)
 {
     const auto j = json {
-        {
-            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            Partnerships::NORTH_SOUTH
-        },
-        {
-            Scoring::DUPLICATE_SCORE_SCORE_KEY,
-            100
-        }
+        {DUPLICATE_RESULT_PARTNERSHIP_KEY, Partnerships::NORTH_SOUTH},
+        {DUPLICATE_RESULT_SCORE_KEY, 100},
     };
-    const auto score = DuplicateScore {Partnerships::NORTH_SOUTH, 100};
+    const auto score = DuplicateResult {Partnerships::NORTH_SOUTH, 100};
     testHelper(score, j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScorePartnershipMissing)
+TEST_F(JsonSerializerTest, testEmptyDuplicateResult)
 {
     const auto j = json {
-        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
-    testFailedDeserializationHelper<DuplicateScore>(j);
+        {DUPLICATE_RESULT_PARTNERSHIP_KEY, nullptr},
+        {DUPLICATE_RESULT_SCORE_KEY, 0},
+    };
+    const auto score = DuplicateResult::passedOut();
+    testHelper(score, j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScorePartnershipInvalid)
+TEST_F(JsonSerializerTest, testDuplicateResultPartnershipMissing)
 {
     const auto j = json {
-        {Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY, "invalid"},
-        {Scoring::DUPLICATE_SCORE_SCORE_KEY, 100}};
-    testFailedDeserializationHelper<DuplicateScore>(j);
+        {DUPLICATE_RESULT_SCORE_KEY, 100},
+    };
+    testFailedDeserializationHelper<DuplicateResult>(j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScoreScoreMissing)
+TEST_F(JsonSerializerTest, testDuplicateResultPartnershipInvalid)
+{
+    const auto j = json {
+        {DUPLICATE_RESULT_PARTNERSHIP_KEY, "invalid"},
+        {DUPLICATE_RESULT_SCORE_KEY, 100},
+    };
+    testFailedDeserializationHelper<DuplicateResult>(j);
+}
+
+TEST_F(JsonSerializerTest, testDuplicateResultScoreMissing)
 {
     const auto j = json {
         {
-            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            Partnerships::NORTH_SOUTH
+            DUPLICATE_RESULT_PARTNERSHIP_KEY,
+            Partnerships::NORTH_SOUTH,
         }
     };
-    testFailedDeserializationHelper<DuplicateScore>(j);
+    testFailedDeserializationHelper<DuplicateResult>(j);
 }
 
-TEST_F(JsonSerializerTest, testDuplicateScoreScoreInvalid)
+TEST_F(JsonSerializerTest, testDuplicateResultScoreInvalid)
 {
     const auto j = json {
         {
-            Scoring::DUPLICATE_SCORE_PARTNERSHIP_KEY,
-            Partnerships::NORTH_SOUTH
+            DUPLICATE_RESULT_PARTNERSHIP_KEY,
+            Partnerships::NORTH_SOUTH,
         },
-        {Scoring::DUPLICATE_SCORE_SCORE_KEY, "invalid"}
+        {DUPLICATE_RESULT_SCORE_KEY, "invalid"},
     };
-    testFailedDeserializationHelper<DuplicateScore>(j);
+    testFailedDeserializationHelper<DuplicateResult>(j);
 }

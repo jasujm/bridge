@@ -1,12 +1,11 @@
 #include "bridge/Bid.hh"
 #include "bridge/BridgeConstants.hh"
 #include "bridge/Contract.hh"
+#include "bridge/DuplicateScoring.hh"
 #include "bridge/Partnership.hh"
 #include "bridge/Position.hh"
 #include "bridge/Vulnerability.hh"
 #include "engine/DuplicateGameManager.hh"
-#include "scoring/DuplicateScore.hh"
-#include "scoring/DuplicateScoring.hh"
 #include "Enumerate.hh"
 
 #include <gtest/gtest.h>
@@ -15,9 +14,8 @@
 #include <tuple>
 
 using Bridge::Engine::DuplicateGameManager;
-using Bridge::Scoring::DuplicateScore;
 using Bridge::Vulnerability;
-using ScoreEntry = Bridge::Engine::DuplicateGameManager::ScoreEntry;
+using Bridge::DuplicateResult;
 namespace Positions = Bridge::Positions;
 
 namespace {
@@ -63,17 +61,20 @@ TEST_F(DuplicateGameManagerTest, testIsAlwaysOngoing)
 TEST_F(DuplicateGameManagerTest, testAddPassedOut)
 {
     const auto result = gameManager.addPassedOut();
-    EXPECT_EQ(std::nullopt, std::experimental::any_cast<ScoreEntry>(result));
+    EXPECT_EQ(
+        DuplicateResult(),
+        std::experimental::any_cast<DuplicateResult>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testAddResult)
 {
+    const auto expected_result = DuplicateResult {
+        PARTNERSHIP,
+        Bridge::calculateDuplicateScore(CONTRACT, false, TRICKS_WON)};
     const auto result = gameManager.addResult(
         PARTNERSHIP, CONTRACT, TRICKS_WON);
     EXPECT_EQ(
-        Bridge::Scoring::calculateDuplicateScore(
-            PARTNERSHIP, CONTRACT, false, TRICKS_WON),
-        std::experimental::any_cast<ScoreEntry>(result));
+        expected_result, std::experimental::any_cast<DuplicateResult>(result));
 }
 
 TEST_F(DuplicateGameManagerTest, testVulnerabilityPositionRotation)

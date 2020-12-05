@@ -6,6 +6,7 @@
 #ifndef ENGINE_DUPLICATEGAMEMANAGER_HH_
 #define ENGINE_DUPLICATEGAMEMANAGER_HH_
 
+#include "bridge/Partnership.hh"
 #include "engine/GameManager.hh"
 
 #include <boost/core/noncopyable.hpp>
@@ -13,11 +14,6 @@
 #include <optional>
 
 namespace Bridge {
-
-namespace Scoring {
-struct DuplicateScore;
-}
-
 namespace Engine {
 
 /** \brief GameManager that applies duplicate bridge scoring
@@ -27,19 +23,11 @@ namespace Engine {
  * duplicate refers to duplicate scoring.
  *
  * Duplicate game manager does not store the state of multiple deals. It returns
- * a ScoreEntry object when the result is added or deal is passed out and
+ * a DuplicateResult object when the result is added or deal is passed out and
  * immediately forgets it.
  */
 class DuplicateGameManager : public GameManager, private boost::noncopyable {
 public:
-
-    /** \brief Result of a single deal
-     *
-     * The type of the object returned by addResult() and addPassedOut()
-     * methods. If the deal is played, the entry contains score for the deal. If
-     * passed out, the entry is none.
-     */
-    using ScoreEntry = std::optional<Scoring::DuplicateScore>;
 
     /** \brief Create new duplicate game manager
      */

@@ -12,7 +12,6 @@ add_subdirectory(main)
 add_subdirectory(messaging)
 add_subdirectory(cardserver)
 add_subdirectory(engine)
-add_subdirectory(scoring)
 add_subdirectory(bridge)
 
 add_library(bridge-common STATIC Logging.cc Boilerplate.cc Thread.cc)
@@ -21,7 +20,7 @@ target_include_directories(bridge-common PUBLIC ${BRIDGE_INCLUDE_DIR})
 
 add_executable(bridge Bridge.cc)
 target_link_libraries(bridge bridge-main bridge-messaging bridge-cardserver
-  bridge-engine bridge-scoring bridge-bridge bridge-common Threads::Threads)
+  bridge-engine bridge-bridge bridge-common Threads::Threads)
 set_property(TARGET bridge PROPERTY CXX_STANDARD ${BRIDGE_CXX_STANDARD})
 
 install(TARGETS bridge RUNTIME DESTINATION bin)
