@@ -27,6 +27,9 @@ void test(
             vulnerable, tricksWon)) << message;
 }
 
+constexpr auto DUPLICATE_RESULT = Bridge::DuplicateResult {
+    Partnerships::NORTH_SOUTH, 100};
+
 }
 
 TEST(DuplicateScoringTest, testUndoubledMadeContracts)
@@ -137,4 +140,19 @@ TEST(DuplicateScoringTest, testMakeDuplicateResultPassedOut)
     EXPECT_EQ(
         DuplicateResult::passedOut(),
         makeDuplicateResult(Partnerships::NORTH_SOUTH, 0));
+}
+
+TEST(DuplicateScoringTest, testGetPartnershipScoreDeclarer) {
+    EXPECT_EQ(
+        100, getPartnershipScore(DUPLICATE_RESULT, Partnerships::NORTH_SOUTH));
+}
+
+TEST(DuplicateScoringTest, testGetPartnershipScoreOpponent) {
+    EXPECT_EQ(
+        -100, getPartnershipScore(DUPLICATE_RESULT, Partnerships::EAST_WEST));
+}
+
+TEST(DuplicateScoringTest, testGetPartnershipScorePassedOut) {
+    EXPECT_EQ(
+        0, getPartnershipScore(Bridge::DuplicateResult(), Partnerships::EAST_WEST));
 }

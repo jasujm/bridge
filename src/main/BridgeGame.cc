@@ -52,6 +52,19 @@ using Engine::BridgeEngine;
 using Messaging::Identity;
 using Messaging::JsonSerializer;
 
+auto getDealResults(const Uuid& gameUuid, BridgeGameRecorder& recorder)
+{
+    auto ret = nlohmann::json::array();
+    for (const auto& deal_result : recorder.recallDealResults(gameUuid)) {
+        ret.emplace_back(
+            nlohmann::json {
+                {DEAL_COMMAND, deal_result.dealUuid},
+                {RESULT_COMMAND, deal_result.result},
+            });
+    }
+    return ret;
+}
+
 class BridgeGame::Impl  :
     public Observer<BridgeEngine::DealStarted>,
     public Observer<BridgeEngine::TurnStarted>,
@@ -305,9 +318,15 @@ GameState BridgeGame::Impl::getState(
     const Player& player,
     const std::optional<std::vector<std::string>>& keys) const
 {
-    return getGameState(
+    auto game_state = getGameState(
         engine.getCurrentDeal(), engine.getPosition(player),
         engine.getPlayerInTurn() == &player, keys);
+    if (keys && std::find(keys->begin(), keys->end(), RESULTS_COMMAND) != keys->end()) {
+        game_state.emplace(
+            RESULTS_COMMAND,
+            recorder ? getDealResults(uuid, *recorder) : nlohmann::json::array());
+    }
+    return game_state;
 }
 
 BridgeGame::Counter BridgeGame::Impl::getCounter() const
@@ -449,6 +468,11 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DealStarted& event)
     log(LogLevel::DEBUG, "Deal started. Opener: %s. Vulnerability: %s",
         event.opener, event.vulnerability);
     recordGame();
+    if (recorder) {
+        log(LogLevel::DEBUG, "Recording deal start. Game %s. Deal: %s",
+            uuid, event.uuid);
+        recorder->recordDealStarted(uuid, event.uuid);
+    }
     publish(
         DEAL_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
@@ -533,18 +557,21 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed& event)
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DealEnded& event)
 {
     log(LogLevel::DEBUG, "Deal ended");
-    const auto* result =
-        std::experimental::any_cast<const DuplicateResult>(&event.result);
-    if (result) {
-        publish(
-            DEAL_END_COMMAND,
-            std::pair {DEAL_COMMAND, event.uuid},
-            std::pair {
-                CONTRACT_COMMAND,
-                event.contract ? std::optional {*event.contract} : std::nullopt},
-            std::pair {TRICKS_WON_COMMAND, event.tricksWon},
-            std::pair {RESULT_COMMAND, *result});
+    const auto& result =
+        std::experimental::any_cast<const DuplicateResult&>(event.result);
+    if (recorder) {
+        log(LogLevel::DEBUG, "Recording deal ended. Game %s",
+            uuid, event.uuid);
+        recorder->recordDealEnded(uuid, result);
     }
+    publish(
+        DEAL_END_COMMAND,
+        std::pair {DEAL_COMMAND, event.uuid},
+        std::pair {
+            CONTRACT_COMMAND,
+                event.contract ? std::optional {*event.contract} : std::nullopt},
+        std::pair {TRICKS_WON_COMMAND, event.tricksWon},
+        std::pair {RESULT_COMMAND, result});
     dereference(callbackScheduler).callSoon(&Impl::startDeal, this);
 }
 

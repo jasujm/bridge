@@ -6,6 +6,7 @@
 #ifndef MAIN_BRIDGEGAMERECORDER_HH_
 #define MAIN_BRIDGEGAMERECORDER_HH_
 
+#include "bridge/DuplicateScoring.hh"
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
 #include "messaging/Identity.hh"
@@ -13,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace Bridge {
 
@@ -64,6 +66,15 @@ public:
         std::optional<Uuid> playerUuids[4];
         /// The UUID of the current deal in the game
         std::optional<Uuid> dealUuid;
+    };
+
+    /** \brief Object representing a deal result
+     */
+    struct DealResult {
+        /// The UUID of the deal
+        Uuid dealUuid;
+        /// The deal result, or nullopt if the deal is not completed
+        std::optional<DuplicateResult> result;
     };
 
     /** \brief Create new bridge game recorder
@@ -130,6 +141,20 @@ public:
      */
     void recordPlayer(const Uuid& playerUuid, Messaging::UserIdView userId);
 
+    /** \brief Record information about a started deal
+     *
+     * \param gameUuid The UUID of the game
+     * \param dealUuid The UUID of the newly started deal
+     */
+    void recordDealStarted(const Uuid& gameUuid, const Uuid& dealUuid);
+
+    /** \brief Record information about an ended deal
+     *
+     * \param gameUuid The UUID of the game
+     * \param result The deal result
+     */
+    void recordDealEnded(const Uuid& gameUuid, const DuplicateResult& result);
+
     /** \brief Retrieve a game from the database
      *
      * \param gameUuid The UUID of the game to recall
@@ -154,6 +179,14 @@ public:
      * player is not known
      */
     std::optional<Messaging::UserId> recallPlayer(const Uuid& playerUuid);
+
+    /** \brief Retrieve deal results from the database
+     *
+     * \param gameUuid The UUID of the game to recall
+     *
+     * \return A vector containing the results of the deals in the game
+     */
+    std::vector<DealResult> recallDealResults(const Uuid& gameUuid);
 
 private:
 

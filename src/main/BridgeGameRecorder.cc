@@ -28,6 +28,7 @@
 #include "Logging.hh"
 #include "Utility.hh"
 
+#include <boost/endian/arithmetic.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
@@ -56,6 +57,7 @@ enum class RecordType {
     BIDDING,
     TRICKS,
     PLAYER,
+    DEAL_RESULT,
 };
 
 const auto COLUMN_FAMILY_NAMES = std::array {
@@ -65,6 +67,7 @@ const auto COLUMN_FAMILY_NAMES = std::array {
     std::string {"bidding_v1"},
     std::string {"tricks_v1"},
     std::string {"player_v1"},
+    std::string {"deal_result_v1"},
 };
 
 const auto DB_ERROR_MSG = std::string {"Failed to open database: "};
@@ -101,6 +104,7 @@ enum class PositionRecord : std::uint8_t {};
 enum class CardRecord : std::uint8_t {};
 enum class CallRecord : std::uint8_t {};
 enum class DealConfigRecord : std::uint8_t {};
+using PackedScore = boost::endian::big_int16_t;
 
 struct GameRecord {
     Uuid playerUuids[4];
@@ -116,6 +120,11 @@ struct TrickRecord {
     PositionRecord leaderPosition;
     CardRecord cards[Trick::N_CARDS_IN_TRICK];
 } BRIDGE_PACKED;
+
+struct DealResultRecord {
+    Uuid dealUuid;
+    PackedScore northSouthScore;
+};
 
 rocksdb::Slice uuidKey(const Uuid& uuid)
 {
@@ -192,6 +201,22 @@ std::pair<Position, Vulnerability> unpackDealConfig(
             static_cast<bool>(packed_ew_vulnerable)
         }
     };
+}
+
+template<typename Record>
+auto getMultipleRecords(const std::string& serializedRecords)
+{
+    static_assert( std::is_trivially_copyable_v<Record> );
+    // The serialized record may contain partial record as the last element. The
+    // members not initialized from the record are left zero initialized.
+    const auto record_size_rounded_up =
+        (serializedRecords.size() + sizeof(Record) - 1);
+    const auto n_records = record_size_rounded_up / sizeof(Record);
+    const auto last_record_size = record_size_rounded_up % sizeof(Record) + 1;
+    auto records = std::vector<Record>(n_records, Record {});
+    std::memmove(
+        records.data(), serializedRecords.data(), serializedRecords.size());
+    return std::tuple {records, last_record_size};
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -757,6 +782,34 @@ void BridgeGameRecorder::recordCard(
 #endif // WITH_RECORDER
 }
 
+void BridgeGameRecorder::recordDealStarted(
+    [[maybe_unused]] const Uuid& gameUuid,
+    [[maybe_unused]] const Uuid& dealUuid)
+{
+#if WITH_RECORDER
+    assert(impl);
+    impl->merge(
+        RecordType::DEAL_RESULT, gameUuid, rocksdb::Slice {
+            reinterpret_cast<const char*>(&dealUuid), sizeof(dealUuid)});
+#endif // WITH_RECORDER
+}
+
+void BridgeGameRecorder::recordDealEnded(
+    [[maybe_unused]] const Uuid& gameUuid,
+    [[maybe_unused]] const DuplicateResult& result)
+{
+#if WITH_RECORDER
+    assert(impl);
+    const auto north_south_score =
+        static_cast<PackedScore>(
+            getPartnershipScore(result, Partnerships::NORTH_SOUTH));
+    impl->merge(
+        RecordType::DEAL_RESULT, gameUuid, rocksdb::Slice {
+            reinterpret_cast<const char*>(&north_south_score),
+            sizeof(north_south_score)});
+#endif // WITH_RECORDER
+}
+
 std::optional<BridgeGameRecorder::GameState>
 BridgeGameRecorder::recallGame([[maybe_unused]] const Uuid& gameUuid)
 {
@@ -841,19 +894,9 @@ BridgeGameRecorder::recallDeal([[maybe_unused]] const Uuid& dealUuid)
             dealUuid, status.ToString());
         return std::nullopt;
     }
-    // The last trick is truncated in the database record if it contains less
-    // than four cards. That's why we're rounding up.
-    const auto n_tricks_in_record =
-        (serialized_record.size() + sizeof(TrickRecord) - 1) /
-        sizeof(TrickRecord);
-    const auto n_cards_in_last_trick =
-        (serialized_record.size() - 1) % sizeof(TrickRecord);
-    auto tricks_record = std::vector<TrickRecord>(
-        n_tricks_in_record, TrickRecord {});
-    static_assert( std::is_trivially_copyable_v<TrickRecord> );
-    std::memmove(
-        tricks_record.data(), serialized_record.data(),
-        serialized_record.size());
+    const auto [tricks_record, last_tricks_record_size] =
+        getMultipleRecords<TrickRecord>(serialized_record);
+    const auto n_cards_in_last_trick = last_tricks_record_size - 1;
 
     const auto [openingPosition, vulnerability] = unpackDealConfig(
         deal_record.config);
@@ -890,6 +933,44 @@ BridgeGameRecorder::recallPlayer([[maybe_unused]] const Uuid& playerUuid)
     return user_id;
 #else // WITH_RECORDER
     return std::nullopt;
+#endif // WITH_RECORDER
+}
+
+std::vector<BridgeGameRecorder::DealResult>
+BridgeGameRecorder::recallDealResults([[maybe_unused]] const Uuid& gameUuid)
+{
+#if WITH_RECORDER
+    assert(impl);
+    auto serialized_record = std::string {};
+    const auto status = impl->get(
+        RecordType::DEAL_RESULT, gameUuid, &serialized_record);
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            log(LogLevel::WARNING, "Error while recalling deal result %s: %s",
+                gameUuid, status.ToString());
+        }
+        return {};
+    }
+
+    const auto [deal_results_record, last_deal_results_record_size] =
+        getMultipleRecords<DealResultRecord>(serialized_record);
+    const auto last_record_has_result =
+        (last_deal_results_record_size == sizeof(DealResultRecord));
+
+    auto deal_results = std::vector<DealResult>(
+        deal_results_record.size(), DealResult {});
+    for (const auto [n, deal_result_record] : enumerate(deal_results_record)) {
+        deal_results[n].dealUuid = deal_result_record.dealUuid;
+        if (last_record_has_result || n < ssize(deal_results_record) - 1) {
+            deal_results[n].result = makeDuplicateResult(
+                Partnerships::NORTH_SOUTH,
+                deal_result_record.northSouthScore);
+        }
+    }
+
+    return deal_results;
+#else // WITH_RECORDER
+    return {};
 #endif // WITH_RECORDER
 }
 

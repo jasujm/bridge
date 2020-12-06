@@ -86,6 +86,18 @@ int calculateDuplicateScore(
  */
 DuplicateResult makeDuplicateResult(Partnership partnership, int score);
 
+/** \brief Return score for partnership given a duplicate result
+ *
+ * This function returns the signed score for a partnership, given a
+ * DuplicateResult. It is in the sense inverse of makeDuplicateResult().
+ *
+ * \param result The duplicate result
+ * \param partnership The partnership
+ *
+ * \return The signed score awarded to \p partnership in \p result
+ */
+int getPartnershipScore(const DuplicateResult& result, Partnership partnership);
+
 /** \brief Equality operator for duplicate results
  */
 bool operator==(const DuplicateResult& lhs, const DuplicateResult& rhs);

@@ -173,6 +173,15 @@ DuplicateResult makeDuplicateResult(
     return DuplicateResult::passedOut();
 }
 
+int getPartnershipScore(
+    const DuplicateResult& result, const Partnership partnership)
+{
+    if (partnership == result.partnership) {
+        return result.score;
+    }
+    return -result.score;
+}
+
 bool operator==(const DuplicateResult& lhs, const DuplicateResult& rhs)
 {
     return lhs.partnership == rhs.partnership && lhs.score == rhs.score;

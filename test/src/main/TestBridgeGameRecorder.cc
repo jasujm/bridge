@@ -7,12 +7,14 @@
 #include "main/BridgeGameRecorder.hh"
 #include "main/CardProtocol.hh"
 #include "messaging/Identity.hh"
+#include "Enumerate.hh"
 #include "MockBidding.hh"
 #include "MockDeal.hh"
 #include "MockHand.hh"
 #include "MockTrick.hh"
 #include "Utility.hh"
 
+#include <boost/range/combine.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <gtest/gtest.h>
@@ -21,6 +23,7 @@
 #include <vector>
 #include <string_view>
 
+using Bridge::DuplicateResult;
 using Bridge::dereference;
 using Bridge::to;
 
@@ -282,6 +285,43 @@ TEST_F(BridgeGameRecorderTest, testDatabaseFailure)
     EXPECT_THROW(
         Bridge::Main::BridgeGameRecorder("/dev/null"sv),
         std::runtime_error);
+}
+
+TEST_F(BridgeGameRecorderTest, testEmptyDealResults)
+{
+    const auto dealResults = recorder.recallDealResults(GAME_UUID);
+    EXPECT_TRUE(dealResults.empty());
+}
+
+TEST_F(BridgeGameRecorderTest, testDealResultsIncompleteDeal)
+{
+    recorder.recordDealStarted(GAME_UUID, DEAL_UUID);
+    const auto deal_results = recorder.recallDealResults(GAME_UUID);
+    ASSERT_EQ(1u, deal_results.size());
+    const auto& deal_result = deal_results.front();
+    EXPECT_EQ(DEAL_UUID, deal_result.dealUuid);
+    EXPECT_EQ(std::nullopt, deal_result.result);
+}
+
+TEST_F(BridgeGameRecorderTest, testDealResultsCompleteDeal)
+{
+    constexpr auto DUPLICATE_RESULTS = std::array {
+        DuplicateResult {Bridge::Partnerships::NORTH_SOUTH, 100},
+        DuplicateResult {Bridge::Partnerships::EAST_WEST, 200},
+        Bridge::DuplicateResult::passedOut(),
+    };
+    for (const auto& result : DUPLICATE_RESULTS) {
+        recorder.recordDealStarted(GAME_UUID, DEAL_UUID);
+        recorder.recordDealEnded(GAME_UUID, result);
+    }
+    const auto deal_results = recorder.recallDealResults(GAME_UUID);
+    ASSERT_EQ(DUPLICATE_RESULTS.size(), deal_results.size());
+    for (const auto t : boost::combine(deal_results, DUPLICATE_RESULTS)) {
+        const auto& deal_result = t.get<0>();
+        const auto& duplicate_result = t.get<1>();
+        EXPECT_EQ(DEAL_UUID, deal_result.dealUuid);
+        EXPECT_EQ(duplicate_result, deal_result.result);
+    }
 }
 
 #endif // WITH_RECORDER

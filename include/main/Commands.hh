@@ -405,7 +405,8 @@
  *         "position": <the position of the player>,
  *         "allowedCalls": [<allowed calls to make, if any>],
  *         "allowedCards": [<allowed cards to play, if any>]
- *     }
+ *     },
+ *     "results": [<deal results in the game>]
  * }
  * \endcode
  *
@@ -423,6 +424,9 @@
  *   pubstate.
  *
  * - \b self contains information about the player itself within the game.
+ *
+ * - \b results contains the deals and results in the game in chronological
+     order.
  *
  * If there is no deal ongoing in the game, the \e pubstate and \e privstate
  * subobjects are null.
@@ -506,6 +510,19 @@
  * The \e allowedCards member is an array of the cards allowed to be played by
  * the player. It is always empty if the game is not in the playing phase or the
  * player doesn’t have turn.
+ *
+ * \subsubsection bridgeprotocolcontrolgetresults Results member
+ *
+ * The \e results member is an array containing objects describing the results
+ * of the deals played in the game, in chronological order. Each object in the
+ * array contains the deal UUID and result of the deal.
+ *
+ * \code{.json}
+ * {
+ *     "deal": <the UUID of the deal>
+ *     "result": <result of the deal, or null if the deal is not completed>
+ * }
+ * \endcode
  *
  * \subsection bridgeprotocolcontroldeal deal
  *
@@ -721,15 +738,22 @@ inline constexpr auto SERVER_KEY_COMMAND = std::string_view {"serverKey"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto GET_COMMAND = std::string_view {"get"};
+
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto PUBSTATE_COMMAND = std::string_view {"pubstate"};
+
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto PRIVSTATE_COMMAND = std::string_view {"privstate"};
+
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto SELF_COMMAND = std::string_view {"self"};
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto RESULTS_COMMAND = std::string_view {"results"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
