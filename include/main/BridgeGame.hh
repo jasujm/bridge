@@ -227,10 +227,11 @@ public:
      * which card and call/play choice information is available.
      * \param keys The list of keys to retrieve
      *
-     * \return Current state of the game visible to \p player
+     * \return Current state of the game visible to \p player, or the public
+     * state if <tt>player == nullptr</tt>
      */
     GameState getState(
-        const Player& player,
+        const Player* player,
         const std::optional<std::vector<std::string>>& keys) const;
 
     /** \brief Get the value of the running counter

@@ -101,7 +101,7 @@ public:
         std::shared_ptr<Player> player);
 
     GameState getState(
-        const Player& player,
+        const Player* player,
         const std::optional<std::vector<std::string>>& keys) const;
 
     Counter getCounter() const;
@@ -315,12 +315,14 @@ bool BridgeGame::Impl::join(
 }
 
 GameState BridgeGame::Impl::getState(
-    const Player& player,
+    const Player* player,
     const std::optional<std::vector<std::string>>& keys) const
 {
     auto game_state = getGameState(
-        engine.getCurrentDeal(), engine.getPosition(player),
-        engine.getPlayerInTurn() == &player, keys);
+        engine.getCurrentDeal(),
+        player ? engine.getPosition(*player) : std::nullopt,
+        player && engine.getPlayerInTurn() == player,
+        keys);
     if (keys && std::find(keys->begin(), keys->end(), RESULTS_COMMAND) != keys->end()) {
         game_state.emplace(
             RESULTS_COMMAND,
@@ -648,7 +650,7 @@ bool BridgeGame::join(
 }
 
 GameState BridgeGame::getState(
-    const Player& player,
+    const Player* player,
     const std::optional<std::vector<std::string>>& keys) const
 {
     assert(impl);

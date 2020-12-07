@@ -124,7 +124,7 @@ private:
         const Uuid& playerUuid, std::optional<Position> positions);
     Reply<GameState, BridgeGame::Counter> get(
         const Identity& identity, const Uuid& gameUuid,
-        const Uuid& playerUuid,
+        const std::optional<Uuid>& playerUuid,
         const std::optional<std::vector<std::string>>& keys);
     Reply<> call(
         const Identity& identity, const Uuid& gameUuid,
@@ -410,7 +410,8 @@ Reply<Uuid> BridgeMain::Impl::join(
 
 Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     const Identity& identity, const Uuid& gameUuid,
-    const Uuid& playerUuid, const std::optional<std::vector<std::string>>& keys)
+    const std::optional<Uuid>& playerUuid,
+    const std::optional<std::vector<std::string>>& keys)
 {
     log(LogLevel::DEBUG, "Get command from %s. Game: %s. Player: %s",
         identity, gameUuid, playerUuid);
@@ -428,14 +429,18 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
         return failure();
     }
 
-    if (const auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
-        if (const auto game = internalGetGame(gameUuid)) {
-            return success(game->getState(*player, keys), game->getCounter());
-        } else {
-            return failure(NOT_FOUND_SUFFIX);
+    auto player = std::shared_ptr<Player> {};
+    if (playerUuid) {
+        player = internalGetOrCreatePlayer(identity.userId, *playerUuid);
+        if (!player) {
+            return failure(NOT_AUTHORIZED_SUFFIX);
         }
+    }
+
+    if (const auto game = internalGetGame(gameUuid)) {
+        return success(game->getState(player.get(), keys), game->getCounter());
     } else {
-        return failure(NOT_AUTHORIZED_SUFFIX);
+        return failure(NOT_FOUND_SUFFIX);
     }
 }
 

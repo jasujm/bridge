@@ -357,7 +357,7 @@
  * - \b Command: get
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
- *   - \e player
+ *   - \e player (optional)
  *   - \e get: array of keys (optional)
  * - \b Reply:
  *   - \e get: object describing the current state of the game
@@ -374,7 +374,9 @@
  *
  * The \e player argument is the player whose viewpoint is applied to the state
  * representation. The command MUST fail without output if the client is not
- * allowed to act for that player.
+ * allowed to act for that player. If the player argument is omitted, the
+ * response is as if the command was called with a player not taking part in the
+ * game.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game
