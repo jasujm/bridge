@@ -368,9 +368,10 @@
  *
  * Get commands retrieves one or multiple key–value pairs describing the state
  * of a game. The \e get argument is a array of keys to be retrieved. It MAY be
- * omitted in which case the reply MUST contain all the keys described below. If
- * included, the reply SHOULD only contain the key–value pairs contained in the
- * array. Keys that are not recognized SHOULD be ignored.
+ * omitted in which case the reply MUST contain all the keys described below,
+ * except “results” and “players”. If included, the reply SHOULD only contain
+ * the key–value pairs contained in the array. Keys that are not recognized
+ * SHOULD be ignored.
  *
  * The \e player argument is the player whose viewpoint is applied to the state
  * representation. The command MUST fail without output if the client is not
@@ -408,7 +409,8 @@
  *         "allowedCalls": [<allowed calls to make, if any>],
  *         "allowedCards": [<allowed cards to play, if any>]
  *     },
- *     "results": [<deal results in the game>]
+ *     "results": [<deal results in the game>],
+ *     "players": <players currently in the game>
  * }
  * \endcode
  *
@@ -428,7 +430,9 @@
  * - \b self contains information about the player itself within the game.
  *
  * - \b results contains the deals and results in the game in chronological
-     order.
+ *   order.
+ *
+ * - \b players contains information about the players in the game.
  *
  * If there is no deal ongoing in the game, the \e pubstate and \e privstate
  * subobjects are null.
@@ -526,6 +530,21 @@
  * }
  * \endcode
  *
+ * \subsubsection bridgeprotocolcontrolgetplayers Players member
+ *
+ * The \e players member is an object mapping each position (north, east, south,
+ * west), to a player UUID seated at that position. If no player is seated at
+ * the given position, the corresponding value is null.
+ *
+ * \code{.json}
+ * {
+ *     "north": "c6a89f18-c6eb-4fb8-9801-203b103363f4",
+ *     "east": "dc593d4a-5c66-4b16-9c10-5f77b982d1f7",
+ *     "south": null,
+ *     "west": null
+ * }
+ * \endcode
+ *
  * \subsection bridgeprotocolcontroldeal deal
  *
  * - \b Command: deal
@@ -601,13 +620,23 @@
  *
  * The peer SHOULD publish the following events through the event socket:
  *
+ * \subserction bridgeprotocoleventjoin join
+ *
+ * - \b Command: join
+ * - \b Parameters:
+ *   - \e position: the position where a player joined
+ *   - \e player: the UUID of the player
+ *   - \e counter: the running counter
+ *
+ * This event is published whenever a player joins a game.
+ *
  * \subsection bridgeprotocoleventdeal deal
  *
  * - \b Command: deal
  * - \b Parameters:
- *  - \e deal: the UUID of the deal
- *  - \e opener: the position of the opener of the bidding
- *  - \e vulnerability: the vulnerabilities in the deal
+ *   - \e deal: the UUID of the deal
+ *   - \e opener: the position of the opener of the bidding
+ *   - \e vulnerability: the vulnerabilities in the deal
  *
  * This event is published whenever new cards are dealt.
  *
@@ -756,6 +785,10 @@ inline constexpr auto SELF_COMMAND = std::string_view {"self"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto RESULTS_COMMAND = std::string_view {"results"};
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto PLAYERS_COMMAND = std::string_view {"players"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */

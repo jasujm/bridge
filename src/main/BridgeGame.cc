@@ -304,10 +304,15 @@ bool BridgeGame::Impl::join(
 {
     if (engine.setPlayer(position, player)) {
         recordGame();
+        const auto player_uuid = dereference(player).getUuid();
+        publish(
+            JOIN_COMMAND,
+            std::pair {POSITION_COMMAND, position},
+            std::pair {PLAYER_COMMAND, player_uuid});
         sendToPeersIfClient(
             identity, JOIN_COMMAND,
             std::pair {GAME_COMMAND, uuid},
-            std::pair {PLAYER_COMMAND, dereference(player).getUuid()},
+            std::pair {PLAYER_COMMAND, player_uuid},
             std::pair {POSITION_COMMAND, position});
         return true;
     }
@@ -323,10 +328,25 @@ GameState BridgeGame::Impl::getState(
         player ? engine.getPosition(*player) : std::nullopt,
         player && engine.getPlayerInTurn() == player,
         keys);
-    if (keys && std::find(keys->begin(), keys->end(), RESULTS_COMMAND) != keys->end()) {
-        game_state.emplace(
-            RESULTS_COMMAND,
-            recorder ? getDealResults(uuid, *recorder) : nlohmann::json::array());
+    if (keys) {
+        for (const auto& key : *keys) {
+            if (key == RESULTS_COMMAND) {
+                game_state.emplace(
+                    RESULTS_COMMAND,
+                    recorder ? getDealResults(uuid, *recorder) :
+                        nlohmann::json::array());
+            } else if (key == PLAYERS_COMMAND) {
+                auto players = nlohmann::json::object();
+                for (const auto position : Position::all()) {
+                    const auto player = engine.getPlayer(position);
+                    players.emplace(
+                        position.value(),
+                        player ? nlohmann::json(player->getUuid()) :
+                            nlohmann::json());
+                }
+                game_state.emplace(PLAYERS_COMMAND, std::move(players));
+            }
+        }
     }
     return game_state;
 }
