@@ -352,6 +352,26 @@
  * The peer MAY reject a client or other peer from joining the game. If
  * rejected, the command MUST fail without effect.
  *
+ * \subsection bridgeprotocolcontrolleave leave
+ *
+ * - \b Command: part
+ * - \b Parameters:
+ *    - \e game: the UUID of the game
+ *    - \e player: the UUID of the player
+ * - \b Failures:
+ *    - \e NF: Game not found
+ *   - \e NA: Not authorized (the node is not allowed to act for the player)
+ *
+ * Nodes use this command to remove a player from a bridge game.
+ *
+ * The game argument is the UUID of the game being joined. The player argument
+ * is the UUID of the player leaving the game.
+ *
+ * If a successful leave command comes from a client, the peer MUST send the
+ * command to other peers taking part in the game.
+ *
+ * The command SHOULD succeed with no effect if the player is not in the game.
+ *
  * \subsection bridgeprotocolcontrolget get
  *
  * - \b Command: get
@@ -620,15 +640,15 @@
  *
  * The peer SHOULD publish the following events through the event socket:
  *
- * \subserction bridgeprotocoleventjoin join
+ * \subserction bridgeprotocoleventplayer player
  *
- * - \b Command: join
+ * - \b Command: player
  * - \b Parameters:
- *   - \e position: the position where a player joined
- *   - \e player: the UUID of the player
+ *   - \e position: the position in the game
+ *   - \e player: the UUID of the player joined, or null if a player left
  *   - \e counter: the running counter
  *
- * This event is published whenever a player joins a game.
+ * This event is published whenever a player joins or leaves a game.
  *
  * \subsection bridgeprotocoleventdeal deal
  *
@@ -745,6 +765,10 @@ inline constexpr auto GAME_COMMAND = std::string_view {"game"};
 /** \brief See \ref bridgeprotocolcontroljoin
  */
 inline constexpr auto JOIN_COMMAND = std::string_view {"join"};
+
+/** \brief See \ref bridgeprotocolcontrolleave
+ */
+inline constexpr auto LEAVE_COMMAND = std::string_view {"leave"};
 
 /** \brief See \ref bridgeprotocolcontrolgame
  */

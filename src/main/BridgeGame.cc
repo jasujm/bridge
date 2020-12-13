@@ -100,6 +100,8 @@ public:
         const Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
+    void leave(const Identity& identity, const Player& player);
+
     GameState getState(
         const Player* player,
         const std::optional<std::vector<std::string>>& keys) const;
@@ -300,13 +302,13 @@ std::optional<Position> BridgeGame::Impl::getPositionForPlayerToJoin(
 
 bool BridgeGame::Impl::join(
     const Identity& identity, const Position position,
-    std::shared_ptr<Player> player)
+    const std::shared_ptr<Player> player)
 {
     if (engine.setPlayer(position, player)) {
         recordGame();
         const auto player_uuid = dereference(player).getUuid();
         publish(
-            JOIN_COMMAND,
+            PLAYER_COMMAND,
             std::pair {POSITION_COMMAND, position},
             std::pair {PLAYER_COMMAND, player_uuid});
         sendToPeersIfClient(
@@ -317,6 +319,25 @@ bool BridgeGame::Impl::join(
         return true;
     }
     return false;
+}
+
+void BridgeGame::Impl::leave(const Identity& identity, const Player& player)
+{
+    for (const auto position : Position::all()) {
+        if (engine.getPlayer(position) == &player) {
+            engine.setPlayer(position, nullptr);
+            recordGame();
+            publish(
+                PLAYER_COMMAND,
+                std::pair {POSITION_COMMAND, position},
+                std::pair {PLAYER_COMMAND, nullptr});
+            sendToPeersIfClient(
+                identity, LEAVE_COMMAND,
+                std::pair {GAME_COMMAND, uuid},
+                std::pair {PLAYER_COMMAND, player.getUuid()});
+            return;
+        }
+    }
 }
 
 GameState BridgeGame::Impl::getState(
@@ -667,6 +688,12 @@ bool BridgeGame::join(
 {
     assert(impl);
     return impl->join(identity, position, std::move(player));
+}
+
+void BridgeGame::leave(const Identity& identity, const Player& player)
+{
+    assert(impl);
+    impl->leave(identity, player);
 }
 
 GameState BridgeGame::getState(

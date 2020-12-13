@@ -218,6 +218,17 @@ public:
         const Messaging::Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
+    /** \brief Remove a player from a game
+     *
+     * This method is intended to implement the \ref bridgeprotocolcontrolleave
+     * command. It removes \p player from the game, if present.
+     *
+     * \param identity the identity of the node controlling the player
+     * \param player the player to leave the game
+     */
+    void leave(
+        const Messaging::Identity& identity, const Player& player);
+
     /** \brief Get current state of the game
      *
      * This method is intended to implement the \ref

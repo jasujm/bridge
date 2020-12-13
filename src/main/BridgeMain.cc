@@ -122,6 +122,8 @@ private:
     Reply<Uuid> join(
         const Identity& identity, const std::optional<Uuid>& gameUuid,
         const Uuid& playerUuid, std::optional<Position> positions);
+    Reply<> leave(
+        const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid);
     Reply<GameState, BridgeGame::Counter> get(
         const Identity& identity, const Uuid& gameUuid,
         const std::optional<Uuid>& playerUuid,
@@ -153,6 +155,11 @@ private:
     Messaging::Authenticator authenticator;
     std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
+    // TODO: The available games system is not very well designed. The games
+    // will remain in the que if they are joined using explicit game parameter
+    // in the join command. They don't return to the queue when a player leaves
+    // a full game etc. Perhaps a proper implementation or dropping the feature
+    // is in order?
     std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
     std::shared_ptr<BridgeGameRecorder> recorder;
     const bool recordPlayers;
@@ -184,6 +191,12 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                     *this, &Impl::join, JsonSerializer {},
                     std::tuple {GAME_COMMAND, PLAYER_COMMAND, POSITION_COMMAND},
                     std::tuple {GAME_COMMAND})
+            },
+            {
+                stringToBlob(LEAVE_COMMAND),
+                makeMessageHandler(
+                    *this, &Impl::leave, JsonSerializer {},
+                    std::tuple {GAME_COMMAND, PLAYER_COMMAND})
             },
             {
                 stringToBlob(CALL_COMMAND),
@@ -402,6 +415,33 @@ Reply<Uuid> BridgeMain::Impl::join(
             return success(uuid_for_game);
         } else {
             return failure(SEAT_RESERVED_SUFFIX);
+        }
+    } else {
+        return failure(NOT_AUTHORIZED_SUFFIX);
+    }
+}
+
+Reply<> BridgeMain::Impl::leave(
+    const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid)
+{
+    log(LogLevel::DEBUG, "Leave command from %s. Game: %s. Player: %s",
+        identity, gameUuid, playerUuid);
+
+    const auto iter = nodes.find(identity);
+    if (iter == nodes.end()) {
+        return failure(UNKNOWN_SUFFIX);
+    }
+
+    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+        return failure();
+    }
+
+    if (auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
+        if (const auto game = internalGetGame(gameUuid)) {
+            game->leave(identity, *player);
+            return success();
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
         }
     } else {
         return failure(NOT_AUTHORIZED_SUFFIX);
