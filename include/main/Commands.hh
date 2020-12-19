@@ -638,7 +638,9 @@
  *
  * \section bridgeprotocoleventcommands Events
  *
- * The peer SHOULD publish the following events through the event socket:
+ * The peer SHOULD publish the following events through the event socket. In
+ * addition to the parameters listed below, each event has a \e counter
+ * parameter whose value is the running counter. See \ref bridgeprotocolcounter.
  *
  * \subserction bridgeprotocoleventplayer player
  *
@@ -646,7 +648,6 @@
  * - \b Parameters:
  *   - \e position: the position in the game
  *   - \e player: the UUID of the player joined, or null if a player left
- *   - \e counter: the running counter
  *
  * This event is published whenever a player joins or leaves a game.
  *
@@ -677,7 +678,6 @@
  *   - \e deal: the UUID of the deal
  *   - \e position: the position of the player who made the call
  *   - \e call: see \ref jsoncall
- *   - \e counter: the running counter
  *
  * This event is published whenever a call is made.
  *
@@ -686,9 +686,8 @@
  * - \b Command: bidding
  * - \b Parameters:
  *   - \e deal: the UUID of the deal
- *   - \e declarer: the declarer determined by the bidding
+ *   - \e declarer: the position of the declarer
  *   - \e contract: the contract reached
- *   - \e counter: the running counter
  *
  * This event is published whenever a contract is reached.
  *
@@ -699,7 +698,6 @@
  *   - \e deal: the UUID of the deal
  *   - \e position: the position of the hand the card was played from
  *   - \e card: see \ref jsoncardtype
- *   - \e counter: the running counter
  *
  * This event is published whenever a card is played.
  *
@@ -710,7 +708,6 @@
  *   - \e deal: the UUID of the deal
  *   - \e position: the position of the dummy
  *   - \e cards: the cards of the dummy (an array of card objects)
- *   - \e counter: the running counter
  *
  * This event is published whenever the hand of the dummy is revealed.
  *
@@ -720,7 +717,6 @@
  * - \b Parameters:
  *   - \e deal: the UUID of the deal
  *   - \e winner: the position of the player that wins the trick
- *   - \e counter: the running counter
  *
  * This event is published whenever a trick is completed.
  *
@@ -732,7 +728,6 @@
  *   - \e contract: the contract reached
  *   - \e tricksWon: the number of tricks won by the declarer
  *   - \e result: the result of the deal, see \ref jsonduplicateresult
- *   - \e counter: the running counter
  *
  * This event is published whenever a deal ends. If the deal passes out, the
  * contract and tricksWon are null.
