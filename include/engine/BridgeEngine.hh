@@ -100,12 +100,14 @@ public:
          * \param uuid see \ref uuid
          * \param position see \ref position
          * \param call see \ref call
+         * \param index see \ref index
          */
-        CallMade(const Uuid& uuid, Position position, const Call& call);
+        CallMade(const Uuid& uuid, Position position, const Call& call, int index);
 
         const Uuid& uuid;   ///< UUID of the deal
         Position position;  ///< \brief The position that made the call
         Call call;          ///< \brief The call that was made
+        int index;          ///< \brief The index of the call in the bidding
     };
 
     /** \brief Event for announcing that contract was reached
@@ -146,12 +148,18 @@ public:
          * \param uuid see \ref uuid
          * \param position see \ref position
          * \param card see \ref card
+         * \param trickIndex see \ref trickIndex
+         * \param index see \ref index
          */
-        CardPlayed(const Uuid& uuid, Position position, const Card& card);
+        CardPlayed(
+            const Uuid& uuid, Position position, const Card& card,
+            int trickIndex, int index);
 
         const Uuid& uuid;   ///< UUID of the deal
         Position position;  ///< \brief The position the card was played from
         const Card& card;   ///< \brief The card played
+        int trickIndex;     ///< \brief The zero based index of the trick in the deal
+        int index;          ///< \brief The zero based index of the card in the trick
     };
 
     /** \brief Event for announcing that a trick was completed
@@ -162,12 +170,14 @@ public:
          * \param uuid see \ref uuid
          * \param trick see \ref trick
          * \param winner see \ref winner
+         * \param index see \ref index
          */
-        TrickCompleted(const Uuid& uuid, const Trick& trick, Position winner);
+        TrickCompleted(const Uuid& uuid, const Trick& trick, Position winner, int index);
 
         const Uuid& uuid;    ///< UUID of the deal
         const Trick& trick;  ///< \brief The trick that was completed
         Position winner;     ///< \brief The winner position
+        int index;           ///< \brief The zero based index of the trick in the deal
     };
 
     /** \brief Event for announcing that dummy has been revealed

@@ -143,7 +143,7 @@ protected:
 
     void playCard(
         const Deal& deal, const Player& player, int card,
-        bool revealDummy = false, bool completeTrick = false)
+        bool revealDummy, bool completeTrick, int index)
     {
         const auto position = dereference(engine.getPosition(player));
         const auto partner_position = partnerFor(position);
@@ -186,7 +186,7 @@ protected:
                 *trick_completed_observer,
                 handleNotify(
                     BridgeEngine::TrickCompleted {
-                        dealUuid, trick, Positions::NORTH}));
+                        dealUuid, trick, Positions::NORTH, index}));
         } else {
             EXPECT_CALL(*trick_completed_observer, handleNotify(_)).Times(0);
         }
@@ -480,7 +480,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
                 BridgeEngine::TurnStarted {
                     dealUuid, next_positions_first_turn[i]}));
         engine.subscribeToTurnStarted(observer);
-        playCard(*deal, player, 0, i == 0, i == players.size() - 1);
+        playCard(*deal, player, 0, i == 0, i == players.size() - 1, 0);
         updateExpectedStateAfterPlay(player);
         assertHandsVisible(*deal, engine.getPlayer(Positions::WEST));
     }
@@ -516,7 +516,7 @@ TEST_F(BridgeEngineTest, testBridgeEngine)
 
             engine.subscribeToTurnStarted(turn_observer);
             engine.subscribeToDealEnded(deal_observer);
-            playCard(*deal, *player, i, false, last_card_in_trick);
+            playCard(*deal, *player, i, false, last_card_in_trick, i);
             updateExpectedStateAfterPlay(*player);
         }
         addTrickToNorthSouth();
@@ -578,7 +578,7 @@ TEST_F(BridgeEngineTest, testSuccessfulCall)
     const auto call = Bid {1, Strains::CLUBS};
     EXPECT_CALL(
         *observer,
-        handleNotify(BridgeEngine::CallMade {uuid, Positions::NORTH, call}));
+        handleNotify(BridgeEngine::CallMade {uuid, Positions::NORTH, call, 0}));
     engine.subscribeToCallMade(observer);
     EXPECT_TRUE(engine.call(player, call));
 }
@@ -617,7 +617,7 @@ TEST_F(BridgeEngineTest, testSuccessfulPlay)
         *observer,
         handleNotify(
             BridgeEngine::CardPlayed {
-                uuid, Positions::EAST, dereference(hand.getCard(0))}));
+                uuid, Positions::EAST, dereference(hand.getCard(0)), 0, 0}));
     engine.subscribeToCardPlayed(observer);
     ASSERT_TRUE(
         engine.play(*players[1], hand, 0));

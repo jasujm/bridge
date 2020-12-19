@@ -657,7 +657,8 @@ sc::result InBidding::react(const CallEvent& event)
         const auto& deal_uuid = in_deal.getUuid();
         context.getCallMadeNotifier().notifyAll(
             BridgeEngine::CallMade {
-                deal_uuid, *position, event.call });
+                deal_uuid, *position, event.call,
+                bidding.getNumberOfCalls() - 1 });
         const auto outer_contract = bidding.getContract();
         const auto outer_declarer_position = bidding.getDeclarerPosition();
         if (outer_contract && outer_declarer_position) {
@@ -748,18 +749,19 @@ void Playing::play(const CardRevealedEvent&)
     if (trick.play(hand, card)) {
         auto& context_ = outermost_context();
         const auto& deal_uuid = in_deal.getUuid();
+        const auto trick_index = in_deal.getNumberOfTricks() - 1;
         hand.markPlayed(n_card);
         context_.getCardPlayedNotifier().notifyAll(
             BridgeEngine::CardPlayed {
-                deal_uuid, dereference(in_deal.getPosition(hand)), card });
+                deal_uuid, dereference(in_deal.getPosition(hand)), card,
+                trick_index, trick.getNumberOfCardsPlayed() - 1});
         if (trick.isCompleted()) {
-            const auto n_tricks = in_deal.getNumberOfTricks();
-            assert(n_tricks > 0);
+            assert(trick_index >= 0);
             const auto winner_position = dereference(
-                in_deal.getWinnerOfTrick(n_tricks - 1));
+                in_deal.getWinnerOfTrick(trick_index));
             outermost_context().getTrickCompletedNotifier().notifyAll(
                 BridgeEngine::TrickCompleted {
-                    deal_uuid, trick, winner_position});
+                    deal_uuid, trick, winner_position, trick_index});
             if (in_deal.isLastTrick()) {
                 const auto& bidding = in_deal.getBidding();
                 const auto declarer = dereference(
@@ -1202,10 +1204,12 @@ BridgeEngine::TurnStarted::TurnStarted(const Uuid& uuid, const Position position
 {
 }
 
-BridgeEngine::CallMade::CallMade(const Uuid& uuid, const Position position, const Call& call) :
+BridgeEngine::CallMade::CallMade(
+    const Uuid& uuid, const Position position, const Call& call, int index) :
     uuid {uuid},
     position {position},
-    call {call}
+    call {call},
+    index {index}
 {
 }
 
@@ -1225,18 +1229,23 @@ BridgeEngine::TrickStarted::TrickStarted(
 }
 
 BridgeEngine::CardPlayed::CardPlayed(
-    const Uuid& uuid, const Position position, const Card& card) :
+    const Uuid& uuid, const Position position, const Card& card,
+    int trickIndex, int index) :
     uuid {uuid},
     position {position},
-    card {card}
+    card {card},
+    trickIndex {trickIndex},
+    index {index}
 {
 }
 
 BridgeEngine::TrickCompleted::TrickCompleted(
-    const Uuid& uuid, const Trick& trick, const Position winner) :
+    const Uuid& uuid, const Trick& trick, const Position winner,
+    int index) :
     uuid {uuid},
     trick {trick},
-    winner {winner}
+    winner {winner},
+    index {index}
 {
 }
 
@@ -1276,8 +1285,8 @@ bool operator==(
 bool operator==(
     const BridgeEngine::CallMade& lhs, const BridgeEngine::CallMade& rhs)
 {
-    return lhs.uuid == rhs.uuid &&
-        lhs.position == rhs.position && lhs.call == rhs.call;
+    return lhs.uuid == rhs.uuid && lhs.position == rhs.position &&
+        lhs.call == rhs.call && lhs.index == rhs.index;
 }
 bool operator==(
     const BridgeEngine::BiddingCompleted& lhs,
@@ -1298,7 +1307,8 @@ bool operator==(
     const BridgeEngine::CardPlayed& lhs, const BridgeEngine::CardPlayed& rhs)
 {
     return lhs.uuid == rhs.uuid && lhs.position == rhs.position &&
-        &lhs.card == &rhs.card;
+        &lhs.card == &rhs.card && lhs.trickIndex == rhs.trickIndex &&
+        lhs.index == rhs.index;
 }
 
 bool operator==(
@@ -1306,7 +1316,7 @@ bool operator==(
     const BridgeEngine::TrickCompleted& rhs)
 {
     return lhs.uuid == rhs.uuid && &lhs.trick == &rhs.trick &&
-        lhs.winner == rhs.winner;
+        lhs.winner == rhs.winner && lhs.index == rhs.index;
 }
 
 bool operator==(

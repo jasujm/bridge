@@ -545,7 +545,8 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::CallMade& event)
         CALL_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
         std::pair {POSITION_COMMAND, event.position},
-        std::pair {CALL_COMMAND, event.call});
+        std::pair {CALL_COMMAND, event.call},
+        std::pair {INDEX_COMMAND, event.index});
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::BiddingCompleted& event)
@@ -575,7 +576,9 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::CardPlayed& event)
         PLAY_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
         std::pair {POSITION_COMMAND, event.position},
-        std::pair {CARD_COMMAND, card_type});
+        std::pair {CARD_COMMAND, card_type},
+        std::pair {TRICK_COMMAND, event.trickIndex},
+        std::pair {INDEX_COMMAND, event.index});
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
@@ -584,7 +587,8 @@ void BridgeGame::Impl::handleNotify(const BridgeEngine::TrickCompleted& event)
     publish(
         TRICK_COMMAND,
         std::pair {DEAL_COMMAND, event.uuid},
-        std::pair {WINNER_COMMAND, event.winner});
+        std::pair {WINNER_COMMAND, event.winner},
+        std::pair {INDEX_COMMAND, event.index});
 }
 
 void BridgeGame::Impl::handleNotify(const BridgeEngine::DummyRevealed& event)

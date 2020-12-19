@@ -678,6 +678,7 @@
  *   - \e deal: the UUID of the deal
  *   - \e position: the position of the player who made the call
  *   - \e call: see \ref jsoncall
+ *   - \e index: the zero based index enumerating the call in the bidding
  *
  * This event is published whenever a call is made.
  *
@@ -698,6 +699,8 @@
  *   - \e deal: the UUID of the deal
  *   - \e position: the position of the hand the card was played from
  *   - \e card: see \ref jsoncardtype
+ *   - \e trick: the zero based index enumerating the trick in the deal
+ *   - \e index: the zero based index enumerating the call in the trick
  *
  * This event is published whenever a card is played.
  *
@@ -717,6 +720,7 @@
  * - \b Parameters:
  *   - \e deal: the UUID of the deal
  *   - \e winner: the position of the player that wins the trick
+ *   - \e index: the zero based index enumerating the trick in the deal
  *
  * This event is published whenever a trick is completed.
  *
