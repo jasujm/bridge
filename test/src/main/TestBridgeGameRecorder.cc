@@ -266,6 +266,14 @@ TEST_F(BridgeGameRecorderTest, testRecordTrick)
     EXPECT_EQ(&(iter+2)->second, &recalledDeal->getCard(2 * Bridge::N_CARDS_PER_PLAYER));
     EXPECT_EQ(&(iter+3)->first,  &recalledDeal->getHand(Bridge::Positions::WEST));
     EXPECT_EQ(&(iter+3)->second, &recalledDeal->getCard(3 * Bridge::N_CARDS_PER_PLAYER));
+
+    // The first cards in each hand were played in the trick
+    for (const auto position : Bridge::Position::all()) {
+        const auto& hand = recalledDeal->getHand(position);
+        for (const auto n : Bridge::to(Bridge::N_CARDS_PER_PLAYER)) {
+            EXPECT_EQ(n == 0, hand.isPlayed(n));
+        }
+    }
 }
 
 TEST_F(BridgeGameRecorderTest, testPlayerNotFound)

@@ -233,7 +233,7 @@ inline constexpr Suit SPADES { SuitLabel::SPADES };
  * \note Boost operators library is used to ensure that operator!= is
  * generated with usual semantics when operator== is supplied.
  */
-struct CardType : private boost::equality_comparable<CardType> {
+struct CardType : private boost::totally_ordered<CardType> {
     Rank rank;  ///< \brief Rank of the card
     Suit suit;  ///< \brief Suit of the card
 
@@ -256,6 +256,12 @@ struct CardType : private boost::equality_comparable<CardType> {
  * \sa CardType
  */
 bool operator==(const CardType&, const CardType&);
+
+/** \brief Less than operator for card types
+ *
+ * \sa CardType
+ */
+bool operator<(const CardType&, const CardType&);
 
 /** \brief Output a Rank to stream
  *

@@ -3,6 +3,7 @@
 #include "bridge/AllowedCalls.hh"
 #include "bridge/AllowedCards.hh"
 #include "bridge/Call.hh"
+#include "bridge/CardsForPosition.hh"
 #include "bridge/Contract.hh"
 #include "bridge/Deal.hh"
 #include "bridge/Position.hh"
@@ -20,6 +21,7 @@
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
+#include <boost/range/adaptor/transformed.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
@@ -81,16 +83,30 @@ auto getAllowedCards(const Deal& deal)
     return allowed_cards;
 }
 
+auto getPublicCardsForPosition(const Deal& deal, const Position position)
+{
+    const auto& hand = deal.getHand(position);
+    return deal.isVisibleToAll(position) ? getCardsFromHand(hand) :
+        CardTypeVector(std::distance(hand.begin(), hand.end()), std::nullopt);
+}
+
+auto getAllCardsForPosition(const Deal& deal, const Position position)
+{
+    const auto card_indices = cardsFor(position);
+    const auto cards_for_position = card_indices |
+        boost::adaptors::transformed(
+            [&deal](const auto n) { return deal.getCard(n).getType(); });
+    return std::vector(cards_for_position.begin(), cards_for_position.end());
+}
+
 auto getPublicCards(const Deal& deal)
 {
+    const auto has_ended = (deal.getPhase() == DealPhases::ENDED);
     auto cards = nlohmann::json::object();
     for (const auto position : Position::all()) {
-        const auto& hand = deal.getHand(position);
-        const auto cards_in_hand = deal.isVisibleToAll(position) ?
-            getCardsFromHand(hand) :
-            CardTypeVector(
-                std::distance(hand.begin(), hand.end()), std::nullopt);
-        cards.emplace(position.value(), cards_in_hand);
+        auto cards_in_hand = has_ended ? getAllCardsForPosition(deal, position) :
+            getPublicCardsForPosition(deal, position);
+        cards.emplace(position.value(), std::move(cards_in_hand));
     }
     return cards;
 }
@@ -107,10 +123,11 @@ auto getTricks(const Deal& deal)
 {
     auto tricks = nlohmann::json::array();
     const auto n_tricks = deal.getNumberOfTricks();
+    const auto has_ended = (deal.getPhase() == DealPhases::ENDED);
     for (const auto n : to(n_tricks)) {
         auto trick_object = nlohmann::json::object();
         // Last and second-to-last trick are visible
-        if (n_tricks - n <= 2) {
+        if (has_ended || n_tricks - n <= 2) {
             auto cards = nlohmann::json::array();
             for (const auto& [hand, card] : deal.getTrick(n)) {
                 cards.emplace_back(

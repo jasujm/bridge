@@ -13,6 +13,7 @@
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
 #include "main/Config.hh"
+#include "main/GameStateHelper.hh"
 #include "main/NodePlayerControl.hh"
 #include "main/PeerCommandSender.hh"
 #include "main/PeerlessCardProtocol.hh"
@@ -125,7 +126,9 @@ private:
     Reply<> leave(
         const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid);
     Reply<GameState, BridgeGame::Counter> get(
-        const Identity& identity, const Uuid& gameUuid,
+        const Identity& identity,
+        const std::optional<Uuid>& gameUuid,
+        const std::optional<Uuid>& dealUuid,
         const std::optional<Uuid>& playerUuid,
         const std::optional<std::vector<std::string>>& keys);
     Reply<> call(
@@ -143,6 +146,7 @@ private:
         BridgeGameRecorder::DealState&& dealState);
     std::shared_ptr<Player> internalGetOrCreatePlayer(
         const UserId& userId, const Uuid& playerUuid);
+    std::unique_ptr<Deal> internalGetDeal(const Uuid& dealUuid);
 
     const Config config;
     std::map<Identity, Role> nodes;
@@ -220,7 +224,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 stringToBlob(GET_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::get, JsonSerializer {},
-                    std::tuple {GAME_COMMAND, PLAYER_COMMAND, GET_COMMAND},
+                    std::tuple {GAME_COMMAND, DEAL_COMMAND, PLAYER_COMMAND, GET_COMMAND},
                     std::tuple {GET_COMMAND, COUNTER_COMMAND}),
             }
         }},
@@ -449,7 +453,9 @@ Reply<> BridgeMain::Impl::leave(
 }
 
 Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
-    const Identity& identity, const Uuid& gameUuid,
+    const Identity& identity,
+    const std::optional<Uuid>& gameUuid,
+    const std::optional<Uuid>& dealUuid,
     const std::optional<Uuid>& playerUuid,
     const std::optional<std::vector<std::string>>& keys)
 {
@@ -461,7 +467,10 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
         return failure(UNKNOWN_SUFFIX);
     }
 
-    if (!isValidUuidArg(gameUuid) || !isValidUuidArg(playerUuid)) {
+    if (!isValidUuidArg(gameUuid) ||
+        !isValidUuidArg(dealUuid) ||
+        !isValidUuidArg(playerUuid) ||
+        (bool(gameUuid) == bool(dealUuid))) {
         return failure();
     }
 
@@ -477,10 +486,23 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
         }
     }
 
-    if (const auto game = internalGetGame(gameUuid)) {
-        return success(game->getState(player.get(), keys), game->getCounter());
+    if (gameUuid) {
+        if (const auto game = internalGetGame(*gameUuid)) {
+            return success(game->getState(player.get(), keys), game->getCounter());
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
+        }
     } else {
-        return failure(NOT_FOUND_SUFFIX);
+        assert(dealUuid);
+        if (const auto deal = internalGetDeal(*dealUuid)) {
+            // FIXME: Better api for getGameState
+            auto deal_object = getGameState(
+                deal.get(), std::nullopt, false,
+                std::vector<std::string> {"pubstate"});
+            return success(std::move(deal_object), 0);
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
+        }
     }
 }
 
@@ -605,6 +627,17 @@ std::shared_ptr<Player> BridgeMain::Impl::internalGetOrCreatePlayer(
     assert(nodePlayerControl);
     const auto recorder = recordPlayers ? this->recorder.get() : nullptr;
     return nodePlayerControl->getOrCreatePlayer(userId, playerUuid, recorder);
+}
+
+std::unique_ptr<Deal> BridgeMain::Impl::internalGetDeal(
+    const Uuid& dealUuid)
+{
+    if (recorder) {
+        if (auto deal_state = recorder->recallDeal(dealUuid)) {
+            return std::move(deal_state->deal);
+        }
+    }
+    return nullptr;
 }
 
 BridgeMain::BridgeMain(Messaging::MessageContext& context, Config config) :

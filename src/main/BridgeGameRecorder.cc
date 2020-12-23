@@ -126,6 +126,8 @@ struct DealResultRecord {
     PackedScore northSouthScore;
 };
 
+using TrickRecordVector = std::vector<TrickRecord>;
+
 rocksdb::Slice uuidKey(const Uuid& uuid)
 {
     return {reinterpret_cast<const char*>(&uuid), sizeof(Uuid)};
@@ -219,6 +221,18 @@ auto getMultipleRecords(const std::string& serializedRecords)
     return std::tuple {records, last_record_size};
 }
 
+template<typename Function>
+void forEachTrick(
+    const TrickRecordVector& tricks, int nCardsInLastTrick, Function&& function)
+{
+    for (const auto& [n, record] : enumerate(tricks)) {
+        const auto n_cards_in_trick =
+            (n + 1 == ssize(tricks)) ?
+            nCardsInLastTrick : Trick::N_CARDS_IN_TRICK;
+        std::invoke(function, record, n_cards_in_trick);
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // RecordedBidding
 ////////////////////////////////////////////////////////////////////////////////
@@ -275,7 +289,9 @@ Call RecordedBidding::handleGetCall(const int n) const
 class RecordedHand : public Hand {
 public:
 
-    RecordedHand(const SimpleCard* cards);
+    using IsPlayedArray = std::array<bool, N_CARDS_PER_PLAYER>;
+
+    RecordedHand(const SimpleCard* cards, const IsPlayedArray& isPlayed);
 
 private:
 
@@ -288,10 +304,12 @@ private:
 
     // TODO: Replace with span in C++20
     const SimpleCard* const cards;
+    const IsPlayedArray isPlayed;
 };
 
-RecordedHand::RecordedHand(const SimpleCard* cards) :
-    cards {cards}
+RecordedHand::RecordedHand(const SimpleCard* cards, const IsPlayedArray& isPlayed) :
+    cards {cards},
+    isPlayed {isPlayed}
 {
 }
 
@@ -316,10 +334,10 @@ const Card& RecordedHand::handleGetCard(int n) const
     return cards[n];
 }
 
-bool RecordedHand::handleIsPlayed(int) const
+bool RecordedHand::handleIsPlayed(int n) const
 {
-    // TODO: Implement this
-    return false;
+    assert(0 <= n && n < ssize(isPlayed));
+    return isPlayed[n];
 }
 
 int RecordedHand::handleGetNumberOfCards() const
@@ -424,9 +442,15 @@ public:
 
 private:
 
-    auto initializeHand(Position position);
+    using HandsArray = std::array<RecordedHand, N_PLAYERS>;
+
+    auto initializeHand(
+        const Position position, const CardType* firstPlayedCard,
+        const CardType* lastPlayedCard);
+    auto initializeHands(
+        const TrickRecordVector& tricks, const int nCardsInLastTrick);
     auto initializeTricks(
-        const std::vector<TrickRecord>& tricks, int nCardsInLastTrick);
+        const TrickRecordVector& tricks, int nCardsInLastTrick);
 
     DealPhase handleGetPhase() const override;
     const Uuid& handleGetUuid() const override;
@@ -439,47 +463,82 @@ private:
 
     const Uuid uuid;
     const std::vector<SimpleCard> cards;
-    const std::array<RecordedHand, N_PLAYERS> hands;
+    const HandsArray hands;
     const Vulnerability vulnerability;
     const RecordedBidding bidding;
     const std::vector<RecordedTrick> tricks;
 };
 
-auto RecordedDeal::initializeHand(const Position position)
+auto RecordedDeal::initializeHand(
+    const Position position, const CardType* const firstPlayedCard,
+    const CardType* const lastPlayedCard)
 {
     const auto n = positionOrder(position) * N_CARDS_PER_PLAYER;
-    return RecordedHand {&cards[n]};
+    const auto firstCard = &cards[n];
+    auto isPlayed = RecordedHand::IsPlayedArray {};
+    std::transform(
+        firstCard, firstCard + N_CARDS_PER_PLAYER, isPlayed.begin(),
+        [firstPlayedCard, lastPlayedCard](const auto card)
+        {
+            return std::binary_search(
+                firstPlayedCard, lastPlayedCard, dereference(card.getType()));
+        });
+    return RecordedHand {firstCard, isPlayed};
+}
+
+auto RecordedDeal::initializeHands(
+    const TrickRecordVector& tricks, const int nCardsInLastTrick)
+{
+    // Get a list of all cards in all tricks -- those are the played cards
+    auto playedCards = std::array<CardType, N_CARDS> {};
+    const auto firstPlayedCard = playedCards.begin();
+    auto lastPlayedCard = firstPlayedCard;
+    forEachTrick(
+        tricks, nCardsInLastTrick,
+        [&](const auto& record, const auto nCardsInTrick)
+        {
+            assert(
+                lastPlayedCard - firstPlayedCard + nCardsInTrick <=
+                ssize(playedCards));
+            lastPlayedCard = std::transform(
+                record.cards, record.cards + nCardsInTrick, lastPlayedCard,
+                &unpackCard);
+        });
+    std::sort(firstPlayedCard, lastPlayedCard);
+    // Initialize hands, the function binary searches what cards are played and
+    // marks them played accordingly
+    return HandsArray {
+        initializeHand(Positions::NORTH, firstPlayedCard, lastPlayedCard),
+        initializeHand(Positions::EAST, firstPlayedCard, lastPlayedCard),
+        initializeHand(Positions::SOUTH, firstPlayedCard, lastPlayedCard),
+        initializeHand(Positions::WEST, firstPlayedCard, lastPlayedCard),
+    };
 }
 
 auto RecordedDeal::initializeTricks(
-    const std::vector<TrickRecord>& tricks, const int nCardsInLastTrick)
+    const TrickRecordVector& tricks, const int nCardsInLastTrick)
 {
     auto ret = std::vector<RecordedTrick> {};
     ret.reserve(tricks.size());
-    for (const auto& [n, record] : enumerate(tricks)) {
-        const auto n_cards_in_trick =
-            (n + 1 == ssize(tricks)) ?
-            nCardsInLastTrick : Trick::N_CARDS_IN_TRICK;
-        ret.emplace_back(this->cards, this->hands, record, n_cards_in_trick);
-    }
+    forEachTrick(
+        tricks, nCardsInLastTrick,
+        [this, &ret](const auto& record, const auto nCardsInTrick)
+        {
+            ret.emplace_back(this->cards, this->hands, record, nCardsInTrick);
+        });
     return ret;
 }
 
 RecordedDeal::RecordedDeal(
     const Uuid& uuid, const DealRecord& dealRecord,
     const std::vector<CallRecord>& calls,
-    const std::vector<TrickRecord>& tricks,
+    const TrickRecordVector& tricks,
     const int nCardsInLastTrick) :
     uuid {uuid},
     cards(
         unpackCardIterator(std::begin(dealRecord.cards)),
         unpackCardIterator(std::end(dealRecord.cards))),
-    hands {
-        initializeHand(Positions::NORTH),
-        initializeHand(Positions::EAST),
-        initializeHand(Positions::SOUTH),
-        initializeHand(Positions::WEST),
-    },
+    hands {initializeHands(tricks, nCardsInLastTrick)},
     vulnerability {unpackDealConfig(dealRecord.config).second},
     bidding {unpackDealConfig(dealRecord.config).first, calls},
     tricks {initializeTricks(tricks, nCardsInLastTrick)}
@@ -488,13 +547,16 @@ RecordedDeal::RecordedDeal(
 
 DealPhase RecordedDeal::handleGetPhase() const
 {
-    const auto n_tricks = ssize(tricks);
-    if (n_tricks == 0) {
+
+    if (!bidding.hasEnded()) {
         return DealPhases::BIDDING;
-    } else if (tricks[n_tricks - 1].isCompleted()) {
-        return DealPhases::ENDED;
+    } else {
+        const auto n_tricks = ssize(tricks);
+        if (n_tricks == 0 || tricks[n_tricks - 1].isCompleted()) {
+            return DealPhases::ENDED;
+        }
     }
-    return DealPhases::BIDDING;
+    return DealPhases::PLAYING;
 
 }
 
@@ -710,7 +772,7 @@ void BridgeGameRecorder::recordDeal([[maybe_unused]] const Deal& deal)
             static_cast<std::size_t>(n_calls)});
 
     const auto n_tricks = deal.getNumberOfTricks();
-    auto tricks_record = std::vector<TrickRecord>(n_tricks, TrickRecord {});
+    auto tricks_record = TrickRecordVector(n_tricks, TrickRecord {});
     auto n_cards_in_latest_trick = Trick::N_CARDS_IN_TRICK;
     for (const auto n : to(n_tricks)) {
         const auto& trick = deal.getTrick(n);

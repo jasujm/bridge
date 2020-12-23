@@ -360,7 +360,7 @@
  *    - \e player: the UUID of the player
  * - \b Failures:
  *    - \e NF: Game not found
- *   - \e NA: Not authorized (the node is not allowed to act for the player)
+ *    - \e NA: Not authorized (the node is not allowed to act for the player)
  *
  * Nodes use this command to remove a player from a bridge game.
  *
@@ -377,27 +377,35 @@
  * - \b Command: get
  * - \b Parameters:
  *   - \e game: UUID of the game being queried
+ *   - \e deal: UUID of the deal being queried
  *   - \e player (optional)
  *   - \e get: array of keys (optional)
  * - \b Reply:
  *   - \e get: object describing the current state of the game
  *   - \e counter: the running counter
  * - \b Failures:
- *   - \e NF: Game not found
+ *   - \e NF: Game or deal not found
  *   - \e NA: Not authorized (the node is not allowed to act for the player)
  *
  * Get commands retrieves one or multiple key–value pairs describing the state
- * of a game. The \e get argument is a array of keys to be retrieved. It MAY be
- * omitted in which case the reply MUST contain all the keys described below,
- * except “results” and “players”. If included, the reply SHOULD only contain
- * the key–value pairs contained in the array. Keys that are not recognized
- * SHOULD be ignored.
+ * of a game or a deal. The \e get argument is a array of keys to be
+ * retrieved. It MAY be omitted in which case the reply MUST contain all the
+ * keys described below, except “results” and “players”. If included, the reply
+ * SHOULD only contain the key–value pairs contained in the array. Keys that are
+ * not recognized SHOULD be ignored.
  *
  * The \e player argument is the player whose viewpoint is applied to the state
  * representation. The command MUST fail without output if the client is not
  * allowed to act for that player. If the player argument is omitted, the
  * response is as if the command was called with a player not taking part in the
  * game.
+ *
+ * The \e game and \e deal arguments are alternative. Providing the \e game
+ * argument queries the current state of a game. Providing the \e deal argument
+ * queries the current or historical state of an ongoing or a finished deal. The
+ * command SHOULD fail if both arguments are included in the command. If a deal
+ * is queried, the \e keys argument is ignored and only the pubstate subobject
+ * is returned.
  *
  * The intention is that this command is used by the clients to query the state
  * of the game. All peers are expected to track the state of the game
@@ -457,6 +465,10 @@
  *
  * If there is no deal ongoing in the game, the \e pubstate and \e privstate
  * subobjects are null.
+ *
+ * If the deal has ended, the \e pubstate subobject contains a full historic
+ * description of the deal. In the full description all cards the players
+ * originally held, and all the tricks are exposed.
  *
  * \subsubsection bridgeprotocolcontrolgetstate Game state member
  *
