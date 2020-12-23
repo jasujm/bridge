@@ -490,11 +490,11 @@ DealPhase RecordedDeal::handleGetPhase() const
 {
     const auto n_tricks = ssize(tricks);
     if (n_tricks == 0) {
-        return DealPhase::BIDDING;
+        return DealPhases::BIDDING;
     } else if (tricks[n_tricks - 1].isCompleted()) {
-        return DealPhase::ENDED;
+        return DealPhases::ENDED;
     }
-    return DealPhase::BIDDING;
+    return DealPhases::BIDDING;
 
 }
 

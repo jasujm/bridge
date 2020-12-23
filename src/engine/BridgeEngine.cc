@@ -574,9 +574,9 @@ const Uuid& InDeal::handleGetUuid() const
 DealPhase InDeal::handleGetPhase() const
 {
     if (state_cast<const InBidding*>()) {
-        return DealPhase::BIDDING;
+        return DealPhases::BIDDING;
     }
-    return DealPhase::PLAYING;
+    return DealPhases::PLAYING;
 }
 
 Vulnerability InDeal::handleGetVulnerability() const

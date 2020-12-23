@@ -23,8 +23,8 @@
 namespace Positions = Bridge::Positions;
 namespace Ranks = Bridge::Ranks;
 namespace Suits = Bridge::Suits;
+namespace DealPhases = Bridge::DealPhases;
 using Bridge::CardType;
-using Bridge::DealPhase;
 using Bridge::MockHand;
 using Bridge::MockTrick;
 using Bridge::Position;
@@ -69,14 +69,14 @@ protected:
 
     void configureBiddingPhase(const Position openerPosition)
     {
-        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::BIDDING));
+        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhases::BIDDING));
         ON_CALL(bidding, handleGetOpeningPosition())
             .WillByDefault(Return(openerPosition));
     }
 
     void configurePlayingPhase()
     {
-        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::PLAYING));
+        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhases::PLAYING));
         ON_CALL(bidding, handleGetNumberOfCalls())
             .WillByDefault(Return(Bridge::N_PLAYERS));
         ON_CALL(bidding, handleGetOpeningPosition())
@@ -100,7 +100,7 @@ protected:
 
     void configureEndedPhase()
     {
-        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhase::ENDED));
+        ON_CALL(deal, handleGetPhase()).WillByDefault(Return(DealPhases::ENDED));
     }
 
     Bridge::MockCard card;

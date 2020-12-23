@@ -136,6 +136,7 @@ auto getPubstateSubobject(const Deal* deal)
 
     return nlohmann::json {
         { DEAL_COMMAND, deal->getUuid() },
+        { PHASE_COMMAND, deal->getPhase() },
         { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
         { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
         { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },

@@ -59,17 +59,17 @@ Vulnerability Deal::getVulnerability() const
 
 std::optional<Position> Deal::getPositionInTurn() const
 {
-    switch (getPhase()) {
-    case DealPhase::BIDDING:
+    switch (getPhase().get()) {
+    case DealPhaseLabel::BIDDING:
         return getBidding().getPositionInTurn();
-    case DealPhase::PLAYING:
+    case DealPhaseLabel::PLAYING:
     {
         const auto position = getPosition(internalGetHandInTurn());
         const auto declarer_position = internalGetDeclarerPosition();
         return position == partnerFor(declarer_position) ?
             declarer_position : position;
     }
-    case DealPhase::ENDED:
+    case DealPhaseLabel::ENDED:
         break;
     }
     return std::nullopt;
@@ -77,7 +77,7 @@ std::optional<Position> Deal::getPositionInTurn() const
 
 const Hand* Deal::getHandInTurn() const
 {
-    if (getPhase() == DealPhase::PLAYING) {
+    if (getPhase() == DealPhases::PLAYING) {
         return &internalGetHandInTurn();
     }
     return nullptr;
@@ -105,10 +105,10 @@ std::optional<Position> Deal::getPosition(const Hand& hand) const
 
 bool Deal::isVisibleToAll(const Position position) const
 {
-    switch (getPhase()) {
-    case DealPhase::BIDDING:
+    switch (getPhase().get()) {
+    case DealPhaseLabel::BIDDING:
         break;
-    case DealPhase::PLAYING:
+    case DealPhaseLabel::PLAYING:
     {
         // First check if there is a card in the opening lead. If
         // three is, the dummy position is visible.
@@ -118,7 +118,7 @@ bool Deal::isVisibleToAll(const Position position) const
         }
         break;
     }
-    case DealPhase::ENDED:
+    case DealPhaseLabel::ENDED:
         return true;
     }
     return false;
@@ -142,11 +142,11 @@ const Trick& Deal::getTrick(const int n) const
 
 std::optional<Position> Deal::getWinnerOfTrick(int n) const
 {
-    switch (getPhase()) {
-    case DealPhase::BIDDING:
+    switch (getPhase().get()) {
+    case DealPhaseLabel::BIDDING:
         break;
-    case DealPhase::PLAYING:
-    case DealPhase::ENDED:
+    case DealPhaseLabel::PLAYING:
+    case DealPhaseLabel::ENDED:
     {
         const auto& trick = getTrick(n);
         if (const auto* hand = getWinner(trick, internalGetTrump())) {

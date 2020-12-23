@@ -413,6 +413,7 @@
  * {
  *     "pubstate": {
  *         "deal": <UUID of the current deal>
+ *         "phase": <the phase of the current deal>
  *         "positionInTurn": <the position of the player who is in turn to act>,
  *         "calls": [<calls that have been made in the current deal>],
  *         "declarer": <the position of the declarer, or null>,
@@ -466,6 +467,9 @@
  * operate on deal objects identified by this UUID. It is, however, possible
  * that the following versions make clearer distinction between games (sequences
  * of deals), and the deals within the game.
+ *
+ * The \e phase member contains one of the strings: "bidding", "playing", or
+ * "ended", depending on the phase of the deal.
  *
  * The \e positionInTurn member contains the position of the player that has the
  * turn to act next. The declarer plays for dummy, so if the next card will be
@@ -820,6 +824,10 @@ inline constexpr auto COUNTER_COMMAND = std::string_view {"counter"};
 /** \brief See \ref bridgeprotocolcontrolget
  */
 inline constexpr auto PLAYER_COMMAND = std::string_view {"player"};
+
+/** \brief See \ref bridgeprotocolcontrolget
+ */
+inline constexpr auto PHASE_COMMAND = std::string_view {"phase"};
 
 /** \brief See \ref bridgeprotocolcontrolget
  */
