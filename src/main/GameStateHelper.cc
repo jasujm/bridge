@@ -159,21 +159,21 @@ void emplacePubstate(const Deal* const deal, nlohmann::json& out)
 {
     if (!deal) {
         out.emplace(PUBSTATE_COMMAND, nlohmann::json {});
+    } else {
+        out.emplace(
+            PUBSTATE_COMMAND,
+            nlohmann::json {
+                { DEAL_COMMAND, deal->getUuid() },
+                { PHASE_COMMAND, deal->getPhase() },
+                { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
+                { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
+                { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },
+                { CALLS_COMMAND, getCalls(*deal) },
+                { CARDS_COMMAND, getPublicCards(*deal) },
+                { TRICKS_COMMAND, getTricks(*deal) },
+                { VULNERABILITY_COMMAND, deal->getVulnerability() },
+            });
     }
-
-    out.emplace(
-        PUBSTATE_COMMAND,
-        nlohmann::json {
-            { DEAL_COMMAND, deal->getUuid() },
-            { PHASE_COMMAND, deal->getPhase() },
-            { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
-            { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
-            { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },
-            { CALLS_COMMAND, getCalls(*deal) },
-            { CARDS_COMMAND, getPublicCards(*deal) },
-            { TRICKS_COMMAND, getTricks(*deal) },
-            { VULNERABILITY_COMMAND, deal->getVulnerability() },
-        });
 }
 
 void emplacePrivstate(
@@ -184,13 +184,13 @@ void emplacePrivstate(
         out.emplace(PRIVSTATE_COMMAND, nlohmann::json {});
     } else if (!playerPosition) {
         out.emplace(PRIVSTATE_COMMAND, nlohmann::json::object());
+    } else {
+        out.emplace(
+            PRIVSTATE_COMMAND,
+            nlohmann::json {
+                { CARDS_COMMAND, getPrivateCards(*deal, *playerPosition) },
+            });
     }
-
-    out.emplace(
-        PRIVSTATE_COMMAND,
-        nlohmann::json {
-            { CARDS_COMMAND, getPrivateCards(*deal, *playerPosition) },
-        });
 }
 
 void emplaceSelf(
