@@ -8,10 +8,9 @@
 
 #include "bridge/Call.hh"
 #include "bridge/Uuid.hh"
+#include "main/GameStateHelper.hh"
 #include "messaging/Identity.hh"
 #include "messaging/Sockets.hh"
-
-#include <nlohmann/json.hpp>
 
 #include <map>
 #include <memory>
@@ -40,10 +39,6 @@ namespace Main {
 class BridgeGameRecorder;
 class CardProtocol;
 class PeerCommandSender;
-
-/** \brief Representation of the state of the game
- */
-using GameState = nlohmann::json;
 
 /** \brief Single hosted bridge game
  *

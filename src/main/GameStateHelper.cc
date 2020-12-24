@@ -145,57 +145,6 @@ auto getTricks(const Deal& deal)
     return tricks;
 }
 
-auto getPubstateSubobject(const Deal* deal)
-{
-    if (!deal) {
-        return nlohmann::json {};
-    }
-
-    return nlohmann::json {
-        { DEAL_COMMAND, deal->getUuid() },
-        { PHASE_COMMAND, deal->getPhase() },
-        { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
-        { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
-        { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },
-        { CALLS_COMMAND, getCalls(*deal) },
-        { CARDS_COMMAND, getPublicCards(*deal) },
-        { TRICKS_COMMAND, getTricks(*deal) },
-        { VULNERABILITY_COMMAND, deal->getVulnerability() },
-    };
-}
-
-auto getPrivstateSubobject(
-    const Deal* deal, const std::optional<Position>& playerPosition)
-{
-    if (!deal) {
-        return nlohmann::json {};
-    } else if (!playerPosition) {
-        return nlohmann::json::object();
-    }
-
-    return nlohmann::json {
-        { CARDS_COMMAND, getPrivateCards(*deal, *playerPosition) },
-    };
-}
-
-auto getSelfSubobject(
-    const Deal* deal, const std::optional<Position> playerPosition,
-    const bool playerHasTurn)
-{
-    using j = nlohmann::json;
-    return j {
-        { POSITION_COMMAND, playerPosition },
-        {
-            ALLOWED_CALLS_COMMAND,
-            (deal && playerHasTurn) ? j(getAllowedCalls(*deal)) : j::array(),
-        },
-        {
-            ALLOWED_CARDS_COMMAND,
-            (deal && playerHasTurn) ? j(getAllowedCards(*deal)) : j::array(),
-        },
-    };
-}
-
 }
 
 CardTypeVector getCardsFromHand(const Hand& hand)
@@ -206,36 +155,64 @@ CardTypeVector getCardsFromHand(const Hand& hand)
         boost::make_transform_iterator(hand.end(), func));
 }
 
-nlohmann::json getGameState(
-    const Deal* deal,
-    std::optional<Position> playerPosition,
-    bool playerHasTurn,
-    std::optional<std::vector<std::string>> keys)
+void emplacePubstate(const Deal* const deal, nlohmann::json& out)
 {
-    if (keys) {
-        auto state = nlohmann::json::object();
-        for (const auto& key : *keys) {
-            if (key == PUBSTATE_COMMAND) {
-                state.emplace(key, getPubstateSubobject(deal));
-            } else if (key == PRIVSTATE_COMMAND) {
-                state.emplace(key, getPrivstateSubobject(deal, playerPosition));
-            } else if (key == SELF_COMMAND) {
-                state.emplace(
-                    key,
-                    getSelfSubobject(deal, playerPosition, playerHasTurn));
-            }
-        }
-        return state;
-    } else {
-        return {
-            { PUBSTATE_COMMAND, getPubstateSubobject(deal) },
-            { PRIVSTATE_COMMAND, getPrivstateSubobject(deal, playerPosition) },
-            {
-                SELF_COMMAND,
-                getSelfSubobject(deal, playerPosition, playerHasTurn)
-            },
-        };
+    if (!deal) {
+        out.emplace(PUBSTATE_COMMAND, nlohmann::json {});
     }
+
+    out.emplace(
+        PUBSTATE_COMMAND,
+        nlohmann::json {
+            { DEAL_COMMAND, deal->getUuid() },
+            { PHASE_COMMAND, deal->getPhase() },
+            { POSITION_IN_TURN_COMMAND, deal->getPositionInTurn() },
+            { DECLARER_COMMAND, getBiddingResult(*deal, &Bidding::getDeclarerPosition) },
+            { CONTRACT_COMMAND, getBiddingResult(*deal, &Bidding::getContract) },
+            { CALLS_COMMAND, getCalls(*deal) },
+            { CARDS_COMMAND, getPublicCards(*deal) },
+            { TRICKS_COMMAND, getTricks(*deal) },
+            { VULNERABILITY_COMMAND, deal->getVulnerability() },
+        });
+}
+
+void emplacePrivstate(
+    const Deal* const deal, const std::optional<Position>& playerPosition,
+    nlohmann::json& out)
+{
+    if (!deal) {
+        out.emplace(PRIVSTATE_COMMAND, nlohmann::json {});
+    } else if (!playerPosition) {
+        out.emplace(PRIVSTATE_COMMAND, nlohmann::json::object());
+    }
+
+    out.emplace(
+        PRIVSTATE_COMMAND,
+        nlohmann::json {
+            { CARDS_COMMAND, getPrivateCards(*deal, *playerPosition) },
+        });
+}
+
+void emplaceSelf(
+    const Deal* const deal, const std::optional<Position>& playerPosition,
+    nlohmann::json& out)
+{
+    const auto playerHasTurn = deal && playerPosition &&
+        playerPosition == deal->getPositionInTurn();
+    using j = nlohmann::json;
+    out.emplace(
+        SELF_COMMAND,
+        j {
+            { POSITION_COMMAND, playerPosition },
+            {
+                ALLOWED_CALLS_COMMAND,
+                playerHasTurn ? j(getAllowedCalls(*deal)) : j::array(),
+            },
+            {
+                ALLOWED_CARDS_COMMAND,
+                playerHasTurn ? j(getAllowedCards(*deal)) : j::array(),
+            },
+        });
 }
 
 }

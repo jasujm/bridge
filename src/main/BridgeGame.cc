@@ -14,7 +14,6 @@
 #include "main/BridgeGameRecorder.hh"
 #include "main/CardProtocol.hh"
 #include "main/Commands.hh"
-#include "main/GameStateHelper.hh"
 #include "main/PeerCommandSender.hh"
 #include "messaging/CallbackScheduler.hh"
 #include "messaging/CallJsonSerializer.hh"
@@ -344,30 +343,49 @@ GameState BridgeGame::Impl::getState(
     const Player* player,
     const std::optional<std::vector<std::string>>& keys) const
 {
-    auto game_state = getGameState(
-        engine.getCurrentDeal(),
-        player ? engine.getPosition(*player) : std::nullopt,
-        player && engine.getPlayerInTurn() == player,
-        keys);
+    auto game_state = GameState {};
+    auto include_pubstate = !keys;
+    auto include_privstate = !keys;
+    auto include_self = !keys;
+    auto include_results = false;
+    auto include_players = false;
     if (keys) {
         for (const auto& key : *keys) {
-            if (key == RESULTS_COMMAND) {
-                game_state.emplace(
-                    RESULTS_COMMAND,
-                    recorder ? getDealResults(uuid, *recorder) :
-                        nlohmann::json::array());
-            } else if (key == PLAYERS_COMMAND) {
-                auto players = nlohmann::json::object();
-                for (const auto position : Position::all()) {
-                    const auto player = engine.getPlayer(position);
-                    players.emplace(
-                        position.value(),
-                        player ? nlohmann::json(player->getUuid()) :
-                            nlohmann::json());
-                }
-                game_state.emplace(PLAYERS_COMMAND, std::move(players));
-            }
+            if (key == PUBSTATE_COMMAND) { include_pubstate = true; }
+            else if (key == PRIVSTATE_COMMAND) { include_privstate = true; }
+            else if (key == SELF_COMMAND) { include_self = true; }
+            else if (key == RESULTS_COMMAND) { include_results = true; }
+            else if (key == PLAYERS_COMMAND) { include_players = true; }
         }
+    }
+    const auto deal = engine.getCurrentDeal();
+    const auto player_position = player ?
+        engine.getPosition(*player) : std::nullopt;
+    if (include_pubstate) {
+        emplacePubstate(deal, game_state);
+    }
+    if (include_privstate) {
+        emplacePrivstate(deal, player_position, game_state);
+    }
+    if (include_self) {
+        emplaceSelf(deal, player_position, game_state);
+    }
+    if (include_results) {
+        game_state.emplace(
+            RESULTS_COMMAND,
+            recorder ?
+            getDealResults(uuid, *recorder) : nlohmann::json::array());
+    }
+    if (include_players) {
+        auto players = nlohmann::json::object();
+        for (const auto position : Position::all()) {
+            const auto player = engine.getPlayer(position);
+            players.emplace(
+                position.value(),
+                player ? nlohmann::json(player->getUuid()) :
+                nlohmann::json());
+        }
+        game_state.emplace(PLAYERS_COMMAND, std::move(players));
     }
     return game_state;
 }

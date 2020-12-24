@@ -495,10 +495,8 @@ Reply<GameState, BridgeGame::Counter> BridgeMain::Impl::get(
     } else {
         assert(dealUuid);
         if (const auto deal = internalGetDeal(*dealUuid)) {
-            // FIXME: Better api for getGameState
-            auto deal_object = getGameState(
-                deal.get(), std::nullopt, false,
-                std::vector<std::string> {"pubstate"});
+            auto deal_object = GameState {};
+            emplacePubstate(deal.get(), deal_object);
             return success(std::move(deal_object), 0);
         } else {
             return failure(NOT_FOUND_SUFFIX);
