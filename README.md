@@ -33,16 +33,15 @@ project depends on
 - [CPPZMQ](https://github.com/zeromq/cppzmq) The C++ bindings for
   ZeroMQ (v4.6)
 - [json](https://github.com/nlohmann/json) to serialize and
-  deserialize messages (v3.7)
+  deserialize messages (v3.9)
 - [Lua](https://www.lua.org/) for configuration parsing (v5.3)
-- [Boost](https://www.boost.org/) for various things (v1.67)
+- [Boost](https://www.boost.org/) for various things (v1.71)
 - [RocksDB](http://rocksdb.org/) for persistence (v5.17, optional)
 
 The versions in the bracket indicate the recommended minimum version
 that have been tested to work with the project.
 
-The project has been tested and compiles with GCC version 9.3. The
-project does _NOT_ currently compile with GCC 10 series.
+The project has been tested and compiles with GCC version 10.2.
 
 Optionally [LibTMCG](http://www.nongnu.org/libtmcg/) can be used for
 secure card exchange.

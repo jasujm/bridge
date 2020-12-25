@@ -58,8 +58,11 @@ struct JsonSerializer {
     static T deserialize(String&& s)
     {
         try {
-            return nlohmann::json::parse(std::forward<String>(s))
-                .template get<T>();
+            // nlohmann::json 3.9.1 won't parse bytes directly, force to string
+            static_assert(sizeof(*std::data(s)) == 1);
+            const auto sv = std::string_view(
+                reinterpret_cast<const char*>(std::data(s)), std::size(s));
+            return nlohmann::json::parse(sv).template get<T>();
         } catch (const nlohmann::json::exception&) {
             throw SerializationFailureException {};
         }
