@@ -192,7 +192,7 @@ inline void forwardMessage(Socket& fromSocket, Socket& toSocket)
 inline ByteSpan messageView(const Message& message)
 {
     const auto* data = message.data<ByteSpan::value_type>();
-    const auto size = static_cast<ByteSpan::index_type>(
+    const auto size = static_cast<ByteSpan::size_type>(
         message.size() * sizeof(*data));
     return {data, size};
 }
