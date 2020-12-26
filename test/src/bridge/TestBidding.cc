@@ -94,8 +94,8 @@ TEST_F(BiddingTest, testInitialState)
 {
     EXPECT_FALSE(bidding.hasEnded());
     EXPECT_TRUE(boost::logic::indeterminate(bidding.hasContract()));
-    EXPECT_EQ(std::nullopt, bidding.getContract());
-    EXPECT_EQ(std::nullopt, bidding.getDeclarerPosition());
+    EXPECT_FALSE(bidding.getContract());
+    EXPECT_FALSE(bidding.getDeclarerPosition());
 }
 
 TEST_F(BiddingTest, testThreePassesRequiredForCompletion)

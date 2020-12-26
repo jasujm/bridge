@@ -1,7 +1,6 @@
 #include "bridge/BridgeConstants.hh"
 #include "bridge/CardsForPosition.hh"
 #include "bridge/Position.hh"
-#include "Utility.hh"
 
 #include <algorithm>
 #include <stdexcept>
@@ -18,7 +17,7 @@ class PositionTest : public testing::TestWithParam<Position> {};
 TEST_P(PositionTest, testCardsForPositionHasCorrectSize)
 {
     const auto position = GetParam();
-    EXPECT_EQ(Bridge::N_CARDS_PER_PLAYER, Bridge::ssize(cardsFor(position)));
+    EXPECT_EQ(Bridge::N_CARDS_PER_PLAYER, std::ssize(cardsFor(position)));
 }
 
 TEST_F(PositionTest, testInvalidPosition)
