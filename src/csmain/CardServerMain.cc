@@ -259,7 +259,7 @@ bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
         if (n < 0 || n >= N_CARDS) {
             return false;
         }
-        assert(n < ssize(stack));
+        assert(n < std::ssize(stack));
         auto& card = stack[n];
         tmcg.TMCG_SelfCardSecret(card, p_vtmf);
         for (auto& peerSocket : peerSockets) {
@@ -274,7 +274,7 @@ bool TMCG::draw(AsynchronousExecutionContext& eContext, const IndexVector& ns)
                 }
             }
         }
-        assert(n < ssize(cards));
+        assert(n < std::ssize(cards));
         cards[n].emplace(
             enumerateCardType(tmcg.TMCG_TypeOfCard(card, p_vtmf)));
     }
@@ -299,7 +299,7 @@ bool TMCG::revealHelper(
         if (n < 0 || n >= N_CARDS) {
             return false;
         }
-        assert(n < ssize(stack));
+        assert(n < std::ssize(stack));
         tmcg.TMCG_ProveCardSecret(stack[n], p_vtmf, instream, outstream);
     }
     return true;

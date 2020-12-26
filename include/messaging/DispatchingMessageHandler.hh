@@ -88,7 +88,7 @@ doHandle(
 {
     for (auto i : to(params.size(), 2)) {
         if (params[i] == dispatchKey) {
-            if (i+1 < params.size()) {
+            if (i+1 < std::ssize(params)) {
                 auto&& value = serializer.template deserialize<
                     DispatchArgument>(params[i+1]);
                 if (const auto iter = delegates.find(value);

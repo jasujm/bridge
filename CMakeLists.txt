@@ -5,13 +5,13 @@ enable_testing()
 
 include(CMakeParseArguments)
 
-set(BRIDGE_CXX_STANDARD 17)
+set(BRIDGE_CXX_STANDARD 20)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(Boost REQUIRED OPTIONAL_COMPONENTS coroutine)
+find_package(Boost 1.74 REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(cppzmq REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Lua 5.3 REQUIRED)

@@ -1,7 +1,6 @@
-FROM debian:buster AS base
+FROM debian:bullseye AS base
 
 RUN set -ex;                               \
-    echo deb http://deb.debian.org/debian buster-backports main >> /etc/apt/sources.list;  \
     apt-get update;                        \
     apt-get -y install libzmq5 liblua5.3;  \
     apt-get clean;
@@ -14,8 +13,7 @@ FROM base AS builder
 # - build rocksdb from sources because the packaged version doesn't come with RTTI
 
 RUN set -ex;                                                                          \
-    apt-get -y install g++ curl cmake libboost-dev libzmq3-dev liblua5.3-dev;         \
-    apt-get -y install -t buster-backports nlohmann-json3-dev;                        \
+    apt-get -y install g++ curl cmake libboost-dev libzmq3-dev liblua5.3-dev nlohmann-json3-dev;   \
     mkdir -p /usr/src;                                                                \
     cd /usr/src;                                                                      \
     curl -L https://github.com/zeromq/cppzmq/archive/v4.6.0.tar.gz | tar -zxf -;      \

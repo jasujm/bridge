@@ -37,18 +37,6 @@ constexpr auto checkIndex(Integer1 i, Integer2 n)
     return i;
 }
 
-/** \brief Get size of the container as signed integer
- *
- * \param container the container
- *
- * \return size of the container cast to std::ptrdiff_t
- */
-template<typename Container>
-constexpr std::ptrdiff_t ssize(const Container& container)
-{
-    return static_cast<std::ptrdiff_t>(std::size(container));
-}
-
 /** \brief Check if pointer (or pointer‐like object) is dereferencalbe, and
  * dereference it
  *
