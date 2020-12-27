@@ -8,8 +8,6 @@
 
 #include "Blob.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <optional>
 #include <string>
@@ -26,11 +24,15 @@ namespace CardServer {
  *
  * \sa \ref cardserverprotocol
  */
-struct PeerEntry : private boost::equality_comparable<PeerEntry> {
+struct PeerEntry {
     std::string endpoint;           ///< \brief Card server endpoint
     std::optional<Blob> serverKey;  ///< \brief The CurveZMQ server key
 
     PeerEntry() = default;
+
+    /** \brief Equality comparison
+     */
+    bool operator==(const PeerEntry&) const = default;
 
     /** \brief Create new peer entry
      *
@@ -41,12 +43,6 @@ struct PeerEntry : private boost::equality_comparable<PeerEntry> {
         std::string endpoint,
         std::optional<Blob> serverKey = std::nullopt);
 };
-
-/** \brief Equality operator for peer entries
- *
- * \sa PeerEntry
- */
-bool operator==(const PeerEntry&, const PeerEntry&);
 
 /** \brief Output a PeerEntry to stream
  *

@@ -182,11 +182,6 @@ int getPartnershipScore(
     return -result.score;
 }
 
-bool operator==(const DuplicateResult& lhs, const DuplicateResult& rhs)
-{
-    return lhs.partnership == rhs.partnership && lhs.score == rhs.score;
-}
-
 std::ostream& operator<<(std::ostream& os, const DuplicateResult& result)
 {
     if (result.partnership) {

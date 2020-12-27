@@ -8,8 +8,6 @@
 
 #include "enhanced_enum/enhanced_enum.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <optional>
 #include <stdexcept>
@@ -109,12 +107,8 @@ inline constexpr Strain NO_TRUMP { StrainLabel::NO_TRUMP };
  * than the level of B, or if their level is same but the strain of A is
  * higher than the strain of B. That is, the order is the same as the natural
  * order of bids in a bridge auction.
- *
- * \note Boost operators library is used to ensure that the rest of the
- * comparison operators are generated with usual semantics when operator== and
- * operator< are supplied.
  */
-struct Bid : private boost::totally_ordered<Bid> {
+struct Bid {
 
     int level;      ///< \brief Level of the bid
     Strain strain;  ///< \brief Strain of the bid
@@ -124,6 +118,10 @@ struct Bid : private boost::totally_ordered<Bid> {
 
     static const Bid LOWEST_BID; ///< \brief The lowest possible bid
     static const Bid HIGHEST_BID; ///< \brief The highest possible bid
+
+    /** \brief Three‐way comparison
+     */
+    constexpr auto operator<=>(const Bid&) const = default;
 
     /** \brief Determine whether given level is valid bidding level
      *
@@ -164,18 +162,6 @@ struct Bid : private boost::totally_ordered<Bid> {
  * the highest possible bid
  */
 std::optional<Bid> nextHigherBid(const Bid& bid);
-
-/** \brief Equality operator for bids
- *
- * \sa Bid
- */
-bool operator==(const Bid&, const Bid&);
-
-/** \brief Less than operator for bids
- *
- * \sa Bid
- */
-bool operator<(const Bid&, const Bid&);
 
 /** \brief Output a Strain to stream
  *

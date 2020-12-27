@@ -16,12 +16,6 @@ PeerEntry::PeerEntry(
 {
 }
 
-bool operator==(const PeerEntry& lhs, const PeerEntry& rhs)
-{
-    return std::tie(lhs.endpoint, lhs.serverKey) ==
-        std::tie(rhs.endpoint, rhs.serverKey);
-}
-
 std::ostream& operator<<(std::ostream& os, const PeerEntry& entry)
 {
     os << entry.endpoint;

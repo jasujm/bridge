@@ -10,8 +10,6 @@
 // cryptic error messages if Bid is not available
 #include "bridge/Bid.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <variant>
 
@@ -19,15 +17,24 @@ namespace Bridge {
 
 /** \brief Tag for bridge call pass
  */
-struct Pass : private boost::totally_ordered<Pass> {};
+struct Pass {
+    /// \brief Three‐way comparison
+    constexpr auto operator<=>(const Pass&) const = default;
+};
 
 /** \brief Tag for bridge call double
  */
-struct Double : private boost::totally_ordered<Double> {};
+struct Double {
+    /// \brief Three‐way comparison
+    constexpr auto operator<=>(const Double&) const = default;
+};
 
 /** \brief Tag for bridge call redouble
  */
-struct Redouble : private boost::totally_ordered<Redouble> {};
+struct Redouble {
+    /// \brief Three‐way comparison
+    constexpr auto operator<=>(const Redouble&) const = default;
+};
 
 /** \brief Bridge call
  *
@@ -35,40 +42,6 @@ struct Redouble : private boost::totally_ordered<Redouble> {};
  * Bid or any of the tags representing other calls (Pass, Double, Redouble).
  */
 using Call = std::variant<Pass, Bid, Double, Redouble>;
-
-/** \brief Equality operator for Pass
- *
- * \return true
- */
-inline bool operator==(Pass, Pass) { return true; }
-
-/** \brief Less than operator for Pass
- */
-inline bool operator<(Pass, Pass) { return false; }
-
-/** \brief Equality operator for Double
- *
- * \return true
- */
-inline bool operator==(Double, Double) { return true; }
-
-/** \brief Less than operator for Double
- *
- * \return false
- */
-inline bool operator<(Double, Double) { return false; }
-
-/** \brief Equality operator for Redouble
- *
- * \return true
- */
-inline bool operator==(Redouble, Redouble) { return true; }
-
-/** \brief Less than operator for Redouble
- *
- * \return false
- */
-inline bool operator<(Redouble, Redouble) { return false; }
 
 /** \brief Output pass to stream
  *

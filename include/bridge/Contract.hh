@@ -10,8 +10,6 @@
 
 #include "enhanced_enum/enhanced_enum.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <string_view>
 
@@ -96,15 +94,16 @@ constexpr auto N_TRICKS_IN_BOOK = 6;
  *
  * Contract objects are equality comparable. They compare equal when both bid
  * and doubling statuses are equal.
- *
- * \note Boost operators library is used to ensure that operator!= is
- * generated with usual semantics when operator== is supplied.
  */
-struct Contract : private boost::equality_comparable<Contract> {
+struct Contract {
     Bid bid;            ///< \brief The winning bid
     Doubling doubling;  ///< \brief The doubling status of the contract
 
     Contract() = default;
+
+    /** \brief Equality comparison
+     */
+    constexpr bool operator==(const Contract&) const = default;
 
     /** \brief Create new contract
      *
@@ -129,12 +128,6 @@ struct Contract : private boost::equality_comparable<Contract> {
  * \return true if the contract was made, false otherwise
  */
 bool isMade(const Contract& contract, int tricksWon);
-
-/** \brief Equality operator for contracts
- *
- * \sa Contract
- */
-bool operator==(const Contract&, const Contract&);
 
 /** \brief Output a Doubling to stream
  *

@@ -12,7 +12,6 @@
 #include "BlobMap.hh"
 #include "Thread.hh"
 
-#include <boost/operators.hpp>
 #include <boost/noncopyable.hpp>
 
 namespace Bridge {

@@ -8,8 +8,6 @@
 
 #include "enhanced_enum/enhanced_enum.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <string_view>
 
@@ -229,15 +227,16 @@ inline constexpr Suit SPADES { SuitLabel::SPADES };
  *
  * CardType objects are equality comparable. They compare equal when both rank
  * and suit are equal.
- *
- * \note Boost operators library is used to ensure that operator!= is
- * generated with usual semantics when operator== is supplied.
  */
-struct CardType : private boost::totally_ordered<CardType> {
+struct CardType {
     Rank rank;  ///< \brief Rank of the card
     Suit suit;  ///< \brief Suit of the card
 
     CardType() = default;
+
+    /** \brief Three‐way comparison
+     */
+    constexpr auto operator<=>(const CardType&) const = default;
 
     /** \brief Create new card type
      *
@@ -250,18 +249,6 @@ struct CardType : private boost::totally_ordered<CardType> {
     {
     }
 };
-
-/** \brief Equality operator for card types
- *
- * \sa CardType
- */
-bool operator==(const CardType&, const CardType&);
-
-/** \brief Less than operator for card types
- *
- * \sa CardType
- */
-bool operator<(const CardType&, const CardType&);
 
 /** \brief Output a Rank to stream
  *

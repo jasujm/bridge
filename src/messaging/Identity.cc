@@ -4,7 +4,6 @@
 #include "HexUtility.hh"
 
 #include <utility>
-#include <tuple>
 
 namespace Bridge {
 namespace Messaging {
@@ -28,18 +27,6 @@ Identity identityFromMessage(Message& message, Message* routerIdentityFrame)
         decltype(messageView(*routerIdentityFrame)) {};
     return {
         user_id, RoutingId(routing_id_view.begin(), routing_id_view.end()) };
-}
-
-bool operator==(const Identity& lhs, const Identity& rhs)
-{
-    return std::tie(lhs.userId, lhs.routingId) ==
-        std::tie(rhs.userId, rhs.routingId);
-}
-
-bool operator<(const Identity& lhs, const Identity& rhs)
-{
-    return std::tie(lhs.userId, lhs.routingId) <
-        std::tie(rhs.userId, rhs.routingId);
 }
 
 std::ostream& operator<<(std::ostream& os, const Identity& identity)

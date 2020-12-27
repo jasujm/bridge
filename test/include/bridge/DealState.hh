@@ -12,8 +12,6 @@
 #include "bridge/Contract.hh"
 #include "bridge/Vulnerability.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <map>
 #include <optional>
@@ -41,15 +39,12 @@ enum class Stage {
  * aspect of two deals
  are the same.
  *
- * \note Boost operators library is used to ensure that operator!= is
- * generated with usual semantics when operator== is supplied.
- *
  * \deprecated This class was used to aid serializing the state of a single deal
  * into message sent to the clients. Currently only the unit test for
  * Engine::BridgeEngine depends on this class, and it is no longer part of the
  * actual bridge application.
  */
-struct DealState : private boost::equality_comparable<DealState> {
+struct DealState {
 
     /** \brief The stage of the game
      */
@@ -115,13 +110,11 @@ struct DealState : private boost::equality_comparable<DealState> {
      * played.
      */
     std::optional<Trick> currentTrick;
-};
 
-/** \brief Equality operator for deal states
- *
- * \sa DealState
- */
-bool operator==(const DealState&, const DealState&);
+    /** \brief Equality comparison
+     */
+    bool operator==(const DealState&) const = default;
+};
 
 /** \brief Output a Stage to stream
  *
