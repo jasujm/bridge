@@ -13,8 +13,6 @@
 #include "engine/GameManager.hh"
 #include "Observer.hh"
 
-#include <boost/operators.hpp>
-
 #include <any>
 #include <stdexcept>
 #include <memory>
@@ -63,7 +61,7 @@ public:
 
     /** \brief Event for announcing that deal has started
      */
-    struct DealStarted : private boost::equality_comparable<DealStarted> {
+    struct DealStarted {
         /** \brief Create new deal started event
          *
          * \param uuid see \ref uuid
@@ -80,7 +78,7 @@ public:
 
     /** \brief Event for announcing that a player has turn
      */
-    struct TurnStarted : private boost::equality_comparable<TurnStarted> {
+    struct TurnStarted {
         /** \brief Create new turn started event
          *
          * \param uuid see \ref uuid
@@ -94,7 +92,7 @@ public:
 
     /** \brief Event for announcing that a call was made
      */
-    struct CallMade : private boost::equality_comparable<CallMade> {
+    struct CallMade {
         /** \brief Create new card played event
          *
          * \param uuid see \ref uuid
@@ -112,7 +110,7 @@ public:
 
     /** \brief Event for announcing that contract was reached
      */
-    struct BiddingCompleted : private boost::equality_comparable<BiddingCompleted> {
+    struct BiddingCompleted {
         /** \brief Generate new bidding completed event
          *
          * \param uuid see \ref uuid
@@ -128,7 +126,7 @@ public:
 
     /** \brief Event for announcing that a trick has started
      */
-    struct TrickStarted : private boost::equality_comparable<TrickStarted> {
+    struct TrickStarted {
         /** \brief Create new trick completed event
          *
          * \param uuid see \ref uuid
@@ -142,7 +140,7 @@ public:
 
     /** \brief Event for announcing that a card was played
      */
-    struct CardPlayed : private boost::equality_comparable<CardPlayed> {
+    struct CardPlayed {
         /** \brief Create new card played event
          *
          * \param uuid see \ref uuid
@@ -164,7 +162,7 @@ public:
 
     /** \brief Event for announcing that a trick was completed
      */
-    struct TrickCompleted : private boost::equality_comparable<TrickCompleted> {
+    struct TrickCompleted {
         /** \brief Create new trick completed event
          *
          * \param uuid see \ref uuid
@@ -182,7 +180,7 @@ public:
 
     /** \brief Event for announcing that dummy has been revealed
      */
-    struct DummyRevealed : private boost::equality_comparable<DummyRevealed> {
+    struct DummyRevealed {
         /** ]brief Create new dummy revealed event
          *
          * \param uuid see \ref uuid
@@ -198,7 +196,7 @@ public:
 
     /** \brief Event for announcing that deal has ended
      */
-    struct DealEnded : private boost::equality_comparable<DealEnded> {
+    struct DealEnded {
         /** \brief Create new deal ended event
          *
          * \param uuid see \ref uuid

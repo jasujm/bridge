@@ -47,6 +47,10 @@ struct DuplicateResult {
         return {};
     }
 
+    /** \brief Equality comparison
+     */
+    constexpr bool operator==(const DuplicateResult&) const = default;
+
     /** \brief The partnership awarded score
      *
      * This member specifies the partnership that was awarded the score in a
@@ -97,10 +101,6 @@ DuplicateResult makeDuplicateResult(Partnership partnership, int score);
  * \return The signed score awarded to \p partnership in \p result
  */
 int getPartnershipScore(const DuplicateResult& result, Partnership partnership);
-
-/** \brief Equality operator for duplicate results
- */
-bool operator==(const DuplicateResult& lhs, const DuplicateResult& rhs);
 
 /** \brief Output a duplicate result to stream
  *

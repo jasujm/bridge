@@ -30,22 +30,6 @@ const auto PEER_ROLE = "peer"sv;
 
 }
 
-bool operator==(
-    const BridgeGameConfig::PeerConfig& lhs,
-    const BridgeGameConfig::PeerConfig& rhs)
-{
-    return std::tie(lhs.endpoint, lhs.serverKey) ==
-        std::tie(rhs.endpoint, rhs.serverKey);
-}
-
-bool operator==(
-    const BridgeGameConfig::CardServerConfig& lhs,
-    const BridgeGameConfig::CardServerConfig& rhs)
-{
-    return std::tie(lhs.controlEndpoint, lhs.peerEndpoint) ==
-        std::tie(rhs.controlEndpoint, rhs.peerEndpoint);
-}
-
 BridgeGame gameFromConfig(
     const BridgeGameConfig& config,
     Messaging::MessageContext& context,

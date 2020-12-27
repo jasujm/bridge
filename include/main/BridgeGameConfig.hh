@@ -13,8 +13,6 @@
 #include "messaging/Sockets.hh"
 #include "Blob.hh"
 
-#include <boost/operators.hpp>
-
 #include <memory>
 #include <optional>
 #include <vector>
@@ -47,6 +45,9 @@ struct BridgeGameConfig {
     struct PeerConfig {
         std::string endpoint;          ///< Peer endpoint
         Blob serverKey;                ///< Peer server key
+
+        /// \brief Equality operator
+        bool operator==(const PeerConfig&) const = default;
     };
 
     /** \brief Bridge game card server config
@@ -55,29 +56,16 @@ struct BridgeGameConfig {
         std::string controlEndpoint;   ///< Card server control endpoint
         std::string peerEndpoint;      ///< Card server peer endpoint
         Blob serverKey;                ///< Server key for the card server
-    };
 
-    // Explicitly instantiate to preserve aggregate-ness of PeerConfig and
-    // CardServerConfig
-    struct boost::equality_comparable<PeerConfig>;
-    struct boost::equality_comparable<CardServerConfig>;
+        /// \brief Equality operator
+        bool operator==(const CardServerConfig&) const = default;
+    };
 
     Uuid uuid;                         ///< Game UUID
     std::vector<Position> positionsControlled; ///< Positions controlled by self
     std::vector<PeerConfig> peers;     ///< Peers taking part in the game
     std::optional<CardServerConfig> cardServer; ///< Card server config
 };
-
-/** \brief Equality comparison between peer config objects
- */
-bool operator==(
-    const BridgeGameConfig::PeerConfig&, const BridgeGameConfig::PeerConfig&);
-
-/** \brief Equality comparison between card server config objects
- */
-bool operator==(
-    const BridgeGameConfig::CardServerConfig&,
-    const BridgeGameConfig::CardServerConfig&);
 
 /** \brief Construct bridge game object from config
  *

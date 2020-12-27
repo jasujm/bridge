@@ -6,8 +6,6 @@
 #ifndef BLOB_HH_
 #define BLOB_HH_
 
-#include <boost/operators.hpp>
-
 #include <algorithm>
 #include <cstddef>
 #include <iterator>

@@ -8,19 +8,6 @@
 
 namespace Bridge {
 
-bool operator==(const DealState& lhs, const DealState& rhs)
-{
-    return &lhs == &rhs || (
-        lhs.stage == rhs.stage &&
-        lhs.vulnerability == rhs.vulnerability &&
-        lhs.positionInTurn == rhs.positionInTurn &&
-        lhs.cards == rhs.cards &&
-        lhs.calls == rhs.calls &&
-        lhs.declarer == rhs.declarer &&
-        lhs.contract == rhs.contract &&
-        lhs.currentTrick == rhs.currentTrick);
-}
-
 std::ostream& operator<<(std::ostream& os, const Stage stage)
 {
     switch (stage) {

@@ -22,18 +22,6 @@ std::optional<Bid> nextHigherBid(const Bid& bid)
     return std::nullopt;
 }
 
-bool operator==(const Bid& lhs, const Bid& rhs)
-{
-    return std::tie(lhs.level, lhs.strain) ==
-        std::tie(rhs.level, lhs.strain);
-}
-
-bool operator<(const Bid& lhs, const Bid& rhs)
-{
-    return std::tie(lhs.level, lhs.strain) <
-        std::tie(rhs.level, rhs.strain);
-}
-
 std::ostream& operator<<(std::ostream& os, Strain strain)
 {
     return os << strain.value();

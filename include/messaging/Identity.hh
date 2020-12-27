@@ -9,8 +9,6 @@
 #include "messaging/Sockets.hh"
 #include "Blob.hh"
 
-#include <boost/operators.hpp>
-
 #include <iosfwd>
 #include <string>
 #include <string_view>
@@ -48,7 +46,7 @@ using RoutingId = Blob;
  * considered as an epheremal opaque blob that can be used as a session token
  * instead of actual authentication.
  */
-struct Identity : public boost::totally_ordered<Identity> {
+struct Identity {
 
     Identity() = default;
 
@@ -58,6 +56,10 @@ struct Identity : public boost::totally_ordered<Identity> {
      * \param routingId see \ref routingId
      */
     Identity(UserId userId, RoutingId routingId);
+
+    /** \brief Three‐way comparison
+     */
+    auto operator<=>(const Identity&) const = default;
 
     UserId userId;        ///< User ID
     RoutingId routingId;  ///< Routing ID
@@ -78,14 +80,6 @@ struct Identity : public boost::totally_ordered<Identity> {
  * \return Identity of the connection related to the message
  */
 Identity identityFromMessage(Message& message, Message* routerIdentityFrame);
-
-/** \brief Equality operator for identities
- */
-bool operator==(const Identity&, const Identity&);
-
-/** \brief Less than operator for identities
- */
-bool operator<(const Identity&, const Identity&);
 
 /** \brief Output an identity to stream
  *
