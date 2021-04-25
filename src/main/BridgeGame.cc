@@ -99,7 +99,8 @@ public:
         const Identity& identity, Position position,
         std::shared_ptr<Player> player);
 
-    void leave(const Identity& identity, const Player& player);
+    std::optional<Position> leave(
+        const Identity& identity, const Player& player);
 
     GameState getState(
         const Player* player,
@@ -320,7 +321,8 @@ bool BridgeGame::Impl::join(
     return false;
 }
 
-void BridgeGame::Impl::leave(const Identity& identity, const Player& player)
+std::optional<Position> BridgeGame::Impl::leave(
+    const Identity& identity, const Player& player)
 {
     for (const auto position : Position::all()) {
         if (engine.getPlayer(position) == &player) {
@@ -334,9 +336,10 @@ void BridgeGame::Impl::leave(const Identity& identity, const Player& player)
                 identity, LEAVE_COMMAND,
                 std::pair {GAME_COMMAND, uuid},
                 std::pair {PLAYER_COMMAND, player.getUuid()});
-            return;
+            return position;
         }
     }
+    return std::nullopt;
 }
 
 GameState BridgeGame::Impl::getState(
@@ -712,10 +715,11 @@ bool BridgeGame::join(
     return impl->join(identity, position, std::move(player));
 }
 
-void BridgeGame::leave(const Identity& identity, const Player& player)
+std::optional<Position> BridgeGame::leave(
+    const Identity& identity, const Player& player)
 {
     assert(impl);
-    impl->leave(identity, player);
+    return impl->leave(identity, player);
 }
 
 GameState BridgeGame::getState(

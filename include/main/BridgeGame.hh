@@ -220,8 +220,11 @@ public:
      *
      * \param identity the identity of the node controlling the player
      * \param player the player to leave the game
+     *
+     * \return The position of the player before leaving, or none if
+     * the player was not in the game
      */
-    void leave(
+    std::optional<Position> leave(
         const Messaging::Identity& identity, const Player& player);
 
     /** \brief Get current state of the game

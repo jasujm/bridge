@@ -322,6 +322,7 @@
  *   - \e position: the preferred position (optional for clients)
  * - \b Reply:
  *   - \e game: the game joined
+ *   - \e position: the position of the seat
  * - \b Failures:
  *   - \e NF: Game not found
  *   - \e NA: Not authorized (the node is not allowed to act for the player)
@@ -358,6 +359,9 @@
  * - \b Parameters:
  *    - \e game: the UUID of the game
  *    - \e player: the UUID of the player
+ * - \b Reply:
+ *   - \e position: the position of the seat before leaving, or null if
+                    the player was not in the game
  * - \b Failures:
  *    - \e NF: Game not found
  *    - \e NA: Not authorized (the node is not allowed to act for the player)

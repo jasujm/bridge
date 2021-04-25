@@ -184,13 +184,7 @@ public:
 private:
 
     template<typename T>
-    void internalAddFrameImpl(int n, T& t);
-
-    template<typename T>
     void internalAddFrame(int n, T& t);
-
-    template<typename T>
-    void internalAddFrame(int n, std::optional<T>& t);
 
     SerializationPolicy& serializer;
     Response& response;
@@ -224,29 +218,11 @@ void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::operator()(
 template<typename SerializationPolicy, auto REPLY_SIZE>
 template<typename T>
 void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrameImpl(int n, T& t)
+internalAddFrame(int n, T& t)
 {
     assert(0 <= n && n < ssize(replyKeys));
     response.addFrame(replyKeys[n]);
     response.addFrame(asBytes(serializer.serialize(std::move(t))));
-}
-
-template<typename SerializationPolicy, auto REPLY_SIZE>
-template<typename T>
-void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrame(int n, T& t)
-{
-    internalAddFrameImpl(n, t);
-}
-
-template<typename SerializationPolicy, auto REPLY_SIZE>
-template<typename T>
-void ReplyVisitor<SerializationPolicy, REPLY_SIZE>::
-internalAddFrame(int n, std::optional<T>& t)
-{
-    if (t) {
-        internalAddFrameImpl(n, *t);
-    }
 }
 
 template<typename SerializationPolicy, auto REPLY_SIZE>

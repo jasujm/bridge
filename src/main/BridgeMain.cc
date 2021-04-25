@@ -120,10 +120,10 @@ private:
     Reply<Uuid> game(
         const Identity& identity, const std::optional<Uuid>& uuid,
         const std::optional<nlohmann::json>& args);
-    Reply<Uuid> join(
+    Reply<Uuid, Position> join(
         const Identity& identity, const std::optional<Uuid>& gameUuid,
         const Uuid& playerUuid, std::optional<Position> positions);
-    Reply<> leave(
+    Reply<std::optional<Position>> leave(
         const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid);
     Reply<GameState, BridgeGame::Counter> get(
         const Identity& identity,
@@ -194,13 +194,14 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
                 makeMessageHandler(
                     *this, &Impl::join, JsonSerializer {},
                     std::tuple {GAME_COMMAND, PLAYER_COMMAND, POSITION_COMMAND},
-                    std::tuple {GAME_COMMAND})
+                    std::tuple {GAME_COMMAND, POSITION_COMMAND})
             },
             {
                 stringToBlob(LEAVE_COMMAND),
                 makeMessageHandler(
                     *this, &Impl::leave, JsonSerializer {},
-                    std::tuple {GAME_COMMAND, PLAYER_COMMAND})
+                    std::tuple {GAME_COMMAND, PLAYER_COMMAND},
+                    std::tuple {POSITION_COMMAND})
             },
             {
                 stringToBlob(CALL_COMMAND),
@@ -360,7 +361,7 @@ Reply<Uuid> BridgeMain::Impl::game(
     }
 }
 
-Reply<Uuid> BridgeMain::Impl::join(
+Reply<Uuid, Position> BridgeMain::Impl::join(
     const Identity& identity, const std::optional<Uuid>& gameUuid,
     const Uuid& playerUuid, std::optional<Position> position)
 {
@@ -416,7 +417,7 @@ Reply<Uuid> BridgeMain::Impl::join(
         assert(game);
         assert(position);
         if (game->join(identity, *position, std::move(player))) {
-            return success(uuid_for_game);
+            return success(uuid_for_game, *position);
         } else {
             return failure(SEAT_RESERVED_SUFFIX);
         }
@@ -425,7 +426,7 @@ Reply<Uuid> BridgeMain::Impl::join(
     }
 }
 
-Reply<> BridgeMain::Impl::leave(
+Reply<std::optional<Position>> BridgeMain::Impl::leave(
     const Identity& identity, const Uuid& gameUuid, const Uuid& playerUuid)
 {
     log(LogLevel::DEBUG, "Leave command from %s. Game: %s. Player: %s",
@@ -442,8 +443,8 @@ Reply<> BridgeMain::Impl::leave(
 
     if (auto player = internalGetOrCreatePlayer(identity.userId, playerUuid)) {
         if (const auto game = internalGetGame(gameUuid)) {
-            game->leave(identity, *player);
-            return success();
+            const auto position = game->leave(identity, *player);
+            return success(position);
         } else {
             return failure(NOT_FOUND_SUFFIX);
         }

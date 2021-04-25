@@ -72,16 +72,6 @@ Reply<std::string, int> reply2(const Identity&)
     return success(REPLY1, REPLY2);
 }
 
-Reply<std::optional<std::string>> replyOptional(const Identity&)
-{
-    return success(REPLY1);
-}
-
-Reply<std::optional<std::string>> replyNone(const Identity&)
-{
-    return success(std::nullopt);
-}
-
 class MockFunction {
 public:
     MOCK_METHOD1(call0, Reply<>(Identity));
@@ -272,22 +262,6 @@ TEST_F(FunctionMessageHandlerTest, testGetReply2)
     testHelper(
         *handler, {}, REPLY_SUCCESS,
         {REPLY_KEY1, REPLY1, REPLY_KEY2, boost::lexical_cast<std::string>(REPLY2)});
-}
-
-TEST_F(FunctionMessageHandlerTest, testGetReplyOptional)
-{
-    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
-        &replyOptional, MockSerializationPolicy {},
-        std::tuple {}, std::tuple {REPLY_KEY1});
-    testHelper(*handler, {}, REPLY_SUCCESS, {REPLY_KEY1, REPLY1});
-}
-
-TEST_F(FunctionMessageHandlerTest, testGetReplyNone)
-{
-    auto handler = makeMessageHandler<SynchronousExecutionPolicy>(
-        &replyNone, MockSerializationPolicy {},
-        std::tuple {}, std::tuple {REPLY_KEY1});
-    testHelper(*handler, {}, REPLY_SUCCESS, {});
 }
 
 TEST_F(FunctionMessageHandlerTest, testFailureSuffix)
