@@ -38,7 +38,6 @@
 
 #include <iterator>
 #include <optional>
-#include <queue>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -159,12 +158,7 @@ private:
     Messaging::Authenticator authenticator;
     std::shared_ptr<Messaging::PollingCallbackScheduler> callbackScheduler;
     std::map<Uuid, BridgeGame> games;
-    // TODO: The available games system is not very well designed. The games
-    // will remain in the que if they are joined using explicit game parameter
-    // in the join command. They don't return to the queue when a player leaves
-    // a full game etc. Perhaps a proper implementation or dropping the feature
-    // is in order?
-    std::queue<std::pair<Uuid, BridgeGame*>> availableGames;
+    std::optional<Uuid> defaultGameUuid;
     std::shared_ptr<BridgeGameRecorder> recorder;
     const bool recordPlayers;
 };
@@ -252,14 +246,21 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
     Messaging::bindSocket(*eventSocket, *endpointIterator++);
     for (auto& gameConfig : this->config.getGameConfigs()) {
         const auto& uuid = gameConfig.uuid;
-        const auto emplaced_game = games.emplace(
+        const auto [emplaced_game, game_created] = games.emplace(
             uuid,
             gameFromConfig(
                 gameConfig, context, keys, eventSocket, callbackScheduler,
                 this->config.getKnownNodes()));
-        if (emplaced_game.second) {
-            auto& game = emplaced_game.first->second;
-            availableGames.emplace(uuid, &game);
+        if (game_created) {
+            auto& game = emplaced_game->second;
+            if (gameConfig.isDefault) {
+                if (defaultGameUuid) {
+                    log(LogLevel::WARNING, "Multiple games defined as default. Ignoring %s",
+                        gameConfig.uuid);
+                } else {
+                    defaultGameUuid = uuid;
+                }
+            }
             if (const auto peer_command_sender = game.getPeerCommandSender()) {
                 for (auto&& [socket, cb] : peer_command_sender->getSockets()) {
                     messageLoop.addPollable(std::move(socket), std::move(cb));
@@ -344,7 +345,7 @@ Reply<Uuid> BridgeMain::Impl::game(
     } else {
         const auto uuid_for_game = gameUuid ? *gameUuid : generateUuid();
         if (internalGetGame(uuid_for_game) == nullptr) {
-            const auto game = games.emplace(
+            games.emplace(
                 std::piecewise_construct,
                 std::tuple {uuid_for_game},
                 std::tuple {
@@ -352,8 +353,6 @@ Reply<Uuid> BridgeMain::Impl::game(
                     std::make_unique<PeerlessCardProtocol>(),
                     std::make_shared<Engine::DuplicateGameManager>(),
                     callbackScheduler, recorder});
-            auto& game_ = game.first->second;
-            availableGames.emplace(uuid_for_game, &game_);
             return success(uuid_for_game);
         } else {
             return failure(ALREADY_EXISTS_SUFFIX);
@@ -385,34 +384,20 @@ Reply<Uuid, Position> BridgeMain::Impl::join(
         auto game = static_cast<BridgeGame*>(nullptr);
         if (gameUuid) {
             uuid_for_game = *gameUuid;
-            game = internalGetGame(uuid_for_game);
-            if (game) {
-                position = game->getPositionForPlayerToJoin(
-                    identity, position, *player);
-                if (!position) {
-                    return failure(SEAT_RESERVED_SUFFIX);
-                }
-            } else {
-                return failure(NOT_FOUND_SUFFIX);
+        } else if (defaultGameUuid) {
+            uuid_for_game = *defaultGameUuid;
+        } else {
+            return failure(NOT_FOUND_SUFFIX);
+        }
+        game = internalGetGame(uuid_for_game);
+        if (game) {
+            position = game->getPositionForPlayerToJoin(
+                identity, position, *player);
+            if (!position) {
+                return failure(SEAT_RESERVED_SUFFIX);
             }
         } else {
-            while (!availableGames.empty()) {
-                const auto& possible_game = availableGames.front();
-                assert(possible_game.second);
-                const auto possible_position =
-                    possible_game.second->getPositionForPlayerToJoin(
-                        identity, std::nullopt, *player);
-                if (possible_position) {
-                    uuid_for_game = possible_game.first;
-                    game = possible_game.second;
-                    position = possible_position;
-                    goto game_found;
-                }
-                availableGames.pop();
-            }
             return failure(NOT_FOUND_SUFFIX);
-        game_found:
-            ;
         }
         assert(game);
         assert(position);

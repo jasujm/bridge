@@ -151,15 +151,29 @@ known_nodes = {
 TEST_F(ConfigTest, testParseGameConfig)
 {
     in.str(R"EOF(
-game { uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490"}
+game { uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490" }
 )EOF"s);
     const auto config = Config {in};
     const auto& games = config.getGameConfigs();
     ASSERT_EQ(1u, games.size());
     auto uuid_generator = boost::uuids::string_generator {};
+    const auto& game = games.front();
     EXPECT_EQ(
         uuid_generator("575332b4-fa13-4d65-acf6-9f24b5e2e490"),
-        games.front().uuid);
+        game.uuid);
+    EXPECT_FALSE(game.isDefault);
+}
+
+TEST_F(ConfigTest, testParseGameConfigDefaultGame)
+{
+    in.str(R"EOF(
+game { uuid = "575332b4-fa13-4d65-acf6-9f24b5e2e490", default = true }
+)EOF"s);
+    const auto config = Config {in};
+    const auto& games = config.getGameConfigs();
+    ASSERT_EQ(1u, games.size());
+    const auto& game = games.front();
+    EXPECT_TRUE(games.front().isDefault);
 }
 
 TEST_F(ConfigTest, testParseGameConfigWrongArgumentType)

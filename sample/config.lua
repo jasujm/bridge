@@ -43,6 +43,17 @@ end
 -- Note that peerless games can also be created by the frontend application
 -- after startup.
 
+-- The following sets up a default game if the BRIDGE_DEFAULT_GAME environment
+-- variable is set. This is intended of spinning up a server hosting a single
+-- ad hoc game.
+
+if os.getenv("BRIDGE_DEFAULT_GAME") then
+   game {
+      uuid = "bed30528-2cfe-44ee-9db7-79ec19fdd715",
+      default = true,
+   }
+end
+
 -- game {
 
    -- UUID is a mandatory argument to the game command

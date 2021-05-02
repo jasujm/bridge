@@ -41,6 +41,7 @@ constexpr auto CURVE_PUBLIC_KEY = "curve_public_key"sv;
 constexpr auto CURVE_SECRET_KEY = "curve_secret_key"sv;
 
 constexpr auto GAME_CONFIG_UUID = "uuid"sv;
+constexpr auto GAME_CONFIG_DEFAULT = "default"sv;
 constexpr auto GAME_CONFIG_POSITIONS_CONTROLLED = "positions_controlled"sv;
 constexpr auto GAME_CONFIG_PEERS = "peers"sv;
 constexpr auto GAME_CONFIG_ENDPOINT = "endpoint"sv;
@@ -203,6 +204,12 @@ int config_lua_game(lua_State* lua) {
             luaL_error(lua, "invalid uuid");
         }
     }
+    lua_pop(lua, 1);
+
+    lua_pushstring(lua, GAME_CONFIG_DEFAULT.data());
+    lua_rawget(lua, 1);
+    const auto isDefault = lua_toboolean(lua, -1);
+    config.isDefault = static_cast<bool>(isDefault);
     lua_pop(lua, 1);
 
     lua_pushstring(lua, GAME_CONFIG_POSITIONS_CONTROLLED.data());

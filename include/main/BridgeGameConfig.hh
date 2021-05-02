@@ -62,7 +62,8 @@ struct BridgeGameConfig {
     struct boost::equality_comparable<PeerConfig>;
     struct boost::equality_comparable<CardServerConfig>;
 
-    Uuid uuid;                         ///< Game UUID
+    Uuid uuid;                                 ///< Game UUID
+    bool isDefault;                            ///< Game is default
     std::vector<Position> positionsControlled; ///< Positions controlled by self
     std::vector<PeerConfig> peers;     ///< Peers taking part in the game
     std::optional<CardServerConfig> cardServer; ///< Card server config

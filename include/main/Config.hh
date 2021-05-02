@@ -3,6 +3,7 @@
  * \brief Definition of Bridge::Main::Config class
  */
 
+#include "bridge/Uuid.hh"
 #include "messaging/Authenticator.hh"
 #include "messaging/Security.hh"
 

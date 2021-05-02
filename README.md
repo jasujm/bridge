@@ -117,9 +117,8 @@ The config file is used to determine the network topology. The
 some possible options for different kinds of games with and without peers.
 
 A single backend application can host multiple games identified by an
-UUID. Peer–to–peer games need to be configured before startup.
-Peerless (client–server) games can be created dynamically by the
-client.
+UUID. Peer–to–peer games need to be configured before startup in the config
+file.  Peerless (client–server) games can be created dynamically by the client.
 
 Note! The application does not yet correctly handle peers leaving and
 rejoining the game. If a peer or a card server crashes, the session is
@@ -182,7 +181,7 @@ suite.
 Uncomment the necessary sections in the sample config file and run
 `bridgecs` along with the bridge application.
 
-    peer@example.com$ bridge --config=sample/config.lua &
+    peer@example.com$ BRIDGE_DEFAULT_GAME=1 bridge --config=sample/config.lua &
     peer@example.com$ bridgecs tcp://127.0.0.1:5560 tcp://*:5565 &
     peer@example.com$ bridgegui tcp://localhost:5555
 
