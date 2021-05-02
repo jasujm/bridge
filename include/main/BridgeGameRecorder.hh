@@ -38,9 +38,6 @@ class CardProtocol;
  *
  * The recorder is only compiled if WITH_RECORDER macro is defined with true
  * value. Otherwise a stub implementing this interface is compiled.
- *
- * \todo Use rocksdb merge operations to record individual calls, cards,
- * etc. smarter
  */
 class BridgeGameRecorder {
 public:

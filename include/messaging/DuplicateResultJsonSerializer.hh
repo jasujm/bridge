@@ -19,8 +19,6 @@
  * - &lt;score&gt; is the amount scored, or 0 if the deal passed out
  */
 
-// FIXME!!!
-
 #ifndef MESSAGING_DUPLICATERESULTJSONSERIALIZER_HH_
 #define MESSAGING_DUPLICATERESULTJSONSERIALIZER_HH_
 
