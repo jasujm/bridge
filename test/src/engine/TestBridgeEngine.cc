@@ -30,6 +30,7 @@
 #include "MockPlayer.hh"
 #include "MockTrick.hh"
 #include "Enumerate.hh"
+#include "TestUtility.hh"
 #include "Utility.hh"
 
 #include <boost/range/combine.hpp>
@@ -167,13 +168,15 @@ protected:
                 *cardRevealStateObserver,
                 handleNotify(
                     Hand::CardRevealState::REQUESTED,
-                    ElementsAreArray(to(N_CARDS_PER_PLAYER))))
+                    ElementsAreArray(
+                        Bridge::vectorize(to(N_CARDS_PER_PLAYER)))))
                 .Times(AtLeast(1));
             EXPECT_CALL(
                 *cardRevealStateObserver,
                 handleNotify(
                     Hand::CardRevealState::COMPLETED,
-                    ElementsAreArray(to(N_CARDS_PER_PLAYER))))
+                    ElementsAreArray(
+                        Bridge::vectorize(to(N_CARDS_PER_PLAYER)))))
                 .Times(AtLeast(1));
         }
 

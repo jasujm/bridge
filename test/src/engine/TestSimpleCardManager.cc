@@ -6,6 +6,7 @@
 #include "bridge/Hand.hh"
 #include "MockHand.hh"
 #include "MockObserver.hh"
+#include "TestUtility.hh"
 #include "Utility.hh"
 
 #include <gtest/gtest.h>
@@ -129,9 +130,13 @@ TEST_F(SimpleCardManagerTest, testRevealHand)
     {
         InSequence sequence;
         EXPECT_CALL(
-            *observer, handleNotify(State::REQUESTED, ElementsAreArray(range)));
+            *observer,
+            handleNotify(
+                State::REQUESTED, ElementsAreArray(Bridge::vectorize(range))));
         EXPECT_CALL(
-            *observer, handleNotify(State::COMPLETED, ElementsAreArray(range)));
+            *observer,
+            handleNotify(
+                State::COMPLETED, ElementsAreArray(Bridge::vectorize(range))));
     }
     hand->subscribe(observer);
     hand->requestReveal(range.begin(), range.end());

@@ -3,6 +3,7 @@
 #include "MockHand.hh"
 #include "MockTrick.hh"
 #include "Enumerate.hh"
+#include "TestUtility.hh"
 #include "Utility.hh"
 
 #include <boost/range/combine.hpp>
@@ -346,4 +347,4 @@ TEST_F(TrickTest, testCardIterators)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SamplingCards, TrickTest, ValuesIn(to(Trick::N_CARDS_IN_TRICK)));
+    SamplingCards, TrickTest, ValuesIn(Bridge::vectorize(to(Trick::N_CARDS_IN_TRICK))));

@@ -21,12 +21,12 @@
 #include "messaging/VulnerabilityJsonSerializer.hh"
 #include "Utility.hh"
 
-#include <boost/range/adaptor/transformed.hpp>
 #include <boost/logic/tribool.hpp>
 
 #include <algorithm>
 #include <optional>
 #include <iterator>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -94,7 +94,7 @@ auto getAllCardsForPosition(const Deal& deal, const Position position)
 {
     const auto card_indices = cardsFor(position);
     const auto cards_for_position = card_indices |
-        boost::adaptors::transformed(
+        std::ranges::views::transform(
             [&deal](const auto n) { return deal.getCard(n).getType(); });
     return std::vector(cards_for_position.begin(), cards_for_position.end());
 }

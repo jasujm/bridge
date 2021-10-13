@@ -62,7 +62,8 @@ TEST_F(HandTest, testSubscribe)
 TEST_F(HandTest, testRequestRevealSuccess)
 {
     const auto range = Bridge::to(N_CARDS);
-    EXPECT_CALL(hand, handleRequestReveal(ElementsAreArray(range)));
+    EXPECT_CALL(
+        hand, handleRequestReveal(ElementsAreArray(Bridge::vectorize(range))));
     hand.requestReveal(range.begin(), range.end());
 }
 
@@ -78,7 +79,8 @@ TEST_F(HandTest, testRequestRevealFailure)
 TEST_F(HandTest, testRequestRevealWholeHand)
 {
     const auto range = Bridge::to(N_CARDS);
-    EXPECT_CALL(hand, handleRequestReveal(ElementsAreArray(range)));
+    EXPECT_CALL(
+        hand, handleRequestReveal(ElementsAreArray(Bridge::vectorize(range))));
     requestRevealHand(hand);
 }
 
@@ -225,4 +227,5 @@ TEST_F(HandTest, invalidCardCannoBePlayedFromHandOverflow)
     EXPECT_FALSE(canBePlayedFromHand(hand, N_CARDS));
 }
 
-INSTANTIATE_TEST_SUITE_P(SamplingCards, HandTest, ValuesIn(to(N_CARDS)));
+INSTANTIATE_TEST_SUITE_P(
+    SamplingCards, HandTest, ValuesIn(Bridge::vectorize(to(N_CARDS))));

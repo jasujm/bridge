@@ -92,7 +92,8 @@ TEST_F(CardManagerTest, testGetHandWhenShuffleIsCompleted)
     const auto ns = to(N_CARDS);
     EXPECT_CALL(cardManager, handleIsShuffleCompleted());
     EXPECT_CALL(cardManager, handleGetNumberOfCards());
-    EXPECT_CALL(cardManager, handleGetHand(ElementsAreArray(ns)));
+    EXPECT_CALL(
+        cardManager, handleGetHand(ElementsAreArray(Bridge::vectorize(ns))));
     EXPECT_EQ(hand, cardManager.getHand(ns.begin(), ns.end()));
 }
 

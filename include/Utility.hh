@@ -10,12 +10,13 @@
 #ifndef UTILITY_HH_
 #define UTILITY_HH_
 
-#include <boost/range/irange.hpp>
 #include <boost/iterator/transform_iterator.hpp>
 
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
+#include <ranges>
+#include <type_traits>
 
 namespace Bridge {
 
@@ -113,8 +114,8 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
 
 /** \brief Range over integers
  *
- * Generate range over integers from \p m to \p n (exclusive). This can be
- * used in ranged for
+ * Generate an increasing range over integers from \p m to \p n
+ * (exclusive). This can be used in ranged for
  *
  * \code{.cc}
  * for (const auto i : from_to(271, 314)) {
@@ -122,9 +123,44 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
  * }
  * \endcode
  *
- * The type of the generated integers is that of the upper bound. The lower
- * bound must be convertible to the type of the upper bound with non‐narrowing
- * conversion. When the lower bound is zero, there is shorthand \ref to.
+ * \param m the lower bound
+ * \param n the upper bound
+ *
+ * \return A range from \p m to \p n (exclusive upper bound)
+ *
+ * \throw std::invalid_argument if \p m > \p n
+ *
+ * \sa to()
+ */
+template<std::integral Integer>
+constexpr auto from_to(std::type_identity_t<Integer> m, Integer n)
+{
+    if (m > n) {
+        throw std::invalid_argument {"Invalid integer range"};
+    }
+    return std::ranges::views::iota(m, n);
+}
+
+/** \brief Shorthand for from_to(0, n)
+ *
+ * \param n the upper bound of the range
+ *
+ * \return A range from 0 to \p n (exclusive upper bound)
+ *
+ * \throw std::invalid_argument if \p n < 0
+ *
+ * \sa from_to()
+ */
+template<std::integral Integer>
+constexpr auto to(Integer n)
+{
+    return from_to(Integer {}, n);
+}
+
+/** \brief Strided range over integers
+ *
+ * Generate an increasing range over integers from \p m to \p n (exclusive) with
+ * step size \p step.
  *
  * \param m the lower bound
  * \param n the upper bound
@@ -132,27 +168,20 @@ auto containerAccessIterator(IndexIterator iter, ContainerType& container)
  *
  * \return A range from \p m to \p n (exclusive upper bound)
  *
+ * \throw std::invalid_argument if \p m > \p n or \p step <= 0
+ *
  * \sa to()
  */
-template<typename Integer1, typename Integer2, typename StepSize=Integer1>
-auto from_to(Integer1 m, Integer2 n, StepSize step=StepSize {1})
+template<std::integral Integer>
+constexpr auto from_to(
+    std::type_identity_t<Integer> m, Integer n,
+    std::type_identity_t<Integer> step)
 {
-    return boost::irange(m, static_cast<Integer1>(n), step);
-}
-
-/** \brief Shorthand for from_to(0, n)
- *
- * \param n the upper bound of the range
- * \param step the step size
- *
- * \return A range from 0 to \p n (exclusive upper bound)
- *
- * \sa from_to()
- */
-template<typename Integer, typename StepSize=Integer>
-auto to(Integer n, StepSize step=StepSize {1})
-{
-    return from_to(Integer {}, n, step);
+    if (step <= 0) {
+        throw std::invalid_argument {"Invalid step"};
+    }
+    return to((n - m) / step) | std::ranges::views::transform(
+        [m, step](const auto i) { return m + i * step; });
 }
 
 }

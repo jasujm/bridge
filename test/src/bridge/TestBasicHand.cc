@@ -2,6 +2,7 @@
 #include "bridge/BridgeConstants.hh"
 #include "MockCard.hh"
 #include "MockHand.hh"
+#include "TestUtility.hh"
 #include "Utility.hh"
 
 #include <gtest/gtest.h>
@@ -50,7 +51,8 @@ TEST_P(BasicHandTest, testRequestReveal)
     EXPECT_CALL(
         *observer,
         handleNotify(
-            BasicHand::CardRevealState::REQUESTED, ElementsAreArray(range)));
+            BasicHand::CardRevealState::REQUESTED,
+            ElementsAreArray(Bridge::vectorize(range))));
     hand.requestReveal(range.begin(), range.end());
 }
 
@@ -63,7 +65,8 @@ TEST_P(BasicHandTest, testSuccessfulReveal)
     EXPECT_CALL(
         *observer,
         handleNotify(
-            BasicHand::CardRevealState::COMPLETED, ElementsAreArray(range)));
+            BasicHand::CardRevealState::COMPLETED,
+            ElementsAreArray(Bridge::vectorize(range))));
 
     for (auto& card : cards) {
         ON_CALL(card, handleIsKnown()).WillByDefault(Return(true));

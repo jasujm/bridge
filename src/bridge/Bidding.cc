@@ -62,7 +62,7 @@ std::optional<Bid> Bidding::getLowestAllowedBid() const
         return std::nullopt;
     }
     const auto n_calls = handleGetNumberOfCalls();
-    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+    for (const auto n : to(n_calls) | std::ranges::views::reverse) {
         const auto call = handleGetCall(n);
         if (const auto bid = std::get_if<Bid>(&call)) {
             return nextHigherBid(*bid);
@@ -77,7 +77,7 @@ bool Bidding::isDoublingAllowed() const
         return false;
     }
     const auto n_calls = handleGetNumberOfCalls();
-    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+    for (const auto n : to(n_calls) | std::ranges::views::reverse) {
         const auto call = handleGetCall(n);
         // Opponent bid last
         if (std::holds_alternative<Bid>(call)) {
@@ -97,7 +97,7 @@ bool Bidding::isRedoublingAllowed() const
         return false;
     }
     const auto n_calls = handleGetNumberOfCalls();
-    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+    for (const auto n : to(n_calls) | std::ranges::views::reverse) {
         const auto call = handleGetCall(n);
         // Opponent doubled last
         if (std::holds_alternative<Double>(call)) {
@@ -191,7 +191,7 @@ std::optional<Contract> Bidding::internalGetContract() const
 {
     auto doubling = Doublings::UNDOUBLED;
     const auto n_calls = handleGetNumberOfCalls();
-    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+    for (const auto n : to(n_calls) | std::ranges::views::reverse) {
         const auto call = handleGetCall(n);
         if (std::holds_alternative<Double>(call)) {
             // Examining the calls from the last to the first, so
@@ -211,7 +211,7 @@ std::optional<Contract> Bidding::internalGetContract() const
 std::optional<Position> Bidding::internalGetDeclarerPosition() const
 {
     const auto n_calls = handleGetNumberOfCalls();
-    for (const auto n : from_to(n_calls - 1, -1, -1)) {
+    for (const auto n : to(n_calls) | std::ranges::views::reverse) {
         const auto call = handleGetCall(n);
         if (const auto bid = std::get_if<Bid>(&call)) {
             // Find the first bid by the contract partnership that has

@@ -6,11 +6,11 @@
 #include "main/PeerlessCardProtocol.hh"
 #include "Utility.hh"
 
-#include <boost/range/adaptor/transformed.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 #include <algorithm>
+#include <ranges>
 #include <vector>
 
 using Bridge::cardTypeIterator;
@@ -51,7 +51,7 @@ TEST_F(PeerlessCardProtocolTest, testCardProtocol)
     manager->requestShuffle();
     EXPECT_EQ(N_CARDS, manager->getNumberOfCards());
     const auto cards = Bridge::to(N_CARDS) |
-        boost::adaptors::transformed(
+        std::ranges::views::transform(
             [&manager](const auto n)
             {
                 return dereference(dereference(manager->getCard(n)).getType());
