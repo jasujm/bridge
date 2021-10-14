@@ -10,8 +10,10 @@
 #ifndef MESSAGING_SOCKETS_HH_
 #define MESSAGING_SOCKETS_HH_
 
+#include <chrono>
 #include <iterator>
 #include <memory>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 
@@ -133,6 +135,29 @@ inline void disconnectSocket(Socket& socket, std::string_view endpoint)
     socket.disconnect(endpoint.data());
 }
 
+/** \brief Return the socket type
+ *
+ * \param socket the socket
+ *
+ * \return the socket type
+ */
+inline SocketType getSocketType(const Socket& socket)
+{
+    return static_cast<SocketType>(socket.get(zmq::sockopt::type));
+}
+
+/** \brief Query is \p socket is ready for \p events
+ *
+ * \param socket the socket
+ * \param events \c ZMQ_POLLIN, \c ZMQ_POLLOUT et.c
+ *
+ * \return \c true if \p socket is ready for \p events, \c false otherwise
+ */
+inline bool socketHasEvents(const Socket& socket, int events)
+{
+    return static_cast<bool>(socket.get(zmq::sockopt::events) & events);
+}
+
 /** \brief Wrapper over \c zmq::poll
  *
  * \param pollitems list of Pollitem objects
@@ -141,10 +166,10 @@ inline void disconnectSocket(Socket& socket, std::string_view endpoint)
  * \return the result of \c zmq::poll called with the arguments (i.e. the number
  * of ready sockets)
  */
-template<typename PollitemRange, typename Timeout = long>
-auto pollSockets(PollitemRange& pollitems, Timeout timeout = -1)
+template<std::ranges::contiguous_range Pollitems>
+auto pollSockets(Pollitems& pollitems, std::chrono::milliseconds timeout = std::chrono::milliseconds{-1})
 {
-    return zmq::poll(std::data(pollitems), std::size(pollitems), timeout);
+    return zmq::poll(std::ranges::data(pollitems), std::ranges::size(pollitems), timeout);
 }
 
 /** \brief Wrapper over \c Socket::send

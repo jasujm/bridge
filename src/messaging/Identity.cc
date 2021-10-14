@@ -13,6 +13,10 @@ Identity::Identity(UserId userId, RoutingId routingId) :
     routingId {std::move(routingId)}
 {
 }
+void setSocketRoutingId(Socket& socket, RoutingId routingId)
+{
+    socket.set(zmq::sockopt::routing_id, messageBuffer(routingId));
+}
 
 Identity identityFromMessage(Message& message, Message* routerIdentityFrame)
 {

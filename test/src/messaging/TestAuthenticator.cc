@@ -35,7 +35,7 @@ protected:
     AuthenticatorTest()
     {
         const auto keys = CurveKeys {SERVER_SECRET_KEY, SERVER_PUBLIC_KEY};
-        server.setsockopt(ZMQ_ZAP_DOMAIN, ZAP_DOMAIN.data(), ZAP_DOMAIN.size());
+        server.set(zmq::sockopt::zap_domain, ZAP_DOMAIN);
         setupCurveServer(server, &keys);
         authenticator.ensureRunning();
         bindSocket(server, ENDPOINT);

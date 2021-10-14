@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -51,7 +52,7 @@ TEST_F(MessageBufferTest, testFlushEmptyOutputShouldNotSendMessage)
     auto pollitems = std::array {
         Pollitem { backSocket->handle(), 0, ZMQ_POLLIN, 0 },
     };
-    pollSockets(pollitems, 0);
+    pollSockets(pollitems, std::chrono::milliseconds::zero());
     EXPECT_FALSE(pollitems[0].revents & ZMQ_POLLIN);
 }
 

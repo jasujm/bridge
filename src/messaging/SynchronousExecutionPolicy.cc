@@ -9,7 +9,7 @@ namespace Messaging {
 void ensureSocketReadable(SynchronousExecutionContext&, SharedSocket socket)
 {
     auto& socket_ref = dereference(socket);
-    while (!(socket_ref.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN)) {
+    while (!(socketHasEvents(socket_ref, ZMQ_POLLIN))) {
         auto item = std::array {
             Pollitem { socket_ref.handle(), 0, ZMQ_POLLIN, 0 }
         };

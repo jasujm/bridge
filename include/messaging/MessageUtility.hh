@@ -49,7 +49,7 @@ inline void sendEmptyMessage(Socket& socket, bool more = false)
  */
 inline void sendEmptyFrameIfNecessary(Socket& socket)
 {
-    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    const auto type = getSocketType(socket);
     if (type == SocketType::router || type == SocketType::dealer) {
         sendEmptyMessage(socket, true);
     }
@@ -69,7 +69,7 @@ inline void sendEmptyFrameIfNecessary(Socket& socket)
  */
 inline bool recvEmptyFrameIfNecessary(Socket& socket)
 {
-    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    const auto type = getSocketType(socket);
     if (type == SocketType::router || type == SocketType::dealer) {
         auto empty_frame = Message {};
         recvMessage(socket, empty_frame);
@@ -124,7 +124,7 @@ inline int discardMessage(
         }
         recvMessage(socket, messageBuffer(buf, 0));
         ++n_parts;
-    } while (socket.getsockopt<int>(ZMQ_RCVMORE));
+    } while (socket.get(zmq::sockopt::rcvmore));
     return n_parts;
 }
 

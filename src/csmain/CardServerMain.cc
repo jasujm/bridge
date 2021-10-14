@@ -405,7 +405,7 @@ CardServerMain::Impl::Impl(
             std::tuple {CARDS_COMMAND}));
     auto controlSocket = Messaging::makeSharedSocket(
         zContext, Messaging::SocketType::router);
-    controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    controlSocket->set(zmq::sockopt::router_handover, true);
     Messaging::setupCurveServer(*controlSocket, getPtr(this->keys));
     Messaging::bindSocket(*controlSocket, controlEndpoint);
     messageLoop->addPollable(std::move(controlSocket), std::ref(messageQueue));
@@ -566,7 +566,7 @@ void CardServerMain::Impl::internalCreatePeerSocketProxy(
 {
     auto peerServerSocket = Messaging::Socket {
         zContext, Messaging::SocketType::router};
-    peerServerSocket.setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    peerServerSocket.set(zmq::sockopt::router_handover, true);
     const auto* curve_keys_ptr = getPtr(keys);
     Messaging::setupCurveServer(peerServerSocket, curve_keys_ptr);
     Messaging::bindSocket(peerServerSocket, peerEndpoint);

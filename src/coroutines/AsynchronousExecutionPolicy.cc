@@ -21,7 +21,7 @@ void ensureSocketReadable(
     AsynchronousExecutionContext& context,
     Messaging::SharedSocket socket)
 {
-    while (!(dereference(socket).getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN)) {
+    while (!(Messaging::socketHasEvents(dereference(socket), ZMQ_POLLIN))) {
         context.await(socket);
     }
 }

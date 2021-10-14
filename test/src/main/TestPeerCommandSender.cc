@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <chrono>
 #include <stdexcept>
 #include <string>
 
@@ -79,7 +80,7 @@ protected:
             Pollitem { frontSockets[0].handle(), 0, ZMQ_POLLIN, 0 },
             Pollitem { frontSockets[1].handle(), 0, ZMQ_POLLIN, 0 },
         };
-        pollSockets(pollitems, 0);
+        pollSockets(pollitems, std::chrono::milliseconds::zero());
         for (auto&& t : boost::combine(expect_recv, pollitems, frontSockets)) {
             const auto recv = t.get<1>().revents & ZMQ_POLLIN;
             EXPECT_EQ(t.get<0>(), recv);

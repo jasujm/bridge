@@ -7,6 +7,8 @@
 #include <queue>
 #include <sstream>
 
+using namespace std::chrono_literals;
+
 namespace Bridge {
 namespace Messaging {
 
@@ -37,12 +39,10 @@ using CallbackQueue = std::priority_queue<ScheduledCallback>;
 auto millisecondsUntilCallback(const CallbackQueue& queue)
 {
     if (queue.empty()) {
-        return -1L;
+        return -1ms;
     }
     return std::max(
-        0L,
-        std::chrono::duration_cast<Ms>(
-            queue.top().time_to_execute - Clk::now()).count());
+        0ms, std::chrono::duration_cast<Ms>(queue.top().time_to_execute - Clk::now()));
 }
 
 bool operator<(const ScheduledCallback& cb1, const ScheduledCallback& cb2)
@@ -77,13 +77,13 @@ void callbackSchedulerWorker(
         // Poll didn't timeout -- there is new callback info to be received
         else if (pollitems[1].revents & ZMQ_POLLIN) {
             const auto now = Clk::now();
-            while (fs.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
+            while (socketHasEvents(fs, ZMQ_POLLIN)) {
                 auto info = CallbackInfo {};
                 [[maybe_unused]] const auto recv_result = recvMessage(
                     fs, messageBuffer(&info, sizeof(info)));
                 assert(!recv_result.truncated());
                 // No need to schedule anything if there is no timeout
-                if (info.timeout == Ms::zero()) {
+                if (info.timeout == 0ms) {
                     const auto buffer = messageBuffer(
                         &info.callback_id, sizeof(info.callback_id));
                     static_cast<void>(sendMessageNonblocking(bs, buffer));
@@ -152,7 +152,7 @@ SharedSocket PollingCallbackScheduler::getSocket()
 void PollingCallbackScheduler::operator()(Socket& socket)
 {
     if (&socket == backSocket.get()) {
-        while (socket.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
+        while (socketHasEvents(socket, ZMQ_POLLIN)) {
             unsigned long callback_id {};
             [[maybe_unused]] const auto recv_result = recvMessage(
                 socket, messageBuffer(&callback_id, sizeof(callback_id)));

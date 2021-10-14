@@ -1,3 +1,4 @@
+#include "messaging/Identity.hh"
 #include "messaging/MessageUtility.hh"
 #include "csmain/PeerSocketProxy.hh"
 #include "Blob.hh"
@@ -59,7 +60,7 @@ protected:
         const auto pollables = proxy.getPollables();
         for (auto&& [socket, callback] : pollables) {
             auto& socket_ref = dereference(socket);
-            if (socket_ref.getsockopt<int>(ZMQ_EVENTS) & ZMQ_POLLIN) {
+            if (socketHasEvents(socket_ref, ZMQ_POLLIN)) {
                 callback(socket_ref);
             }
         }
@@ -73,8 +74,7 @@ protected:
         bool skipEmptyFrame = false)
     {
         auto socket = Socket {context, SocketType::dealer};
-        socket.setsockopt(
-            ZMQ_ROUTING_ID, PEER_IDENTITY.data(), PEER_IDENTITY.size());
+        Bridge::Messaging::setSocketRoutingId(socket, PEER_IDENTITY);
         connectSocket(socket, SELF_ENDPOINT);
         const auto order_parameter = boost::endian::native_to_big(order);
         if (!skipEmptyFrame) {

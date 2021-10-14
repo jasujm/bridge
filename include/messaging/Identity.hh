@@ -65,6 +65,13 @@ struct Identity {
     RoutingId routingId;  ///< Routing ID
 };
 
+/** \brief Set routing id of a socket
+ *
+ * \param socket the socket
+ * \param routingId routing id
+ */
+void setSocketRoutingId(Socket& socket, RoutingId routingId);
+
 /** \brief Retrieve identity from ZeroMQ message
  *
  * This method accepts a message and retrieves the identity for the related

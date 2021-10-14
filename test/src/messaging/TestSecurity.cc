@@ -26,14 +26,14 @@ TEST_F(SecurityTest, testSetupServer)
 {
     const auto keys = CurveKeys {SERVER_SECRET_KEY, SERVER_PUBLIC_KEY};
     setupCurveServer(socket, &keys);
-    EXPECT_TRUE(socket.getsockopt<int>(ZMQ_CURVE_SERVER));
+    EXPECT_TRUE(socket.get(zmq::sockopt::curve_server));
 }
 
 TEST_F(SecurityTest, testSetupCLIENT)
 {
     const auto keys = CurveKeys {CLIENT_SECRET_KEY, CLIENT_PUBLIC_KEY};
     setupCurveClient(socket, &keys, SERVER_PUBLIC_KEY);
-    EXPECT_FALSE(socket.getsockopt<int>(ZMQ_CURVE_SERVER));
+    EXPECT_FALSE(socket.get(zmq::sockopt::curve_server));
 }
 
 TEST_F(SecurityTest, testSetupServerInvalidKeys)

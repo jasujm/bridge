@@ -13,10 +13,11 @@ bool checkKeys(const Keys&... keys)
     return ( ... && (keys.size() == EXPECTED_CURVE_KEY_SIZE) );
 }
 
-void setKey(Socket& socket, int opt, ByteSpan key)
+template<typename Opt>
+void setKey(Socket& socket, Opt opt, ByteSpan key)
 {
     assert (key.size() == EXPECTED_CURVE_KEY_SIZE);
-    socket.setsockopt(opt, key.data(), EXPECTED_CURVE_KEY_SIZE);
+    socket.set(opt, messageBuffer(key));
 }
 
 }
@@ -38,8 +39,8 @@ void setupCurveServer(Socket& socket, const CurveKeys* const keys)
 {
     if (keys) {
         if (checkKeys(keys->secretKey)) {
-            socket.setsockopt(ZMQ_CURVE_SERVER, 1);
-            setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
+            socket.set(zmq::sockopt::curve_server, true);
+            setKey(socket, zmq::sockopt::curve_secretkey, keys->secretKey);
         } else {
             throw std::invalid_argument {"Invalid server keys"};
         }
@@ -51,10 +52,10 @@ void setupCurveClient(
 {
     if (keys && serverKey.size() > 0) {
         if (checkKeys(keys->secretKey, keys->publicKey, serverKey)) {
-            socket.setsockopt(ZMQ_CURVE_SERVER, 0);
-            setKey(socket, ZMQ_CURVE_SERVERKEY, serverKey);
-            setKey(socket, ZMQ_CURVE_SECRETKEY, keys->secretKey);
-            setKey(socket, ZMQ_CURVE_PUBLICKEY, keys->publicKey);
+            socket.set(zmq::sockopt::curve_server, false);
+            setKey(socket, zmq::sockopt::curve_serverkey, serverKey);
+            setKey(socket, zmq::sockopt::curve_secretkey, keys->secretKey);
+            setKey(socket, zmq::sockopt::curve_publickey, keys->publicKey);
         } else {
             throw std::invalid_argument {"Invalid client keys"};
         }

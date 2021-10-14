@@ -239,7 +239,7 @@ BridgeMain::Impl::Impl(Messaging::MessageContext& context, Config config) :
     auto endpointIterator = this->config.getEndpointIterator();
     auto controlSocket = Messaging::makeSharedSocket(
         context, Messaging::SocketType::router);
-    controlSocket->setsockopt(ZMQ_ROUTER_HANDOVER, 1);
+    controlSocket->set(zmq::sockopt::router_handover, true);
     Messaging::setupCurveServer(*controlSocket, keys);
     Messaging::bindSocket(*controlSocket, *endpointIterator++);
     Messaging::setupCurveServer(*eventSocket, keys);

@@ -16,9 +16,9 @@ RUN set -ex;                                                                    
     apt-get -y install g++ curl cmake libboost-dev libzmq3-dev liblua5.3-dev nlohmann-json3-dev;   \
     mkdir -p /usr/src;                                                                \
     cd /usr/src;                                                                      \
-    curl -L https://github.com/zeromq/cppzmq/archive/v4.6.0.tar.gz | tar -zxf -;      \
-    mkdir -p /usr/src/cppzmq-4.6.0/build;                                             \
-    cd /usr/src/cppzmq-4.6.0/build;                                                   \
+    curl -L https://github.com/zeromq/cppzmq/archive/v4.8.1.tar.gz | tar -zxf -;      \
+    mkdir -p /usr/src/cppzmq-4.8.1/build;                                             \
+    cd /usr/src/cppzmq-4.8.1/build;                                                   \
     cmake -D CMAKE_BUILD_TYPE=Release -D CPPZMQ_BUILD_TESTS:BOOL=OFF ..; make; make install;  \
     cd /usr/src;                                                                      \
     curl -L https://github.com/facebook/rocksdb/archive/v6.11.4.tar.gz | tar -zxf -;  \

@@ -61,7 +61,7 @@ inline Socket
 TerminationGuard::createTerminationSubscriber(MessageContext& context)
 {
     auto socket = Socket {context, SocketType::sub};
-    socket.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+    socket.set(zmq::sockopt::subscribe, "");
     connectSocket(socket, ENDPOINT);
     return socket;
 }

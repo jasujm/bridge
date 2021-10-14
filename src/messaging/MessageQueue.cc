@@ -87,7 +87,7 @@ void MessageQueue::operator()(Socket& socket)
 
     auto* identity_msg = static_cast<Message*>(nullptr);
     auto payload_frame_iter = input_frames.begin();
-    const auto type = socket.getsockopt<SocketType>(ZMQ_TYPE);
+    const auto type = getSocketType(socket);
     if (type == SocketType::router) {
         payload_frame_iter = std::find_if(
             payload_frame_iter, input_frames.end(),

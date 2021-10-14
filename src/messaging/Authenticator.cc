@@ -64,7 +64,7 @@ void zapServer(
                     Blob(key_view.begin(), key_view.end()),
                     UserId(user_id_msg.data<char>(), user_id_msg.size()));
             }
-            assert(!control_socket.getsockopt<int>(ZMQ_RCVMORE));
+            assert(!control_socket.get(zmq::sockopt::rcvmore));
             sendEmptyMessage(control_socket);
         }
         if (pollitems[2].revents & ZMQ_POLLIN) {

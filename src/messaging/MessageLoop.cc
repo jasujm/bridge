@@ -216,7 +216,7 @@ void MessageLoop::Impl::run()
 Socket MessageLoop::Impl::createTerminationSubscriber()
 {
     auto subscriber = Socket {context, SocketType::sub};
-    subscriber.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+    subscriber.set(zmq::sockopt::subscribe, "");
     connectSocket(subscriber, getTerminationPubSubEndpoint());
     return subscriber;
 }
