@@ -84,7 +84,6 @@ struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
         std::string& cardServerPeerEndpoint,
         std::optional<Blob>& cardServerKey,
         bool& ret) :
-        identity {identity},
         positions {positions},
         cardServerPeerEndpoint {cardServerPeerEndpoint},
         cardServerKey {cardServerKey},
@@ -92,7 +91,6 @@ struct AcceptPeerEvent : public sc::event<AcceptPeerEvent> {
     {
     }
 
-    const Identity& identity;
     CardProtocol::PositionVector& positions;
     std::string& cardServerPeerEndpoint;
     std::optional<Blob>& cardServerKey;

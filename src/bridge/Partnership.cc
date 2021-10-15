@@ -5,18 +5,6 @@
 
 namespace Bridge {
 
-std::pair<Position, Position> positionsFor(const Partnership partnership)
-{
-    switch (partnership.get()) {
-    case PartnershipLabel::NORTH_SOUTH:
-        return std::pair {Positions::NORTH, Positions::SOUTH};
-    case PartnershipLabel::EAST_WEST:
-        return std::pair {Positions::EAST, Positions::WEST};
-    default:
-        throw std::invalid_argument("Invalid partnership");
-    }
-}
-
 Partnership partnershipFor(const Position position)
 {
     switch (position.get()) {

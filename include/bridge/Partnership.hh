@@ -78,16 +78,6 @@ inline constexpr Partnership EAST_WEST { PartnershipLabel::EAST_WEST };
 }
 //[[[end]]]
 
-/** \brief Determine the positions in a partnership
- *
- * \param partnership the partnership
- *
- * \return a pair of positions belonging to the given partnership
- *
- * \throw std::invalid_argument if the partnership is invalid
- */
-std::pair<Position, Position> positionsFor(Partnership partnership);
-
 /** \brief Determine to which partnership a given position belongs to
  *
  * \param position the position

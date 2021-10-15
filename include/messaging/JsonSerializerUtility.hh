@@ -99,60 +99,6 @@ struct adl_serializer<Enum, std::enable_if_t<enhanced_enum::is_enhanced_enum_v<E
 namespace Bridge {
 namespace Messaging {
 
-/** \brief Convert enumeration to JSON
- *
- * \param e the enumeration to convert
- * \param map mapping between enumeration values and strings
- *
- * \return JSON representation of \p e
- */
-template<typename E, typename MapType>
-nlohmann::json enumToJson(E e, const MapType& map)
-{
-    return map.at(e);
-}
-
-/** \brief Convert JSON object to enumeration
- *
- * \tparam E the enumeration type
- *
- * \param j the JSON object to convert
- * \param map mapping between strings and enumeration values
- *
- * \return the enumeration represented by \p j
- *
- * \throw SerializationFailureException if \p j does not represent string or does
- * not represent valid enumeration.
- */
-template<typename E, typename MapType>
-E jsonToEnum(const nlohmann::json& j, const MapType& map)
-{
-    const auto iter = map.find(j);
-    if (iter != map.end()) {
-        return iter->second;
-    }
-    throw SerializationFailureException {};
-}
-
-/** \brief Convert blob to JSON
- *
- * \param blob the blob to convert
- *
- * \return JSON string containing the hex encoded blob
- */
-nlohmann::json blobToJson(const Blob& blob);
-
-/** \brief Convert JSON to blob
- *
- * \param j JSON string containing the hex encoded blob
- *
- * \return the decoded blob
- *
- * \throw SerializationFailureException if \p j does not contain valid hex
- * encoded string
- */
-Blob jsonToBlob(const nlohmann::json& j);
-
 /** \brief Validate a deserialized value
  *
  * This function is intended to be used for an deserialized object when
