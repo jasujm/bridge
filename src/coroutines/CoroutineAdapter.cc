@@ -13,7 +13,7 @@ namespace Coroutines {
 
 class CoroutineAdapter::ClearAwaitVisitor {
 public:
-    ClearAwaitVisitor(CoroutineAdapter& parent) :
+    explicit ClearAwaitVisitor(CoroutineAdapter& parent) :
         parent {parent}
     {
     }
@@ -84,7 +84,7 @@ const CoroutineAdapter::Awaitable* CoroutineAdapter::getAwaited() const
 void CoroutineAdapter::internalResume()
 {
     source();
-    const auto this_avoids_selfdestruct = shared_from_this();
+    [[maybe_unused]] const auto this_avoids_selfdestruct = shared_from_this();
     std::visit(ClearAwaitVisitor {*this}, awaited);
     internalUpdate();
 }

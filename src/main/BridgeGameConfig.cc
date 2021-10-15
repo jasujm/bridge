@@ -82,14 +82,13 @@ BridgeGame gameFromConfig(
             GAME_COMMAND,
             std::pair {GAME_COMMAND, config.uuid},
             std::pair {ARGS_COMMAND, std::move(game_args)});
-        auto card_protocol = std::unique_ptr<CardProtocol> {};
-        if (config.cardServer) {
-            card_protocol = std::make_unique<CardServerProxy>(
-                context, keys, config.cardServer->controlEndpoint);
-        } else {
-            card_protocol = std::make_unique<SimpleCardProtocol>(
-                config.uuid, peer_command_sender);
-        }
+        auto card_protocol = config.cardServer ?
+            static_cast<std::unique_ptr<CardProtocol>>(
+                std::make_unique<CardServerProxy>(
+                    context, keys, config.cardServer->controlEndpoint)) :
+            static_cast<std::unique_ptr<CardProtocol>>(
+                std::make_unique<SimpleCardProtocol>(
+                    config.uuid, peer_command_sender));
         auto positions = BridgeGame::PositionSet(
             config.positionsControlled.begin(),
             config.positionsControlled.end());

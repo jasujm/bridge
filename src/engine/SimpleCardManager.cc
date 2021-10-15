@@ -72,7 +72,7 @@ using CardTypeVector = Impl::CardTypeVector;
 // This is event is defined here to be able to refer to CardTypeVector
 class ShuffleEvent : public sc::event<ShuffleEvent> {
 public:
-    ShuffleEvent(const CardTypeVector& cards) :
+    explicit ShuffleEvent(const CardTypeVector& cards) :
         cards {cards}
     {
     }
@@ -110,7 +110,7 @@ public:
     using reactions = sc::transition<
         ShuffleEvent, ShuffleCompleted, Active, &Active::addShuffledCards>;
 
-    ShuffleRequested(my_context ctx);
+    explicit ShuffleRequested(my_context ctx);
 };
 
 ShuffleRequested::ShuffleRequested(my_context ctx) :
@@ -124,7 +124,7 @@ class ShuffleCompleted : public sc::state<ShuffleCompleted, Active> {
 public:
     using reactions =  sc::transition<RequestShuffleEvent, ShuffleRequested>;
 
-    ShuffleCompleted(my_context ctx);
+    explicit ShuffleCompleted(my_context ctx);
 };
 
 ShuffleCompleted::ShuffleCompleted(my_context ctx) :

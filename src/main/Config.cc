@@ -63,7 +63,7 @@ constexpr auto DATA_DIR = "data_dir"sv;
 
 class LuaPopGuard {
 public:
-    LuaPopGuard(lua_State* lua);
+    explicit LuaPopGuard(lua_State* lua);
     ~LuaPopGuard();
 private:
     lua_State* lua;
@@ -81,7 +81,7 @@ LuaPopGuard::~LuaPopGuard()
 
 constexpr auto READ_CHUNK_SIZE = 4096;
 struct LuaStreamReaderArgs {
-    LuaStreamReaderArgs(std::istream& in) : in {in}, buf {} {};
+    explicit LuaStreamReaderArgs(std::istream& in) : in {in}, buf {} {};
     std::istream& in;
     std::array<char, READ_CHUNK_SIZE> buf;
 };
@@ -307,7 +307,7 @@ class Config::Impl {
 public:
 
     Impl();
-    Impl(std::istream& in);
+    explicit Impl(std::istream& in);
 
     Messaging::EndpointIterator getEndpointIterator() const;
     const Messaging::CurveKeys* getCurveConfig() const;

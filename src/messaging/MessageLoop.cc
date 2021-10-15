@@ -49,7 +49,7 @@ auto createSigmask()
 
 class MessageLoop::Impl {
 public:
-    Impl(MessageContext& context);
+    explicit Impl(MessageContext& context);
 
     ~Impl();
 
@@ -62,7 +62,7 @@ private:
 
     class SignalGuard {
     public:
-        SignalGuard(Impl& impl);
+        explicit SignalGuard(Impl& impl);
         ~SignalGuard();
 
         bool go() const { return !signalReceived; }

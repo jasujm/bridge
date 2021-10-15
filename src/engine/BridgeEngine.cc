@@ -34,7 +34,7 @@ namespace {
 
 template<typename T>
 std::optional<Position> getPositionHelper(
-    const std::vector<std::shared_ptr<T>> ts, const T& t)
+    const std::vector<std::shared_ptr<T>>& ts, const T& t)
 {
     const auto iter = std::find_if(
         ts.begin(), ts.end(), [&t](const auto& tp) { return &t == tp.get(); });
@@ -68,7 +68,7 @@ public:
 };
 class StartPlayingEvent : public sc::event<StartPlayingEvent> {
 public:
-    StartPlayingEvent(const Position declarer) :
+    explicit StartPlayingEvent(const Position declarer) :
         declarer {declarer}
     {
     }
@@ -95,7 +95,7 @@ public:
 };
 class DealPassedOutEvent : public sc::event<DealPassedOutEvent> {
 public:
-    DealPassedOutEvent(const Uuid& dealUuid) :
+    explicit DealPassedOutEvent(const Uuid& dealUuid) :
         dealUuid {dealUuid}
     {
     }

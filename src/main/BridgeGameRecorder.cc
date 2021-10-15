@@ -607,7 +607,7 @@ const Trick& RecordedDeal::handleGetTrick(const int n) const
 
 class BridgeGameRecorder::Impl {
 public:
-    Impl(const std::string& path);
+    explicit Impl(const std::string& path);
     ~Impl();
 
     template<typename... Args>
@@ -711,7 +711,7 @@ BridgeGameRecorder::Impl::internalGetColumnFamilyHandle(
 #else // WITH_RECORDER
 
 struct BridgeGameRecorder::Impl {
-    Impl(std::string_view) {}
+    explicit Impl(std::string_view) {}
 };
 
 #endif // WITH_RECORDER

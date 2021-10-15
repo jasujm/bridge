@@ -20,7 +20,7 @@ namespace {
 
 class JsonSerializerVisitor {
 public:
-    JsonSerializerVisitor(json& j) : j {j} {}
+    explicit JsonSerializerVisitor(json& j) : j {j} {}
 
     auto operator()(Pass) const { return CALL_PASS_TAG; }
     auto operator()(const Bid& bid) const

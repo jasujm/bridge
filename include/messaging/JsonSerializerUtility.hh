@@ -115,10 +115,10 @@ namespace Messaging {
  * \throw SerializationFailureException if any predicate evaluates to false
  */
 template<typename T, typename... Preds>
-auto validate(T&& t, Preds&&... preds)
+T validate(T&& t, Preds&&... preds)
 {
     if ( ( ... && std::invoke(std::forward<Preds>(preds), t) ) ) {
-        return std::forward<T>(t);
+        return t;
     }
     throw SerializationFailureException {};
 }

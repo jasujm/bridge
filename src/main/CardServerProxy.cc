@@ -70,7 +70,7 @@ class ShuffleCompleted;
 
 template<typename EventType>
 struct DrawEventBase : public sc::event<EventType> {
-    DrawEventBase(const CardTypeVector& cards) :
+    explicit DrawEventBase(const CardTypeVector& cards) :
         cards {cards}
     {
     }

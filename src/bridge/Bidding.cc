@@ -12,7 +12,7 @@ namespace {
 
 class CallAllowedVisitor {
 public:
-    CallAllowedVisitor(const Bidding& bidding) :
+    explicit CallAllowedVisitor(const Bidding& bidding) :
         bidding {bidding}
     {
     }
