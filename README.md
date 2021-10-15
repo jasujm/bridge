@@ -27,16 +27,16 @@ The bridge application is written in C++ (backend) and Python
 (GUI). The backend does all actual game logic and communicates with
 the frontend and other peers using TCP sockets.
 
-The backend needs modern‐ish C++ compiler supporting C++17. The
+The backend needs modern‐ish C++ compiler supporting C++20. The
 project depends on
 - [ZeroMQ](https://zeromq.org/) for messaging (v4.3)
 - [CPPZMQ](https://github.com/zeromq/cppzmq) The C++ bindings for
   ZeroMQ (v4.6)
 - [json](https://github.com/nlohmann/json) to serialize and
   deserialize messages (v3.9)
-- [Lua](https://www.lua.org/) for configuration parsing (v5.3)
-- [Boost](https://www.boost.org/) for various things (v1.71)
-- [RocksDB](http://rocksdb.org/) for persistence (v5.17, optional)
+- [Lua](https://www.lua.org/) for configuration parsing (v5.4)
+- [Boost](https://www.boost.org/) for various things (v1.74)
+- [RocksDB](http://rocksdb.org/) for persistence (v5.25, optional)
 
 The versions in the bracket indicate the recommended minimum version
 that have been tested to work with the project.
@@ -270,7 +270,7 @@ The first two items are for supporting using the backend to power a
 
 ## Copyright
 
-Copyright © 2015–2020 Jaakko Moisio <jaakko@moisio.fi>
+Copyright © 2015–2021 Jaakko Moisio <jaakko@moisio.fi>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
