@@ -14,7 +14,7 @@ find_package(Threads REQUIRED)
 find_package(Boost 1.74 REQUIRED OPTIONAL_COMPONENTS coroutine)
 find_package(cppzmq 4.8 REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(Lua 5.3 REQUIRED)
+find_package(Lua 5.4 REQUIRED)
 find_package(RocksDB)
 find_package(LibTMCG)
 
